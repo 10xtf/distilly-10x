@@ -110,6 +110,7 @@ Each family has its own prompt pipeline, source-collection strategy, and generat
 ### 3️⃣ More Agent hosts
 
 The old version only ran in Claude Code. Now it's cross-host across four:
+Compatible hosts:
 
 | Host | Description |
 |------|-------------|
@@ -162,6 +163,9 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | Hermes | After clone, run `python3 tools/install_hermes_skill.py --force` |
 
 </details>
+
+Generated character Skills can be published with `tools/install_claude_generated_skill.py`,
+`tools/install_openclaw_generated_skill.py`, and `tools/install_codex_generated_skill.py`.
 
 > For Feishu/DingTalk auto-collection credentials, publishing a generated character Skill to any host, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
 
@@ -297,7 +301,8 @@ dot-skill uses **Persona** as the universal base, with family-specific modules l
 
 ## 📂 Project Structure
 
-This project follows the [AgentSkills](https://agentskills.io) open standard. The entire repo is a skill directory:
+This project follows the [AgentSkills](https://agentskills.io) open standard. The entire repo is a skill directory.
+Generated colleague skills live under `./skills/colleague`:
 
 ```
 dot-skill/

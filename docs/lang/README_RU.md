@@ -57,6 +57,8 @@
 
 </div>
 
+> 📝 **Обновление 2026.06.01** — **[Технический отчёт COLLEAGUE.SKILL](../../colleague_skill.pdf) опубликован**; больше всего нас радует не просто выход paper, а то, что сообщество вместе вырастило gallery до 215 skills от 165 контрибьюторов и 100k+ суммарных stars на skill cards, а все участники сообщества были отдельно упомянуты в Acknowledgements.
+
 > 📢 **Обновление 2026.05.11** — **Группа 12 WeChat запущена!** Заходи в сообщество dot-skill — делиться навыками, обсуждать фичи, обмениваться советами.
 >
 > <img src="../assets/wechat-group-qr-12.png" alt="QR-код группы WeChat dot-skill" width="240">
@@ -356,7 +358,7 @@ dot-skill/
 
 ## 📄 Технический отчёт
 
-> **[Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)**
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > Это статья про **colleague.skill**, предшественника dot-skill. Она описывает двухслойную архитектуру Work Skill + Persona, мультиисточниковый сбор данных и механику генерации Skill'ов — теоретическую основу сегодняшнего семейства `colleague`. Отдельные статьи по расширениям на семейства relationship / celebrity — в планах.
 

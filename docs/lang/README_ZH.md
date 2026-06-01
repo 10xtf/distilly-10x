@@ -56,6 +56,8 @@
 
 </div>
 
+> 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
+
 > 📢 **2026.05.11 更新** — **微信十二群建好啦！** 欢迎进群一起玩 dot-skill，分享 skill、聊聊功能、互相交流～
 >
 > <img src="../assets/wechat-group-qr-12.png" alt="dot-skill 微信群二维码" width="240">
@@ -351,7 +353,7 @@ dot-skill/
 
 ## 📄 技术报告
 
-> **[Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)**
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 这是 dot-skill 的前身 **colleague.skill** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制 —— 也是今天 dot-skill `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
 

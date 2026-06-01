@@ -57,6 +57,8 @@
 
 </div>
 
+> 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](../../colleague_skill.pdf)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
+
 > 📢 **2026.05.11 업데이트** — **WeChat 12번 그룹이 개설되었습니다!** dot-skill 커뮤니티에 놀러 오세요 — 스킬을 공유하고, 기능을 논의하고, 팁을 주고받으세요.
 >
 > <img src="../assets/wechat-group-qr-12.png" alt="dot-skill WeChat 그룹 QR" width="240">
@@ -356,7 +358,7 @@ dot-skill/
 
 ## 📄 기술 보고서
 
-> **[Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)**
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 이 논문은 dot-skill의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
 

@@ -57,6 +57,8 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
 
+> 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](../../colleague_skill.pdf) is now available**; the happiest part is not just publishing a paper, but seeing the community grow the gallery to 215 skills from 165 contributors with 100k+ cumulative skill-card stars, all acknowledged in the paper.
+
 > 📢 **2026.05.11 Update** — **WeChat group 12 is live!** Come hang out with the dot-skill community — share skills, discuss features, trade tips.
 >
 > <img src="../assets/wechat-group-qr-12.png" alt="dot-skill WeChat group QR" width="240">
@@ -356,7 +358,7 @@ dot-skill/
 
 ## 📄 Technical Report
 
-> **[Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)**
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > This is the paper for **colleague.skill**, dot-skill's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 

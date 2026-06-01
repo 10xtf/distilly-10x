@@ -356,7 +356,7 @@ dot-skill/
 
 ## 📄 Technical Report
 
-> **[Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation](colleague_skill.pdf)**
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/abs/2605.31264)** ([PDF](https://arxiv.org/pdf/2605.31264))
 >
 > This is the paper for **colleague.skill**, dot-skill's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 
@@ -368,10 +368,13 @@ If you use **dot-skill** or **colleague.skill** in your research or applications
 
 ```bibtex
 @misc{zhou2026colleagueskill,
-  title        = {Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation},
+  title        = {COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation},
   author       = {Tianyi Zhou and Dongrui Liu and Leitao Yuan and Jing Shao and Xia Hu},
   year         = {2026},
-  url          = {https://github.com/titanwings/colleague-skill/blob/dot-skill/colleague_skill.pdf}
+  eprint       = {2605.31264},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  url          = {https://arxiv.org/abs/2605.31264}
 }
 ```
 

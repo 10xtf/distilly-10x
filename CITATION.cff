@@ -16,8 +16,8 @@ license: MIT
 repository-code: "https://github.com/titanwings/colleague-skill"
 url: "https://github.com/titanwings/colleague-skill"
 preferred-citation:
-  type: report
-  title: "Colleague.Skill: Automated AI Skill Generation via Expert Knowledge Distillation"
+  type: article
+  title: "COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation"
   authors:
     - family-names: Zhou
       given-names: Tianyi
@@ -30,4 +30,9 @@ preferred-citation:
     - family-names: Hu
       given-names: Xia
   year: 2026
-  url: "https://github.com/titanwings/colleague-skill/blob/dot-skill/colleague_skill.pdf"
+  date-released: "2026-05-29"
+  url: "https://arxiv.org/abs/2605.31264"
+  identifiers:
+    - type: other
+      value: "arXiv:2605.31264"
+      description: "The arXiv preprint of the technical report."

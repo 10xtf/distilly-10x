@@ -51,7 +51,7 @@ Pensa no frame deles, fala na voz deles
 
 <div align="center">
 
-### 🎉 Marco 2026.04.19 — **dot-skill acabou de bater 15k ⭐!**
+### 🎉 Marco 2026.08.13 — **dot-skill ultrapassou 20K ⭐!**
 
 Um obrigado enorme a todos que deram estrela — seguiremos lançando, seguiremos destilando.
 

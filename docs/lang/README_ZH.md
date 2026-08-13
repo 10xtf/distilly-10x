@@ -55,11 +55,13 @@
 
 <div align="center">
 
-### 🎉 2026.04.19 里程碑 — **dot-skill 突破 15k ⭐ 啦！**
+### 🎉 2026.08.13 里程碑 — **dot-skill 已突破 20K ⭐！**
 
 感谢每一位点星的朋友，我们会继续发版、继续蒸馏。
 
 </div>
+
+> 🔷 **2026.08.13 更新** — dot-skill 现已支持 **DeepSeek Harness** 原生文件系统 Skill 发现。可全局安装到 `~/.dsh/skills/dot-skill`，或按项目安装到 `.dsh/skills/dot-skill`，之后直接调用 `/dot-skill`。
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 

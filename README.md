@@ -56,11 +56,13 @@ Thinks in their frame, speaks in their voice
 
 <div align="center">
 
-### 🎉 2026.04.19 Milestone — **dot-skill just hit 15k ⭐!**
+### 🎉 2026.08.13 Milestone — **dot-skill has passed 20K ⭐!**
 
 Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
+
+> 🔷 **2026.08.13 Update** — dot-skill now supports **DeepSeek Harness** through its native filesystem Skill discovery. Install it globally at `~/.dsh/skills/dot-skill` or per project at `.dsh/skills/dot-skill`, then invoke `/dot-skill` directly.
 
 > 📝 **2026.06.01 Update** — **[COLLEAGUE.SKILL 技术报告](colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 

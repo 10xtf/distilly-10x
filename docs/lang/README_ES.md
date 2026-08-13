@@ -51,7 +51,7 @@ Piensa en su marco, habla con su voz
 
 <div align="center">
 
-### 🎉 Hito 2026.04.19 — **¡dot-skill acaba de superar las 15k ⭐!**
+### 🎉 Hito 2026.08.13 — **¡dot-skill ya superó las 20K ⭐!**
 
 Gracias enormes a todos los que nos dieron star — seguiremos publicando, seguiremos destilando.
 

@@ -56,11 +56,13 @@ Thinks in their frame, speaks in their voice
 
 <div align="center">
 
-### 🎉 2026.04.19 Milestone — **dot-skill just hit 15k ⭐!**
+### 🎉 2026.08.13 Milestone — **dot-skill has passed 20K ⭐!**
 
 Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
+
+> 🔷 **2026.08.13 Update** — dot-skill now supports **DeepSeek Harness** through its native filesystem Skill discovery. Install it globally at `~/.dsh/skills/dot-skill` or per project at `.dsh/skills/dot-skill`, then invoke `/dot-skill` directly.
 
 > 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](../../colleague_skill.pdf) is now available**; the happiest part is not just publishing a paper, but seeing the community grow the gallery to 215 skills from 165 contributors with 100k+ cumulative skill-card stars, all acknowledged in the paper.
 

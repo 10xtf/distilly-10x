@@ -51,7 +51,7 @@ Denkt in ihrem Rahmen, spricht in ihrer Stimme
 
 <div align="center">
 
-### 🎉 Meilenstein 2026.04.19 — **dot-skill hat 15k ⭐ geknackt!**
+### 🎉 Meilenstein 2026.08.13 — **dot-skill hat 20K ⭐ überschritten!**
 
 Riesigen Dank an alle, die einen Stern dagelassen haben — wir liefern weiter aus, destillieren weiter.
 

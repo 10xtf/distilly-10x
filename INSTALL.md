@@ -27,6 +27,7 @@ git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/dot-ski
 - OpenClaw
 - Hermes
 - Codex
+- DeepSeek Harness
 
 在支持 slash command 的宿主里，统一使用 `/dot-skill`。
 在 Hermes 中，把 `/dot-skill` 当作唯一稳定的 slash 入口。`colleague`、`relationship`、`celebrity` 三类兼容性仍然保留在工具层和存储层，但不建议依赖 `/create-colleague` 这类家族别名作为 Hermes 的 slash command。
@@ -114,6 +115,26 @@ git clone https://github.com/titanwings/colleague-skill ~/.codex/skills/dot-skil
 ```
 
 Codex 没有固定 slash 入口。安装完成后，它会把 `dot-skill` 当作本地 skill 发现；生成后的角色 Skill 会以 `{character}-{slug}` 的技能名安装在 `~/.codex/skills/` 下。
+
+---
+
+### E. DeepSeek Harness
+
+DeepSeek Harness 原生发现 filesystem skill，不需要额外插件清单或包装脚本。任选一种安装范围：
+
+```bash
+# 方式 1：安装到当前项目
+mkdir -p .dsh/skills
+git clone https://github.com/titanwings/colleague-skill .dsh/skills/dot-skill
+
+# 方式 2：安装到全局（所有项目都能用）
+mkdir -p ~/.dsh/skills
+git clone https://github.com/titanwings/colleague-skill ~/.dsh/skills/dot-skill
+```
+
+如果设置了 `DSH_HOME`，全局目录对应为 `$DSH_HOME/skills/dot-skill`。安装后在 DeepSeek Harness 中输入 `/dot-skill`，或直接要求 Agent 启动 dot-skill。
+
+生成后的角色 Skill 也无需改写：把 `skills/{character}/{slug}` 整个目录放到 `~/.dsh/skills/{character}-{slug}`，或当前项目的 `.dsh/skills/{character}-{slug}` 即可。
 
 ---
 
@@ -294,7 +315,7 @@ knowledge/张三/
 ## 快速验证
 
 ```bash
-cd ~/.claude/skills/dot-skill   # 或你的项目 .claude/skills/dot-skill
+cd <dot-skill-install-path>   # 例如 ~/.claude/skills/dot-skill 或 ~/.dsh/skills/dot-skill
 
 # 测试飞书解析器
 python3 tools/feishu_parser.py --help
@@ -328,7 +349,7 @@ python3 tools/skill_writer.py --action list --base-dir ./skills/colleague
 本项目整个 repo 就是一个 skill 目录（AgentSkills 标准格式）：
 
 ```
-colleague-skill/        ← clone 到 .claude/skills/dot-skill/
+colleague-skill/        ← clone 到宿主的 skills/dot-skill/（例如 .claude/skills 或 .dsh/skills）
 ├── SKILL.md            # skill 入口（官方 frontmatter）
 ├── prompts/            # 分析和生成的 Prompt 模板
 ├── tools/              # Python 工具脚本

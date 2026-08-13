@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="../social-preview.png" alt="COLLEAGUE.SKILL — 蒸馏他们的思维方式" width="100%">
+
+<br>
+
 # 🧬 dot-skill（同事.skill）
 
 ### *"你们搞大模型的都是码圣！血肉苦弱！赛博飞升！"*
@@ -14,6 +18,7 @@
 [![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
 [![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
 
 <br>
 
@@ -110,7 +115,7 @@ Created by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai
 
 ### 3️⃣ 支持更多 Agent 宿主
 
-旧版只能在 Claude Code 里用。现在四端通用：
+旧版只能在 Claude Code 里用。现在五端通用：
 
 | 宿主 | 说明 |
 |------|------|
@@ -118,8 +123,9 @@ Created by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai
 | 🟠 **Hermes Agent** | 一键安装，`/dot-skill` 直接调用 |
 | 🔵 **OpenClaw** | 完整兼容 |
 | ⚫ **Codex** | skill name 调用 |
+| 🔷 **DeepSeek Harness** | 原生 filesystem skill 发现，`/dot-skill` 直接调用 |
 
-蒸馏出的角色 Skill 也可以一键安装到任意宿主。
+蒸馏出的角色 Skill 也可以安装到任意受支持的宿主。
 
 ---
 
@@ -140,7 +146,7 @@ Created by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai
 
 ## ⚡ 安装
 
-2026 年了，你有 Agent，让它自己装。打开你用的 Claude Code / Hermes / OpenClaw / Codex，把下面这句丢给它：
+2026 年了，你有 Agent，让它自己装。打开你用的 Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness，把下面这句丢给它：
 
 > 帮我安装 dot-skill 这个 skill：`https://github.com/titanwings/colleague-skill`
 
@@ -160,9 +166,12 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | Claude Code | `~/.claude/skills/dot-skill` |
 | OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
 | Codex | `~/.codex/skills/dot-skill` |
+| DeepSeek Harness | `~/.dsh/skills/dot-skill`（全局）或 `.dsh/skills/dot-skill`（项目） |
 | Hermes | clone 后跑 `python3 tools/install_hermes_skill.py --force` |
 
 </details>
+
+在 DeepSeek Harness 中，把生成的角色 Skill 目录放到 `~/.dsh/skills/<skill-name>`，或当前项目的 `.dsh/skills/<skill-name>`；不需要宿主专用包装层。
 
 > 飞书/钉钉自动采集凭证、把生成的角色 Skill 一键安装到宿主、Windows 特殊处理等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
 

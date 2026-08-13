@@ -46,12 +46,14 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn(".claude/skills/dot-skill", readme)
         self.assertIn("~/.openclaw/workspace/skills/dot-skill", readme)
         self.assertIn("~/.codex/skills/dot-skill", readme)
+        self.assertIn("~/.dsh/skills/dot-skill", readme)
         self.assertIn("/dot-skill", readme)
         self.assertIn("./skills/colleague", readme)
 
         self.assertIn(".claude/skills/dot-skill", install)
         self.assertIn("~/.openclaw/workspace/skills/dot-skill", install)
         self.assertIn("~/.codex/skills/dot-skill", install)
+        self.assertIn("~/.dsh/skills/dot-skill", install)
         self.assertIn("/dot-skill", install)
         self.assertIn("./skills/colleague", install)
         self.assertIn("install_claude_generated_skill.py", readme)
@@ -64,6 +66,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("install_codex_skill.py", install)
         self.assertIn("/{character}-{slug}", install)
         self.assertIn("./skills/colleague", skill)
+        self.assertIn("DeepSeek Harness", skill)
         self.assertIn("compatible hosts", readme.lower())
         self.assertIn("兼容宿主", install)
 

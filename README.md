@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="docs/social-preview.png" alt="COLLEAGUE.SKILL — Distill how they think." width="100%">
+
+<br>
+
 # 🧬 dot-skill（同事.skill）
 
 ### *"You folks building LLMs are all code-sages! Flesh is weak! Ascend to cyberspace!"*
@@ -13,6 +17,7 @@
 [![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
 [![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -111,7 +116,7 @@ Each family has its own prompt pipeline, source-collection strategy, and generat
 
 ### 3️⃣ More Agent hosts
 
-The old version only ran in Claude Code. Now it's cross-host across four:
+The old version only ran in Claude Code. Now it's cross-host across five:
 Compatible hosts:
 
 | Host | Description |
@@ -120,8 +125,9 @@ Compatible hosts:
 | 🟠 **Hermes Agent** | One-command install, `/dot-skill` works directly |
 | 🔵 **OpenClaw** | Fully compatible |
 | ⚫ **Codex** | Invoke by skill name |
+| 🔷 **DeepSeek Harness** | Native filesystem skill discovery; `/dot-skill` works directly |
 
-Generated character Skills can also be one-command installed into any host.
+Generated character Skills can also be installed into any supported host.
 
 ---
 
@@ -142,7 +148,7 @@ Generated character Skills can also be one-command installed into any host.
 
 ## ⚡ Install
 
-It's 2026 — you have an Agent, let it install itself. Open your Claude Code / Hermes / OpenClaw / Codex and hand it this line:
+It's 2026 — you have an Agent, let it install itself. Open your Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness and hand it this line:
 
 > Install the dot-skill skill for me: `https://github.com/titanwings/colleague-skill`
 
@@ -162,12 +168,14 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | Claude Code | `~/.claude/skills/dot-skill` |
 | OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
 | Codex | `~/.codex/skills/dot-skill` |
+| DeepSeek Harness | `~/.dsh/skills/dot-skill` (global) or `.dsh/skills/dot-skill` (project) |
 | Hermes | After clone, run `python3 tools/install_hermes_skill.py --force` |
 
 </details>
 
 Generated character Skills can be published with `tools/install_claude_generated_skill.py`,
 `tools/install_openclaw_generated_skill.py`, and `tools/install_codex_generated_skill.py`.
+On DeepSeek Harness, place a generated Skill directory under `~/.dsh/skills/<skill-name>` or the current project's `.dsh/skills/<skill-name>`; no host-specific wrapper is required.
 
 > For Feishu/DingTalk auto-collection credentials, publishing a generated character Skill to any host, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
 

@@ -13,7 +13,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 > **Execution Root / 执行根目录**: Run all `Bash` commands from the directory that contains this `SKILL.md`. All `tools/...` and `prompts/...` paths below are relative to the skill root.
 >
-> **Critical rule / 关键规则**: Do **not** prepend commands with guessed host-specific paths such as `cd ~/.hermes/...`, `cd ~/.claude/...`, `cd ~/.openclaw/...`, `cd ~/.codex/...`, or hard-coded `/Users/.../dot-skill` paths. The current working directory is already the correct skill root. Run `python3 tools/...` directly.
+> **Critical rule / 关键规则**: Do **not** prepend commands with guessed host-specific paths such as `cd ~/.hermes/...`, `cd ~/.claude/...`, `cd ~/.openclaw/...`, `cd ~/.codex/...`, `cd ~/.dsh/...`, or hard-coded `/Users/.../dot-skill` paths. The current working directory is already the correct skill root. Run `python3 tools/...` directly.
 >
 > 所有 `Bash` 命令都必须在当前 `SKILL.md` 所在目录执行。下文出现的 `tools/...` 和 `prompts/...` 均为相对于 skill 根目录的相对路径。
 
@@ -33,6 +33,7 @@ allowed-tools: Read, Write, Edit, Bash
 - OpenClaw
 - Hermes
 - Codex
+- DeepSeek Harness
 
 统一主入口是 `dot-skill`。在支持 slash command 的宿主中，使用 `/dot-skill`。
 对 Hermes 而言，只保证 `/dot-skill` 这一条 slash 入口稳定；`colleague`、`relationship`、`celebrity` 的兼容语义保留在工具层和 preset 层，但不保证每个兼容名称都能作为 Hermes slash command 被路由。
@@ -621,6 +622,7 @@ Persona 摘要：
      - Claude Code：追加 `--install-claude-skill`
      - OpenClaw：追加 `--install-openclaw-skill`
      - Codex：追加 `--install-codex-skill`
+     - DeepSeek Harness：无需专用 flag；生成后将角色 Skill 目录放到 `~/.dsh/skills/{character}-{slug}` 或项目 `.dsh/skills/{character}-{slug}`
      - Claude Code on Windows：可再追加 `--install-claude-command-shim`
 6. 如果当前是 `celebrity`，创建完成后必须再跑一次质量检查：
    ```bash
@@ -758,6 +760,7 @@ Compatible hosts:
 - OpenClaw
 - Hermes
 - Codex
+- DeepSeek Harness
 
 The canonical entrypoint is `dot-skill`. In hosts that expose slash commands, use `/dot-skill`.
 Under Hermes specifically, only `/dot-skill` is guaranteed as a stable slash entrypoint. Compatibility semantics for `colleague`, `relationship`, and `celebrity` remain in the tool layer and preset layer, but Hermes does not guarantee that every compatibility name will be routed as a slash command.
@@ -1347,6 +1350,7 @@ After user confirmation, do not hand-build a `skills/colleague/{slug}`-style tre
      - Claude Code: `--install-claude-skill`
      - OpenClaw: `--install-openclaw-skill`
      - Codex: `--install-codex-skill`
+     - DeepSeek Harness: no host-specific flag is needed; after generation, place the role Skill directory under `~/.dsh/skills/{character}-{slug}` or the project's `.dsh/skills/{character}-{slug}`
      - Claude Code on Windows: optionally add `--install-claude-command-shim`
 6. If the current family is `celebrity`, run a quality check after creation:
    ```bash

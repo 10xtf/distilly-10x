@@ -164,18 +164,51 @@ def render_combined_skill(meta: dict, work_content: str, persona_content: str) -
     )
 
 
+_PERSONA_HANDOFF_PATTERNS = (
+    re.compile(r"如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。\s*"),
+    re.compile(
+        r"If (?:you are )?asked (?:a question )?outside (?:your|the) "
+        r"(?:recorded )?responsibilities[^.]*Persona[^.]*\.\s*",
+        re.IGNORECASE,
+    ),
+)
+
+WORK_ONLY_FALLBACK_ZH = (
+    "如果问题超出已记录的职责范围，或原材料不足以回答，请直接说明缺口。"
+    "不要推断，也不要引用 Persona。"
+)
+WORK_ONLY_FALLBACK_EN = (
+    "If the question is outside the recorded responsibilities or the source "
+    "material is insufficient, state the gap. Do not infer or refer to Persona."
+)
+
+
+def work_only_content(work_content: str, *, chinese: bool) -> str:
+    """Copy Work text for the Work-only skill, without a Persona handoff."""
+    text = work_content
+    for pattern in _PERSONA_HANDOFF_PATTERNS:
+        text = pattern.sub("", text)
+    text = text.rstrip()
+    fallback = WORK_ONLY_FALLBACK_ZH if chinese else WORK_ONLY_FALLBACK_EN
+    if fallback not in text:
+        text = f"{text}\n\n{fallback}" if text else fallback
+    return text
+
+
 def render_work_skill(meta: dict, work_content: str) -> str:
     """Render the work-only skill artifact."""
     artifacts = meta["artifacts"]
+    chinese = prefers_chinese(meta)
     description = (
         f"{meta['display_name']} 的工作能力（仅 Work，无 Persona）"
-        if prefers_chinese(meta)
+        if chinese
         else f"{meta['display_name']} work capability only (without persona)"
     )
+    body = work_only_content(work_content, chinese=chinese)
     return (
         f"---\nname: {artifacts['work_name']}\n"
         f"description: {description}\n"
-        f"user-invocable: true\n---\n\n{work_content}\n"
+        f"user-invocable: true\n---\n\n{body}\n"
     )
 
 

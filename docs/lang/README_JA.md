@@ -71,7 +71,7 @@
 
 <div align="center">
 
-Created by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai AI Lab · AI Safety Center**
+Created by [@titanwings](https://github.com/titanwings)
 
 </div>
 

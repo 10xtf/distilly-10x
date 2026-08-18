@@ -78,7 +78,7 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 <div align="center">
 
-Created by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai AI Lab · AI Safety Center**
+Created by [@titanwings](https://github.com/titanwings)
 
 </div>
 

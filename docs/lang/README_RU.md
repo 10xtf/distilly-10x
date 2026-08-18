@@ -71,7 +71,7 @@
 
 <div align="center">
 
-Создано [@titanwings](https://github.com/titanwings) · При поддержке **Shanghai AI Lab · AI Safety Center**
+Создано [@titanwings](https://github.com/titanwings)
 
 </div>
 

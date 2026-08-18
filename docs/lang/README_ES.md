@@ -71,7 +71,7 @@ Gracias enormes a todos los que nos dieron star — seguiremos publicando, segui
 
 <div align="center">
 
-Creado por [@titanwings](https://github.com/titanwings) · Impulsado por **Shanghai AI Lab · AI Safety Center**
+Creado por [@titanwings](https://github.com/titanwings)
 
 </div>
 

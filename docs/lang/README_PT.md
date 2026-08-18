@@ -71,7 +71,7 @@ Um obrigado enorme a todos que deram estrela — seguiremos lançando, seguiremo
 
 <div align="center">
 
-Criado por [@titanwings](https://github.com/titanwings) · Powered by **Shanghai AI Lab · AI Safety Center**
+Criado por [@titanwings](https://github.com/titanwings)
 
 </div>
 

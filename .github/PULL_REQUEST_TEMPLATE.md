@@ -1,38 +1,52 @@
-<!--
-Thanks for contributing to colleague.skill! 感谢你的贡献！
-Please fill out the sections below. 请填写下方各部分。
--->
+<!-- Fill this with observed facts. Do not claim checks you did not run. -->
 
-## Summary / 摘要
+## Objective / 目标
 
-<!-- What does this PR do? One or two sentences. / 这个 PR 做了什么？一两句话说明。 -->
+<!-- Goal and acceptance criteria. / 目标和验收条件。 -->
+
+## Contract and identity / 合同与基线
+
+- Base repository/remote, ref, and resolved metadata SHA:
+- Remote review head SHA (must match current PR metadata):
+- Owning design / issue:
+- Agent Note, or why this diff is outside governed paths:
 
 ## Changes / 变更
 
-<!-- Bullet list of notable changes. / 主要改动列表。 -->
--
 -
 
-## Motivation / 动机
+## Verification / 验证
 
-<!-- Why is this change needed? Link related issues. / 为什么需要这个改动？关联 issue。 -->
-Closes #
+| Command or check | Result | Why it covers this diff |
+|---|---|---|
+| `...` | PASS / FAIL / PENDING | ... |
 
-## Testing / 测试
+## Not verified / 未验证
 
-<!-- How did you verify this works? Commands, screenshots, or manual steps. / 你是怎么验证的？命令、截图或手动步骤。 -->
-- [ ] `python -m unittest discover -s tests -p 'test_*.py'` passed
-- [ ] `python -m compileall tools/` passed
-- [ ] Manually tested: <!-- describe -->
+<!-- Name the missing check, reason, and expected owner: local, CI, reviewer, or user. -->
+
+## Compatibility, migration, and data impact / 兼容、迁移与数据影响
+
+-
+
+## Risks and review focus / 风险与评审重点
+
+-
+
+## Agent handoff / 交接
+
+- Status: complete | in progress | blocked
+- Exact next action, or `None`:
+- Local outgoing HEAD SHA, if work remains unpushed:
+- Workspace state and pre-existing changes to preserve:
+- External state: branch, CI, reviews, required decision:
+
+For a completed PR, the fields in this template are the handoff. Use the full contract in [docs/development.md](../docs/development.md#agent-handoff) when work is incomplete or transferred.
 
 ## Checklist / 检查清单
 
-- [ ] I read [CONTRIBUTING.md](../CONTRIBUTING.md)
-- [ ] Docs updated if behavior or usage changed (README / SKILL.md / INSTALL.md)
-- [ ] No secrets, tokens, or personal data committed
-- [ ] New dependencies added to `requirements.txt` (if any)
-- [ ] Tests added/updated for new functionality (or reason explained above)
-
-## Screenshots / 截图 (optional)
-
-<!-- Drop images here if UI or output changed. / 如果有 UI 或输出变化，贴图。 -->
+- [ ] I read the applicable root and local `AGENTS.md` files
+- [ ] Current behavior and target design are not presented as the same thing
+- [ ] Docs changed with behavior, and generated chapters were not hand-edited
+- [ ] Verification and unverified items above are complete and truthful
+- [ ] No secrets, tokens, personal data, or unintended files are committed

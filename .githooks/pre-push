@@ -1,0 +1,112 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+status_output=$(git status --porcelain --untracked-files=normal) || {
+    echo "pre-push: cannot inspect the working tree" >&2
+    exit 1
+}
+if [ -n "$status_output" ]; then
+    echo "pre-push: the checked-out working tree must be clean" >&2
+    echo "preserve unrelated work; push from a separate clean worktree if needed" >&2
+    exit 1
+fi
+current_ref=$(git symbolic-ref -q HEAD) || {
+    echo "pre-push: detached HEAD is not supported; check out the branch being pushed" >&2
+    exit 1
+}
+current_oid=$(git rev-parse HEAD)
+
+python3 -B scripts/verify_docs.py
+python3 -B scripts/verify_agent_notes.py
+ruff check tools scripts tests
+
+is_zero_oid() {
+    case "$1" in
+        ""|*[!0]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+    if is_zero_oid "$local_oid"; then
+        case "$remote_ref" in
+            refs/heads/distilly|refs/heads/dot-skill|refs/heads/main)
+                echo "pre-push: refusing to delete persistent branch $remote_ref" >&2
+                exit 1
+                ;;
+            refs/heads/*|refs/tags/*)
+                continue
+                ;;
+            *)
+                echo "pre-push: unsupported remote ref $remote_ref" >&2
+                exit 1
+                ;;
+        esac
+    fi
+    case "$remote_ref" in
+        refs/tags/*)
+            continue
+            ;;
+        refs/heads/*)
+            if [ "$local_ref" != "$current_ref" ] || [ "$local_oid" != "$current_oid" ]; then
+                echo "pre-push: branch gates only cover the clean checked-out HEAD" >&2
+                echo "check out $local_ref at $local_oid and push it separately" >&2
+                exit 1
+            fi
+            if [ "$local_ref" != "$remote_ref" ]; then
+                echo "pre-push: local and remote branch names must match" >&2
+                exit 1
+            fi
+            ;;
+        *)
+            echo "pre-push: unsupported remote ref $remote_ref" >&2
+            exit 1
+            ;;
+    esac
+    case "$remote_ref" in
+        refs/heads/distilly|refs/heads/dot-skill|refs/heads/main)
+            if is_zero_oid "$remote_oid"; then
+                echo "pre-push: cannot verify creation of persistent branch $remote_ref" >&2
+                exit 1
+            fi
+            if ! git merge-base --is-ancestor "$remote_oid" "$local_oid"; then
+                echo "pre-push: refusing a non-fast-forward update to $remote_ref" >&2
+                exit 1
+            fi
+            base_ref=$remote_oid
+            range_mode=direct
+            ;;
+        refs/heads/*)
+            branch_name=${local_ref#refs/heads/}
+            base_ref=${DISTILLY_BASE_REF:-}
+            if [ -z "$base_ref" ] && [ "$branch_name" != "$local_ref" ]; then
+                base_ref=$(git config --get "branch.$branch_name.distillyBase" || true)
+            fi
+            if [ -z "$base_ref" ]; then
+                echo "pre-push: no verified base for $local_ref" >&2
+                echo "set DISTILLY_BASE_REF=<remote-ref-or-sha>, or run:" >&2
+                echo "  git config branch.$branch_name.distillyBase <resolved-base-sha>" >&2
+                exit 1
+            fi
+            range_mode=merge-base
+            ;;
+    esac
+
+    base_oid=$(git rev-parse --verify "${base_ref}^{commit}") || {
+        echo "pre-push: base does not resolve to a commit: $base_ref" >&2
+        exit 1
+    }
+    git cat-file -e "${local_oid}^{commit}" || {
+        echo "pre-push: local head does not resolve to a commit: $local_oid" >&2
+        exit 1
+    }
+    python3 -B scripts/verify_agent_notes.py --base "$base_oid" --head "$local_oid" --range-mode "$range_mode"
+    if [ "$range_mode" = direct ]; then
+        git diff --check "$base_oid..$local_oid"
+    else
+        git diff --check "$base_oid...$local_oid"
+    fi
+done

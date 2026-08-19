@@ -46,7 +46,7 @@ def rewrite_frontmatter_name(markdown: str, new_name: str) -> str:
     if not replaced:
         rewritten.insert(0, f"name: {new_name}")
 
-    return f"---\n" + "\n".join(rewritten) + "\n---\n\n" + body.lstrip("\n")
+    return "---\n" + "\n".join(rewritten) + "\n---\n\n" + body.lstrip("\n")
 
 
 def render_installed_markdown(skill_dir: Path, artifact_name: str, command_name: str) -> str:

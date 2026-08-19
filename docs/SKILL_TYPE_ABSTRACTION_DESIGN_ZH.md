@@ -391,7 +391,7 @@ skills/{type}/{slug}/
 
 ## 7. `skill_writer.py` 应该怎么改
 
-当前 [`tools/skill_writer.py`](/Users/zhoutianyi/project/colleague-skill-series/colleague-skill/tools/skill_writer.py) 最大的问题不是“代码写得不好”，而是它承担了太多写死的 colleague 语义。
+当前 [`tools/skill_writer.py`](../tools/skill_writer.py) 最大的问题不是“代码写得不好”，而是它承担了太多写死的 colleague 语义。
 
 ### 7.1 现状中的硬编码
 

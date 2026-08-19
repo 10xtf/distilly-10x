@@ -2,11 +2,48 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dot-skill, distilly, main]
   pull_request:
-    branches: [main]
+    branches: [dot-skill, distilly, main]
+
+permissions:
+  contents: read
 
 jobs:
+  governance:
+    name: Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Documentation contracts
+        run: python -B scripts/verify_docs.py
+      - name: Agent Note tree, governed diff, and whitespace (PR)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python -B scripts/verify_agent_notes.py --base "$BASE_SHA" --head "$HEAD_SHA" --range-mode merge-base
+          git diff --check "$BASE_SHA...$HEAD_SHA"
+      - name: Agent Note tree, governed diff, and whitespace (push)
+        if: github.event_name == 'push'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          case "$BEFORE_SHA" in
+            "") echo "Push event has no before SHA" >&2; exit 1 ;;
+            *[!0]*) ;;
+            *) echo "Cannot verify a push with an all-zero before SHA" >&2; exit 1 ;;
+          esac
+          python -B scripts/verify_agent_notes.py --base "$BEFORE_SHA" --head "$HEAD_SHA" --range-mode direct
+          git diff --check "$BEFORE_SHA..$HEAD_SHA"
+
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -27,18 +64,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
       - name: Compile all Python sources
-        run: python -m compileall -q tools
+        run: |
+          python -m compileall -q tools scripts tests
+          if [ -d src ]; then python -m compileall -q src; fi
 
       - name: Run unit tests
-        run: |
-          if [ -d tests ]; then
-            python -m unittest discover -s tests -p 'test_*.py' -v
-          else
-            echo "No tests/ directory yet — skipping unittest discover."
-          fi
+        run: python -B scripts/run_tests.py
 
   lint:
     name: Ruff
@@ -48,7 +82,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install ruff
-        run: pip install ruff
-      - name: Run ruff (non-blocking for now)
-        run: ruff check tools/ || true
+          cache: pip
+      - name: Install lint dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run Ruff
+        run: ruff check tools scripts tests

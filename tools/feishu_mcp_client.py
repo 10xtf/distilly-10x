@@ -39,7 +39,6 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
 CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"

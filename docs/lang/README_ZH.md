@@ -9,7 +9,7 @@
 ### *"你们搞大模型的都是码圣！血肉苦弱！赛博飞升！"*
 
 [![Discord](https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 [![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
@@ -63,7 +63,7 @@
 
 > 🔷 **2026.08.13 更新** — dot-skill 现已支持 **DeepSeek Harness** 原生文件系统 Skill 发现。可全局安装到 `~/.dsh/skills/dot-skill`，或按项目安装到 `.dsh/skills/dot-skill`，之后直接调用 `/dot-skill`。
 
-> 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
+> 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/abs/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
 > 📢 **2026.05.11 更新** — **微信十二群建好啦！** 欢迎进群一起玩 dot-skill，分享 skill、聊聊功能、互相交流～
 >
@@ -364,7 +364,7 @@ dot-skill/
 
 ## 📄 技术报告
 
-> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/abs/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 这是 dot-skill 的前身 **colleague.skill** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制 —— 也是今天 dot-skill `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
 

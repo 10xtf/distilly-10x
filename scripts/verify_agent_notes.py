@@ -243,15 +243,28 @@ class Change:
 
 
 GOVERNED_ROOT_FILES = {
+    ".prettierignore",
+    ".prettierrc",
+    ".npmrc",
+    ".gitignore",
+    ".node-version",
+    ".nvmrc",
     "AGENTS.md",
     "CLAUDE.md",
     "CONTRIBUTING.md",
     "SKILL.md",
+    "knip.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "pnpmfile.cjs",
     "requirements.txt",
     "requirements-dev.txt",
     "ruff.toml",
+    "tsconfig.json",
 }
 GOVERNED_PREFIXES = (
+    "packages/",
     "src/",
     "tools/",
     "scripts/",
@@ -263,12 +276,29 @@ GOVERNED_PREFIXES = (
     "docs/design/",
     "docs/process/",
 )
+
+GOVERNED_ROOT_CONFIG_PREFIXES = (
+    ".prettierrc.",
+    "eslint.config.",
+    "knip.config.",
+    "prettier.config.",
+    "tsconfig.",
+    "vitest.config.",
+    "vitest.workspace.",
+)
 GOVERNED_DOCS = {
     ".agents/notes/README.md",
     "docs/architecture.md",
     "docs/development.md",
     "docs/testing.md",
 }
+
+TYPESCRIPT_TEST = re.compile(
+    r"^packages/[^/]+/src/(?:.*/)?[^/]+\.(?:test|spec)\.tsx?$"
+)
+TYPESCRIPT_SNAPSHOT = re.compile(
+    r"^packages/[^/]+/src/(?:.*/)?__snapshots__/[^/]+\.snap$"
+)
 
 
 def _is_note(path: str) -> bool:
@@ -283,9 +313,19 @@ def _is_note(path: str) -> bool:
     )
 
 
+def _is_typescript_test(path: str) -> bool:
+    return TYPESCRIPT_TEST.fullmatch(path) is not None or TYPESCRIPT_SNAPSHOT.fullmatch(path) is not None
+
+
 def _is_governed(path: str) -> bool:
+    if _is_typescript_test(path):
+        return False
     return (
         path in GOVERNED_ROOT_FILES
+        or (
+            "/" not in path
+            and path.startswith(GOVERNED_ROOT_CONFIG_PREFIXES)
+        )
         or path in GOVERNED_DOCS
         or path.startswith(GOVERNED_PREFIXES)
         or path.endswith(("/AGENTS.md", "/CLAUDE.md"))

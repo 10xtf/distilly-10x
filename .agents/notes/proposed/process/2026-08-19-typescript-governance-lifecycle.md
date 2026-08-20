@@ -4,7 +4,7 @@ Status: proposed
 
 ## Problem
 
-The governance layer this branch already runs — documentation contracts, the Agent Note tree, a governed-diff gate, per-directory instructions, and a pre-push hook — is implemented in Python and only inspects Python and Markdown. Once product code is [TypeScript](../architecture/2026-08-19-typescript-product-line.md), the existing gates cannot see the failures that actually matter in that ecosystem: a package that type-checks but publishes broken export maps, an unused export that reveals a dependency-direction violation, an unhandled Promise, a non-exhaustive `switch`, or a model-visible projection that changed without anyone reading the diff.
+The original governance layer on this branch — documentation contracts, the Agent Note tree, a governed-diff gate, per-directory instructions, and a pre-push hook — was implemented in Python and inspected only Python and Markdown. TypeScript product code introduces failures that layer cannot see by itself: a package that type-checks but publishes broken export maps, an accidental public export, an upward dependency or cycle, an unhandled Promise, a non-exhaustive `switch`, or a model-visible projection that changed without anyone reading the diff.
 
 There is also a sequencing trap. If TypeScript gates arrive only after the product code, the first several product PRs land with no mechanical checks at all, and the branch learns to treat red as normal.
 
@@ -17,7 +17,7 @@ Sixteen stages from bootstrap to monthly audit, each with an owner and a verdict
 - **`pnpm run gates` is the single aggregator.** It runs the fast checks, typecheck, tests, model-visible snapshots, documentation, notes, build, and hygiene in that order, printing each exact command so a report can quote it instead of paraphrasing. Existing practice already forbids writing only "tests pass".
 - **Fast and full are separate entry points.** `gates:fast` is what a task agent runs against the surface it changed; `gates` is the CI equivalent. Defaulting to the full suite locally teaches agents to skip checks.
 - **The release face has its own gates.** `publint` and a type-resolution check plus an import smoke over the built entry, because the common TypeScript failure is a package that passes every source test and still cannot be imported.
-- **`knip` enforces unused and undeclared dependency hygiene, not V3 §25 package direction.** A dedicated import-boundary and cycle gate lands with the second package, when a real cross-package edge exists; Knip alone cannot prove that an otherwise declared and used import points in the allowed direction.
+- **`knip` enforces unused and undeclared dependency hygiene.** The built self-import also asserts the foundation's exact runtime root exports. A dedicated import-boundary and cycle gate lands with the second package, when §25 has a real cross-package edge to inspect; Knip alone cannot prove that an otherwise declared and used import points in the allowed direction.
 - **Coverage is reported, not gated per file.** Per-file totals are a resource commitment this tree cannot honor yet, and a covered line is not an assertion.
 - **Model-visible output is snapshot-tested without any key.** `prompt()`, `SKILL.md`, and host instructions are the product's real output; a changed snapshot must be explained in the PR, never bulk-accepted.
 - **Repository governance has one implementation per check.** V3 does not reserve an empty `@distilly/governance` package. Existing Python doc/Note verifiers remain until a real TypeScript replacement lands with accepted/rejected parity, at which point the Python implementation is deleted in the same PR. The legacy product CI job exists only while `tools/` does and is deleted rather than disabled.
@@ -25,6 +25,12 @@ Sixteen stages from bootstrap to monthly audit, each with an owner and a verdict
 - **Gates never score prose.** V3 §27.9 draws the line explicitly: structure, links, exit codes, and export maps are mechanical; whether a rationale is true, whether an assertion would catch the intended defect, and whether every non-trivial change wrote a Note remain semantic review under [code-review.md](../../../../docs/process/code-review.md).
 
 Growth is signal-driven. V3 §27 keeps target gates tied to a behavior or release face, so the suite does not acquire twenty verifiers on day one. A checker with no corresponding failure is pure cost: it slows every change and gets whitelisted after its first false positive.
+
+### Current foundation evidence
+
+The implemented slice is a pinned `pnpm` workspace with a minimal built and self-imported `@distilly/protocol` package exposing only the canonical V3 wire-major sentinel. Its real stages cover formatting and lint, no-emit typecheck, fail-closed Vitest discovery, reported coverage, TypeScript build, package self-import, exports and type resolution, and unused or undeclared dependency hygiene. The CI definition exercises Node 22.19 and 24 across Linux and macOS; the Python documentation, Agent Note, compile, unittest, and Ruff lanes remain in place for the legacy tree. The governed-diff predicate includes `packages/` and the root pnpm, TypeScript, ESLint, Vitest, Knip, and Prettier configuration surfaces while preserving the standing tests-only exemption for co-located Vitest files and snapshots.
+
+This evidence proves the workspace and package foundation, not the complete Protocol contract or the full lifecycle proposed here. Protocol grammars, schemas, errors, methods, events, MCP descriptors and snapshots; Engine facts and recovery; host workflows; fresh install; release automation; and eventual parity-backed retirement of Python governance remain unimplemented, so this Note remains proposed.
 
 ## Alternatives considered
 

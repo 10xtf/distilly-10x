@@ -20,9 +20,9 @@ There is no `INDEX.md`. Browse the folders.
 
 ## When to write one
 
-Every governed change adds or updates at least one note in the same PR. The diff gate deliberately uses paths instead of guessing prose semantics. Governed paths are `src/`, `tools/`, `scripts/`, `prompts/`, `.githooks/`, `.agents/skills/`, `.github/`, `docs/cookbook/`, `docs/design/`, `docs/process/`, the live architecture/development/testing docs, every local `AGENTS.md`/`CLAUDE.md`, and root instruction, skill, dependency, and lint files.
+Every governed change adds or updates at least one note in the same PR. The diff gate deliberately uses paths instead of guessing prose semantics. Governed paths are `packages/`, `src/`, `tools/`, `scripts/`, `prompts/`, `.githooks/`, `.agents/skills/`, `.github/`, `docs/cookbook/`, `docs/design/`, `docs/process/`, the live architecture/development/testing docs, every local `AGENTS.md`/`CLAUDE.md`, and root instruction, skill, dependency, package-manager, TypeScript, ESLint, Vitest, Knip, and Prettier configuration files.
 
-Tests-only, translations, assets, and local-only work do not trigger the diff gate. A semantic reviewer still requires a Note if an exempt path changes behavior, architecture, a shared contract, process, testing strategy, or an on-disk / wire / config format.
+Tests-only changes — including co-located `*.test.ts` / `*.spec.ts` files and their `__snapshots__/` output — translations, assets, and local-only work do not trigger the diff gate. A semantic reviewer still requires a Note if an exempt path changes behavior, architecture, a shared contract, process, testing strategy, or an on-disk / wire / config format.
 
 Update the note that already owns the decision. A new decision gets a new note and a cross-link. Do not rewrite an implemented note into the opposite conclusion.
 

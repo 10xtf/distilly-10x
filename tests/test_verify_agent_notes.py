@@ -221,6 +221,70 @@ The choice may change.
         )
         self.assertEqual(errors, [])
 
+    def test_typescript_workspace_and_root_configs_require_note(self) -> None:
+        governed_paths = (
+            "packages/protocol/src/index.ts",
+            "packages/protocol/package.json",
+            "package.json",
+            "pnpm-workspace.yaml",
+            "pnpm-lock.yaml",
+            "pnpmfile.cjs",
+            ".npmrc",
+            ".gitignore",
+            ".node-version",
+            ".nvmrc",
+            "tsconfig.json",
+            "tsconfig.base.json",
+            "eslint.config.js",
+            "vitest.config.ts",
+            "knip.json",
+            ".prettierrc.json",
+            ".prettierignore",
+        )
+
+        for path in governed_paths:
+            with self.subTest(path=path):
+                errors = verify_diff([Change("M", path)])
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(path, errors[0])
+
+    def test_typescript_workspace_and_root_configs_accept_changed_note(self) -> None:
+        changes = [
+            Change("M", "packages/protocol/src/index.ts"),
+            Change("M", "package.json"),
+            Change("M", "pnpm-workspace.yaml"),
+            Change("M", "pnpm-lock.yaml"),
+            Change("M", "tsconfig.tools.json"),
+            Change("M", "eslint.config.mjs"),
+            Change("M", "vitest.workspace.ts"),
+            Change("M", "knip.config.ts"),
+            Change("M", "prettier.config.cjs"),
+            Change(
+                "M",
+                ".agents/notes/implemented/process/2026-08-19-example.md",
+            ),
+        ]
+
+        self.assertEqual(verify_diff(changes), [])
+
+    def test_colocated_typescript_tests_do_not_require_note(self) -> None:
+        self.assertEqual(
+            verify_diff(
+                [
+                    Change("M", "packages/protocol/src/ids.test.ts"),
+                    Change(
+                        "M",
+                        "packages/protocol/src/public-api.snapshot.test.ts",
+                    ),
+                    Change(
+                        "M",
+                        "packages/protocol/src/__snapshots__/public-api.snap",
+                    ),
+                ]
+            ),
+            [],
+        )
+
     def test_ungoverned_diff_does_not_require_note(self) -> None:
         self.assertEqual(
             verify_diff(

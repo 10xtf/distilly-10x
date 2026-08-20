@@ -1,0 +1,27 @@
+{
+  "name": "@distilly/protocol",
+  "version": "0.0.0",
+  "description": "Build foundation for the distilly protocol package.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^22.19 || ^24"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "!lib/**/*.test.*"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "scripts": {
+    "smoke:built": "node scripts/smoke-built.mjs"
+  }
+}

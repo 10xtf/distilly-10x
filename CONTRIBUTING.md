@@ -30,9 +30,11 @@ git clone https://github.com/titanwings/colleague-skill.git
 cd colleague-skill
 pip3 install -r requirements.txt
 pip3 install -r requirements-dev.txt
+corepack enable
+pnpm install --frozen-lockfile
 ```
 
-Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials) are covered in [INSTALL.md](INSTALL.md).
+Python 3.9+ is required for the published skill and repository governance. Product work uses Node `^22.19 || ^24` and the pinned `pnpm` version. Optional Python extras (`openpyxl`, auto-collector credentials) are covered in [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -52,6 +54,9 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
    | Markdown | `python3 -B scripts/verify_docs.py` |
    | Agent Note | `python3 -B scripts/verify_agent_notes.py` |
    | Python | compile, Ruff, and the owning unittest |
+   | TypeScript formatting/lint | `pnpm run gates:fast` |
+   | TypeScript behavior/types | `pnpm run test` and `pnpm run typecheck` |
+   | Built package face | `pnpm run build` and `pnpm run hygiene` |
    | Outgoing governed diff | Note gate against the verified PR base |
 
    Do not claim commands you did not run. CI owns the full Python-version matrix.
@@ -78,8 +83,9 @@ Keep the subject under 72 characters. Use the body for the *why*, not the *what*
 
 ## Code style / 代码风格
 
-- Match surrounding code. Ruff is blocking; the repository does not enforce an auto-formatter.
+- Match surrounding code. Prettier and ESLint are blocking for TypeScript; Ruff is blocking for Python.
 - Python: prefer standard library where possible; add to `requirements.txt` only if necessary
+- TypeScript: keep tests beside source under `packages/*/src/`; add dependencies to the owning workspace package rather than the root unless they are repository tooling
 - Tools under `tools/` should be runnable as standalone CLIs (`if __name__ == "__main__":`)
 - Prompts under `prompts/` are plain Markdown — keep them concise and task-specific
 
@@ -87,7 +93,7 @@ Keep the subject under 72 characters. Use the body for the *why*, not the *what*
 
 ## Tests / 测试
 
-New functionality should come with tests under `tests/test_*.py`. Use `unittest` (stdlib) — no extra test framework.
+TypeScript functionality uses co-located `*.test.ts` files and Vitest. Python functionality uses `tests/test_*.py` and stdlib `unittest`. Both discovery paths fail when they find no tests.
 
 When adding a new data source collector, at minimum cover:
 - Auth modes (token / user+password / etc.)

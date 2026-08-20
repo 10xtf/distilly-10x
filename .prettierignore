@@ -1,0 +1,14 @@
+# Markdown belongs to the documentation gates, which require one physical line
+# per paragraph. A formatter that rewraps prose would fight them.
+*.md
+
+# Build output and dependencies.
+lib/
+node_modules/
+coverage/
+
+# Python legacy tree (see design/v3/28-migration-and-compatibility.md).
+/prompts/
+/scripts/
+/tests/
+/tools/

@@ -17,6 +17,12 @@ __pycache__/
 venv/
 *.egg-info/
 
+# TypeScript workspace
+node_modules/
+packages/*/lib/
+coverage/
+*.tsbuildinfo
+
 # Config with credentials
 ~/.colleague-skill/
 

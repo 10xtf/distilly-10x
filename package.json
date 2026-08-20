@@ -1,0 +1,39 @@
+{
+  "name": "distilly-repo",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19 || ^24"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "gates:fast": "pnpm run format:check && pnpm run lint",
+    "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "docs": "python3 -B scripts/verify_docs.py",
+    "notes": "python3 -B scripts/verify_agent_notes.py",
+    "build": "tsc -b --force",
+    "smoke:built": "pnpm -r --if-present run smoke:built",
+    "hygiene": "knip && pnpm run smoke:built && pnpm -r exec publint && pnpm -r exec attw --pack --profile esm-only .",
+    "gates": "pnpm run gates:fast && pnpm run typecheck && pnpm run test && pnpm run test:coverage && pnpm run docs && pnpm run notes && pnpm run build && pnpm run hygiene"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.1",
+    "@vitest/coverage-v8": "4.1.11",
+    "eslint": "10.8.1",
+    "eslint-plugin-jsdoc": "63.0.1",
+    "knip": "6.32.2",
+    "prettier": "3.9.6",
+    "publint": "0.3.24",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.11"
+  },
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+}

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { MaterialId, SubjectId } from "./ids.js";
+import { BUILTIN_PEOPLE_SPACE_ID } from "./ids.js";
+import type { MaterialId, SpaceId, SubjectId } from "./ids.js";
 import {
   brandedValueSchemas,
   briefMaterialRefSchema,
@@ -17,6 +18,14 @@ const HEX_32 = "0123456789abcdef".repeat(2);
 describe("compile-time brands", () => {
   it("keeps unrelated ids non-interchangeable", () => {
     expectTypeOf<SubjectId>().not.toEqualTypeOf<MaterialId>();
+    expectTypeOf(BUILTIN_PEOPLE_SPACE_ID).toEqualTypeOf<SpaceId>();
+  });
+});
+
+describe("built-in identities", () => {
+  it("pins the reserved people space to one canonical SpaceId", () => {
+    expect(BUILTIN_PEOPLE_SPACE_ID).toBe("space_00000000000000000000000000000001");
+    expect(brandedValueSchemas.space.parse(BUILTIN_PEOPLE_SPACE_ID)).toBe(BUILTIN_PEOPLE_SPACE_ID);
   });
 });
 

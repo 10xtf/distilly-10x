@@ -7,6 +7,7 @@ import {
   materialContentSchema,
   httpUrlSchema,
   safeNonNegativeIntegerSchema,
+  sourceIdentityStringSchema,
   uriStringSchema,
 } from "./common.js";
 import {
@@ -292,7 +293,7 @@ export const materialRecordSchema = z
     kind: materialRecordKindSchema,
     contentDigest: contentDigestSchema,
     provenanceDigest: provenanceDigestSchema,
-    sourceIdentity: uriStringSchema,
+    sourceIdentity: sourceIdentityStringSchema,
     source: materialSourceSchema,
     derivation: textDerivationSchema,
     participants: z.array(labelStringSchema).max(WIRE_LIMITS.smallArrayItems),

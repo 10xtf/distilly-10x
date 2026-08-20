@@ -29,27 +29,32 @@
 - claim patch add / revise / supersede / contest；
 - quote / locator、跨主体与跨 generation evidence 拒绝；
 - quality / maturity / renderer byte stability；
-- OperationRecord 对每个 mutation method 与其唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result。
+- OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result。
 
 ### 27.3 Fact layer 与 crash
 
 真实临时目录覆盖：
 
-- create + first ingest 原子性；
-- 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；space identity → subject → projection 的锁顺序无死锁；
+- create + first ingest 在 root transaction 与 `subjects/.staging/<request>.<subject>` 下的原子性；createdSubject=true 的 targetSubjectChecksum/absent previous 与 existing 的 inverse schema 均有正反 fixture；
+- 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；request → catalog（inline）→ space identity → subject → projection 的锁顺序无死锁；BUILTIN_PEOPLE_SPACE_ID 并发 bootstrap 只得到 exact People record，其它内容拒绝；
+- label-v1 的 NFC、四种 ASCII edge trim、case/internal-byte preservation 与 alias canonical dedupe/sort；inline space 的 kind+exact canonical label 并发解析不重复建 space；
+- create 重复矩阵覆盖 exact locator、唯一 exact name/alias、两个以上候选、same-kind locator disagreement 排除、description 不参与唯一性；
 - duplicate 与同正文不同来源；
-- duplicate-only enqueue=now 能返回先前 auto 留下或已存在的 pending job；已 committed 集合才 unchanged 且无 job；
+- material-text-v1 的 CRLF/CR、NFC、行尾 space/tab、行数/最终 LF 保留与 whitespace-only 拒绝；label/content 的 U+0344 NFC 扩张与 URI percent-encoding 扩张必须在 normalize 后重新命中原 UTF-8 上限；source identity 四级 namespace/NUL 拒绝、独立 8,208-byte schema 正反边界、完整 8,192-byte URI、URI canonicalization 及 authors/participants/flags/sensitivity defaults 和稳定排序；
+- auto-v1 的累计 uncommitted count=2/3、oldest age 在 30 分钟前/恰好边界、duplicate-only attempt 与“无 timer” fake-clock fixture；currentVersionId 存在时必须经 FileVersionManifestStore 验证 manifest 并作 baseline，无 current 则为空，corrupt/missing version fact 不能猜测；
+- duplicate-only enqueue=now 能复用已存在的 pending job；当前集合不同 current 时必须建 job，已等于 current 且无 pending 才无 job；pending 存在后新 generation 即使未达 auto 阈值也替换为新 job，同 generation/set 复用 JobId；
 - raw-only ingest 不改变 generation/hash、不排 job，parser extraction 只能由 engine 绑定 RawId；
 - state.materialManifest 排序、去重、摘要与 materialSetHash 一致；目录中未被 state/version/journal 引用的 material 不会被静默收编；
-- 相同 RequestId + input/actor 返回原 IngestResult 且不重复 event/job，不同 input 或 actor 返回 idempotency_conflict；slash、backslash、dot segment、错误长度/大小写 RequestId 在拼路径前拒绝；
-- space identity / subject lock 竞争和 stale lock recovery；
-- ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复后只能是完整 target 或完整 previous，原 ingested retry 不退化成 unchanged；
+- 相同 RequestId 跨 method/space 只共享一把 root lock；相同 method/input/actor 返回原 IngestResult 且不重复 event/job，不同 method/input/actor 返回 idempotency_conflict，RequestId 不进 inputChecksum；slash、backslash、dot segment、错误长度/大小写 RequestId 在拼路径前拒绝；
+- request / space catalog / space identity / subject lock 竞争和 stale lock recovery；两进程同时越过 preflight、旧 writer 留 prepared 后新 writer 的锁内二次检查必须释锁并 retryable busy，不反向取旧 request lock；create 对同 space prepared create 同样阻断；
+- ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复必须 target-first，包括 previous==target，否则只能是完整 previous/absent 并只删 journal 命名的 material/staging，第三态必须 storage_corrupt；原 ingested retry 不退化成 unchanged；
+- aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
 - commit 在 journal、materials manifest / version rename、state swap、event、projection 每一步崩溃；manifest 缺项、hash 或 materialCount 不符必须 storage_corrupt；
 - recovery 幂等且只有一个 current；
-- 删除 .index 后人物事实不丢，queue 从 state.pending 以相同 JobId 重建为 pending；
+- queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty exact bytes 、PRAGMA user_version=1、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified state.pending 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 没有 public list/lease read service；
 - corrupt checksum / unknown schema 拒绝；
 - symlink / path traversal 拒绝；
-- purge 的精确删除边界。
+- purge 的精确删除边界；prepared purge journal 后逐 operation atomic replace / 逐 journal delete 的每个崩溃点都能 recovery 到全部完成，subject-scoped completed operation 及 journal-only request 都最终变 tombstone，同 input 重试 not_found，不同 input/actor conflict，tombstone 不含 actor/result。
 
 ### 27.4 Lease 与并发
 

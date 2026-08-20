@@ -81,11 +81,17 @@ export interface EventRecord extends FactEnvelope<1> {
 /** Result stored for one successful mutation method. */
 export type StoredOperationResult<M extends MutationMethodName> = EngineMethodMap[M]["result"];
 
+/** Durable ownership scope for one globally keyed mutation result. */
+export type OperationScope =
+  { readonly kind: "global" } | { readonly kind: "subject"; readonly subjectId: SubjectId };
+
 /** Durable idempotency result correlated by its mutation method discriminant. */
 export type OperationRecord<M extends MutationMethodName = MutationMethodName> = {
   [K in M]: FactEnvelope<1> & {
+    readonly recordKind: "completed";
     readonly requestId: RequestId;
     readonly method: K;
+    readonly scope: OperationScope;
     readonly actor: ActorContext;
     readonly inputChecksum: FactChecksum;
     readonly result: StoredOperationResult<K>;
@@ -93,12 +99,25 @@ export type OperationRecord<M extends MutationMethodName = MutationMethodName> =
   };
 }[M];
 
+/** Content-free marker retained when privacy purge removes a completed result. */
+export interface OperationTombstoneRecord extends FactEnvelope<1> {
+  readonly recordKind: "tombstone";
+  readonly requestId: RequestId;
+  readonly method: MutationMethodName;
+  readonly scope: OperationScope;
+  readonly inputChecksum: FactChecksum;
+  readonly removedAt: IsoDateTime;
+  readonly reason: "subject_purged";
+}
+
+/** Completed result or its durable privacy-purge marker. */
+export type OperationFact = OperationRecord | OperationTombstoneRecord;
+
 interface IngestTransactionBase extends FactEnvelope<1> {
   readonly transactionKind: "ingest";
   readonly requestId: RequestId;
+  readonly spaceId: SpaceId;
   readonly subjectId: SubjectId;
-  readonly createdSubject: boolean;
-  readonly previousStateChecksum?: FactChecksum;
   readonly targetStateChecksum: FactChecksum;
   readonly newMaterials: readonly VersionMaterialEntry[];
   readonly operation: OperationRecord<"materials.ingest">;
@@ -106,10 +125,29 @@ interface IngestTransactionBase extends FactEnvelope<1> {
   readonly preparedAt: IsoDateTime;
 }
 
-/** Crash-recoverable journal for one atomic material ingest. */
-export type IngestTransactionRecord =
-  | (IngestTransactionBase & { readonly state: "prepared" })
-  | (IngestTransactionBase & {
+type IngestTransactionTarget =
+  | {
+      readonly createdSubject: true;
+      readonly previousStateChecksum?: never;
+      readonly targetSubjectChecksum: FactChecksum;
+    }
+  | {
+      readonly createdSubject: false;
+      readonly previousStateChecksum: FactChecksum;
+      readonly targetSubjectChecksum?: never;
+    };
+
+type TransactionLifecycle =
+  | { readonly state: "prepared" }
+  | {
       readonly state: "committed" | "aborted";
       readonly finishedAt: IsoDateTime;
-    });
+    };
+
+/** Crash-recoverable journal for one atomic material ingest. */
+export type IngestTransactionRecord = IngestTransactionBase &
+  IngestTransactionTarget &
+  TransactionLifecycle;
+
+/** Root transaction fact union, initially containing only material ingest. */
+export type TransactionRecord = IngestTransactionRecord;

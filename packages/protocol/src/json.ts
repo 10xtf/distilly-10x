@@ -26,3 +26,8 @@ export const WIRE_LIMITS = {
   openRecordEntries: 64,
   listLimit: 200,
 } as const;
+
+/** Bounds for engine-derived fact fields whose namespaces can exceed their wire inputs. */
+export const FACT_LIMITS = {
+  sourceIdentityBytes: 8_208,
+} as const;

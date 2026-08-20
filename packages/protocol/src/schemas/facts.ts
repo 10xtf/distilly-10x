@@ -6,11 +6,14 @@ import type {
   EventRecord,
   FactEnvelope,
   IngestTransactionRecord,
+  OperationScope,
+  OperationTombstoneRecord,
   PendingJobMarker,
   SpaceRecord,
   StoredOperationResult,
   SubjectRecord,
   SubjectStateRecord,
+  TransactionRecord,
   VersionMaterialEntry,
 } from "../values/facts.js";
 import type { VersionMaterialManifest, VersionRecord } from "../values/versions.js";
@@ -282,8 +285,10 @@ const operationRecordVariant = <M extends MutationMethodName, S extends z.ZodTyp
 ) =>
   z.strictObject({
     ...factEnvelopeV1Shape,
+    recordKind: z.literal("completed"),
     requestId: requestIdSchema,
     method: z.literal(method),
+    scope: operationScopeSchema,
     actor: actorContextSchema,
     inputChecksum: factChecksumSchema,
     result,
@@ -291,6 +296,14 @@ const operationRecordVariant = <M extends MutationMethodName, S extends z.ZodTyp
   });
 
 const emptyResultSchema = z.null();
+
+/** Runtime schema for root-global or single-subject operation ownership. */
+export const operationScopeSchema = schemaFor<OperationScope>()(
+  z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("global") }),
+    z.strictObject({ kind: z.literal("subject"), subjectId: subjectIdSchema }),
+  ]),
+);
 
 const operationRecordVariants = {
   "subjects.create": operationRecordVariant("subjects.create", subjectSummarySchema),
@@ -315,8 +328,30 @@ const operationRecordVariants = {
   "bundles.export": operationRecordVariant("bundles.export", bundleExportResultSchema),
 } satisfies { readonly [M in MutationMethodName]: z.ZodType };
 
-/** Runtime discriminated union for all successful mutation records. */
-export const operationRecordSchema = z.discriminatedUnion("method", [
+const mutationMethodNameSchema = z.enum([
+  "subjects.create",
+  "subjects.archive",
+  "subjects.purge",
+  "materials.ingest",
+  "materials.ingestFiles",
+  "distill.brief",
+  "distill.renew",
+  "distill.release",
+  "distill.commit",
+  "distill.redistill",
+  "profiles.correct",
+  "versions.promote",
+  "versions.reject",
+  "versions.rollback",
+  "hosts.install",
+  "hosts.uninstall",
+  "hosts.export",
+  "library.rebuild",
+  "bundles.import",
+  "bundles.export",
+] as const satisfies readonly MutationMethodName[]);
+
+const operationRecordUnionSchema = z.discriminatedUnion("method", [
   operationRecordVariants["subjects.create"],
   operationRecordVariants["subjects.archive"],
   operationRecordVariants["subjects.purge"],
@@ -339,18 +374,137 @@ export const operationRecordSchema = z.discriminatedUnion("method", [
   operationRecordVariants["bundles.export"],
 ]);
 
+type ParsedOperationRecord = z.infer<typeof operationRecordUnionSchema>;
+
+const operationResultSubjectIds = (record: ParsedOperationRecord): readonly string[] => {
+  switch (record.method) {
+    case "subjects.create":
+      return [record.result.id];
+    case "subjects.archive":
+    case "subjects.purge":
+    case "distill.renew":
+    case "distill.release":
+    case "hosts.uninstall":
+    case "library.rebuild":
+    case "bundles.export":
+      return [];
+    case "materials.ingest":
+    case "materials.ingestFiles":
+      return [record.result.subject.id];
+    case "distill.brief":
+      return [record.result.subject.id, record.result.job.subjectId];
+    case "distill.commit":
+    case "profiles.correct":
+      return record.result.kind === "current"
+        ? [record.result.version.subjectId, record.result.profile.subjectId]
+        : [record.result.candidate.subjectId, record.result.review.subjectId];
+    case "distill.redistill":
+      return [record.result.subjectId];
+    case "versions.promote":
+    case "versions.reject":
+    case "versions.rollback":
+      return [record.result.subjectId];
+    case "hosts.install":
+    case "hosts.export":
+      return [record.result.subjectId];
+    case "bundles.import":
+      return [
+        record.result.subject.id,
+        record.result.candidate.subjectId,
+        record.result.review.subjectId,
+      ];
+    default: {
+      const exhaustive: never = record;
+      return exhaustive;
+    }
+  }
+};
+
+const refineMethodScope = (
+  record: { readonly method: MutationMethodName; readonly scope: OperationScope },
+  context: z.core.$RefinementCtx,
+): void => {
+  const expectsGlobal = record.method === "library.rebuild";
+  if (expectsGlobal !== (record.scope.kind === "global")) {
+    context.addIssue({
+      code: "custom",
+      path: ["scope"],
+      message: expectsGlobal
+        ? "library rebuild operations require global scope"
+        : "subject-owned operations require subject scope",
+    });
+  }
+};
+
+const refineCompletedOperationScope = (
+  record: ParsedOperationRecord,
+  context: z.core.$RefinementCtx,
+): void => {
+  refineMethodScope(record, context);
+  if (record.scope.kind === "subject") {
+    const scopeSubjectId = record.scope.subjectId;
+    if (
+      operationResultSubjectIds(record).some(
+        (resultSubjectId) => resultSubjectId !== scopeSubjectId,
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["scope", "subjectId"],
+        message: "operation result subjects must match the operation scope",
+      });
+    }
+  }
+};
+
+/** Runtime discriminated union for all completed mutation records. */
+export const operationRecordSchema = operationRecordUnionSchema.superRefine(
+  refineCompletedOperationScope,
+);
+
+/** Runtime schema for a content-free operation marker left by subject purge. */
+export const operationTombstoneRecordSchema = schemaFor<OperationTombstoneRecord>()(
+  z
+    .strictObject({
+      ...factEnvelopeV1Shape,
+      recordKind: z.literal("tombstone"),
+      requestId: requestIdSchema,
+      method: mutationMethodNameSchema,
+      scope: operationScopeSchema,
+      inputChecksum: factChecksumSchema,
+      removedAt: isoDateTimeSchema,
+      reason: z.literal("subject_purged"),
+    })
+    .superRefine(refineMethodScope),
+);
+
+/** Runtime discriminated union for a completed operation or purge tombstone. */
+export const operationFactSchema = z.discriminatedUnion("recordKind", [
+  operationRecordSchema,
+  operationTombstoneRecordSchema,
+]);
+
 const ingestTransactionBaseShape = {
   ...factEnvelopeV1Shape,
   transactionKind: z.literal("ingest"),
   requestId: requestIdSchema,
+  spaceId: spaceIdSchema,
   subjectId: subjectIdSchema,
-  createdSubject: z.boolean(),
-  previousStateChecksum: factChecksumSchema.optional(),
   targetStateChecksum: factChecksumSchema,
   newMaterials: sortedMaterialEntriesSchema.max(WIRE_LIMITS.ingestMaterials),
   operation: operationRecordVariants["materials.ingest"],
   events: z.array(eventRecordSchema).max(3),
   preparedAt: isoDateTimeSchema,
+} as const;
+
+const createdIngestTargetShape = {
+  createdSubject: z.literal(true),
+  targetSubjectChecksum: factChecksumSchema,
+} as const;
+
+const existingIngestTargetShape = {
+  createdSubject: z.literal(false),
+  previousStateChecksum: factChecksumSchema,
 } as const;
 
 const actorsEqual = (
@@ -361,42 +515,58 @@ const actorsEqual = (
 /** Runtime discriminated union for a crash-recoverable ingest journal. */
 export const ingestTransactionRecordSchema = schemaFor<IngestTransactionRecord>()(
   z
-    .discriminatedUnion("state", [
+    .union([
       z.strictObject({
         ...ingestTransactionBaseShape,
+        ...createdIngestTargetShape,
         state: z.literal("prepared"),
       }),
       z.strictObject({
         ...ingestTransactionBaseShape,
+        ...existingIngestTargetShape,
+        state: z.literal("prepared"),
+      }),
+      z.strictObject({
+        ...ingestTransactionBaseShape,
+        ...createdIngestTargetShape,
         state: z.literal("committed"),
         finishedAt: isoDateTimeSchema,
       }),
       z.strictObject({
         ...ingestTransactionBaseShape,
+        ...existingIngestTargetShape,
+        state: z.literal("committed"),
+        finishedAt: isoDateTimeSchema,
+      }),
+      z.strictObject({
+        ...ingestTransactionBaseShape,
+        ...createdIngestTargetShape,
+        state: z.literal("aborted"),
+        finishedAt: isoDateTimeSchema,
+      }),
+      z.strictObject({
+        ...ingestTransactionBaseShape,
+        ...existingIngestTargetShape,
         state: z.literal("aborted"),
         finishedAt: isoDateTimeSchema,
       }),
     ])
     .superRefine((transaction, context) => {
-      if (transaction.createdSubject && transaction.previousStateChecksum !== undefined) {
-        context.addIssue({
-          code: "custom",
-          path: ["previousStateChecksum"],
-          message: "a create ingest cannot have previous subject state",
-        });
-      }
-      if (!transaction.createdSubject && transaction.previousStateChecksum === undefined) {
-        context.addIssue({
-          code: "custom",
-          path: ["previousStateChecksum"],
-          message: "an existing-subject ingest requires its previous state checksum",
-        });
-      }
       if (transaction.operation.requestId !== transaction.requestId) {
         context.addIssue({
           code: "custom",
           path: ["operation", "requestId"],
           message: "operation request id must match the ingest journal",
+        });
+      }
+      if (
+        transaction.operation.scope.kind !== "subject" ||
+        transaction.operation.scope.subjectId !== transaction.subjectId
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["operation", "scope"],
+          message: "operation scope must match the ingest journal subject",
         });
       }
 
@@ -406,6 +576,13 @@ export const ingestTransactionRecordSchema = schemaFor<IngestTransactionRecord>(
           code: "custom",
           path: ["operation", "result", "subject", "id"],
           message: "operation result subject must match the ingest journal",
+        });
+      }
+      if (result.subject.space.id !== transaction.spaceId) {
+        context.addIssue({
+          code: "custom",
+          path: ["operation", "result", "subject", "space", "id"],
+          message: "operation result space must match the ingest journal",
         });
       }
       if (result.job !== undefined && result.job.subjectId !== transaction.subjectId) {
@@ -500,4 +677,9 @@ export const ingestTransactionRecordSchema = schemaFor<IngestTransactionRecord>(
         }
       }
     }),
+);
+
+/** Runtime schema for the root transaction fact union. */
+export const transactionRecordSchema = schemaFor<TransactionRecord>()(
+  ingestTransactionRecordSchema,
 );

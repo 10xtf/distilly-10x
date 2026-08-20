@@ -64,9 +64,12 @@ export const BUILTIN_HOSTS = {
   codex: "codex" as HostName,
   claudeCode: "claude-code" as HostName,
 } as const;
+
+export const BUILTIN_PEOPLE_SPACE_ID =
+  "space_00000000000000000000000000000001" as SpaceId;
 ~~~
 
-RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 operations/<request-id>.json 与 ingest transaction 文件名，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
+RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 root operations/<request-id>.json、operations/.locks/<request-id>.lock 与 transactions/<request-id>.json，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
 
 运行时 schema 还要校验每个品牌 id 的前缀、长度和字符集。品牌只解决编译期混用，不替代边界校验。
 
@@ -185,11 +188,17 @@ export const WIRE_LIMITS = {
   openRecordEntries: 64,
   listLimit: 200,
 } as const;
+
+export const FACT_LIMITS = {
+  sourceIdentityBytes: 8_208,
+} as const;
 ~~~
 
 除 JsonObject 和类型中显式写出的开放 Record 外，所有 public object runtime schema 都拒绝 unknown keys，JSON Schema 递归使用 additionalProperties=false。所有整数必须是 safe integer；generation、count、index 与 locator 为非负数，limit 为 1..WIRE_LIMITS.listLimit。JsonValue 只允许可编码 JSON 的有限值，不接受 undefined、bigint、函数、symbol、非有限 number 或循环。
 
 WIRE_LIMITS 的 string 上限按 UTF-8 bytes 计；必填模型字符串为非空，optional string 出现时也不能是空值。displayName、alias、provider/handle/externalId、domainPack、clientRef、title、language、author/participant、producer/version 和可见 label 用 labelBytes；query 用 queryBytes；URI 用 uriBytes；reason/review note/general notes 用 reasonBytes；claim text 用 claimTextBytes；evidence quote 用 quoteBytes；correction text 用 correctionTextBytes；每份 MaterialInput.content 用 materialContentBytes。aliases、identityHints、authors、participants、supersedes、observedIn 与普通 evidence 数组最多 smallArrayItems；每批 ingest 最多 ingestMaterials，patch 最多 patchOperations，单个 operation 最多 evidencePerOperation，显式开放 Record 最多 openRecordEntries。一个完整工具输入的 canonical UTF-8 JSON 最多 toolInputBytes；超限在业务 service 之前 invalid_input，不由各入口自造更宽阈值。
+
+schema 验证 raw wire value 后，引擎凡经 Unicode NFC、label trim、material-text-v1 或 WHATWG URL serialization 得到 canonical string，都必须对 canonical UTF-8 bytes 再应用原字段上限；raw value 合法但 canonical bytes 扩张超限仍返回 invalid_input。MaterialRecord.sourceIdentity 是带冻结 namespace 的引擎派生事实，不复用 URI schema；它使用独立 `FACT_LIMITS.sourceIdentityBytes=8_208` schema，足以容纳当前最长 `artifact-uri-v1\0` 前缀加完整 8,192-byte canonical URI，因此也不得为容纳 `source-uri-v1\0` 而反向收窄 public URI 上限。
 
 ### 7.3 Wire envelope 与幂等
 
@@ -214,7 +223,7 @@ export interface WireFailure {
 }
 ~~~
 
-所有写工具都要求 requestId。相同 requestId 与相同 canonical input 重试返回相同结果；相同 requestId 配不同 input 返回 idempotency_conflict。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
+所有写工具都要求 requestId。相同 requestId 与相同 method + canonical params + session actor 重试返回相同结果；相同 requestId 配不同 method、input 或 actor 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
 
 ### 7.4 Actor 由入口派生
 

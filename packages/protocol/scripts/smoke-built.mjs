@@ -11,6 +11,7 @@ assert.deepEqual(
 );
 assert.equal(protocol.WIRE_VERSION, "3");
 assert.equal(protocol.JSON_SCHEMA_DIALECT, "https://json-schema.org/draft/2020-12/schema");
+assert.equal(protocol.BUILTIN_PEOPLE_SPACE_ID, "space_00000000000000000000000000000001");
 
 const subjectId = `subject_${"a".repeat(32)}`;
 assert.equal(protocol.subjectIdSchema.parse(subjectId), subjectId);

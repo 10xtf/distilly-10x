@@ -2,7 +2,9 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   BUILTIN_HOSTS,
+  BUILTIN_PEOPLE_SPACE_ID,
   DISTILLY_ERROR_CODES,
+  FACT_LIMITS,
   JSON_SCHEMA_DIALECT,
   WIRE_LIMITS,
   WIRE_VERSION,
@@ -86,8 +88,10 @@ describe("complete V3 protocol public contract", () => {
     expect({
       wireVersion: WIRE_VERSION,
       jsonSchemaDialect: JSON_SCHEMA_DIALECT,
+      factLimits: FACT_LIMITS,
       limits: WIRE_LIMITS,
       builtInHosts: BUILTIN_HOSTS,
+      builtInPeopleSpaceId: BUILTIN_PEOPLE_SPACE_ID,
       brandedSchemaNames: Object.keys(brandedSchemas),
       errorCodes: DISTILLY_ERROR_CODES,
       engineMethodNames: Object.keys(engineMethodSchemas),
@@ -123,6 +127,7 @@ describe("complete V3 protocol public contract", () => {
           "claudeCode": "claude-code",
           "codex": "codex",
         },
+        "builtInPeopleSpaceId": "space_00000000000000000000000000000001",
         "engineMethodNames": [
           "subjects.create",
           "subjects.list",
@@ -182,6 +187,9 @@ describe("complete V3 protocol public contract", () => {
           "adapter_failed",
           "permission_denied",
         ],
+        "factLimits": {
+          "sourceIdentityBytes": 8208,
+        },
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
         "limits": {
           "claimTextBytes": 16384,

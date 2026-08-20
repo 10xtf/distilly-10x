@@ -249,8 +249,10 @@ const makeOperation = (
 ): OperationRecord<"subjects.create"> =>
   sealFact<OperationRecord<"subjects.create">>({
     schemaVersion: 1,
+    recordKind: "completed",
     requestId,
     method: "subjects.create",
+    scope: { kind: "subject", subjectId: resultSubjectId },
     actor: { kind: "sdk", id: "fact-store-test" },
     inputChecksum: computeFactChecksum({ method: "subjects.create", displayName: "Ada" }),
     result: makeSubjectSummary(resultSubjectId),
@@ -272,7 +274,7 @@ const seedAllStores = async (harness: Harness) => {
   await harness.materials.write(material, content);
   await harness.states.write(state);
   await harness.events.write(SUBJECT_ID, event);
-  await harness.operations.write(SUBJECT_ID, operation);
+  await harness.operations.write(operation);
   return { content, material, state, event, operation };
 };
 
@@ -283,7 +285,7 @@ describe("concrete fact stores", () => {
 
     await harness.materials.write(material, content);
     await harness.events.write(SUBJECT_ID, event);
-    await harness.operations.write(SUBJECT_ID, operation);
+    await harness.operations.write(operation);
 
     expect(await harness.spaces.read(SPACE_ID)).toEqual(makeSpace());
     expect(await harness.subjects.read(SUBJECT_ID)).toEqual(makeSubject());
@@ -293,13 +295,13 @@ describe("concrete fact stores", () => {
     });
     expect(await harness.states.read(SUBJECT_ID)).toEqual(state);
     expect(await harness.events.read(SUBJECT_ID, EVENT_ID)).toEqual(event);
-    expect(await harness.operations.read(SUBJECT_ID, REQUEST_ID)).toEqual(operation);
+    expect(await harness.operations.read(REQUEST_ID)).toEqual(operation);
 
     const renamedSpace = makeSpace(SPACE_ID, "People and Creators");
     const renamedSubject = makeSubject(SUBJECT_ID, SPACE_ID, "Ada Lovelace");
-    await harness.spaces.write(renamedSpace);
+    await expectErrorCode(harness.spaces.write(renamedSpace), "storage_corrupt");
     await harness.subjects.write(renamedSubject);
-    expect(await harness.spaces.read(SPACE_ID)).toEqual(renamedSpace);
+    expect(await harness.spaces.read(SPACE_ID)).toEqual(makeSpace());
     expect(await harness.subjects.read(SUBJECT_ID)).toEqual(renamedSubject);
   });
 
@@ -412,6 +414,42 @@ describe("concrete fact stores", () => {
     expect(shareable.id).not.toBe(material.id);
   });
 
+  it("removes only a matching journal material and makes missing cleanup idempotent", async () => {
+    const harness = await createHarness();
+    await seedSubject(harness);
+    const material = makeMaterial();
+    const entry = materialEntry(material);
+    await harness.materials.write(material, "Evidence-bound material.\n");
+
+    await expectErrorCode(
+      harness.materials.removeJournalMaterial(SUBJECT_ID, {
+        ...entry,
+        provenanceDigest: provenanceDigestSchema.parse(`provenance_sha256_${ALT_HEX_64}`),
+      }),
+      "storage_corrupt",
+    );
+
+    const unknown = join(harness.layout.materialDirectory(SUBJECT_ID, material.id), "unknown");
+    await writeFile(unknown, "unknown");
+    await expectErrorCode(
+      harness.materials.removeJournalMaterial(SUBJECT_ID, entry),
+      "storage_corrupt",
+    );
+    await rm(unknown);
+
+    const linked = join(harness.layout.materialDirectory(SUBJECT_ID, material.id), "linked");
+    await symlink(harness.root, linked);
+    await expectErrorCode(
+      harness.materials.removeJournalMaterial(SUBJECT_ID, entry),
+      "storage_corrupt",
+    );
+    await unlink(linked);
+
+    await harness.materials.removeJournalMaterial(SUBJECT_ID, entry);
+    await harness.materials.removeJournalMaterial(SUBJECT_ID, entry);
+    await expectErrorCode(harness.materials.read(SUBJECT_ID, material.id), "not_found");
+  });
+
   it("validates state subject ownership, manifest facts, digests, and set hash", async () => {
     const harness = await createHarness();
     await seedSubject(harness);
@@ -516,24 +554,25 @@ describe("concrete fact stores", () => {
     );
 
     const operation = makeOperation();
-    await harness.operations.write(SUBJECT_ID, operation);
-    await harness.operations.write(SUBJECT_ID, operation);
+    await harness.operations.write(operation);
+    await harness.operations.write(operation);
     await expectErrorCode(
-      harness.operations.write(SUBJECT_ID, makeOperation(REQUEST_ID, SUBJECT_ID, LATER)),
+      harness.operations.write(makeOperation(REQUEST_ID, SUBJECT_ID, LATER)),
       "storage_corrupt",
     );
     await expectErrorCode(
-      harness.operations.write(SUBJECT_ID, makeOperation(OTHER_REQUEST_ID, OTHER_SUBJECT_ID)),
+      harness.operations.write(
+        resealFact(makeOperation(OTHER_REQUEST_ID, OTHER_SUBJECT_ID), {
+          scope: { kind: "subject", subjectId: SUBJECT_ID },
+        }),
+      ),
       "storage_corrupt",
     );
 
     await writeJson(harness.layout.eventFile(SUBJECT_ID, EVENT_ID), makeEvent(OTHER_EVENT_ID));
     await expectErrorCode(harness.events.read(SUBJECT_ID, EVENT_ID), "storage_corrupt");
-    await writeJson(
-      harness.layout.operationFile(SUBJECT_ID, REQUEST_ID),
-      makeOperation(OTHER_REQUEST_ID),
-    );
-    await expectErrorCode(harness.operations.read(SUBJECT_ID, REQUEST_ID), "storage_corrupt");
+    await writeJson(harness.layout.operationFile(REQUEST_ID), makeOperation(OTHER_REQUEST_ID));
+    await expectErrorCode(harness.operations.read(REQUEST_ID), "storage_corrupt");
   });
 
   it("rejects symbolic links at every concrete fact-store path", async () => {
@@ -559,8 +598,8 @@ describe("concrete fact stores", () => {
         read: () => harness.events.read(SUBJECT_ID, EVENT_ID),
       },
       {
-        path: harness.layout.operationFile(SUBJECT_ID, REQUEST_ID),
-        read: () => harness.operations.read(SUBJECT_ID, REQUEST_ID),
+        path: harness.layout.operationFile(REQUEST_ID),
+        read: () => harness.operations.read(REQUEST_ID),
       },
     ];
 

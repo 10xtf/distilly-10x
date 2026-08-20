@@ -6,11 +6,15 @@ import {
   eventRecordSchema,
   factEnvelopeSchema,
   ingestTransactionRecordSchema,
+  operationFactSchema,
   operationRecordSchema,
+  operationScopeSchema,
+  operationTombstoneRecordSchema,
   pendingJobMarkerSchema,
   spaceRecordSchema,
   subjectRecordSchema,
   subjectStateRecordSchema,
+  transactionRecordSchema,
   versionMaterialEntrySchema,
   versionMaterialManifestSchema,
   versionRecordSchema,
@@ -35,11 +39,15 @@ import {
 import type {
   EventRecord,
   IngestTransactionRecord,
+  OperationFact,
   OperationRecord,
+  OperationScope,
+  OperationTombstoneRecord,
   PendingJobMarker,
   SpaceRecord,
   SubjectRecord,
   SubjectStateRecord,
+  TransactionRecord,
   VersionMaterialEntry,
 } from "./values/facts.js";
 import type { VersionMaterialManifest, VersionRecord } from "./values/versions.js";
@@ -53,6 +61,7 @@ const ALT_HEX_64 = "1".repeat(64);
 const subjectId = subjectIdSchema.parse(`subject_${HEX_32}`);
 const otherSubjectId = subjectIdSchema.parse(`subject_${ALT_HEX_32}`);
 const spaceId = spaceIdSchema.parse(`space_${HEX_32}`);
+const otherSpaceId = spaceIdSchema.parse(`space_${ALT_HEX_32}`);
 const materialId = materialIdSchema.parse(`mat_${HEX_64}`);
 const secondMaterialId = materialIdSchema.parse(`mat_${ALT_HEX_64}`);
 const contentDigest = contentDigestSchema.parse(`sha256_${HEX_64}`);
@@ -255,6 +264,22 @@ const mutationMethods = [
   "bundles.export",
 ] as const satisfies readonly MutationMethodName[];
 
+const methodsWithVisibleSubjectResults = [
+  "subjects.create",
+  "materials.ingest",
+  "materials.ingestFiles",
+  "distill.brief",
+  "distill.commit",
+  "distill.redistill",
+  "profiles.correct",
+  "versions.promote",
+  "versions.reject",
+  "versions.rollback",
+  "hosts.install",
+  "hosts.export",
+  "bundles.import",
+] as const satisfies readonly MutationMethodName[];
+
 const mutationResults = {
   "subjects.create": subject,
   "subjects.archive": null,
@@ -299,7 +324,9 @@ const mutationResults = {
 const operationBase = {
   schemaVersion: 1,
   checksum: factChecksum,
+  recordKind: "completed",
   requestId,
+  scope: { kind: "subject", subjectId },
   actor,
   inputChecksum: otherFactChecksum,
   completedAt: at,
@@ -394,6 +421,7 @@ const operationRecords = {
   "library.rebuild": {
     ...operationBase,
     method: "library.rebuild",
+    scope: { kind: "global" },
     result: mutationResults["library.rebuild"],
   },
   "bundles.import": {
@@ -407,6 +435,18 @@ const operationRecords = {
     result: mutationResults["bundles.export"],
   },
 } satisfies { readonly [M in MutationMethodName]: OperationRecord<M> };
+
+const operationTombstone = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  recordKind: "tombstone",
+  requestId,
+  method: "subjects.purge",
+  scope: { kind: "subject", subjectId },
+  inputChecksum: otherFactChecksum,
+  removedAt: finishedAt,
+  reason: "subject_purged",
+} satisfies OperationTombstoneRecord;
 
 const wrongResults = {
   "subjects.create": pendingJob,
@@ -532,6 +572,7 @@ const preparedTransaction = {
   checksum: factChecksum,
   transactionKind: "ingest",
   requestId,
+  spaceId,
   subjectId,
   createdSubject: false,
   previousStateChecksum: otherFactChecksum,
@@ -548,8 +589,10 @@ const createTransaction = {
   checksum: factChecksum,
   transactionKind: "ingest",
   requestId,
+  spaceId,
   subjectId,
   createdSubject: true,
+  targetSubjectChecksum: otherFactChecksum,
   targetStateChecksum: factChecksum,
   newMaterials: [firstEntry],
   operation: {
@@ -590,10 +633,17 @@ describe("persisted fact runtime schemas", () => {
 
     expectTypeOf<StoredResults>().toEqualTypeOf<DeclaredResults>();
     expectTypeOf<keyof typeof operationRecords>().toEqualTypeOf<MutationMethodName>();
+    expectTypeOf<OperationFact>().toEqualTypeOf<OperationRecord | OperationTombstoneRecord>();
+    expectTypeOf<TransactionRecord>().toEqualTypeOf<IngestTransactionRecord>();
+    expectTypeOf<OperationScope>().toEqualTypeOf<
+      | { readonly kind: "global" }
+      | { readonly kind: "subject"; readonly subjectId: typeof subjectId }
+    >();
   });
 
   it.each(mutationMethods)("round-trips a method-correlated %s operation", (method) => {
     parseRoundTrip(operationRecordSchema, operationRecords[method]);
+    parseRoundTrip(operationFactSchema, operationRecords[method]);
   });
 
   it.each(mutationMethods)("rejects a result from another result shape for %s", (method) => {
@@ -605,6 +655,63 @@ describe("persisted fact runtime schemas", () => {
     ).toThrow();
   });
 
+  it("enforces operation scopes and visible result subjects", () => {
+    expect(operationScopeSchema.parse({ kind: "global" })).toEqual({ kind: "global" });
+    expect(operationScopeSchema.parse({ kind: "subject", subjectId })).toEqual({
+      kind: "subject",
+      subjectId,
+    });
+    expect(() => operationScopeSchema.parse({ kind: "global", subjectId })).toThrow();
+    expect(() => operationScopeSchema.parse({ kind: "subject" })).toThrow();
+
+    expect(() =>
+      operationRecordSchema.parse({
+        ...operationRecords["library.rebuild"],
+        scope: { kind: "subject", subjectId },
+      }),
+    ).toThrow();
+    expect(() =>
+      operationRecordSchema.parse({
+        ...operationRecords["subjects.archive"],
+        scope: { kind: "global" },
+      }),
+    ).toThrow();
+  });
+
+  it.each(methodsWithVisibleSubjectResults)(
+    "rejects a %s result outside its subject scope",
+    (method) => {
+      expect(() =>
+        operationRecordSchema.parse({
+          ...operationRecords[method],
+          scope: { kind: "subject", subjectId: otherSubjectId },
+        }),
+      ).toThrow();
+    },
+  );
+
+  it("round-trips a content-free operation tombstone and enforces its scope", () => {
+    parseRoundTrip(operationTombstoneRecordSchema, operationTombstone);
+    parseRoundTrip(operationFactSchema, operationTombstone);
+    expect(() => operationTombstoneRecordSchema.parse({ ...operationTombstone, actor })).toThrow();
+    expect(() =>
+      operationTombstoneRecordSchema.parse({ ...operationTombstone, result: null }),
+    ).toThrow();
+    expect(() =>
+      operationTombstoneRecordSchema.parse({
+        ...operationTombstone,
+        scope: { kind: "global" },
+      }),
+    ).toThrow();
+    expect(() =>
+      operationTombstoneRecordSchema.parse({
+        ...operationTombstone,
+        method: "library.rebuild",
+        scope: { kind: "global" },
+      }),
+    ).not.toThrow();
+  });
+
   it("round-trips every fact record and transaction branch as JSON", () => {
     const fixtures = [
       [factEnvelopeSchema, { schemaVersion: 1, checksum: factChecksum }],
@@ -614,12 +721,14 @@ describe("persisted fact runtime schemas", () => {
       [pendingJobMarkerSchema, pendingMarker],
       [subjectStateRecordSchema, subjectStateRecord],
       [eventRecordSchema, eventRecord],
+      [operationTombstoneRecordSchema, operationTombstone],
       [versionRecordSchema, versionRecord],
       [versionMaterialManifestSchema, versionManifest],
       [ingestTransactionRecordSchema, preparedTransaction],
       [ingestTransactionRecordSchema, createTransaction],
       [ingestTransactionRecordSchema, { ...preparedTransaction, state: "committed", finishedAt }],
       [ingestTransactionRecordSchema, { ...preparedTransaction, state: "aborted", finishedAt }],
+      [transactionRecordSchema, preparedTransaction],
     ] as const;
 
     for (const [schema, fixture] of fixtures) parseRoundTrip(schema, fixture);
@@ -635,6 +744,9 @@ describe("persisted fact runtime schemas", () => {
     ).toThrow();
     expect(() =>
       operationRecordSchema.parse({ ...operationBase, method: "future", result: null }),
+    ).toThrow();
+    expect(() =>
+      operationFactSchema.parse({ ...operationTombstone, recordKind: "future" }),
     ).toThrow();
     expect(() =>
       ingestTransactionRecordSchema.parse({ ...preparedTransaction, state: "future" }),
@@ -764,6 +876,24 @@ describe("persisted fact runtime schemas", () => {
     expect(() =>
       ingestTransactionRecordSchema.parse({
         ...preparedTransaction,
+        targetSubjectChecksum: factChecksum,
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...createTransaction,
+        targetSubjectChecksum: undefined,
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...createTransaction,
+        previousStateChecksum: factChecksum,
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
         operation: {
           ...preparedTransaction.operation,
           result: { ...preparedTransaction.operation.result, created: true },
@@ -781,9 +911,48 @@ describe("persisted fact runtime schemas", () => {
         ...preparedTransaction,
         operation: {
           ...preparedTransaction.operation,
+          scope: { kind: "global" },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        operation: {
+          ...preparedTransaction.operation,
+          scope: { kind: "subject", subjectId: otherSubjectId },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        operation: {
+          ...preparedTransaction.operation,
           result: {
             ...preparedTransaction.operation.result,
             subject: { ...subject, id: otherSubjectId },
+          },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        spaceId: otherSpaceId,
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        operation: {
+          ...preparedTransaction.operation,
+          result: {
+            ...preparedTransaction.operation.result,
+            subject: {
+              ...subject,
+              space: { ...subject.space, id: otherSpaceId },
+            },
           },
         },
       }),
@@ -833,6 +1002,25 @@ describe("persisted fact runtime schemas", () => {
         ],
       }),
     ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        events: [{ ...eventRecord, actor: { kind: "sdk", id: "other-sdk" } }, jobChangedEvent],
+      }),
+    ).toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        events: [{ ...eventRecord, requestId: otherRequestId }, jobChangedEvent],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...preparedTransaction,
+        targetStateChecksum: preparedTransaction.previousStateChecksum,
+      }),
+    ).not.toThrow();
 
     const unchangedOperation = {
       ...preparedTransaction.operation,
@@ -861,5 +1049,13 @@ describe("persisted fact runtime schemas", () => {
         events: [jobChangedEvent],
       }),
     ).not.toThrow();
+    expect(() =>
+      ingestTransactionRecordSchema.parse({
+        ...createTransaction,
+        operation: unchangedOperation,
+        newMaterials: [],
+        events: [],
+      }),
+    ).toThrow();
   });
 });

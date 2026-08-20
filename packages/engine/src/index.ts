@@ -1,3 +1,3 @@
-// The root stays empty until the complete EngineRuntime factory lands in the
-// create + ingest + queue feature. Fact stores remain package-internal.
+// The root stays empty until every CoreEngineClient method has a real handler
+// and the complete EngineRuntime factory can land without placeholders.
 export {};

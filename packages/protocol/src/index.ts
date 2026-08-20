@@ -1,7 +1,7 @@
 export { DISTILLY_ERROR_CODES, DistillyError } from "./errors.js";
 export type { DistillyErrorCode, DistillyWireError } from "./errors.js";
 
-export { BUILTIN_HOSTS } from "./ids.js";
+export { BUILTIN_HOSTS, BUILTIN_PEOPLE_SPACE_ID } from "./ids.js";
 export type {
   Branded,
   BriefContractDigest,
@@ -30,7 +30,7 @@ export type {
   VersionId,
 } from "./ids.js";
 
-export { JSON_SCHEMA_DIALECT, WIRE_LIMITS } from "./json.js";
+export { FACT_LIMITS, JSON_SCHEMA_DIALECT, WIRE_LIMITS } from "./json.js";
 export type { JsonObject, JsonPrimitive, JsonValue } from "./json.js";
 
 export { WIRE_VERSION } from "./wire.js";
@@ -46,12 +46,16 @@ export type {
   EventRecord,
   FactEnvelope,
   IngestTransactionRecord,
+  OperationFact,
   OperationRecord,
+  OperationScope,
+  OperationTombstoneRecord,
   PendingJobMarker,
   SpaceRecord,
   StoredOperationResult,
   SubjectRecord,
   SubjectStateRecord,
+  TransactionRecord,
   VersionMaterialEntry,
 } from "./values/facts.js";
 export type {
@@ -276,11 +280,15 @@ export {
   eventRecordSchema,
   factEnvelopeSchema,
   ingestTransactionRecordSchema,
+  operationFactSchema,
   operationRecordSchema,
+  operationScopeSchema,
+  operationTombstoneRecordSchema,
   pendingJobMarkerSchema,
   spaceRecordSchema,
   subjectRecordSchema,
   subjectStateRecordSchema,
+  transactionRecordSchema,
   versionMaterialEntrySchema,
   versionMaterialManifestSchema,
   versionRecordSchema,

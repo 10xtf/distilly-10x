@@ -36,6 +36,27 @@ const startChild = (root, eventFile, label, holdMilliseconds) => {
   return state;
 };
 
+const startIngestChild = (root, requestId) => {
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL("./ingest-child.mjs", import.meta.url)), root, requestId],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const state = { child, stdout: "", stderr: "" };
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    state.stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    state.stderr += chunk;
+  });
+  state.exited = new Promise((resolve) => {
+    child.once("close", (code, signal) => resolve({ code, signal }));
+  });
+  return state;
+};
+
 const waitForOutput = async (state, expected) => {
   const deadline = Date.now() + 3_000;
   while (!state.stdout.includes(expected)) {
@@ -45,6 +66,23 @@ const waitForOutput = async (state, expected) => {
       );
     }
     await delay(10);
+  }
+};
+
+const withDeadline = async (promise, milliseconds, label) => {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} exceeded ${milliseconds}ms`)),
+          milliseconds,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 };
 
@@ -64,7 +102,11 @@ try {
     "the second process acquired while the first still held the lock",
   );
 
-  const [firstExit, secondExit] = await Promise.all([first.exited, second.exited]);
+  const [firstExit, secondExit] = await withDeadline(
+    Promise.all([first.exited, second.exited]),
+    15_000,
+    "built lock children",
+  );
   assert.deepEqual(firstExit, { code: 0, signal: null }, first.stderr);
   assert.deepEqual(secondExit, { code: 0, signal: null }, second.stderr);
   assert.deepEqual((await readFile(eventFile, "utf8")).trim().split("\n"), [
@@ -87,4 +129,43 @@ try {
   await rm(root, { recursive: true, force: true });
 }
 
-process.stdout.write("engine built lock smoke passed\n");
+const ingestRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-ingest-"));
+let left;
+let right;
+try {
+  const { createStep5IngestComposition } = await import("../lib/ingest/composition.js");
+  await createStep5IngestComposition({ root: ingestRoot });
+  left = startIngestChild(ingestRoot, `req_${"1".repeat(32)}`);
+  right = startIngestChild(ingestRoot, `req_${"2".repeat(32)}`);
+  const [leftExit, rightExit] = await withDeadline(
+    Promise.all([left.exited, right.exited]),
+    15_000,
+    "built ingest children",
+  );
+  assert.deepEqual(leftExit, { code: 0, signal: null }, left.stderr);
+  assert.deepEqual(rightExit, { code: 0, signal: null }, right.stderr);
+  const results = [left.stdout, right.stdout].map((stdout) => {
+    const line = stdout
+      .trim()
+      .split("\n")
+      .find((candidate) => candidate.startsWith("result:"));
+    assert.notEqual(line, undefined, `missing ingest result in ${JSON.stringify(stdout)}`);
+    return JSON.parse(line.slice("result:".length));
+  });
+  assert.equal(results.filter((result) => result.kind === "success").length, 1);
+  assert.equal(results.filter((result) => result.kind === "already_exists").length, 1);
+} finally {
+  const stopped = [];
+  if (left?.child.exitCode === null) {
+    left.child.kill();
+    stopped.push(left.exited);
+  }
+  if (right?.child.exitCode === null) {
+    right.child.kill();
+    stopped.push(right.exited);
+  }
+  await Promise.all(stopped);
+  await rm(ingestRoot, { recursive: true, force: true });
+}
+
+process.stdout.write("engine built lock and ingest smoke passed\n");

@@ -11,6 +11,7 @@ import {
   requestIdSchema,
   spaceIdSchema,
   subjectIdSchema,
+  versionIdSchema,
 } from "@distilly/protocol";
 import type { SubjectId } from "@distilly/protocol";
 import { afterEach, describe, expect, it } from "vitest";
@@ -48,14 +49,23 @@ describe("fact foundation defaults", () => {
     const materialId = materialIdSchema.parse(`mat_${"3".repeat(64)}`);
     const eventId = eventIdSchema.parse(`event_${"4".repeat(32)}`);
     const requestId = requestIdSchema.parse(`req_${"5".repeat(32)}`);
+    const versionId = versionIdSchema.parse(`version_${"6".repeat(64)}`);
 
     const expectedPaths: readonly (readonly [string, string])[] = [
       [layout.spacesDirectory(), "spaces"],
       [layout.subjectsDirectory(), "subjects"],
+      [layout.operationsDirectory(), "operations"],
+      [layout.transactionsDirectory(), "transactions"],
+      [layout.indexDirectory(), ".index"],
       [layout.spaceFile(spaceId), join("spaces", `${spaceId}.json`)],
+      [layout.spaceCatalogLock(), join("spaces", ".catalog.lock")],
       [layout.spaceIdentityLock(spaceId), join("spaces", `${spaceId}.identity.lock`)],
       [layout.subjectDirectory(subjectId), join("subjects", subjectId)],
       [layout.subjectLock(subjectId), join("subjects", ".locks", `${subjectId}.lock`)],
+      [
+        layout.ingestStagingDirectory(requestId, subjectId),
+        join("subjects", ".staging", `${requestId}.${subjectId}`),
+      ],
       [layout.subjectFile(subjectId), join("subjects", subjectId, "subject.json")],
       [layout.stateFile(subjectId), join("subjects", subjectId, "state.json")],
       [
@@ -74,10 +84,19 @@ describe("fact foundation defaults", () => {
         layout.eventFile(subjectId, eventId),
         join("subjects", subjectId, "events", `${eventId}.json`),
       ],
+      [layout.operationFile(requestId), join("operations", `${requestId}.json`)],
+      [layout.requestLock(requestId), join("operations", ".locks", `${requestId}.lock`)],
+      [layout.transactionFile(requestId), join("transactions", `${requestId}.json`)],
       [
-        layout.operationFile(subjectId, requestId),
-        join("subjects", subjectId, "operations", `${requestId}.json`),
+        layout.versionFile(subjectId, versionId),
+        join("subjects", subjectId, "versions", versionId, "version.json"),
       ],
+      [
+        layout.versionMaterialManifestFile(subjectId, versionId),
+        join("subjects", subjectId, "versions", versionId, "materials.json"),
+      ],
+      [layout.queueDatabaseFile(), join(".index", "queue.db")],
+      [layout.queueDirtyFile(), join(".index", "queue.dirty")],
     ];
     for (const [path, expected] of expectedPaths) {
       expect(relative(root, path)).toBe(expected);

@@ -1,9 +1,10 @@
 import type { SpaceId, SpaceRecord } from "@distilly/protocol";
-import { spaceRecordSchema } from "@distilly/protocol";
+import { BUILTIN_PEOPLE_SPACE_ID, spaceIdSchema, spaceRecordSchema } from "@distilly/protocol";
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
-import { readFactFile, replaceFactFile } from "./fact-file.js";
+import { listFactDirectory } from "./directory-scan.js";
+import { createFactFile, readFactFile } from "./fact-file.js";
 
 const assertPathId = (requestedId: SpaceId, record: SpaceRecord): void => {
   if (record.id !== requestedId) {
@@ -11,7 +12,43 @@ const assertPathId = (requestedId: SpaceId, record: SpaceRecord): void => {
   }
 };
 
-/** Concrete local store for mutable space identity facts. */
+const isFileCollision = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === "EEXIST";
+
+const SPACE_FILE_PATTERN = /^(space_[0-9a-f]{32})\.json$/u;
+const SPACE_FILE_TEMP_PATTERN = /^\.space_[0-9a-f]{32}\.json\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp$/u;
+const LOCK_SUFFIX = String.raw`(?:\.transition)?(?:\.fence\.[0-9]+-[0-9]+-[0-9a-f]{32}|\.retired\.[0-9a-f]{32})?`;
+const SPACE_LOCK_PATTERN = new RegExp(
+  String.raw`^space_[0-9a-f]{32}\.identity\.lock${LOCK_SUFFIX}$`,
+  "u",
+);
+const CATALOG_LOCK_PATTERN = new RegExp(String.raw`^\.catalog\.lock${LOCK_SUFFIX}$`, "u");
+const ATOMIC_DIRECTORY_TEMP_SUFFIX = String.raw`(?:\.transition)?\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp`;
+const SPACE_LOCK_TEMP_PATTERN = new RegExp(
+  String.raw`^\.space_[0-9a-f]{32}\.identity\.lock${ATOMIC_DIRECTORY_TEMP_SUFFIX}$`,
+  "u",
+);
+const CATALOG_LOCK_TEMP_PATTERN = new RegExp(
+  String.raw`^\.\.catalog\.lock${ATOMIC_DIRECTORY_TEMP_SUFFIX}$`,
+  "u",
+);
+
+const isKnownLockEntry = (name: string): boolean =>
+  SPACE_LOCK_PATTERN.test(name) ||
+  CATALOG_LOCK_PATTERN.test(name) ||
+  SPACE_LOCK_TEMP_PATTERN.test(name) ||
+  CATALOG_LOCK_TEMP_PATTERN.test(name);
+
+const assertBuiltinPeopleRecord = (record: SpaceRecord): void => {
+  if (
+    record.id === BUILTIN_PEOPLE_SPACE_ID &&
+    (record.displayName !== "People" || record.kind !== "people")
+  ) {
+    throw storageCorrupt("Reserved built-in people space does not match its canonical record.");
+  }
+};
+
+/** Concrete local store for immutable space identity facts. */
 export class FileSpaceStore {
   readonly #layout: Layout;
 
@@ -25,7 +62,7 @@ export class FileSpaceStore {
   }
 
   /**
-   * Atomically writes a checksummed space record.
+   * Creates one space fact or accepts an exact immutable retry.
    *
    * @param record - Complete space fact to publish.
    * @returns Completion after the durable replacement.
@@ -37,12 +74,20 @@ export class FileSpaceStore {
     } catch (error) {
       throw storageCorrupt("Space fact cannot be written because its schema is invalid.", error);
     }
-    await replaceFactFile(
-      this.#layout.root,
-      this.#layout.spaceFile(parsed.id),
-      parsed,
-      spaceRecordSchema,
-    );
+    assertBuiltinPeopleRecord(parsed);
+    try {
+      await createFactFile(
+        this.#layout.root,
+        this.#layout.spaceFile(parsed.id),
+        parsed,
+        spaceRecordSchema,
+      );
+    } catch (error) {
+      if (!isFileCollision(error)) throw error;
+      const existing = await this.read(parsed.id);
+      if (existing.checksum === parsed.checksum) return;
+      throw storageCorrupt("Immutable space id already contains a different fact.", error);
+    }
   }
 
   /**
@@ -58,6 +103,33 @@ export class FileSpaceStore {
       spaceRecordSchema,
     );
     assertPathId(spaceId, record);
+    assertBuiltinPeopleRecord(record);
     return record;
+  }
+
+  /**
+   * Lists every verified space fact in canonical id order.
+   *
+   * @returns All verified space records.
+   */
+  async list(): Promise<readonly SpaceRecord[]> {
+    const records: SpaceRecord[] = [];
+    for (const entry of await listFactDirectory(
+      this.#layout.root,
+      this.#layout.spacesDirectory(),
+    )) {
+      const match = SPACE_FILE_PATTERN.exec(entry.name);
+      if (match !== null) {
+        if (entry.kind !== "file") {
+          throw storageCorrupt("Space fact entry is not a regular file.");
+        }
+        records.push(await this.read(spaceIdSchema.parse(match[1])));
+        continue;
+      }
+      if (isKnownLockEntry(entry.name) && entry.kind === "directory") continue;
+      if (SPACE_FILE_TEMP_PATTERN.test(entry.name) && entry.kind === "file") continue;
+      throw storageCorrupt("Spaces directory contains an unknown entry.");
+    }
+    return records;
   }
 }

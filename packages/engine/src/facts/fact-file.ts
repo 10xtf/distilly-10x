@@ -1,10 +1,16 @@
 import type { FactEnvelope, RuntimeSchema } from "@distilly/protocol";
 
-import { schemaUnsupported, storageCorrupt } from "../internal-errors.js";
+import { lockBusy, schemaUnsupported, storageCorrupt } from "../internal-errors.js";
 import { atomicCreateFile, atomicReplaceFile } from "./atomic-write.js";
 import { canonicalJson } from "./canonical-json.js";
 import { verifyFactChecksum } from "./checksum.js";
-import { decodeUtf8, readRegularFile } from "./safe-fs.js";
+import type { ReadRegularFileHooks } from "./safe-fs.js";
+import { decodeUtf8, isRegularFileReplacement, readRegularFile } from "./safe-fs.js";
+
+const MUTABLE_READ_ATTEMPTS = 3;
+
+/** Internal hooks for deterministic mutable-fact replacement tests. */
+type ReadFactFileHooks = ReadRegularFileHooks;
 
 const parseJson = (data: Buffer): unknown => {
   try {
@@ -38,14 +44,16 @@ const checkSchemaVersion = (value: unknown): void => {
  * @param root - Trusted local fact root.
  * @param path - Exact JSON fact path to read.
  * @param schema - Runtime schema for the expected fact type.
+ * @param hooks - Optional deterministic race hooks used by tests.
  * @returns The schema-normalized, checksum-verified fact.
  */
 export const readFactFile = async <T extends FactEnvelope>(
   root: string,
   path: string,
   schema: RuntimeSchema<T>,
+  hooks: ReadFactFileHooks = {},
 ): Promise<T> => {
-  const value = parseJson(await readRegularFile(root, path));
+  const value = parseJson(await readRegularFile(root, path, undefined, hooks));
   checkSchemaVersion(value);
 
   let record: T;
@@ -56,6 +64,34 @@ export const readFactFile = async <T extends FactEnvelope>(
   }
   verifyFactChecksum(record);
   return record;
+};
+
+/**
+ * Reads one atomically replaced mutable fact, retrying only a proven inode-swap race.
+ *
+ * Immutable facts continue to use readFactFile directly so replacement remains
+ * corruption at those boundaries.
+ *
+ * @param root - Trusted local fact root.
+ * @param path - Exact mutable JSON fact path to read.
+ * @param schema - Runtime schema for the expected fact type.
+ * @param hooks - Optional deterministic race hooks used by tests.
+ * @returns One checksum-verified old or new record.
+ */
+export const readMutableFactFile = async <T extends FactEnvelope>(
+  root: string,
+  path: string,
+  schema: RuntimeSchema<T>,
+  hooks: ReadFactFileHooks = {},
+): Promise<T> => {
+  for (let attempt = 0; attempt < MUTABLE_READ_ATTEMPTS; attempt += 1) {
+    try {
+      return await readFactFile(root, path, schema, hooks);
+    } catch (error) {
+      if (!isRegularFileReplacement(error)) throw error;
+    }
+  }
+  throw lockBusy("A mutable fact changed repeatedly while it was being read.");
 };
 
 const encodeFact = <T extends FactEnvelope>(record: T, schema: RuntimeSchema<T>): string => {

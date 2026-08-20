@@ -29,6 +29,9 @@ export type ConversationSourceKey = Branded<`conversation_${string}`, "Conversat
 export type BriefContractDigest = Branded<`brief_contract_${string}`, "BriefContractDigest">;
 export type BriefMaterialRef = Branded<`m${string}`, "BriefMaterialRef">;
 
+/** Reserved identity of the one built-in real-people space. */
+export const BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001" as SpaceId;
+
 /** Built-in host names without weakening HostName to a closed provider union. */
 export const BUILTIN_HOSTS = {
   codex: "codex" as HostName,

@@ -130,7 +130,10 @@ Method
 MethodSchemas
 MutationContext
 MutationMethodName
+OperationFact
 OperationRecord
+OperationScope
+OperationTombstoneRecord
 ParserExtractionMethod
 PendingFilter
 PendingJob
@@ -202,6 +205,7 @@ SubjectStatus
 SubjectSummary
 TextDerivation
 TextDerivationInput
+TransactionRecord
 UninstallInput
 Unsubscribe
 VersionCreation
@@ -220,8 +224,10 @@ WireSuccess
 
 export const expectedRuntimeExports = `
 BUILTIN_HOSTS
+BUILTIN_PEOPLE_SPACE_ID
 DISTILLY_ERROR_CODES
 DistillyError
+FACT_LIMITS
 JSON_SCHEMA_DIALECT
 WIRE_LIMITS
 WIRE_VERSION
@@ -324,7 +330,10 @@ materialSummarySchema
 materialViewSchema
 maturitySchema
 mutationContextSchema
+operationFactSchema
 operationRecordSchema
+operationScopeSchema
+operationTombstoneRecordSchema
 parserExtractionMethodSchema
 pendingFilterSchema
 pendingJobMarkerSchema
@@ -388,6 +397,7 @@ subjectStatusSchema
 subjectSummarySchema
 textDerivationInputSchema
 textDerivationSchema
+transactionRecordSchema
 uninstallInputSchema
 versionCreationSchema
 versionIdSchema

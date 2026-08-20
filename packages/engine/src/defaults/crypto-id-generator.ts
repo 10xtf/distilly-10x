@@ -9,17 +9,9 @@ import type {
   SpaceId,
   SubjectId,
 } from "@distilly/protocol";
+import { BUILTIN_PEOPLE_SPACE_ID } from "@distilly/protocol";
 
-/** Random identifier seam used by deterministic engine tests. */
-interface IdGenerator {
-  subjectId(): SubjectId;
-  spaceId(): SpaceId;
-  jobId(): JobId;
-  leaseId(): LeaseId;
-  requestId(): RequestId;
-  eventId(): EventId;
-  captureAuditRef(): CaptureAuditRef;
-}
+import type { IdGenerator } from "../ports/id-generator.js";
 
 const random128 = (): string => randomBytes(16).toString("hex");
 
@@ -40,7 +32,11 @@ export class CryptoIdGenerator implements IdGenerator {
    * @returns A fresh 128-bit space identifier.
    */
   spaceId(): SpaceId {
-    return `space_${random128()}` as SpaceId;
+    let id: SpaceId;
+    do {
+      id = `space_${random128()}` as SpaceId;
+    } while (id === BUILTIN_PEOPLE_SPACE_ID);
+    return id;
   }
 
   /**

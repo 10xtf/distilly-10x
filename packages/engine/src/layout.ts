@@ -6,8 +6,16 @@ import {
   requestIdSchema,
   spaceIdSchema,
   subjectIdSchema,
+  versionIdSchema,
 } from "@distilly/protocol";
-import type { EventId, MaterialId, RequestId, SpaceId, SubjectId } from "@distilly/protocol";
+import type {
+  EventId,
+  MaterialId,
+  RequestId,
+  SpaceId,
+  SubjectId,
+  VersionId,
+} from "@distilly/protocol";
 
 import { invalidInput } from "./internal-errors.js";
 
@@ -44,6 +52,33 @@ export class Layout {
   }
 
   /**
+   * Root directory containing globally keyed operation facts.
+   *
+   * @returns The absolute operations directory path.
+   */
+  operationsDirectory(): string {
+    return this.inside("operations");
+  }
+
+  /**
+   * Root directory containing transaction journals.
+   *
+   * @returns The absolute transactions directory path.
+   */
+  transactionsDirectory(): string {
+    return this.inside("transactions");
+  }
+
+  /**
+   * Root directory containing disposable indexes.
+   *
+   * @returns The absolute index directory path.
+   */
+  indexDirectory(): string {
+    return this.inside(".index");
+  }
+
+  /**
    * Path of one space record.
    *
    * @param spaceId - Space identifier used as the file name.
@@ -64,6 +99,15 @@ export class Layout {
   }
 
   /**
+   * Global catalog lock used while resolving or creating an inline space.
+   *
+   * @returns The confined absolute catalog-lock path.
+   */
+  spaceCatalogLock(): string {
+    return this.inside("spaces", ".catalog.lock");
+  }
+
+  /**
    * Directory containing one subject's facts.
    *
    * @param subjectId - Subject whose fact directory is requested.
@@ -81,6 +125,92 @@ export class Layout {
    */
   subjectLock(subjectId: SubjectId): string {
     return this.inside("subjects", ".locks", `${subjectIdSchema.parse(subjectId)}.lock`);
+  }
+
+  /**
+   * Fixed create-and-first-ingest staging directory named by its journal.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @returns The confined absolute staging-directory path.
+   */
+  ingestStagingDirectory(requestId: RequestId, subjectId: SubjectId): string {
+    return this.inside(
+      "subjects",
+      ".staging",
+      `${requestIdSchema.parse(requestId)}.${subjectIdSchema.parse(subjectId)}`,
+    );
+  }
+
+  /**
+   * Subject record inside one fixed ingest staging directory.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @returns The absolute staged subject-record path.
+   */
+  stagedSubjectFile(requestId: RequestId, subjectId: SubjectId): string {
+    return resolve(this.ingestStagingDirectory(requestId, subjectId), "subject.json");
+  }
+
+  /**
+   * State record inside one fixed ingest staging directory.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @returns The absolute staged state-record path.
+   */
+  stagedStateFile(requestId: RequestId, subjectId: SubjectId): string {
+    return resolve(this.ingestStagingDirectory(requestId, subjectId), "state.json");
+  }
+
+  /**
+   * One material directory inside a fixed ingest staging directory.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @param materialId - Staged material identifier.
+   * @returns The absolute staged material-directory path.
+   */
+  stagedMaterialDirectory(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    materialId: MaterialId,
+  ): string {
+    return resolve(
+      this.ingestStagingDirectory(requestId, subjectId),
+      "knowledge",
+      "materials",
+      materialIdSchema.parse(materialId),
+    );
+  }
+
+  /**
+   * Material record inside a fixed ingest staging directory.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @param materialId - Staged material identifier.
+   * @returns The absolute staged material-record path.
+   */
+  stagedMaterialFile(requestId: RequestId, subjectId: SubjectId, materialId: MaterialId): string {
+    return resolve(this.stagedMaterialDirectory(requestId, subjectId, materialId), "material.json");
+  }
+
+  /**
+   * Material body inside a fixed ingest staging directory.
+   *
+   * @param requestId - Journal request that owns the staging directory.
+   * @param subjectId - Candidate subject staged for publication.
+   * @param materialId - Staged material identifier.
+   * @returns The absolute staged material-content path.
+   */
+  stagedMaterialContentFile(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    materialId: MaterialId,
+  ): string {
+    return resolve(this.stagedMaterialDirectory(requestId, subjectId, materialId), "content.txt");
   }
 
   /**
@@ -173,19 +303,89 @@ export class Layout {
   }
 
   /**
-   * Path of one successful mutation record.
+   * Path of one globally keyed completed operation or purge tombstone.
    *
-   * @param subjectId - Subject that owns the operation.
-   * @param requestId - Idempotency key used as the file name.
-   * @returns The confined absolute operation-record path.
+   * @param requestId - Globally unique request identifier.
+   * @returns The confined absolute operation-fact path.
    */
-  operationFile(subjectId: SubjectId, requestId: RequestId): string {
+  operationFile(requestId: RequestId): string {
+    return this.inside("operations", `${requestIdSchema.parse(requestId)}.json`);
+  }
+
+  /**
+   * Cross-process lock for one globally unique request id.
+   *
+   * @param requestId - Globally unique request identifier.
+   * @returns The confined absolute request-lock path.
+   */
+  requestLock(requestId: RequestId): string {
+    return this.inside("operations", ".locks", `${requestIdSchema.parse(requestId)}.lock`);
+  }
+
+  /**
+   * Path of one root transaction journal.
+   *
+   * @param requestId - Journal request identifier.
+   * @returns The confined absolute transaction-record path.
+   */
+  transactionFile(requestId: RequestId): string {
+    return this.inside("transactions", `${requestIdSchema.parse(requestId)}.json`);
+  }
+
+  /**
+   * Directory containing one immutable profile version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The confined absolute version-directory path.
+   */
+  versionDirectory(subjectId: SubjectId, versionId: VersionId): string {
     return this.inside(
       "subjects",
       subjectIdSchema.parse(subjectId),
-      "operations",
-      `${requestIdSchema.parse(requestId)}.json`,
+      "versions",
+      versionIdSchema.parse(versionId),
     );
+  }
+
+  /**
+   * Path of immutable metadata for one profile version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute version-record path.
+   */
+  versionFile(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionDirectory(subjectId, versionId), "version.json");
+  }
+
+  /**
+   * Path of the immutable material manifest for one profile version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute version-material-manifest path.
+   */
+  versionMaterialManifestFile(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionDirectory(subjectId, versionId), "materials.json");
+  }
+
+  /**
+   * Path of the disposable queue database.
+   *
+   * @returns The confined absolute queue-database path.
+   */
+  queueDatabaseFile(): string {
+    return this.inside(".index", "queue.db");
+  }
+
+  /**
+   * Path of the fixed-byte queue projection dirty marker.
+   *
+   * @returns The confined absolute queue-dirty-marker path.
+   */
+  queueDirtyFile(): string {
+    return this.inside(".index", "queue.dirty");
   }
 
   /**

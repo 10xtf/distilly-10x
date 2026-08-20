@@ -4,7 +4,7 @@ import type { RuntimeSchema, SubjectId, SubjectStateRecord } from "@distilly/pro
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
 import { hashMaterialSet } from "./digests.js";
-import { readFactFile, replaceFactFile } from "./fact-file.js";
+import { readMutableFactFile, replaceFactFile } from "./fact-file.js";
 import type { FileMaterialStore } from "./material-store.js";
 import type { FileSubjectStore } from "./subject-store.js";
 
@@ -105,7 +105,7 @@ export class FileStateStore {
    */
   async read(subjectId: SubjectId): Promise<SubjectStateRecord> {
     await requireSubject(this.#subjects, subjectId);
-    const record = await readFactFile(
+    const record = await readMutableFactFile(
       this.#layout.root,
       this.#layout.stateFile(subjectId),
       stateFactSchema,

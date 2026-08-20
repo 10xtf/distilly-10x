@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { JsonObject, JsonValue } from "../json.js";
-import { WIRE_LIMITS } from "../json.js";
+import { FACT_LIMITS, WIRE_LIMITS } from "../json.js";
 import type { RuntimeSchema } from "../wire.js";
 
 type Primitive = string | number | boolean | null | undefined;
@@ -77,7 +77,7 @@ export const exactOptionalRuntimeSchema = <S extends z.ZodType>(
  * @param value - String to measure.
  * @returns Encoded UTF-8 byte count.
  */
-const utf8ByteLength = (value: string): number => {
+export const utf8ByteLength = (value: string): number => {
   let bytes = 0;
   for (const character of value) {
     const codePoint = character.codePointAt(0);
@@ -107,6 +107,7 @@ const boundedString = (maximumBytes: number) =>
 export const labelStringSchema = boundedString(WIRE_LIMITS.labelBytes);
 export const queryStringSchema = boundedString(WIRE_LIMITS.queryBytes);
 export const uriStringSchema = boundedString(WIRE_LIMITS.uriBytes);
+export const sourceIdentityStringSchema = boundedString(FACT_LIMITS.sourceIdentityBytes);
 export const reasonStringSchema = boundedString(WIRE_LIMITS.reasonBytes);
 export const claimTextSchema = boundedString(WIRE_LIMITS.claimTextBytes);
 export const quoteStringSchema = boundedString(WIRE_LIMITS.quoteBytes);

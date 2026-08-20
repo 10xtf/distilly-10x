@@ -1,6 +1,7 @@
-import { DistillyError, operationRecordSchema } from "@distilly/protocol";
+import { DistillyError, operationFactSchema, operationRecordSchema } from "@distilly/protocol";
 import type {
   CommitResult,
+  OperationFact,
   OperationRecord,
   RequestId,
   RuntimeSchema,
@@ -12,7 +13,13 @@ import { Layout } from "../layout.js";
 import { createFactFile, readFactFile } from "./fact-file.js";
 import type { FileSubjectStore } from "./subject-store.js";
 
-const operationFactSchema: RuntimeSchema<OperationRecord> = {
+const storedOperationFactSchema: RuntimeSchema<OperationFact> = {
+  parse(value) {
+    return operationFactSchema.parse(value) as OperationFact;
+  },
+};
+
+const completedOperationSchema: RuntimeSchema<OperationRecord> = {
   parse(value) {
     return operationRecordSchema.parse(value) as OperationRecord;
   },
@@ -81,22 +88,33 @@ const resultSubjectIds = (record: OperationRecord): readonly SubjectId[] => {
   }
 };
 
-const assertSubject = (subjectId: SubjectId, record: OperationRecord): void => {
-  if (resultSubjectIds(record).some((resultSubjectId) => resultSubjectId !== subjectId)) {
-    throw storageCorrupt("Operation result subject does not match its fact path.");
+const assertScopeKind = (record: OperationFact): void => {
+  const expected = record.method === "library.rebuild" ? "global" : "subject";
+  if (record.scope.kind !== expected) {
+    throw storageCorrupt("Operation scope does not match its mutation method.");
   }
 };
 
-/** Concrete local store for immutable successful-operation facts. */
+const assertCompletedSubject = (record: OperationRecord): SubjectId | undefined => {
+  assertScopeKind(record);
+  if (record.scope.kind === "global") return undefined;
+  const scopedSubjectId = record.scope.subjectId;
+  if (resultSubjectIds(record).some((subjectId) => subjectId !== scopedSubjectId)) {
+    throw storageCorrupt("Operation result subject does not match its durable scope.");
+  }
+  return scopedSubjectId;
+};
+
+/** Concrete root-scoped store for immutable completed-operation facts and purge tombstones. */
 export class FileOperationStore {
   readonly #layout: Layout;
   readonly #subjects: FileSubjectStore;
 
   /**
-   * Creates an operation store with its required subject-fact dependency.
+   * Creates a root-scoped operation store with its subject-fact dependency.
    *
    * @param layout - Confined local fact layout.
-   * @param subjects - Store used to validate operation ownership.
+   * @param subjects - Store used to validate completed subject-scoped facts.
    */
   constructor(layout: Layout, subjects: FileSubjectStore) {
     this.#layout = layout;
@@ -104,53 +122,69 @@ export class FileOperationStore {
   }
 
   /**
-   * Publishes one immutable operation or accepts an exact retry.
+   * Publishes one completed operation or accepts an exact immutable retry.
    *
-   * @param subjectId - Subject path that owns the operation.
-   * @param record - Complete successful-operation fact.
-   * @returns Completion after publication or exact retry validation.
+   * @param record - Complete checksummed operation fact to publish.
    */
-  async write(subjectId: SubjectId, record: OperationRecord): Promise<void> {
+  async write(record: OperationRecord): Promise<void> {
     let parsed: OperationRecord;
     try {
-      parsed = operationFactSchema.parse(record);
+      parsed = completedOperationSchema.parse(record);
     } catch (error) {
       throw storageCorrupt(
         "Operation fact cannot be written because its schema is invalid.",
         error,
       );
     }
-    await requireSubject(this.#subjects, subjectId);
-    assertSubject(subjectId, parsed);
-    const path = this.#layout.operationFile(subjectId, parsed.requestId);
+    const subjectId = assertCompletedSubject(parsed);
+    if (subjectId !== undefined) await requireSubject(this.#subjects, subjectId);
+
+    const path = this.#layout.operationFile(parsed.requestId);
     try {
-      await createFactFile(this.#layout.root, path, parsed, operationFactSchema);
+      await createFactFile(this.#layout.root, path, parsed, completedOperationSchema);
     } catch (error) {
       if (!isFileCollision(error)) throw error;
-      const existing = await this.read(subjectId, parsed.requestId);
-      if (existing.checksum === parsed.checksum) return;
+      const existing = await this.read(parsed.requestId);
+      if (existing.recordKind === "completed" && existing.checksum === parsed.checksum) return;
       throw storageCorrupt("Immutable request id already contains a different operation.", error);
     }
   }
 
   /**
-   * Reads an operation and validates its path id and subject association.
+   * Reads a completed operation or content-free purge tombstone by root RequestId.
    *
-   * @param subjectId - Subject path that owns the operation.
-   * @param requestId - Request path segment.
-   * @returns The verified immutable operation.
+   * @param requestId - Globally unique request identifier.
+   * @returns The verified completed operation or purge tombstone.
    */
-  async read(subjectId: SubjectId, requestId: RequestId): Promise<OperationRecord> {
-    await requireSubject(this.#subjects, subjectId);
+  async read(requestId: RequestId): Promise<OperationFact> {
     const record = await readFactFile(
       this.#layout.root,
-      this.#layout.operationFile(subjectId, requestId),
-      operationFactSchema,
+      this.#layout.operationFile(requestId),
+      storedOperationFactSchema,
     );
     if (record.requestId !== requestId) {
       throw storageCorrupt("Operation request id does not match its fact path.");
     }
-    assertSubject(subjectId, record);
+    assertScopeKind(record);
+    if (record.recordKind === "completed") {
+      const subjectId = assertCompletedSubject(record);
+      if (subjectId !== undefined) await requireSubject(this.#subjects, subjectId);
+    }
     return record;
+  }
+
+  /**
+   * Reads one operation fact or returns undefined only when its exact path is absent.
+   *
+   * @param requestId - Globally unique request identifier.
+   * @returns The verified operation fact, or undefined when absent.
+   */
+  async readOptional(requestId: RequestId): Promise<OperationFact | undefined> {
+    try {
+      return await this.read(requestId);
+    } catch (error) {
+      if (error instanceof DistillyError && error.code === "not_found") return undefined;
+      throw error;
+    }
   }
 }

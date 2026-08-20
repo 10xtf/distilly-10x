@@ -8,10 +8,10 @@
 2. **TypeScript foundation**：workspace、protocol build、lint/type/test/build/hygiene 的真实最小门禁。
 3. **Protocol**：完整 ids / value grammars、WIRE_LIMITS、JSON-safe errors / EmptyResult、EngineMethodMap、五工具 runtime + draft-2020-12 descriptor registry 与 snapshots。
 4. **Fact foundation**：Layout、FactEnvelope/checksum、atomic write、space/subject/material/state/event/operation stores、full SHA-256、space identity / subject lock。
-5. **Create + ingest + queue**：current material manifest、ingest journal/recovery、request idempotency，以及空 store 到 enqueue now 的真实磁盘路径与 generation。
-6. **Briefing + lease**：pending list/brief/renew/release、incremental baseline、prompt asset、超限失败。
+5. **Create + ingest + queue**：root request lock / operation / transaction、current material manifest、ingest journal/recovery、built-in people / inline space 串行化、保守重复创建、material-text/source-identity v1、request idempotency、auto-v1 与窄 queue projection，以及空 store 到 enqueue now 的真实磁盘路径与 generation。该切片只用 package-internal composition，不落 subjects.create 空主体、public pending/lease service、root EngineRuntime/createEngine 或占位 handlers。
+6. **Briefing + lease**：pending list/brief/renew/release、incremental baseline、prompt asset、超限失败；在这一步才扩展 Step 5 的内部 queue projection 为 public pending / lease service。
 7. **Claim patch + commit**：evidence resolver、patch apply、quality、renderer、journal、current/suspended。
-8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke。
+8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke；root EngineRuntime/createEngine 仍要等全部 CoreEngineClient handlers 可用才导出，不因五工具 presenter 先完成就暴露 partial runtime。
 9. **Host bindings + setup**：Codex / Claude Code capability、canonical skill、runtime bootstrap、doctor。
 10. **必备 Panel + review**：四页最小 UI、HTTP EngineClient、安全拒绝、promote/reject。
 11. **Correction + Recall / install**：立即版本、prompt、subrun inject、install/export。

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { WIRE_LIMITS } from "./json.js";
+import { FACT_LIMITS, WIRE_LIMITS } from "./json.js";
 import type { EngineMethodMap } from "./methods.js";
+import { utf8ByteLength } from "./schemas/common.js";
 import { ingestResultSchema, materialRecordSchema } from "./schemas/materials.js";
 import { engineMethodSchemas } from "./schemas/methods.js";
 
@@ -872,6 +873,8 @@ describe("engine method runtime schemas", () => {
     const uriPrefix = "https://example.com/";
     const uriAtLimit = uriPrefix + "x".repeat(WIRE_LIMITS.uriBytes - uriPrefix.length);
     const uriOverLimit = `${uriAtLimit}x`;
+    const unicodeUriAtWireLimit =
+      uriPrefix + "é".repeat((WIRE_LIMITS.uriBytes - uriPrefix.length) / 2);
     expect(() =>
       engineMethodSchemas["materials.ingest"].params.parse({
         ...ingestParams,
@@ -895,9 +898,29 @@ describe("engine method runtime schemas", () => {
       }),
     ).toThrow();
 
+    expect(utf8ByteLength(unicodeUriAtWireLimit)).toBe(WIRE_LIMITS.uriBytes);
+    expect(() =>
+      engineMethodSchemas["materials.ingest"].params.parse({
+        ...ingestParams,
+        materials: [
+          {
+            ...materialInput,
+            source: { ...materialSourceInput, uri: unicodeUriAtWireLimit },
+          },
+        ],
+      }),
+    ).not.toThrow();
+
+    const sourceUriIdentityAtLimit = `source-uri-v1\0${uriAtLimit}`;
+    const sourceIdentityAtLimit = `artifact-uri-v1\0${uriAtLimit}`;
+    const sourceIdentityOverLimit = `${sourceIdentityAtLimit}x`;
+    expect(utf8ByteLength(sourceUriIdentityAtLimit)).toBe(
+      WIRE_LIMITS.uriBytes + utf8ByteLength("source-uri-v1\0"),
+    );
+    expect(utf8ByteLength(sourceIdentityAtLimit)).toBe(FACT_LIMITS.sourceIdentityBytes);
     expect(() =>
       engineMethodSchemas["materials.get"].result.parse({
-        record: { ...materialRecord, sourceIdentity: uriAtLimit },
+        record: { ...materialRecord, sourceIdentity: sourceUriIdentityAtLimit },
         content: "hello",
         sourceGroup,
         grouping,
@@ -905,7 +928,15 @@ describe("engine method runtime schemas", () => {
     ).not.toThrow();
     expect(() =>
       engineMethodSchemas["materials.get"].result.parse({
-        record: { ...materialRecord, sourceIdentity: uriOverLimit },
+        record: { ...materialRecord, sourceIdentity: sourceIdentityAtLimit },
+        content: "hello",
+        sourceGroup,
+        grouping,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["materials.get"].result.parse({
+        record: { ...materialRecord, sourceIdentity: sourceIdentityOverLimit },
         content: "hello",
         sourceGroup,
         grouping,

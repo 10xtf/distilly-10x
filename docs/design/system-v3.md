@@ -432,8 +432,20 @@ export interface EngineEvent {
 ├── runtime/
 │   └── <engine-version>/                 # setup 安装的本机 runtime，不是人物事实
 ├── spaces/
+│   ├── .catalog.lock                       # inline space kind+label 的全局串行化
+│   ├── <space-id>.identity.lock            # 该空间的主体唯一性锁
 │   └── <space-id>.json
+├── operations/
+│   ├── .locks/
+│   │   └── <request-id>.lock            # 跨 method / space 的 RequestId 锁
+│   └── <request-id>.json                    # completed OperationRecord 或 purge tombstone
+├── transactions/
+│   └── <request-id>.json                    # TransactionRecord 判别联合
 ├── subjects/
+│   ├── .locks/
+│   │   └── <subject-id>.lock
+│   ├── .staging/
+│   │   └── <request-id>.<subject-id>/   # create + first ingest 的同盘临时主体
 │   └── <subject-id>/
 │       ├── subject.json                  # 身份、别名、域包、空间、生命周期
 │       ├── state.json                    # generation、current manifest/hash、pending、current/suspended
@@ -462,12 +474,8 @@ export interface EngineEvent {
 │       │       │   └── domains/
 │       │       └── prompt.md               # 同一 renderer 的完整注入投影
 │       ├── profile/                         # current version 的可重建便捷投影
-│       ├── events/
-│       │   └── <event-id>.json              # 不可变、可排序的血缘事件
-│       ├── operations/
-│       │   └── <request-id>.json            # 幂等结果；按保留策略清理
-│       └── transactions/
-│           └── <request-id>.json            # prepared / committed / aborted journal
+│       └── events/
+│           └── <event-id>.json              # 不可变、可排序的血缘事件
 ├── graph/
 │   └── relations.jsonl
 ├── audit/
@@ -475,6 +483,7 @@ export interface EngineEvent {
 │       └── <capture-audit-ref>.jsonl     # 无正文的授权、停止与越界拒绝事件
 └── .index/
     ├── queue.db
+    ├── queue.dirty                       # queue projection 的 fixed-byte dirty marker
     ├── graph.db
     └── library.json
 ~~~
@@ -483,7 +492,7 @@ DISTILLY_ROOT 可以覆盖根目录。所有 id 都经过 schema 验证后再拼
 
 ### 6.2 什么是事实，什么是投影
 
-**事实：** space/subject/state records、material.json + content.txt、raw、corrections、immutable versions、events、successful operations、private-capture content-free audit 与有效 transaction journal。
+**事实：** space/subject/state records、material.json + content.txt、raw、corrections、immutable versions、events、completed operation 及其 content-free purge tombstone、private-capture content-free audit 与有效 transaction journal。
 
 **投影：** subject/profile 当前副本、宿主 SKILL / identity 文件、.index、Panel 缓存和搜索结果。删掉投影只能影响性能或可用性，不能丢人物记忆。
 
@@ -516,7 +525,7 @@ ConversationSourceKey wire form = conversation_<64 lowercase hex>
 BriefContractDigest wire form = brief_contract_<64 lowercase hex>
 ~~~
 
-schema 强制六种随机 id 与 RequestId 的后缀恰好 32 位小写十六进制，四种内容派生 id 与上述九种摘要型 id 的后缀恰好 64 位。SubjectId、SpaceId、JobId、LeaseId、EventId 与 CaptureAuditRef 由受信 crypto id generator 使用 128-bit randomness 生成；RawId 对已落盘原始 bytes 计算完整 SHA-256，VersionId、ClaimId 与 RelationId 分别对其已定义的 canonical semantic preimage 计算完整 SHA-256。CaptureAuditRef 不从聊天正文或 scope label 派生。CaptureScopeDigest 与 ConversationSourceKey 由 engine 使用**安装级而非进程级** audit HMAC key 对 canonical scope、或 Controller 提供的稳定 opaque application/account/one-to-one-thread locator 计算；locator 不可用时，ConversationSourceKey 在 subject 创建/解析后按 SubjectId 保守合一。key 优先放 OS keychain 并在 instance.json 留 reference，不可用时原子创建 0600 的 secrets/audit-hmac.key。多进程用 create-exclusive + fsync + reopen 取得同一 key，永不把 key 写进日志、bundle 或诊断导出。这样重启和 MCP/Panel/CLI 仍能归并同一会话，又不落明文或可离线枚举的裸 thread hash。
+schema 强制六种随机 id 与 RequestId 的后缀恰好 32 位小写十六进制，四种内容派生 id 与上述九种摘要型 id 的后缀恰好 64 位。除 §9.2 的保留 people space 外，SubjectId、SpaceId、JobId、LeaseId、EventId 与 CaptureAuditRef 由受信 crypto id generator 使用 128-bit randomness 生成，generator 不得产生该保留 SpaceId；RawId 对已落盘原始 bytes 计算完整 SHA-256，VersionId、ClaimId 与 RelationId 分别对其已定义的 canonical semantic preimage 计算完整 SHA-256。CaptureAuditRef 不从聊天正文或 scope label 派生。CaptureScopeDigest 与 ConversationSourceKey 由 engine 使用**安装级而非进程级** audit HMAC key 对 canonical scope、或 Controller 提供的稳定 opaque application/account/one-to-one-thread locator 计算；locator 不可用时，ConversationSourceKey 在 subject 创建/解析后按 SubjectId 保守合一。key 优先放 OS keychain 并在 instance.json 留 reference，不可用时原子创建 0600 的 secrets/audit-hmac.key。多进程用 create-exclusive + fsync + reopen 取得同一 key，永不把 key 写进日志、bundle 或诊断导出。这样重启和 MCP/Panel/CLI 仍能归并同一会话，又不落明文或可离线枚举的裸 thread hash。
 
 audit key 不自动轮换。丢失或 reference 不可读时，已有事实仍可读，但 private capture 返回 storage_corrupt 并要求恢复原 key或先 privacy-purge 全部 private capture lineage 后显式 reset；系统不能静默生成新 key 让同一 thread 变成新来源。测试必须用两个 runtime 与进程重启证明同一 canonical conversation 产生相同 ConversationSourceKey。
 
@@ -591,12 +600,18 @@ export interface EventRecord extends FactEnvelope<1> {
 export type StoredOperationResult<M extends MutationMethodName> =
   EngineMethodMap[M]["result"];
 
+export type OperationScope =
+  | { readonly kind: "global" }
+  | { readonly kind: "subject"; readonly subjectId: SubjectId };
+
 export type OperationRecord<
   M extends MutationMethodName = MutationMethodName,
 > = {
   [K in M]: FactEnvelope<1> & {
+    readonly recordKind: "completed";
     readonly requestId: RequestId;
     readonly method: K;
+    readonly scope: OperationScope;
     readonly actor: ActorContext;
     readonly inputChecksum: FactChecksum;
     readonly result: StoredOperationResult<K>;
@@ -604,12 +619,25 @@ export type OperationRecord<
   };
 }[M];
 
+export interface OperationTombstoneRecord extends FactEnvelope<1> {
+  readonly recordKind: "tombstone";
+  readonly requestId: RequestId;
+  readonly method: MutationMethodName;
+  readonly scope: OperationScope;
+  readonly inputChecksum: FactChecksum;
+  readonly removedAt: IsoDateTime;
+  readonly reason: "subject_purged";
+}
+
+export type OperationFact =
+  | OperationRecord
+  | OperationTombstoneRecord;
+
 interface IngestTransactionBase extends FactEnvelope<1> {
   readonly transactionKind: "ingest";
   readonly requestId: RequestId;
+  readonly spaceId: SpaceId;
   readonly subjectId: SubjectId;
-  readonly createdSubject: boolean;
-  readonly previousStateChecksum?: FactChecksum;
   readonly targetStateChecksum: FactChecksum;
   readonly newMaterials: readonly VersionMaterialEntry[];
   readonly operation: OperationRecord<"materials.ingest">;
@@ -617,37 +645,54 @@ interface IngestTransactionBase extends FactEnvelope<1> {
   readonly preparedAt: IsoDateTime;
 }
 
-export type IngestTransactionRecord =
-  | (IngestTransactionBase & { readonly state: "prepared" })
-  | (IngestTransactionBase & {
+type IngestTransactionTarget =
+  | {
+      readonly createdSubject: true;
+      readonly previousStateChecksum?: never;
+      readonly targetSubjectChecksum: FactChecksum;
+    }
+  | {
+      readonly createdSubject: false;
+      readonly previousStateChecksum: FactChecksum;
+      readonly targetSubjectChecksum?: never;
+    };
+
+type TransactionLifecycle =
+  | { readonly state: "prepared" }
+  | {
       readonly state: "committed" | "aborted";
       readonly finishedAt: IsoDateTime;
-    });
+    };
+
+export type IngestTransactionRecord =
+  IngestTransactionBase & IngestTransactionTarget & TransactionLifecycle;
+
+export type TransactionRecord = IngestTransactionRecord;
 ~~~
 
-SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationRecord.requestId 必须分别匹配其路径段；SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 `event` 字段。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
+SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationFact.requestId 必须分别匹配其路径段；TransactionRecord.requestId 必须匹配 root `transactions/<request-id>.json`，SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 `event` 字段。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
 
 `materialManifest` 是当前 generation 的事实 membership，不是从 materials 目录猜出的缓存；它和 VersionMaterialManifest 使用完全相同的 entry 结构，按 MaterialId canonical bytes 严格升序且不得重复。空主体固定 generation=0、manifest 为空且没有 materialSetHash；每次改变 committed material set 的 ingest 只把 generation 增一。非空 manifest 按 hashMaterialSet 重算必须等于 materialSetHash。`pending` 保存从事实重建 job 所需的稳定字段；leased/failed、attempt、owner、expiry 与 LSN 仍只在 queue projection，重建后回到 pending。
 
-OperationRecord 只记录已经跨过事实 commit point 的成功 mutation。`inputChecksum` 对 method、canonical params 与 session-bound ActorContext 的 canonical bytes 计算；RequestId 不进入 preimage。同一 requestId、同一 checksum 返回存储的 result，不再次写事实；同一 requestId 配不同 params 或 actor 返回 idempotency_conflict。IngestTransactionRecord.operation 固定为 materials.ingest、requestId 必须等于 journal.requestId，events 按 subject.created、material.ingested、job.changed 的适用子集与该顺序保存完整 EventRecord。事务在 operation/event 文件之前崩溃时，recovery 从 journal 原样补写，因此重试不能从原来的 ingested 变成 unchanged，也不能生成第二组 event ids。
+OperationRecord 只记录已经跨过事实 commit point 的成功 mutation。`inputChecksum` 对 method、canonical params 与 session-bound ActorContext 的 canonical bytes 计算；RequestId 不进入 preimage。每个 mutation 在任何 method / space 锁之前取 root `operations/.locks/<request-id>.lock`，因此 RequestId 在整个 engine 中全局唯一。当前 20 个 MutationMethodName 中只有 `library.rebuild` 使用 `{ kind: "global" }`，其余都由 engine 解析出唯一 subjectId 并使用 subject scope；未来真正的多主体 mutation 必须升 operation schemaVersion，不得挤进 global 或挑一个 subject 代表。同一 requestId、同一 checksum 返回 completed record 的 result，不再次写事实；同一 requestId 配不同 input 或 actor 返回 idempotency_conflict。IngestTransactionRecord.operation 固定为 materials.ingest，其 requestId 必须等于 journal.requestId，scope 必须为 `{ kind: "subject", subjectId: journal.subjectId }`；journal.spaceId 必须等于该 SubjectRecord 的 spaceId。events 按 subject.created、material.ingested、job.changed 的适用子集与该顺序保存完整 EventRecord。事务在 operation/event 文件之前崩溃时，recovery 从 journal 原样补写，因此重试不能从原来的 ingested 变成 unchanged，也不能生成第二组 event ids。
 
 ### 6.4 写入事务
 
-文件系统与 SQLite 没有共同事务。state 的 target checksum 是事实提交判据：已有主体以 state.json 的 atomic rename 发布；create + first ingest 先在 subjects/ 下的同文件系统临时 sibling 目录写完整 SubjectRecord、材料、target state 与 prepared journal，再以目录 atomic rename 发布。后者的物理 commit point 是目录 rename，但逻辑上仍是 target SubjectStateRecord 第一次可见；失败前不存在可解析的主体。
+文件系统与 SQLite 没有共同事务。state 的 target checksum 是事实提交判据：已有主体以 state.json 的 atomic rename 发布；create + first ingest 先在 `subjects/.staging/<request-id>.<subject-id>/` 写完整 SubjectRecord、材料与 target state，而 prepared journal 写在 root `transactions/<request-id>.json`，再以同文件系统目录 atomic rename 发布。后者的物理 commit point 是目录 rename，但逻辑上仍是 target SubjectStateRecord 与 target SubjectRecord 第一次可见；失败前不存在可解析的主体。
 
 每次 ingest 按下面顺序：
 
-1. 按 §9.4 的顺序取得所需 lock，重新读取并校验 subject/state；create 在临时目录内工作。
-2. 写 IngestTransactionRecord=prepared，固定 previous/target state checksum、newMaterials、完整 operation/events、input checksum 与成功 result；逐文件 flush。
+1. 参数规范化并算出 inputChecksum 后，在取本 request lock 前先 reconcile root prepared journals；再按 §9.4 的顺序取 root request lock 与所需 space catalog / identity / subject lock，在锁内重新读取并校验 space/subject/state 以及同 space/subject 的其它 prepared journals；create 在固定 staging 目录内工作。命中其它 request 时释放全部当前 locks 并 retryable busy，不反向取另一 request lock。
+2. 写 root IngestTransactionRecord=prepared，固定 space/subject、create 的 target subject checksum 或 existing 的 previous state checksum、target state checksum、newMaterials、完整 operation/events、input checksum 与成功 result；逐文件 flush。
 3. 写每份新 material 临时目录并原子 rename；读路径只接受 state.materialManifest 中的 entry，因此这些目录在 state commit 前不可见。
-4. 已有主体用 write-temp + fsync + atomic rename 替换 state.json；create fsync 完整临时主体目录后 atomic rename 到 subjects/<subject-id>。**这是 ingest commit point。**
-5. 从 journal 幂等写 OperationRecord 与 EventRecord，再更新 queue/library 投影；投影失败只标 dirty，不回滚事实。
-6. journal 标 committed，释放 lock，最后发送与已落盘 EventRecord.event 一致的 EngineEvent。
+4. 已有主体用 write-temp + fsync + atomic rename 替换 state.json；create fsync 完整 staging 目录后 atomic rename 到 subjects/<subject-id>。**这是 ingest commit point。**
+5. 从 journal 幂等写 `recordKind="completed"` 的 OperationRecord 与 EventRecord，再更新 queue 与已配置的其它投影；只有已配置 projection 的 apply 失败才标该 projection dirty，未安装的 library 等后续 projection 不制造虚假 dirty，任何投影失败都不回滚事实。Step 5 只配置 queue。
+6. journal 标 committed，按逆序释放 lock，最后发送与已落盘 EventRecord.event 一致的 EngineEvent。
 
 每次版本提交按下面顺序：
 
-1. 取得 subject lock，重新读取 state、job generation、lease 与 base version。
-2. 写 transactions/<request-id>.json，状态 prepared，列出目标 version、previous/target state FactChecksum、draft hash，以及 commit 后要物化的 OperationRecord/EventRecord。
+1. 取得 root request lock，再取 subject lock，重新读取 state、job generation、lease 与 base version。
+2. 以 TransactionRecord 的对应 discriminant 写 root transactions/<request-id>.json，状态 prepared，列出目标 version、previous/target state FactChecksum、draft hash，以及 commit 后要物化的 OperationRecord/EventRecord。首版联合只落 IngestTransactionRecord，commit 成员在 §29 的对应切片加入，不改路径。
 3. 在同一文件系统下写临时 version 目录，包括按 MaterialId 排序的 materials.json manifest；逐文件 flush，复算 manifest 的 materialSetHash / materialCount 后原子 rename 到 versions/<id>。
 4. 用 write-temp + fsync + atomic rename 替换 state.json。**这一步是 commit point。**
 5. 从 version.json 幂等物化 event 文件与 current profile 投影。
@@ -658,17 +703,21 @@ VersionId 对不可变 version preimage 的 canonical bytes 计算摘要：subje
 
 ### 6.5 崩溃恢复
 
-启动 composition root 时先 reconcile：
+启动可写 composition root 时先 reconcile。对 prepared ingest 必须 **target-first**，不得先用 previous 命中把 duplicate-only 事务判成 abort：
 
-- ingest journal=prepared 且 target state checksum 已可见：校验 SubjectRecord、manifest 与所有新 MaterialRecord/content，补齐 OperationRecord、EventRecord 和 queue/library 投影，再标 committed；
-- ingest journal=prepared 且已有主体仍是 previous state checksum：target set 未提交，删除 journal 列出的新 material 目录并标 aborted；create 临时 sibling 尚未发布时同样删除整个 staging 目录，不产生 subject/event/operation；
-- ingest state 既不匹配 previous 也不匹配 target，或 target manifest 的 entry/hash/count 与 material facts 不符：storage_corrupt，不能猜测采用哪一边；
+- target state checksum 已可见，且 create 时 target SubjectRecord checksum 也已可见：即使 previousStateChecksum 与 targetStateChecksum 相同，也先校验 SubjectRecord、manifest 与所有新 MaterialRecord/content，补齐 OperationRecord、EventRecord 和 queue 与其它已配置投影，再标 committed；
+- target 不可见，但 existing 主体仍是 previous state checksum，或 create 的最终 subjects/<subject-id> 完全不存在：target 未提交，只删除 journal.newMaterials 精确命名的新 material 目录或该 journal 的固定 staging 目录，并标 aborted；不产生 subject/event/operation，不扫描删除其它 orphan；
+- 除上述两态之外，state/subject 既不满足 target 也不满足合法 previous/absent，或 target manifest 的 entry/hash/count 与 material facts 不符：storage_corrupt，不能猜测采用哪一边；
 - journal = prepared 且 state 已指向目标 version：先校验 version 与 materials manifest，再补齐 event / projection，标 committed；
-- journal = prepared 且 state 仍是旧值：目标 version 不对外可见，journal 标 aborted；保留到 recovery retention 后再清理；
+- journal = prepared 且 state 仍是旧值：目标 version 不对外可见，journal 标 aborted；
 - state 指向不存在或 hash 不匹配的 version：storage_corrupt，拒绝继续写；
 - material 目录不在 state.materialManifest、任何历史 VersionMaterialManifest 或 active prepared journal 中时是 orphan corruption；recovery 不把它静默收编，也不在没有 journal 证明时删除；
-- .index 缺失或 checksum 不符：从 state.pending 等事实标 dirty 并显式 rebuild，不回退全文扫描；active lease 可以回到 pending，但人物事实与 job identity 不变；
-- stale space identity / subject lock：只有超过固定内部 TTL 且 owner heartbeat 不再前进时才能回收。
+- queue.db 缺失/corrupt、queue.dirty 存在或 marker bytes 异常：都是 dirty，不得当作空队列；从所有已验证 state.pending 重建，active lease 可以回到 pending，但人物事实与 job identity 不变；其它 .index 投影同样从各自事实显式 rebuild，不回退全文扫描；
+- stale request / space catalog / space identity / subject lock：只有超过固定内部 TTL 且 owner heartbeat 不再前进时才能回收。
+
+aborted ingest 对同一 requestId + inputChecksum 可在 root request lock 内重新进入 prepared；create 必须复用 journal 原 candidate SubjectId，按当前事实重算 target checksums。该 requestId 不同 input 或 actor 永久 idempotency_conflict。committed journal 及 completed operation 只能 immutable replay，不得重进 prepared。首版不对 completed operation 或 terminal journal 做时间型自动 GC，prepared 也永不依赖墙钟超时删除；所有清理只能由 recovery 或 purge 的可证明路径驱动。
+
+privacy purge 用 TransactionRecord 未来的 purge discriminant 先写一份 prepared purge journal，其中列出所有关联该 subject 的 root subject-scoped operations 与 transaction journals。多个 root files 不被伪称为同时原子：purge 在该 prepared journal 下可恢复地逐个 atomic replace completed operation 为 OperationTombstoneRecord、逐个删除相关 root journal，最后用 purge state/commit point 发布完成；recovery 保证中途崩溃后继续到全部完成。若某 request 只有关联 journal 而还没有 completed operation，purge 仍从 journal.operation 写入 tombstone 后再删该 journal。tombstone 不保留 actor、result 或主体内容；同 RequestId 与相同 inputChecksum 后续返回 not_found，不同 input 或 actor 返回 idempotency_conflict，不得把被 purge 的请求当新请求复用。
 
 恢复过程幂等；测试必须在每个步骤后模拟崩溃。
 
@@ -746,9 +795,12 @@ export const BUILTIN_HOSTS = {
   codex: "codex" as HostName,
   claudeCode: "claude-code" as HostName,
 } as const;
+
+export const BUILTIN_PEOPLE_SPACE_ID =
+  "space_00000000000000000000000000000001" as SpaceId;
 ~~~
 
-RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 operations/<request-id>.json 与 ingest transaction 文件名，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
+RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 root operations/<request-id>.json、operations/.locks/<request-id>.lock 与 transactions/<request-id>.json，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
 
 运行时 schema 还要校验每个品牌 id 的前缀、长度和字符集。品牌只解决编译期混用，不替代边界校验。
 
@@ -867,11 +919,17 @@ export const WIRE_LIMITS = {
   openRecordEntries: 64,
   listLimit: 200,
 } as const;
+
+export const FACT_LIMITS = {
+  sourceIdentityBytes: 8_208,
+} as const;
 ~~~
 
 除 JsonObject 和类型中显式写出的开放 Record 外，所有 public object runtime schema 都拒绝 unknown keys，JSON Schema 递归使用 additionalProperties=false。所有整数必须是 safe integer；generation、count、index 与 locator 为非负数，limit 为 1..WIRE_LIMITS.listLimit。JsonValue 只允许可编码 JSON 的有限值，不接受 undefined、bigint、函数、symbol、非有限 number 或循环。
 
 WIRE_LIMITS 的 string 上限按 UTF-8 bytes 计；必填模型字符串为非空，optional string 出现时也不能是空值。displayName、alias、provider/handle/externalId、domainPack、clientRef、title、language、author/participant、producer/version 和可见 label 用 labelBytes；query 用 queryBytes；URI 用 uriBytes；reason/review note/general notes 用 reasonBytes；claim text 用 claimTextBytes；evidence quote 用 quoteBytes；correction text 用 correctionTextBytes；每份 MaterialInput.content 用 materialContentBytes。aliases、identityHints、authors、participants、supersedes、observedIn 与普通 evidence 数组最多 smallArrayItems；每批 ingest 最多 ingestMaterials，patch 最多 patchOperations，单个 operation 最多 evidencePerOperation，显式开放 Record 最多 openRecordEntries。一个完整工具输入的 canonical UTF-8 JSON 最多 toolInputBytes；超限在业务 service 之前 invalid_input，不由各入口自造更宽阈值。
+
+schema 验证 raw wire value 后，引擎凡经 Unicode NFC、label trim、material-text-v1 或 WHATWG URL serialization 得到 canonical string，都必须对 canonical UTF-8 bytes 再应用原字段上限；raw value 合法但 canonical bytes 扩张超限仍返回 invalid_input。MaterialRecord.sourceIdentity 是带冻结 namespace 的引擎派生事实，不复用 URI schema；它使用独立 `FACT_LIMITS.sourceIdentityBytes=8_208` schema，足以容纳当前最长 `artifact-uri-v1\0` 前缀加完整 8,192-byte canonical URI，因此也不得为容纳 `source-uri-v1\0` 而反向收窄 public URI 上限。
 
 ### 7.3 Wire envelope 与幂等
 
@@ -896,7 +954,7 @@ export interface WireFailure {
 }
 ~~~
 
-所有写工具都要求 requestId。相同 requestId 与相同 canonical input 重试返回相同结果；相同 requestId 配不同 input 返回 idempotency_conflict。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
+所有写工具都要求 requestId。相同 requestId 与相同 method + canonical params + session actor 重试返回相同结果；相同 requestId 配不同 method、input 或 actor 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
 
 ### 7.4 Actor 由入口派生
 
@@ -1393,11 +1451,15 @@ export interface CreateSubjectInput {
 
 ### 9.2 空间规则
 
-- 真实人物缺省进入内置 people 空间。
+- 真实人物缺省进入保留的 `BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001"`；该路径上只接受 exact `{ id: BUILTIN_PEOPLE_SPACE_ID, displayName: "People", kind: "people" }` SpaceRecord。
 - fictional 必须明确作品或世界空间；不能默认和真实人物混在一起。
 - custom 空间由 SDK / Panel 创建，MCP create target 可以在同一次请求创建空间。
 - 同名只在同一空间内构成歧义；跨空间查询必须显式允许。
 - 关系默认不跨空间，跨空间 link 需要用户明确操作。
+
+people bootstrap 取 `spaces/<BUILTIN_PEOPLE_SPACE_ID>.identity.lock`，以 create-exclusive 写入或重读 exact record；已有文件任何字段不同都是 storage_corrupt，不会换一个随机 people space。inline space 则在 root `spaces/.catalog.lock` 内按 `(kind, canonical display label)` 解析或 create-exclusive 创建，在锁内重读 facts，不以 `.index` 判定存在性。
+
+`label-v1` 是唯一的 displayName / alias canonicalization：Unicode NFC，只移除首尾连续的 U+0009 / U+000A / U+000D / U+0020，保留大小写与内部 bytes；结果为空则 invalid_input。aliases 分别用同一函数，按 canonical UTF-8 bytes 去重、升序并存储。首版不 case-fold、不 fuzzy match、不压缩内部空白；规则升级必须用新版本，不静默改旧事实。
 
 ### 9.3 解析流程
 
@@ -1405,22 +1467,24 @@ normalize query → 精确 id / 别名 → provider-scoped identityHint → 同�
 
 结果只能是 found / not_found / ambiguous。候选排序可以使用精确命中、别名和身份 hint，但**阈值不能把多个候选压成一个**。模型看到 ambiguous 必须展示至少 displayName、space、identity hints。description 只用于展示与候选排序，永不参与唯一命中、already_exists 或合并；材料 URI 也不会因为“看起来像主页”就自动升级为身份 hint，只有显式创建、用户确认或受信 adapter resolve 才能写入。
 
-identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 http(s)，按 WHATWG 规则小写 scheme/host、移除 default port、fragment 和 dot segments，但不猜测 tracking query；provider id 统一 ASCII lowercase；externalId 做 Unicode NFC 后保持 opaque exact；handle trim + NFC，只有内置 provider table 明确声明 case-insensitive 时才 case-fold，未知 provider 保留大小写。URL/account/external_id 分别按 canonical 值判等，不跨 kind 猜关联。
+identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 http(s)，按 WHATWG 规则小写 scheme/host、移除 default port、fragment 和 dot segments，但不猜测 tracking query；provider id 统一 ASCII lowercase；externalId 做 Unicode NFC 后保持 opaque exact；handle trim + NFC，只有内置 provider table 明确声明 case-insensitive 时才 case-fold，未知 provider 保留大小写。`identity-locator-v1` 的 case-insensitive provider table 明确为空，所以首版所有 handle 都保留大小写；以后增加 provider 必须提升该规则版本并补迁移/兼容 fixture，不能静默改变旧事实判等。URL/account/external_id 分别按 canonical 值判等，不跨 kind 猜关联。
 
 ### 9.4 原子创建与重复
 
-模型路径只有 ingest(create)。引擎先规范化 create target，并在锁内重新搜索 locator identity hints：
+模型路径只有 ingest(create)。引擎先用 label-v1 和版本化 identity-locator 函数规范化 create target，并在锁内重新搜索 facts。判定顺序固定：
 
 - requestId 已成功：返回原主体；
-- 唯一相同 url/account/external_id hint：already_exists，并在 typed subjectResolution 返回该 subject；description 命中不走此分支；
-- 名字相同但身份不确定：ambiguous_subject，并在 typed subjectResolution 返回至少两个 candidates；
+- 任一 exact canonical url/account/external_id locator 命中唯一主体：already_exists，并在 typed subjectResolution 返回该 subject；两个以上 exact locator 命中是 storage_corrupt；
+- 没有 exact locator 时，按 exact canonical displayName 或 alias 收集候选。如果候选在 target 也提供的某个 locator kind 上已有可证明的不同 canonical value，排除该候选；未提供该 kind 不算冲突；
+- 排除后恰好一个候选：保守返回 already_exists 与该 subject，remediation 要求调用方改用 existing target 或补充可区分 locator；
+- 排除后两个以上候选：ambiguous_subject，并返回全部稳定排序 candidates；
 - 无冲突：创建 subject + 第一批材料，再发布 subject.created。
 
-create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。引擎先解析或创建 SpaceRecord，再取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放两把锁。全局顺序固定为 space identity lock → subject lock → 文件提交 → SQLite projection；已有主体的 ingest 从 subject lock 开始，任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。stale identity lock 与 subject lock 使用同一 owner heartbeat/TTL 规则。
+description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → 文件提交 → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。
 
-create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批失败则丢弃。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
+create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批验证失败则不发布。一旦 prepared journal 已记录 candidate，aborted 后同 request/input/actor 重试仍复用它，不生成第二个 id。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
 
-SDK 的 Distilly.create 可以创建空主体，供 Panel、迁移器和人工管理使用；这个能力不额外暴露成 MCP 工具。
+独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；Step 5 不物化该 handler。ingest(create) 直接执行上述原子事务，永不先调用 subjects.create 产生空主体。
 
 `canonicalizeIngestSubjectTarget` 还负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
 
@@ -1746,15 +1810,17 @@ export interface MaterialParser {
 
 ### 11.1 IngestService 的步骤
 
-1. 解析并规范化全部输入，但还不写事实；create target 预分配本事务成功时必须使用的 candidate SubjectId。
+1. 解析并规范化全部输入，但还不写事实；create target 预分配本事务成功时必须使用的 candidate SubjectId。在取本请求的 root request lock 前，先 reconcile 当前可见的全部 root prepared journals。
 2. 绑定可信 capture context：stable locator 直接派生 ConversationSourceKey；subject_fallback 对 existing 使用现有 SubjectId、对 create 使用预分配 id。随后对每项计算 ContentDigest、ProvenanceDigest、仅用于材料身份的 source identity 与 MaterialId，并校验 derivation。
-3. existing 取得 subject lock；create 按 §9.4 取得 space identity lock 再取得 candidate subject lock，并从 facts 重做身份检查；随后重新读取 subject 与 state。
+3. 取本 request lock 后，existing 取得 subject lock；create 按 §9.4 在需要时取 space catalog lock，再取 space identity lock 与 candidate subject lock，并从 facts 重做空间/身份检查；随后重新读取 subject 与 state。
 4. 对已存在 MaterialId 校验 ContentDigest + ProvenanceDigest；两者相同为 duplicate 且不改不可变 MaterialRecord，任一不同为 storage_corrupt。
 5. 从 previous state.materialManifest 与 accepted records 计算排序后的 target manifest、完整 MaterialSetHash、generation 与 PendingJobMarker，并在写任何新 material 前持久化包含完整 OperationRecord/EventRecord 的 prepared ingest journal。
 6. 按 §6.4 写新 material 并用 target state swap 或 create directory rename 提交；state commit 前新目录不属于可读 material set。
 7. commit 后从 journal 幂等写 operation/event、更新 queue projection，标 committed，最后发送 material.ingested / job.changed。
 
-create target 把预分配的 subject 创建插在第 3 步之后；锁内重复/歧义或整批失败都丢弃该 id，不留下主体。
+create target 把预分配的 subject 创建插在第 3 步之后；锁内重复/歧义或整批失败都不发布该 id，不留下主体。
+
+第 3 步取得 space identity / subject lock 后，必须按 journal.spaceId / subjectId 重查是否出现其它 RequestId 的 prepared journal；create 还要在同一 space identity lock 内对该 space 的其它 prepared create 保守阻断。一旦命中，释放当前 subject / space / catalog / request locks 并返回 retryable busy，由顶层重新从 reconcile 开始；绝不在持有当前 request lock 时反向 acquire 另一个 request lock。这个二次检查防止两个进程都越过 preflight 后，新 writer 绕过已崩溃 writer 刚留下的 prepared 事务。
 
 ### 11.2 必须是纯函数的算法
 
@@ -1823,7 +1889,9 @@ normalizeMaterial 只接公开 MaterialInput，因此只能产生 native_text / 
 
 correction 的 source identity 使用固定 correction namespace + RequestId；同一 mutation 重试稳定命中，新的 correction request 不因文字相同而覆盖旧事实。actor 语义由 ProvenanceDigest 区分，不能让 host-relayed correction 与 direct-user correction 碰成同一 MaterialId。
 
-规范化只统一换行、Unicode normalization 与明确允许的结尾空白；不改写词句、不总结网页、不删除“看起来像模板”的内容。算法带版本前缀，升级时改变 hash namespace。
+`material-text-v1` 唯一定义 normalizeMaterial 的正文 bytes：先将 CRLF 与单独 CR 改为 LF，再做 Unicode NFC，然后只移除每行末尾的 U+0020 / U+0009；保留行数和原本是否有最终 LF。结果按 Unicode White_Space 定义没有任何非 whitespace code point 时 invalid_input。它不改写词句、不总结网页、不删除“看起来像模板”的内容。source.uri 与 artifact.canonicalUri 使用 §9.3 的 http(s) canonicalization；authors / participants / flags 缺省为 `[]`，sensitivity 缺省为 `private`，字符串数组经 NFC 与精确去重后按 canonical UTF-8 bytes 排序，flags 按固定 enum bytes 去重排序。这些规则都带版本前缀，升级时改变 hash namespace。
+
+deriveSourceIdentity 拒绝任何 preimage 组件中的 U+0000，且只能取第一个可用 namespace：`source-uri-v1\0<canonical source.uri>` → `artifact-external-v1\0<normalized provider>\0<NFC externalId>` → `artifact-uri-v1\0<canonical artifact.canonicalUri>` → `client-ref-v1\0<requestId>\0<kind>\0<NFC clientRef>`。这个优先级只定义 MaterialId 的 request-stable 身份；source grouping 仍独立使用 artifact / representation proof。
 
 deriveSourceIdentity 只服务 MaterialId 幂等，不能拿来计算来源多样性。deriveSourceGroups 必须显式接收 lease 或历史 version 固定的 sourceGroupingVersion，对本次 material set 做 O(n) proof-key map / union，再返回带同一版本的 snapshot；禁止读取进程全局“最新规则”。算法版本与 QualitySummary 一同写进 version。历史 version 不因以后升级 grouping 规则而静默重算。
 
@@ -1831,10 +1899,12 @@ deriveSourceIdentity 只服务 MaterialId 幂等，不能拿来计算来源多�
 
 | 值 | 行为 |
 |---|---|
-| auto | 达到内部材料数 / 时间边界时建 job；边界是版本化常量，不是用户调参 |
-| now | 只要集合相对最后 committed generation 有变化，就立即 upsert job 并返回；duplicate-only 批次也能领取先前 auto 留下的未蒸馏集合 |
+| auto | 未提交到 current version 的材料数 `>= 3`，或其最早 MaterialRecord.storedAt 距本次 ingest 的 clock `>= 30 分钟`时建 job；这是 `auto-v1` 版本化常量，不是用户调参 |
+| now | 只要当前 material set 与 current version manifest 不同，或 state.pending 已存在，就立即创建/复用 job 并返回；当前集合已等于 current 且没有 pending 才不建 job |
 
-同一集合不会产生第二个自动 job。用户在 Panel / CLI 显式 redistill 是另一种有原因、有 executor 记录的操作，不伪装成 ingest。
+baseline 不存 state 或 queue：state.currentVersionId 存在时，engine 通过最小 read-only FileVersionManifestStore 读取并验证对应 VersionRecord + VersionMaterialManifest，用 current state.materialManifest 减该 version manifest 计算累计 uncommitted set、addedMaterialCount 与 oldest storedAt；没有 current version 时 baseline 为空，所有当前材料都是 uncommitted。manifest 或对应 facts 校验失败是 storage_corrupt，不回退扫描猜测。
+
+auto-v1 只在每次 ingest attempt 的 subject lock 内评估，duplicate-only 也评估，没有 timer 或后台唤醒。已有 state.pending 且仍是当前 generation/materialSetHash 时，auto 与 now 都复用其 JobId；一旦 ingest 产生新 generation，即使旧 pending 存在且 auto 未达阈值，也必须以新 JobId/generation 替换 state.pending 并 upsert 新 job，使旧 lease 失效。同一 generation/set 不会产生第二个自动 job。用户在 Panel / CLI 显式 redistill 是另一种有原因、有 executor 记录的操作，不伪装成 ingest。
 
 ### 11.4 Job 类型
 
@@ -1861,7 +1931,9 @@ export interface PendingJob {
 }
 ~~~
 
-queue.db 内部可以有 processing、attempt、owner 和 LSN；这些不是稳定公开状态。state.json 的 PendingJobMarker 保存稳定 job identity、generation、hash、base、counts 与 queuedAt；删除 queue.db 后由它重建为 pending，不从目录或旧 SQLite 行猜测。
+queue.db 内部可以有 processing、attempt、owner 和 LSN；这些不是稳定公开状态。state.json 的 PendingJobMarker 是 authoritative，保存稳定 job identity、generation、hash、base、counts 与 queuedAt；删除 queue.db 后遍历全部 state.pending 重建为 pending，不从目录或旧 SQLite 行猜测。queue projection 写失败只标 dirty，绝不回滚已提交事实。Step 5 只实现 ingest 需要的内部窄 upsert/rebuild 投影；PendingFilter、list/acquire/renew/release 等 public pending / lease service 属于 Step 6。
+
+`.index/queue.dirty` 是 projection marker，不是人物事实；其 canonical bytes 固定为 `{"projection":"queue","schemaVersion":1}\n`。每次 post-commit SQLite apply 前先 atomic write + fsync 该 marker，SQLite transaction 成功且 DB durable 后才 unlink marker 并 fsync `.index`。queue.db 的 `PRAGMA user_version=1`；DB 缺失/corrupt、marker 存在或 marker 内容不是上述 exact bytes 一律视为 dirty，不得对外伪装成空。rebuild 从所有 verified state.pending 写同目录 sibling DB，close + fsync 后 atomic replace queue.db 并 fsync parent，最后按同样的 durable 顺序清 marker。
 
 ### 11.5 QueueRepository
 
@@ -4224,20 +4296,23 @@ distilly/
 │   │       │   ├── material-store.ts
 │   │       │   ├── raw-store.ts
 │   │       │   ├── capture-audit-store.ts
+│   │       │   ├── version-manifest-store.ts
 │   │       │   ├── version-store.ts
 │   │       │   ├── state-store.ts
 │   │       │   ├── event-store.ts
 │   │       │   └── operation-store.ts
 │   │       ├── transaction/
+│   │       │   ├── request-lock.ts
+│   │       │   ├── space-catalog-lock.ts
 │   │       │   ├── space-identity-lock.ts
 │   │       │   ├── subject-lock.ts
-│   │       │   ├── ingest-journal.ts
-│   │       │   ├── commit-journal.ts
+│   │       │   ├── transaction-store.ts
 │   │       │   └── recovery.ts
 │   │       ├── subject/
 │   │       │   ├── service.ts
 │   │       │   └── identity.ts
 │   │       ├── ingest/
+│   │       │   ├── composition.ts
 │   │       │   ├── service.ts
 │   │       │   ├── file-service.ts
 │   │       │   ├── normalize.ts
@@ -4412,7 +4487,7 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 
 ### 25.4 哪些是纯函数
 
-- material normalize、source identity、source grouping、SHA-256 与集合 hash；
+- label-v1、material-text-v1、material normalize、source identity、source grouping、SHA-256 与集合 hash；
 - id / claim id 派生；
 - facet path parse；
 - EvidenceRef resolve 与 quote / locator 校验；
@@ -4430,8 +4505,8 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 
 - SubjectService、IngestService、BriefingService、CommitService；
 - CorrectionService、ReviewService、VersionService；
-- FileSpaceIdentityLock、FileSubjectLock、IngestJournal、CommitJournal、RecoveryService；
-- FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
+- FileRequestLock、FileSpaceCatalogLock、FileSpaceIdentityLock、FileSubjectLock、FileTransactionStore、RecoveryService；
+- FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionManifestStore（Step 5 read-only）、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
 - SqliteQueueRepository；
 - ProjectionService、PanelServer、McpServer、SetupService。
 
@@ -4582,7 +4657,9 @@ export declare function createLocalRuntime(
 
 engine 不知道 AdapterRegistry、HostRegistry、Panel 或具体 parser registry，但拥有文件摄取事务和窄 MaterialParserPort。materials.ingestFiles 是 core method：engine 校验路径、读取 bytes、先把原始输入写 RawStore，再调用 port；无 parser、解析失败或没有 material 时返回 unparsed RawId，只有解析出的 MaterialInput 才按 §9.4/§11 的同一 create-or-existing transaction 进入 material / generation / queue 流程。parser 永远不能写 store 或伪造 rawStored。
 
-createEngine({root}) 本身就是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。
+createEngine({root}) 的最终合同是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。
+
+这不允许纵向切片对外暴露 partial runtime：Step 5 只用 package-internal composition 驱动 create + ingest + queue 集成测试，不导出 root EngineRuntime/createEngine，也不为缺失 method 安装占位 handler。只有全部 CoreEngineClient methods 都有真实 handler 后，才能同时落地上述 root factory 与 exports；届时任何 method 缺 handler 仍 startup fail。
 
 LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
 
@@ -4723,27 +4800,32 @@ private transcript 默认 sensitivity=private，export / publish 不自动包含
 - claim patch add / revise / supersede / contest；
 - quote / locator、跨主体与跨 generation evidence 拒绝；
 - quality / maturity / renderer byte stability；
-- OperationRecord 对每个 mutation method 与其唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result。
+- OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result。
 
 ### 27.3 Fact layer 与 crash
 
 真实临时目录覆盖：
 
-- create + first ingest 原子性；
-- 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；space identity → subject → projection 的锁顺序无死锁；
+- create + first ingest 在 root transaction 与 `subjects/.staging/<request>.<subject>` 下的原子性；createdSubject=true 的 targetSubjectChecksum/absent previous 与 existing 的 inverse schema 均有正反 fixture；
+- 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；request → catalog（inline）→ space identity → subject → projection 的锁顺序无死锁；BUILTIN_PEOPLE_SPACE_ID 并发 bootstrap 只得到 exact People record，其它内容拒绝；
+- label-v1 的 NFC、四种 ASCII edge trim、case/internal-byte preservation 与 alias canonical dedupe/sort；inline space 的 kind+exact canonical label 并发解析不重复建 space；
+- create 重复矩阵覆盖 exact locator、唯一 exact name/alias、两个以上候选、same-kind locator disagreement 排除、description 不参与唯一性；
 - duplicate 与同正文不同来源；
-- duplicate-only enqueue=now 能返回先前 auto 留下或已存在的 pending job；已 committed 集合才 unchanged 且无 job；
+- material-text-v1 的 CRLF/CR、NFC、行尾 space/tab、行数/最终 LF 保留与 whitespace-only 拒绝；label/content 的 U+0344 NFC 扩张与 URI percent-encoding 扩张必须在 normalize 后重新命中原 UTF-8 上限；source identity 四级 namespace/NUL 拒绝、独立 8,208-byte schema 正反边界、完整 8,192-byte URI、URI canonicalization 及 authors/participants/flags/sensitivity defaults 和稳定排序；
+- auto-v1 的累计 uncommitted count=2/3、oldest age 在 30 分钟前/恰好边界、duplicate-only attempt 与“无 timer” fake-clock fixture；currentVersionId 存在时必须经 FileVersionManifestStore 验证 manifest 并作 baseline，无 current 则为空，corrupt/missing version fact 不能猜测；
+- duplicate-only enqueue=now 能复用已存在的 pending job；当前集合不同 current 时必须建 job，已等于 current 且无 pending 才无 job；pending 存在后新 generation 即使未达 auto 阈值也替换为新 job，同 generation/set 复用 JobId；
 - raw-only ingest 不改变 generation/hash、不排 job，parser extraction 只能由 engine 绑定 RawId；
 - state.materialManifest 排序、去重、摘要与 materialSetHash 一致；目录中未被 state/version/journal 引用的 material 不会被静默收编；
-- 相同 RequestId + input/actor 返回原 IngestResult 且不重复 event/job，不同 input 或 actor 返回 idempotency_conflict；slash、backslash、dot segment、错误长度/大小写 RequestId 在拼路径前拒绝；
-- space identity / subject lock 竞争和 stale lock recovery；
-- ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复后只能是完整 target 或完整 previous，原 ingested retry 不退化成 unchanged；
+- 相同 RequestId 跨 method/space 只共享一把 root lock；相同 method/input/actor 返回原 IngestResult 且不重复 event/job，不同 method/input/actor 返回 idempotency_conflict，RequestId 不进 inputChecksum；slash、backslash、dot segment、错误长度/大小写 RequestId 在拼路径前拒绝；
+- request / space catalog / space identity / subject lock 竞争和 stale lock recovery；两进程同时越过 preflight、旧 writer 留 prepared 后新 writer 的锁内二次检查必须释锁并 retryable busy，不反向取旧 request lock；create 对同 space prepared create 同样阻断；
+- ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复必须 target-first，包括 previous==target，否则只能是完整 previous/absent 并只删 journal 命名的 material/staging，第三态必须 storage_corrupt；原 ingested retry 不退化成 unchanged；
+- aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
 - commit 在 journal、materials manifest / version rename、state swap、event、projection 每一步崩溃；manifest 缺项、hash 或 materialCount 不符必须 storage_corrupt；
 - recovery 幂等且只有一个 current；
-- 删除 .index 后人物事实不丢，queue 从 state.pending 以相同 JobId 重建为 pending；
+- queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty exact bytes 、PRAGMA user_version=1、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified state.pending 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 没有 public list/lease read service；
 - corrupt checksum / unknown schema 拒绝；
 - symlink / path traversal 拒绝；
-- purge 的精确删除边界。
+- purge 的精确删除边界；prepared purge journal 后逐 operation atomic replace / 逐 journal delete 的每个崩溃点都能 recovery 到全部完成，subject-scoped completed operation 及 journal-only request 都最终变 tombstone，同 input 重试 not_found，不同 input/actor conflict，tombstone 不含 actor/result。
 
 ### 27.4 Lease 与并发
 
@@ -4960,10 +5042,10 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 2. **TypeScript foundation**：workspace、protocol build、lint/type/test/build/hygiene 的真实最小门禁。
 3. **Protocol**：完整 ids / value grammars、WIRE_LIMITS、JSON-safe errors / EmptyResult、EngineMethodMap、五工具 runtime + draft-2020-12 descriptor registry 与 snapshots。
 4. **Fact foundation**：Layout、FactEnvelope/checksum、atomic write、space/subject/material/state/event/operation stores、full SHA-256、space identity / subject lock。
-5. **Create + ingest + queue**：current material manifest、ingest journal/recovery、request idempotency，以及空 store 到 enqueue now 的真实磁盘路径与 generation。
-6. **Briefing + lease**：pending list/brief/renew/release、incremental baseline、prompt asset、超限失败。
+5. **Create + ingest + queue**：root request lock / operation / transaction、current material manifest、ingest journal/recovery、built-in people / inline space 串行化、保守重复创建、material-text/source-identity v1、request idempotency、auto-v1 与窄 queue projection，以及空 store 到 enqueue now 的真实磁盘路径与 generation。该切片只用 package-internal composition，不落 subjects.create 空主体、public pending/lease service、root EngineRuntime/createEngine 或占位 handlers。
+6. **Briefing + lease**：pending list/brief/renew/release、incremental baseline、prompt asset、超限失败；在这一步才扩展 Step 5 的内部 queue projection 为 public pending / lease service。
 7. **Claim patch + commit**：evidence resolver、patch apply、quality、renderer、journal、current/suspended。
-8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke。
+8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke；root EngineRuntime/createEngine 仍要等全部 CoreEngineClient handlers 可用才导出，不因五工具 presenter 先完成就暴露 partial runtime。
 9. **Host bindings + setup**：Codex / Claude Code capability、canonical skill、runtime bootstrap、doctor。
 10. **必备 Panel + review**：四页最小 UI、HTTP EngineClient、安全拒绝、promote/reject。
 11. **Correction + Recall / install**：立即版本、prompt、subrun inject、install/export。

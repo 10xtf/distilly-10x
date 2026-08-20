@@ -1,9 +1,15 @@
 import type {
+  CaptureAuditRef,
+  ConversationSourceKey,
   ContentDigest,
+  CorrectionProvenance,
   MaterialId,
+  MaterialInput,
   MaterialRecord,
   MaterialSetHash,
+  MaterialSource,
   ProvenanceDigest,
+  TextDerivation,
   VersionMaterialEntry,
 } from "@distilly/protocol";
 
@@ -23,19 +29,60 @@ const MATERIAL_SET_NAMESPACE = "distilly:material-set:v1\0";
 export const digestContent = (content: string): ContentDigest =>
   `sha256_${sha256Hex(content)}` as ContentDigest;
 
-const provenanceSource = (record: MaterialRecord) => ({
-  medium: record.source.medium,
-  access: record.source.access,
-  ...(record.source.role === undefined ? {} : { role: record.source.role }),
-  ...(record.source.artifact === undefined ? {} : { artifact: record.source.artifact }),
-  ...(record.source.representationOf === undefined
-    ? {}
-    : { representationOf: record.source.representationOf }),
-  ...(record.source.occurredAt === undefined ? {} : { occurredAt: record.source.occurredAt }),
-  ...(record.source.publishedAt === undefined ? {} : { publishedAt: record.source.publishedAt }),
-  ...(record.source.language === undefined ? {} : { language: record.source.language }),
-  authors: record.source.authors,
+/** Normalized fields covered by ProvenanceDigest. */
+export interface MaterialProvenanceInput {
+  readonly kind: MaterialInput["kind"] | "correction";
+  readonly source: MaterialSource;
+  readonly derivation: TextDerivation;
+  readonly participants: readonly string[];
+  readonly sensitivity: "private" | "shareable";
+  readonly flags: readonly "suspicious_source"[];
+  readonly correctionProvenance?: CorrectionProvenance;
+  readonly captureAuditRef?: CaptureAuditRef;
+  readonly conversationSourceKey?: ConversationSourceKey;
+}
+
+const provenanceSource = (source: MaterialSource) => ({
+  medium: source.medium,
+  access: source.access,
+  ...(source.role === undefined ? {} : { role: source.role }),
+  ...(source.artifact === undefined ? {} : { artifact: source.artifact }),
+  ...(source.representationOf === undefined ? {} : { representationOf: source.representationOf }),
+  ...(source.occurredAt === undefined ? {} : { occurredAt: source.occurredAt }),
+  ...(source.publishedAt === undefined ? {} : { publishedAt: source.publishedAt }),
+  ...(source.language === undefined ? {} : { language: source.language }),
+  authors: source.authors,
 });
+
+/**
+ * Hashes the normalized provenance fields that change grouping, safety, or export behavior.
+ *
+ * @param input - Normalized provenance, excluding retrieval URI and display-only fields.
+ * @returns The namespaced provenance digest.
+ */
+export const digestProvenance = (input: MaterialProvenanceInput): ProvenanceDigest => {
+  const preimage = {
+    kind: input.kind,
+    source: provenanceSource(input.source),
+    derivation: input.derivation,
+    participants: input.participants,
+    sensitivity: input.sensitivity,
+    flags: input.flags,
+    ...(input.correctionProvenance === undefined
+      ? {}
+      : { correctionProvenance: input.correctionProvenance }),
+    ...(input.captureAuditRef === undefined ? {} : { captureAuditRef: input.captureAuditRef }),
+    ...(input.conversationSourceKey === undefined
+      ? {}
+      : { conversationSourceKey: input.conversationSourceKey }),
+  };
+  return `provenance_sha256_${sha256Hex(
+    new Uint8Array([
+      ...new TextEncoder().encode(PROVENANCE_NAMESPACE),
+      ...canonicalJsonBytes(preimage),
+    ]),
+  )}` as ProvenanceDigest;
+};
 
 /**
  * Recomputes the provenance fields that affect grouping, safety, and export.
@@ -44,27 +91,7 @@ const provenanceSource = (record: MaterialRecord) => ({
  * @returns The namespaced provenance digest.
  */
 export const digestMaterialProvenance = (record: MaterialRecord): ProvenanceDigest => {
-  const preimage = {
-    kind: record.kind,
-    source: provenanceSource(record),
-    derivation: record.derivation,
-    participants: record.participants,
-    sensitivity: record.sensitivity,
-    flags: record.flags,
-    ...(record.correctionProvenance === undefined
-      ? {}
-      : { correctionProvenance: record.correctionProvenance }),
-    ...(record.captureAuditRef === undefined ? {} : { captureAuditRef: record.captureAuditRef }),
-    ...(record.conversationSourceKey === undefined
-      ? {}
-      : { conversationSourceKey: record.conversationSourceKey }),
-  };
-  return `provenance_sha256_${sha256Hex(
-    new Uint8Array([
-      ...new TextEncoder().encode(PROVENANCE_NAMESPACE),
-      ...canonicalJsonBytes(preimage),
-    ]),
-  )}` as ProvenanceDigest;
+  return digestProvenance(record);
 };
 
 /**
@@ -79,12 +106,8 @@ export const deriveMaterialId = (
   sourceIdentity: string,
   provenanceDigest: ProvenanceDigest,
   contentDigest: ContentDigest,
-): MaterialId => {
-  if (sourceIdentity.includes("\0")) {
-    throw storageCorrupt("Material source identity contains the reserved NUL separator.");
-  }
-  return `mat_${sha256Hex(`${sourceIdentity}\0${provenanceDigest}\0${contentDigest}`)}` as MaterialId;
-};
+): MaterialId =>
+  `mat_${sha256Hex(`${sourceIdentity}\0${provenanceDigest}\0${contentDigest}`)}` as MaterialId;
 
 /**
  * Hashes a current or historical material manifest independent of input order.

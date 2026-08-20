@@ -1,10 +1,18 @@
 import { DistillyError, WIRE_LIMITS, materialRecordSchema } from "@distilly/protocol";
-import type { MaterialId, MaterialRecord, RuntimeSchema, SubjectId } from "@distilly/protocol";
-import { join } from "node:path";
+import type {
+  MaterialId,
+  MaterialRecord,
+  RuntimeSchema,
+  SubjectId,
+  VersionMaterialEntry,
+} from "@distilly/protocol";
+import { lstat, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
-import { atomicCreateDirectory, atomicCreateFile } from "./atomic-write.js";
+import { atomicCreateDirectory, atomicCreateFile, syncDirectory } from "./atomic-write.js";
+import { listFactDirectory } from "./directory-scan.js";
 import { verifyMaterialIdentity } from "./digests.js";
 import { createFactFile, readFactFile } from "./fact-file.js";
 import { decodeUtf8, isMissing, readRegularFile } from "./safe-fs.js";
@@ -135,5 +143,48 @@ export class FileMaterialStore {
     }
     verifyMaterialIdentity(record, content);
     return { record, content };
+  }
+
+  /**
+   * Removes exactly one journal-proven material directory during abort cleanup.
+   *
+   * The recovery caller first excludes entries present in previous state. This
+   * method never scans for other orphans and refuses to remove a different fact.
+   *
+   * @param subjectId - Subject whose abort cleanup is running.
+   * @param entry - Exact journal material identity permitted for deletion.
+   */
+  async removeJournalMaterial(subjectId: SubjectId, entry: VersionMaterialEntry): Promise<void> {
+    const directory = this.#layout.materialDirectory(subjectId, entry.materialId);
+    let status;
+    try {
+      status = await lstat(directory);
+    } catch (error) {
+      if (isMissing(error)) return;
+      throw error;
+    }
+    if (status.isSymbolicLink() || !status.isDirectory()) {
+      throw storageCorrupt("Journal material path is not a real directory.");
+    }
+    const children = await listFactDirectory(this.#layout.root, directory);
+    if (
+      children.length !== 2 ||
+      children[0]?.name !== "content.txt" ||
+      children[0].kind !== "file" ||
+      children[1]?.name !== "material.json" ||
+      children[1].kind !== "file"
+    ) {
+      throw storageCorrupt("Journal material directory contains an unknown entry.");
+    }
+
+    const stored = await this.read(subjectId, entry.materialId);
+    if (
+      stored.record.contentDigest !== entry.contentDigest ||
+      stored.record.provenanceDigest !== entry.provenanceDigest
+    ) {
+      throw storageCorrupt("Journal material entry does not match the stored fact.");
+    }
+    await rm(directory, { recursive: true, force: false });
+    await syncDirectory(dirname(directory));
   }
 }

@@ -60,20 +60,23 @@ distilly/
 │   │       │   ├── material-store.ts
 │   │       │   ├── raw-store.ts
 │   │       │   ├── capture-audit-store.ts
+│   │       │   ├── version-manifest-store.ts
 │   │       │   ├── version-store.ts
 │   │       │   ├── state-store.ts
 │   │       │   ├── event-store.ts
 │   │       │   └── operation-store.ts
 │   │       ├── transaction/
+│   │       │   ├── request-lock.ts
+│   │       │   ├── space-catalog-lock.ts
 │   │       │   ├── space-identity-lock.ts
 │   │       │   ├── subject-lock.ts
-│   │       │   ├── ingest-journal.ts
-│   │       │   ├── commit-journal.ts
+│   │       │   ├── transaction-store.ts
 │   │       │   └── recovery.ts
 │   │       ├── subject/
 │   │       │   ├── service.ts
 │   │       │   └── identity.ts
 │   │       ├── ingest/
+│   │       │   ├── composition.ts
 │   │       │   ├── service.ts
 │   │       │   ├── file-service.ts
 │   │       │   ├── normalize.ts
@@ -248,7 +251,7 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 
 ### 25.4 哪些是纯函数
 
-- material normalize、source identity、source grouping、SHA-256 与集合 hash；
+- label-v1、material-text-v1、material normalize、source identity、source grouping、SHA-256 与集合 hash；
 - id / claim id 派生；
 - facet path parse；
 - EvidenceRef resolve 与 quote / locator 校验；
@@ -266,8 +269,8 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 
 - SubjectService、IngestService、BriefingService、CommitService；
 - CorrectionService、ReviewService、VersionService；
-- FileSpaceIdentityLock、FileSubjectLock、IngestJournal、CommitJournal、RecoveryService；
-- FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
+- FileRequestLock、FileSpaceCatalogLock、FileSpaceIdentityLock、FileSubjectLock、FileTransactionStore、RecoveryService；
+- FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionManifestStore（Step 5 read-only）、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
 - SqliteQueueRepository；
 - ProjectionService、PanelServer、McpServer、SetupService。
 
@@ -418,7 +421,9 @@ export declare function createLocalRuntime(
 
 engine 不知道 AdapterRegistry、HostRegistry、Panel 或具体 parser registry，但拥有文件摄取事务和窄 MaterialParserPort。materials.ingestFiles 是 core method：engine 校验路径、读取 bytes、先把原始输入写 RawStore，再调用 port；无 parser、解析失败或没有 material 时返回 unparsed RawId，只有解析出的 MaterialInput 才按 §9.4/§11 的同一 create-or-existing transaction 进入 material / generation / queue 流程。parser 永远不能写 store 或伪造 rawStored。
 
-createEngine({root}) 本身就是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。
+createEngine({root}) 的最终合同是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。
+
+这不允许纵向切片对外暴露 partial runtime：Step 5 只用 package-internal composition 驱动 create + ingest + queue 集成测试，不导出 root EngineRuntime/createEngine，也不为缺失 method 安装占位 handler。只有全部 CoreEngineClient methods 都有真实 handler 后，才能同时落地上述 root factory 与 exports；届时任何 method 缺 handler 仍 startup fail。
 
 LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
 

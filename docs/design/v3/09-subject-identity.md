@@ -22,11 +22,15 @@ export interface CreateSubjectInput {
 
 ### 9.2 空间规则
 
-- 真实人物缺省进入内置 people 空间。
+- 真实人物缺省进入保留的 `BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001"`；该路径上只接受 exact `{ id: BUILTIN_PEOPLE_SPACE_ID, displayName: "People", kind: "people" }` SpaceRecord。
 - fictional 必须明确作品或世界空间；不能默认和真实人物混在一起。
 - custom 空间由 SDK / Panel 创建，MCP create target 可以在同一次请求创建空间。
 - 同名只在同一空间内构成歧义；跨空间查询必须显式允许。
 - 关系默认不跨空间，跨空间 link 需要用户明确操作。
+
+people bootstrap 取 `spaces/<BUILTIN_PEOPLE_SPACE_ID>.identity.lock`，以 create-exclusive 写入或重读 exact record；已有文件任何字段不同都是 storage_corrupt，不会换一个随机 people space。inline space 则在 root `spaces/.catalog.lock` 内按 `(kind, canonical display label)` 解析或 create-exclusive 创建，在锁内重读 facts，不以 `.index` 判定存在性。
+
+`label-v1` 是唯一的 displayName / alias canonicalization：Unicode NFC，只移除首尾连续的 U+0009 / U+000A / U+000D / U+0020，保留大小写与内部 bytes；结果为空则 invalid_input。aliases 分别用同一函数，按 canonical UTF-8 bytes 去重、升序并存储。首版不 case-fold、不 fuzzy match、不压缩内部空白；规则升级必须用新版本，不静默改旧事实。
 
 ### 9.3 解析流程
 
@@ -34,22 +38,24 @@ normalize query → 精确 id / 别名 → provider-scoped identityHint → 同�
 
 结果只能是 found / not_found / ambiguous。候选排序可以使用精确命中、别名和身份 hint，但**阈值不能把多个候选压成一个**。模型看到 ambiguous 必须展示至少 displayName、space、identity hints。description 只用于展示与候选排序，永不参与唯一命中、already_exists 或合并；材料 URI 也不会因为“看起来像主页”就自动升级为身份 hint，只有显式创建、用户确认或受信 adapter resolve 才能写入。
 
-identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 http(s)，按 WHATWG 规则小写 scheme/host、移除 default port、fragment 和 dot segments，但不猜测 tracking query；provider id 统一 ASCII lowercase；externalId 做 Unicode NFC 后保持 opaque exact；handle trim + NFC，只有内置 provider table 明确声明 case-insensitive 时才 case-fold，未知 provider 保留大小写。URL/account/external_id 分别按 canonical 值判等，不跨 kind 猜关联。
+identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 http(s)，按 WHATWG 规则小写 scheme/host、移除 default port、fragment 和 dot segments，但不猜测 tracking query；provider id 统一 ASCII lowercase；externalId 做 Unicode NFC 后保持 opaque exact；handle trim + NFC，只有内置 provider table 明确声明 case-insensitive 时才 case-fold，未知 provider 保留大小写。`identity-locator-v1` 的 case-insensitive provider table 明确为空，所以首版所有 handle 都保留大小写；以后增加 provider 必须提升该规则版本并补迁移/兼容 fixture，不能静默改变旧事实判等。URL/account/external_id 分别按 canonical 值判等，不跨 kind 猜关联。
 
 ### 9.4 原子创建与重复
 
-模型路径只有 ingest(create)。引擎先规范化 create target，并在锁内重新搜索 locator identity hints：
+模型路径只有 ingest(create)。引擎先用 label-v1 和版本化 identity-locator 函数规范化 create target，并在锁内重新搜索 facts。判定顺序固定：
 
 - requestId 已成功：返回原主体；
-- 唯一相同 url/account/external_id hint：already_exists，并在 typed subjectResolution 返回该 subject；description 命中不走此分支；
-- 名字相同但身份不确定：ambiguous_subject，并在 typed subjectResolution 返回至少两个 candidates；
+- 任一 exact canonical url/account/external_id locator 命中唯一主体：already_exists，并在 typed subjectResolution 返回该 subject；两个以上 exact locator 命中是 storage_corrupt；
+- 没有 exact locator 时，按 exact canonical displayName 或 alias 收集候选。如果候选在 target 也提供的某个 locator kind 上已有可证明的不同 canonical value，排除该候选；未提供该 kind 不算冲突；
+- 排除后恰好一个候选：保守返回 already_exists 与该 subject，remediation 要求调用方改用 existing target 或补充可区分 locator；
+- 排除后两个以上候选：ambiguous_subject，并返回全部稳定排序 candidates；
 - 无冲突：创建 subject + 第一批材料，再发布 subject.created。
 
-create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。引擎先解析或创建 SpaceRecord，再取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放两把锁。全局顺序固定为 space identity lock → subject lock → 文件提交 → SQLite projection；已有主体的 ingest 从 subject lock 开始，任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。stale identity lock 与 subject lock 使用同一 owner heartbeat/TTL 规则。
+description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → 文件提交 → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。
 
-create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批失败则丢弃。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
+create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批验证失败则不发布。一旦 prepared journal 已记录 candidate，aborted 后同 request/input/actor 重试仍复用它，不生成第二个 id。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
 
-SDK 的 Distilly.create 可以创建空主体，供 Panel、迁移器和人工管理使用；这个能力不额外暴露成 MCP 工具。
+独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；Step 5 不物化该 handler。ingest(create) 直接执行上述原子事务，永不先调用 subjects.create 产生空主体。
 
 `canonicalizeIngestSubjectTarget` 还负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
 

@@ -4,10 +4,11 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { DistillyError } from "@distilly/protocol";
 import type { FactEnvelope, RuntimeSchema } from "@distilly/protocol";
 
 import { sealFact } from "./checksum.js";
-import { createFactFile, readFactFile } from "./fact-file.js";
+import { createFactFile, readFactFile, readMutableFactFile, replaceFactFile } from "./fact-file.js";
 
 interface LargeFact extends FactEnvelope<1> {
   readonly payload: string;
@@ -47,5 +48,39 @@ describe("generic fact files", () => {
     await createFactFile(root, path, fact, largeFactSchema);
 
     await expect(readFactFile(root, path, largeFactSchema)).resolves.toEqual(fact);
+  });
+
+  it("retries a proven atomic replacement race for mutable facts only", async () => {
+    const root = await mkdtemp(join(tmpdir(), "distilly-mutable-fact-"));
+    roots.push(root);
+    const path = join(root, "state.json");
+    const previous = sealFact<LargeFact>({ schemaVersion: 1, payload: "previous" });
+    const target = sealFact<LargeFact>({ schemaVersion: 1, payload: "target" });
+    await createFactFile(root, path, previous, largeFactSchema);
+
+    let replaced = false;
+    await expect(
+      readMutableFactFile(root, path, largeFactSchema, {
+        async afterTargetStat() {
+          if (replaced) return;
+          replaced = true;
+          await replaceFactFile(root, path, target, largeFactSchema);
+        },
+      }),
+    ).resolves.toEqual(target);
+
+    let next = previous;
+    try {
+      await readMutableFactFile(root, path, largeFactSchema, {
+        async afterTargetStat() {
+          next = next.payload === previous.payload ? target : previous;
+          await replaceFactFile(root, path, next, largeFactSchema);
+        },
+      });
+      throw new Error("Expected a retryable busy result.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DistillyError);
+      expect(error).toMatchObject({ code: "busy", retryable: true });
+    }
   });
 });

@@ -31,6 +31,15 @@ Match the check to the change. Do not default to the full suite.
 
 Before push, follow [.agents/skills/distilly-pre-push-checks/SKILL.md](../.agents/skills/distilly-pre-push-checks/SKILL.md).
 
+## Feature commit boundary
+
+1. Name one reviewable feature or bug fix and its acceptance checks before coding. If it cannot fit one independently understandable commit, split the feature boundary now rather than later by file.
+2. Finish that feature's implementation, tests, generated artifacts, current-state documentation, and required Agent Note changes. Subagents leave their contributions in the shared worktree for the coordinating/root agent; they do not create partial commits.
+3. Collect and integrate every contribution for the feature, including problems found before the next independent feature begins.
+4. Run the checks that can fail for the complete feature.
+5. Stage only that feature, review `git diff --cached --stat`, `git diff --cached`, and `git diff --cached --check`, then create one local feature commit. Do not create checkpoint, WIP, fixup, or contribution-by-contribution history.
+6. Begin another independent feature only after the previous feature commit exists. Local commits need no additional permission; push, PR, and publication remain opt-in.
+
 CI on `dot-skill`, `distilly`, and `main` runs governance once, compile and `python -B scripts/run_tests.py` on Python 3.9/3.11, and Ruff. Missing tests are an error, not a successful skip. CI becomes a merge/push gate only when the base repository has the [required branch protection](cookbook/protecting-governed-branches.md); otherwise it is post-push detection.
 
 GitHub loads community PR templates from the default branch. Shared discovery files such as root `AGENTS.md` and `.github/PULL_REQUEST_TEMPLATE.md` must land on the default `dot-skill` branch as well as the branch that consumes them; a `distilly`-only copy does not change the new-PR form.

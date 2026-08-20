@@ -20,6 +20,7 @@ The `distilly` branch carries a governance layer sized to what this repo can enf
 - Root instructions are branch-neutral and route by the checked-out branch. Shared discovery files and the PR template must also land on GitHub's default branch; a product-branch-only copy is not visible to every clone or new-PR form.
 - CI on `dot-skill`, `distilly`, and `main` runs governance once, compile and fail-closed unittest discovery on Python 3.9/3.11, and blocking Ruff. PR checks use the exact metadata base/head range; push checks use the event before/head range. Local contributors run the narrowest matching commands; they do not owe a full-matrix rehearsal.
 - [docs/development.md](../../../../docs/development.md) owns the task handoff contract. Handoffs carry transient progress and evidence in the task or PR; Agent Notes remain durable decisions.
+- Local history is organized by complete, reviewable feature or bug-fix slices. The coordinating/root agent defines acceptance checks before coding, integrates implementation, tests, generated artifacts, current-state docs, and necessary Note changes, then creates one local commit before another independent feature starts. Subagents contribute only through the shared worktree; local commits require no extra permission, while every push or PR remains opt-in.
 - `.githooks/pre-push` provides cheap local governance, lint, and whitespace feedback when a clone enables the tracked hooks. It requires a clean checked-out head so tree gates inspect the committed tree, compares it with the explicitly configured feature-branch base or existing persistent-branch tip, and rejects persistent deletion/non-fast-forward updates. CI is a detection backstop; the [branch-protection procedure](../../../../docs/cookbook/protecting-governed-branches.md) owns remote enforcement.
 
 This is docs-first in the narrow sense: a governed change has a note in the same PR; a semantic reviewer can require one for an otherwise exempt path; unbuilt work may land as `proposed/` before code; implemented notes stay present-tense with the code.
@@ -32,6 +33,8 @@ This is docs-first in the narrow sense: a governed change has a note in the same
 - **Leave CI on `main` only** — rejected: the default branch is `dot-skill`. A gate that never runs is not a gate.
 - **Keep hand-copying design chapters** — rejected: correct prose with a broken relocated link already escaped review. Generated projections make the parent the only writable source.
 - **Store every task handoff as a committed Markdown file** — rejected: transient progress goes stale and becomes a second current-state source. The task or PR carries the handoff; durable decisions and behavior retain their existing homes.
+- **Commit each subtask or agent contribution separately** — rejected: those commits preserve orchestration history that cannot be independently built, verified, reviewed, or rolled back as product behavior.
+- **Accumulate multiple independent features and commit them together later** — rejected: the combined change cannot be reviewed or rolled back feature by feature, and decision ownership becomes ambiguous.
 
 ## Consequences
 
@@ -39,6 +42,7 @@ This is docs-first in the narrow sense: a governed change has a note in the same
 - Product decisions that are not yet code live in `proposed/` and can be reviewed before implementation.
 - Note tree, governed-diff ownership, document portability, generated chapter drift, Ruff errors, compile failures, and tests produce a failing CI result. Branch protection must require that result before it becomes a merge/push block.
 - Contributors still use unittest and compileall for tool behavior; governance does not replace those tests.
+- Local history has one independently reviewable commit per completed feature or bug fix, without contribution-level or WIP commits between feature boundaries.
 - A fresh agent can recover authority, actual evidence, remaining work, and workspace ownership without the previous chat.
 
 ## Verification

@@ -6,6 +6,12 @@ Route work by the checked-out branch before editing: `distilly` is the target pr
 
 `distilly` is local-only. Commit freely, but **never push, open a PR, or otherwise publish it without an explicit request in the current session.** The repository is public; `dot-skill` is its default branch and carries only the published skill. Design material and unreleased product work stay on the local `distilly` branch and out of every remote ref, including PR branches, because a merged PR's objects stay retrievable after any branch rewrite.
 
+## Feature-level local commits
+
+Before coding, name one reviewable feature or bug-fix slice and its acceptance checks. Complete and integrate that slice, collect all subagent work, run its checks, and have the coordinating/root agent create one local commit before starting another independent feature. A feature commit contains its implementation, tests, generated artifacts, current-state documentation, and required Agent Note updates.
+
+Do not create per-file, per-function, per-test, subagent, checkpoint, fixup, or WIP commits, and do not combine independent features in one commit. If a slice is too large for one reviewable commit, redefine its feature boundary before coding instead of mechanically splitting files afterward. Subagents only modify the shared worktree and report results; they do not commit partial work. Problems found before the next feature starts fold into the current feature commit. Local feature commits need no additional permission, but pushing, opening a PR, or otherwise publishing still requires explicit user authorization.
+
 ## Standing orders
 
 - Before product code on `distilly`, read [docs/design/README.md](docs/design/README.md) and the chapter that owns the change. [docs/design/system-v2.md](docs/design/system-v2.md) is the in-force contract; [docs/design/system-v1.md](docs/design/system-v1.md) is deprecated history; [docs/architecture.md](docs/architecture.md) is the shipped-state map. Do not apply target APIs as current behavior on `dot-skill`.

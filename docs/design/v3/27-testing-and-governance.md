@@ -13,7 +13,7 @@
 
 ### 27.2 Protocol 与纯函数
 
-- 所有品牌 id 与 schema accepted / rejected fixtures；六种随机 id 与 RequestId 使用各自前缀 + 32 lowercase hex，Raw/Version/Claim/Relation 与九种摘要型 id 使用各自前缀 + 64 lowercase hex，不接受空值、大写、额外字符、separator 或 dot segment；
+- 所有品牌 id 与 schema accepted / rejected fixtures；七种随机 id（含 lease_owner）与 RequestId 使用各自前缀 + 32 lowercase hex，Raw/Version/Claim/Relation 与九种摘要型 id 使用各自前缀 + 64 lowercase hex，不接受空值、大写、额外字符、separator 或 dot segment；
 - IsoDateTime 只接受有效 UTC 毫秒 form，HostName / FacetPath / m001..m999 的边界和 grammar 都有接受/拒绝 fixture；
 - 五工具真实 names、titles、descriptions、draft-2020-12 inputSchema/outputSchema 与四个 annotation hints 的完整 tools/list snapshot；runtime schema 与 JSON Schema 用相同 accepted/rejected fixtures；
 - get / pending 的 action→success-kind 映射、分支专属 key 和 handler→EngineMethodMap 映射；
@@ -22,14 +22,17 @@
 - EngineMethodMap 精确 35 keys 与 mutation/query 分区，无 payload 结果字节稳定为 null，不出现 void/undefined；
 - EngineEvent decoder 遇到未知 kind 返回 schema_unsupported、不调 handler 并触发全量重读；其它 unknown discriminant 在边界失败；
 - full SHA-256 与 MaterialId source semantics；
-- source grouping 顺序无关；不同 URL 同 digest 保留不同 MaterialId 但同组；同 raw 的字幕/OCR/转写与同一 private conversation 的跨 grant 消息同组；unknown 不增加 eligible count；
+- source-groups-v1 的五类 exact proof-key preimage、每材料 key union、跨材料 union 与 component `sg_` hash 有 golden fixtures；artifact/representation 共 locator namespace、source.uri 只在无 artifact 时 fallback、CaptureAuditRef 不参与；
+- source grouping 顺序无关；不同 URL 同 digest 保留不同 MaterialId 但同组；同 raw 的字幕/OCR/转写与同一 private conversation 的跨 grant 消息同组；bases 只含真实跨 MaterialId 理由并按 enum 排序，singleton 只有 unknown；unknown 不增加 eligible count；
 - 同 URL/正文以相反顺序输入不同 provenance 得到同一最终 group / quality；同 proof key 的 public/private access 冲突为 ineligible 且返回 access_conflict caution；未引用或只被 superseded claim 引用的来源不提高 maturity；
 - MaterialSetHash 顺序无关；
 - parser draft 经 engine 绑定 RawId 后的 raw_extract type / round-trip；correction 的 direct-user 与 relayed provenance 产生可实现且不同的 digest；
 - claim patch add / revise / supersede / contest；
 - quote / locator、跨主体与跨 generation evidence 拒绝；
 - quality / maturity / renderer byte stability；
-- OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result。
+- OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result；distill.brief OperationRecord 可精确 round-trip 4 MiB 内完整 briefing；
+- BriefContract exact-three-field digest、raw prompt asset + NUL + evidenceRulesV1 promptVersion、source-groups-v1 与 draftSchemaVersion=1 有 byte-level golden fixtures；
+- VersionId fixture 删除全部 Claim.createdIn 后计算，再把新 claim createdIn 填成所得 id；改变 createdIn 不改变 preimage，改变其它 canonical claim 字段必须改变 id。
 
 ### 27.3 Fact layer 与 crash
 
@@ -49,21 +52,27 @@
 - request / space catalog / space identity / subject lock 竞争和 stale lock recovery；两进程同时越过 preflight、旧 writer 留 prepared 后新 writer 的锁内二次检查必须释锁并 retryable busy，不反向取旧 request lock；create 对同 space prepared create 同样阻断；
 - ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复必须 target-first，包括 previous==target，否则只能是完整 previous/absent 并只删 journal 命名的 material/staging，第三态必须 storage_corrupt；原 ingested retry 不退化成 unchanged；
 - aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
-- commit 在 journal、materials manifest / version rename、state swap、event、projection 每一步崩溃；manifest 缺项、hash 或 materialCount 不符必须 storage_corrupt；
+- commit 在 journal、materials manifest / claims snapshot / version rename、state swap、event、projection 每一步崩溃；claims.json 是单一 VersionClaimsSnapshot，claims 按 ClaimId UTF-8 严格升序无重复；version/material manifest/material content/evidence quote/Unicode-scalar locator 任一 missing 或不一致必须 storage_corrupt，manifest 缺项、hash 或 materialCount 不符同样拒绝；
 - recovery 幂等且只有一个 current；
-- queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty exact bytes 、PRAGMA user_version=1、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified state.pending 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 没有 public list/lease read service；
+- queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty v2 exact bytes、PRAGMA user_version=2、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified SubjectStateRecord v2 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 user_version=1 在 open 时判 index_unavailable 并自动 rebuild，不执行 ALTER/row migration；
+- queue rebuild 在 projection lock 内才调用 AsyncIterable seed supplier；并发 writer 在 snapshot 前、snapshot 中和 replace/clear-marker 后提交 state 的 fixtures 都证明其 apply 最终发生在 rebuild 后或被 snapshot 包含，不会留下 clean-but-stale；
 - corrupt checksum / unknown schema 拒绝；
 - symlink / path traversal 拒绝；
 - purge 的精确删除边界；prepared purge journal 后逐 operation atomic replace / 逐 journal delete 的每个崩溃点都能 recovery 到全部完成，subject-scoped completed operation 及 journal-only request 都最终变 tombstone，同 input 重试 not_found，不同 input/actor conflict，tombstone 不含 actor/result。
 
 ### 27.4 Lease 与并发
 
-- 两个 EngineClient 同时 brief，只有一个成功；
-- renew / release owner 检查；
-- lease expiry recover；
+- 每个 EngineClient 获得不同 engine-owned LeaseOwnerId，模型/public params 不能提交 owner；两个 client 同时 brief，只有一个成功；
+- SubjectStateRecord v2 的 pending.lease 是唯一权威；QueueRepository 没有 acquire/renew/release，删除或重建 queue.db 后未过期 lease 仍 leased、过期 marker 显示 pending；
+- PendingJob 三态判别字段、JobLease expiresAt>acquiredAt 与 briefing 的 job/lease/generation/digest/base/ref/material 交叉关系有正反 fixtures；
+- brief 只允许 absent/expired→active，renew 只改 expiry，release 只删 marker；renew/release 的 job、lease、owner 与 active 检查，恰好 expiry 时 lease_expired 且 state checksum/event 不变；
+- expiry 完全由 clock 派生，没有 timer、recoverExpired、heartbeat 或 expiry event；下一次 brief 可替换过期 marker；
 - lease 后新材料使旧 commit stale；
-- briefing 的 baseline evidence 与新增材料被当前 generation 合成同组；brief 后升级默认 grouping / prompt / draft schema 时，commit 仍使用 lease 固定的 BriefContract，缺少旧实现则 schema_unsupported 而不是静默换规则；
+- briefing 的 baseline evidence 与新增材料被当前 generation 合成同组；brief 后升级默认 grouping / prompt / draft schema 时，commit 仍使用 state lease 固定的完整 BriefContract，缺少旧实现则 schema_unsupported 而不是静默换规则；
 - 相同 patch / material set 在不同 BriefContract 下产生不同 VersionId；renew 保持原 briefContractDigest；
+- 相同 RequestId 的 brief/renew/release 只在 method+params+actor+owner（brief 再加 canonical capacity）完全相同时精确重放；换 client owner 或 capacity 返回 idempotency_conflict；
+- brief 以完整 briefing 作为 OperationRecord.result；prepared journal、state swap、operation、唯一 job.changed event、queue apply 的每个 crash point都做 target-first recovery，previous abort、target finish、第三态 storage_corrupt；ingest 在同 subject lock 下先阻断/reconcile prepared lease journal；
+- capacity missing 返回 host_unsupported；完整 compact canonical JSON 的 fixed-point byte/token 估算在等于/超过 host token、host result bytes、4,194,304-byte internal cap、999 refs 各边界有 fixtures，任何失败都发生在 journal/state lease前，details 不含材料内容；maximumOutputBytes 固定 65,536；
 - stale worker finish 不覆盖新 generation；
 - requestId 重试不重复主体、材料或版本；
 - panel、MCP、CLI 三进程 writer 的锁顺序无死锁。

@@ -1,6 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createStep5IngestComposition } from "../lib/ingest/composition.js";
+import { createStep6Composition } from "../lib/ingest/composition.js";
 
 const [root, requestId] = process.argv.slice(2);
 if (root === undefined || requestId === undefined) {
@@ -38,7 +38,7 @@ const deadline = Date.now() + 10_000;
 
 for (;;) {
   try {
-    const composition = await createStep5IngestComposition({ root });
+    const composition = await createStep6Composition({ root });
     const result = await composition.ingest.ingest(input, actor, { requestId });
     process.stdout.write(
       `result:${JSON.stringify({ kind: "success", subjectId: result.subject.id })}\n`,

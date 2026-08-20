@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { BUILTIN_PEOPLE_SPACE_ID } from "./ids.js";
-import type { MaterialId, SpaceId, SubjectId } from "./ids.js";
+import type { LeaseOwnerId, MaterialId, SpaceId, SubjectId } from "./ids.js";
 import {
   brandedValueSchemas,
   briefMaterialRefSchema,
@@ -18,6 +18,7 @@ const HEX_32 = "0123456789abcdef".repeat(2);
 describe("compile-time brands", () => {
   it("keeps unrelated ids non-interchangeable", () => {
     expectTypeOf<SubjectId>().not.toEqualTypeOf<MaterialId>();
+    expectTypeOf<LeaseOwnerId>().not.toEqualTypeOf<SubjectId>();
     expectTypeOf(BUILTIN_PEOPLE_SPACE_ID).toEqualTypeOf<SpaceId>();
   });
 });
@@ -62,6 +63,7 @@ describe("non-digest branded value schemas", () => {
     ["space", `space_${HEX_32}`],
     ["job", `job_${HEX_32}`],
     ["lease", `lease_${HEX_32}`],
+    ["leaseOwner", `lease_owner_${HEX_32}`],
     ["event", `event_${HEX_32}`],
     ["captureAudit", `capture_${HEX_32}`],
     ["raw", `raw_${HEX_64}`],
@@ -76,6 +78,7 @@ describe("non-digest branded value schemas", () => {
     ["subject", `subject_${HEX_32.slice(1)}`],
     ["space", `space_${HEX_32.toUpperCase()}`],
     ["job", `jobs_${HEX_32}`],
+    ["leaseOwner", `lease_owner_${HEX_32.toUpperCase()}`],
     ["raw", `raw_${HEX_32}`],
     ["version", `version_${HEX_64}/x`],
   ] as const)("rejects a malformed %s value", (name, value) => {

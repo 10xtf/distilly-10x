@@ -3,6 +3,8 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { WIRE_LIMITS } from "./json.js";
 import type { EngineMethodMap, MutationMethodName } from "./methods.js";
 import {
+  distillLeaseTransactionMethodSchema,
+  distillLeaseTransactionRecordSchema,
   eventRecordSchema,
   factEnvelopeSchema,
   ingestTransactionRecordSchema,
@@ -10,24 +12,29 @@ import {
   operationRecordSchema,
   operationScopeSchema,
   operationTombstoneRecordSchema,
+  pendingLeaseMarkerSchema,
   pendingJobMarkerSchema,
   spaceRecordSchema,
   subjectRecordSchema,
   subjectStateRecordSchema,
   transactionRecordSchema,
+  versionClaimsSnapshotSchema,
   versionMaterialEntrySchema,
   versionMaterialManifestSchema,
   versionRecordSchema,
 } from "./schemas/facts.js";
 import {
   briefContractDigestSchema,
+  claimIdSchema,
   contentDigestSchema,
   eventIdSchema,
+  facetPathSchema,
   factChecksumSchema,
   hostNameSchema,
   isoDateTimeSchema,
   jobIdSchema,
   leaseIdSchema,
+  leaseOwnerIdSchema,
   materialIdSchema,
   materialSetHashSchema,
   provenanceDigestSchema,
@@ -37,17 +44,21 @@ import {
   versionIdSchema,
 } from "./schemas/ids.js";
 import type {
+  DistillLeaseTransactionMethod,
+  DistillLeaseTransactionRecord,
   EventRecord,
   IngestTransactionRecord,
   OperationFact,
   OperationRecord,
   OperationScope,
   OperationTombstoneRecord,
+  PendingLeaseMarker,
   PendingJobMarker,
   SpaceRecord,
   SubjectRecord,
   SubjectStateRecord,
   TransactionRecord,
+  VersionClaimsSnapshot,
   VersionMaterialEntry,
 } from "./values/facts.js";
 import type { VersionMaterialManifest, VersionRecord } from "./values/versions.js";
@@ -79,9 +90,15 @@ const eventId = eventIdSchema.parse(`event_${HEX_32}`);
 const factChecksum = factChecksumSchema.parse(`fact_sha256_${HEX_64}`);
 const otherFactChecksum = factChecksumSchema.parse(`fact_sha256_${ALT_HEX_64}`);
 const briefContractDigest = briefContractDigestSchema.parse(`brief_contract_${HEX_64}`);
+const promptVersion = `host-distill-v1-sha256_${HEX_64}` as const;
+const leaseOwnerId = leaseOwnerIdSchema.parse(`lease_owner_${HEX_32}`);
+const claimId = claimIdSchema.parse(`claim_${HEX_64}`);
+const secondClaimId = claimIdSchema.parse(`claim_${ALT_HEX_64}`);
+const identityFacet = facetPathSchema.parse("identity");
 const host = hostNameSchema.parse("codex");
 const at = isoDateTimeSchema.parse("2026-08-20T00:00:00.000Z");
 const finishedAt = isoDateTimeSchema.parse("2026-08-20T00:01:00.000Z");
+const renewedExpiresAt = isoDateTimeSchema.parse("2026-08-20T00:02:00.000Z");
 
 const actor = { kind: "sdk", id: "sdk-test" } as const;
 
@@ -123,7 +140,7 @@ const currentVersion = {
   creation: {
     kind: "host_distill",
     briefContractDigest,
-    promptVersion: "host-distill-v1",
+    promptVersion,
     draftSchemaVersion: 1,
   },
   status: "current",
@@ -170,26 +187,47 @@ const pendingJob = {
   queuedAt: at,
 } as const;
 
+const leasedJob = {
+  ...pendingJob,
+  state: "leased",
+  leaseExpiresAt: finishedAt,
+} as const;
+
 const lease = {
   id: leaseId,
   jobId,
   generation: 1,
   briefContractDigest,
-  owner: "sdk-test",
+  owner: leaseOwnerId,
   acquiredAt: at,
   expiresAt: finishedAt,
 } as const;
 
+const renewedLease = {
+  ...lease,
+  expiresAt: renewedExpiresAt,
+} as const;
+
+const briefContract = {
+  digest: briefContractDigest,
+  sourceGroupingVersion: "source-groups-v1",
+  promptVersion,
+  draftSchemaVersion: 1,
+} as const;
+
 const briefing = {
-  job: pendingJob,
+  job: leasedJob,
   lease,
   subject,
+  baseline: {
+    versionId,
+    claims: [],
+    quality,
+    evidenceFacts: [],
+  },
   materials: [],
   contract: {
-    digest: briefContractDigest,
-    sourceGroupingVersion: "source-groups-v1",
-    promptVersion: "host-distill-v1",
-    draftSchemaVersion: 1,
+    ...briefContract,
     instructions: "Distill evidence-bounded claims.",
     evidenceRules: [],
   },
@@ -483,6 +521,39 @@ const secondEntry = {
   provenanceDigest: secondProvenanceDigest,
 } satisfies VersionMaterialEntry;
 
+const firstClaim = {
+  id: claimId,
+  facet: identityFacet,
+  text: "Ada writes.",
+  evidence: [{ materialId, quote: "Ada writes." }],
+  status: "active",
+  strength: "single_source",
+  observedIn: ["2026"],
+  createdIn: versionId,
+} as const;
+
+const secondClaim = {
+  ...firstClaim,
+  id: secondClaimId,
+  text: "Ada publishes.",
+} as const;
+
+const versionClaimsSnapshot = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  subjectId,
+  versionId,
+  claims: [firstClaim, secondClaim],
+} satisfies VersionClaimsSnapshot;
+
+const pendingLeaseMarker = {
+  id: leaseId,
+  owner: leaseOwnerId,
+  acquiredAt: at,
+  expiresAt: finishedAt,
+  contract: briefContract,
+} satisfies PendingLeaseMarker;
+
 const pendingMarker = {
   jobId,
   generation: 1,
@@ -491,6 +562,16 @@ const pendingMarker = {
   addedMaterialCount: 1,
   totalMaterialCount: 1,
   queuedAt: at,
+} satisfies PendingJobMarker;
+
+const leasedPendingMarker = {
+  ...pendingMarker,
+  lease: pendingLeaseMarker,
+} satisfies PendingJobMarker;
+
+const renewedPendingMarker = {
+  ...pendingMarker,
+  lease: { ...pendingLeaseMarker, expiresAt: renewedExpiresAt },
 } satisfies PendingJobMarker;
 
 const spaceRecord = {
@@ -514,7 +595,7 @@ const subjectRecord = {
 } satisfies SubjectRecord;
 
 const subjectStateRecord = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   checksum: factChecksum,
   subjectId,
   generation: 1,
@@ -604,6 +685,43 @@ const createTransaction = {
   state: "prepared",
 } satisfies IngestTransactionRecord;
 
+const preparedBriefTransaction = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  transactionKind: "distill_lease",
+  method: "brief",
+  requestId,
+  subjectId,
+  jobId,
+  previousStateChecksum: otherFactChecksum,
+  targetStateChecksum: factChecksum,
+  previousPending: pendingMarker,
+  targetPending: leasedPendingMarker,
+  operation: operationRecords["distill.brief"],
+  event: jobChangedEvent,
+  preparedAt: at,
+  state: "prepared",
+} satisfies DistillLeaseTransactionRecord;
+
+const preparedRenewTransaction = {
+  ...preparedBriefTransaction,
+  method: "renew",
+  previousPending: leasedPendingMarker,
+  targetPending: renewedPendingMarker,
+  operation: {
+    ...operationRecords["distill.renew"],
+    result: renewedLease,
+  },
+} satisfies DistillLeaseTransactionRecord;
+
+const preparedReleaseTransaction = {
+  ...preparedBriefTransaction,
+  method: "release",
+  previousPending: leasedPendingMarker,
+  targetPending: pendingMarker,
+  operation: operationRecords["distill.release"],
+} satisfies DistillLeaseTransactionRecord;
+
 const parseRoundTrip = (schema: { parse(value: unknown): unknown }, fixture: unknown): unknown => {
   const parsed = schema.parse(fixture);
   const serialized = JSON.stringify(parsed);
@@ -634,7 +752,12 @@ describe("persisted fact runtime schemas", () => {
     expectTypeOf<StoredResults>().toEqualTypeOf<DeclaredResults>();
     expectTypeOf<keyof typeof operationRecords>().toEqualTypeOf<MutationMethodName>();
     expectTypeOf<OperationFact>().toEqualTypeOf<OperationRecord | OperationTombstoneRecord>();
-    expectTypeOf<TransactionRecord>().toEqualTypeOf<IngestTransactionRecord>();
+    expectTypeOf<TransactionRecord>().toEqualTypeOf<
+      IngestTransactionRecord | DistillLeaseTransactionRecord
+    >();
+    expectTypeOf<DistillLeaseTransactionMethod>().toEqualTypeOf<"brief" | "renew" | "release">();
+    expect(distillLeaseTransactionMethodSchema.parse("brief")).toBe("brief");
+    expect(() => distillLeaseTransactionMethodSchema.parse("distill.brief")).toThrow();
     expectTypeOf<OperationScope>().toEqualTypeOf<
       | { readonly kind: "global" }
       | { readonly kind: "subject"; readonly subjectId: typeof subjectId }
@@ -718,7 +841,10 @@ describe("persisted fact runtime schemas", () => {
       [spaceRecordSchema, spaceRecord],
       [subjectRecordSchema, subjectRecord],
       [versionMaterialEntrySchema, firstEntry],
+      [versionClaimsSnapshotSchema, versionClaimsSnapshot],
+      [pendingLeaseMarkerSchema, pendingLeaseMarker],
       [pendingJobMarkerSchema, pendingMarker],
+      [pendingJobMarkerSchema, leasedPendingMarker],
       [subjectStateRecordSchema, subjectStateRecord],
       [eventRecordSchema, eventRecord],
       [operationTombstoneRecordSchema, operationTombstone],
@@ -729,6 +855,34 @@ describe("persisted fact runtime schemas", () => {
       [ingestTransactionRecordSchema, { ...preparedTransaction, state: "committed", finishedAt }],
       [ingestTransactionRecordSchema, { ...preparedTransaction, state: "aborted", finishedAt }],
       [transactionRecordSchema, preparedTransaction],
+      [distillLeaseTransactionRecordSchema, preparedBriefTransaction],
+      [distillLeaseTransactionRecordSchema, preparedRenewTransaction],
+      [distillLeaseTransactionRecordSchema, preparedReleaseTransaction],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedBriefTransaction, state: "committed", finishedAt },
+      ],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedRenewTransaction, state: "committed", finishedAt },
+      ],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedReleaseTransaction, state: "committed", finishedAt },
+      ],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedBriefTransaction, state: "aborted", finishedAt },
+      ],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedRenewTransaction, state: "aborted", finishedAt },
+      ],
+      [
+        distillLeaseTransactionRecordSchema,
+        { ...preparedReleaseTransaction, state: "aborted", finishedAt },
+      ],
+      [transactionRecordSchema, preparedBriefTransaction],
     ] as const;
 
     for (const [schema, fixture] of fixtures) parseRoundTrip(schema, fixture);
@@ -810,10 +964,26 @@ describe("persisted fact runtime schemas", () => {
     ).toThrow();
   });
 
+  it("requires version claims to be strictly sorted and duplicate-free", () => {
+    expect(() => versionClaimsSnapshotSchema.parse(versionClaimsSnapshot)).not.toThrow();
+    expect(() =>
+      versionClaimsSnapshotSchema.parse({
+        ...versionClaimsSnapshot,
+        claims: [secondClaim, firstClaim],
+      }),
+    ).toThrow();
+    expect(() =>
+      versionClaimsSnapshotSchema.parse({
+        ...versionClaimsSnapshot,
+        claims: [firstClaim, firstClaim],
+      }),
+    ).toThrow();
+  });
+
   it("enforces empty and non-empty subject state invariants", () => {
     expect(() =>
       subjectStateRecordSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         checksum: factChecksum,
         subjectId,
         generation: 0,
@@ -844,6 +1014,24 @@ describe("persisted fact runtime schemas", () => {
         materialManifest: [],
       }),
     ).toThrow();
+    expect(() =>
+      subjectStateRecordSchema.parse({ ...subjectStateRecord, schemaVersion: 1 }),
+    ).toThrow();
+    expect(() =>
+      subjectStateRecordSchema.parse({
+        ...subjectStateRecord,
+        pending: { ...pendingMarker, baseVersionId: candidateVersionId },
+      }),
+    ).toThrow();
+    expect(() =>
+      subjectStateRecordSchema.parse({
+        ...subjectStateRecord,
+        currentVersionId: undefined,
+      }),
+    ).toThrow();
+    expect(() =>
+      pendingLeaseMarkerSchema.parse({ ...pendingLeaseMarker, expiresAt: at }),
+    ).toThrow();
   });
 
   it("limits requestless durable events to system recovery", () => {
@@ -855,6 +1043,194 @@ describe("persisted fact runtime schemas", () => {
         requestId: undefined,
       }),
     ).not.toThrow();
+  });
+
+  it("enforces distill lease transaction lifecycle and common correlations", () => {
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({ ...preparedBriefTransaction, finishedAt }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        state: "committed",
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        preparedAt: finishedAt,
+        state: "committed",
+        finishedAt: at,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        operation: { ...preparedBriefTransaction.operation, requestId: otherRequestId },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        operation: {
+          ...preparedBriefTransaction.operation,
+          scope: { kind: "subject", subjectId: otherSubjectId },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        targetPending: { ...leasedPendingMarker, generation: 2 },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        jobId: jobIdSchema.parse(`job_${ALT_HEX_32}`),
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        event: { ...jobChangedEvent, event: { kind: "material.ingested", subjectId, at } },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        event: {
+          ...jobChangedEvent,
+          event: { ...jobChangedEvent.event, subjectId: otherSubjectId },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        event: { ...jobChangedEvent, requestId: otherRequestId },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        event: { ...jobChangedEvent, actor: { kind: "sdk", id: "other-sdk" } },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        event: {
+          ...jobChangedEvent,
+          event: { ...jobChangedEvent.event, versionId },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("correlates brief acquisition with the complete target marker", () => {
+    expect(() => distillLeaseTransactionRecordSchema.parse(preparedBriefTransaction)).not.toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        targetPending: pendingMarker,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        targetPending: {
+          ...leasedPendingMarker,
+          lease: {
+            ...pendingLeaseMarker,
+            owner: leaseOwnerIdSchema.parse(`lease_owner_${ALT_HEX_32}`),
+          },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        operation: {
+          ...preparedBriefTransaction.operation,
+          result: {
+            ...preparedBriefTransaction.operation.result,
+            subject: { ...subject, currentVersionId: candidateVersionId },
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("allows renew to change only expiry and correlates its returned lease", () => {
+    expect(() => distillLeaseTransactionRecordSchema.parse(preparedRenewTransaction)).not.toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedRenewTransaction,
+        previousPending: pendingMarker,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedRenewTransaction,
+        targetPending: pendingMarker,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedRenewTransaction,
+        targetPending: {
+          ...renewedPendingMarker,
+          lease: { ...renewedPendingMarker.lease, acquiredAt: finishedAt },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedRenewTransaction,
+        targetPending: leasedPendingMarker,
+        operation: { ...preparedRenewTransaction.operation, result: lease },
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedRenewTransaction,
+        operation: {
+          ...preparedRenewTransaction.operation,
+          result: { ...renewedLease, generation: 2 },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("requires release to remove exactly one existing lease", () => {
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse(preparedReleaseTransaction),
+    ).not.toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedReleaseTransaction,
+        previousPending: pendingMarker,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedReleaseTransaction,
+        targetPending: leasedPendingMarker,
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedReleaseTransaction,
+        method: "renew",
+      }),
+    ).toThrow();
+    expect(() =>
+      distillLeaseTransactionRecordSchema.parse({
+        ...preparedBriefTransaction,
+        method: "distill.brief",
+      }),
+    ).toThrow();
   });
 
   it("enforces ingest transaction branch and correlation invariants", () => {

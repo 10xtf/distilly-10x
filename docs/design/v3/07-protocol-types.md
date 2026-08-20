@@ -38,6 +38,10 @@ export type MaterialSetHash = Branded<`set_sha256_${string}`, "MaterialSetHash">
 export type VersionId       = Branded<`version_${string}`, "VersionId">;
 export type JobId           = Branded<`job_${string}`, "JobId">;
 export type LeaseId         = Branded<`lease_${string}`, "LeaseId">;
+export type LeaseOwnerId    = Branded<
+  `lease_owner_${string}`,
+  "LeaseOwnerId"
+>;
 export type ClaimId         = Branded<`claim_${string}`, "ClaimId">;
 export type RelationId      = Branded<`relation_${string}`, "RelationId">;
 export type RequestId       = Branded<`req_${string}`, "RequestId">;
@@ -69,7 +73,7 @@ export const BUILTIN_PEOPLE_SPACE_ID =
   "space_00000000000000000000000000000001" as SpaceId;
 ~~~
 
-RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 root operations/<request-id>.json、operations/.locks/<request-id>.lock 与 transactions/<request-id>.json，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
+RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 root operations/<request-id>.json、operations/.locks/<request-id>.lock 与 transactions/<request-id>.json，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。LeaseOwnerId 的 wire form 固定为 `lease_owner_` + 32 位小写十六进制；它由 engine 在创建每个 ClientSessionContext 时生成，不是公开 method params，也不能从 actor id 派生。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
 
 运行时 schema 还要校验每个品牌 id 的前缀、长度和字符集。品牌只解决编译期混用，不替代边界校验。
 
@@ -223,7 +227,7 @@ export interface WireFailure {
 }
 ~~~
 
-所有写工具都要求 requestId。相同 requestId 与相同 method + canonical params + session actor 重试返回相同结果；相同 requestId 配不同 method、input 或 actor 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
+所有写工具都要求 requestId。相同 requestId 与相同 trusted input checksum 重试返回相同结果；普通 mutation 的 preimage 是 method + canonical params + session actor，distill.brief/renew/release 还含 session LeaseOwnerId，brief 再含 canonical BriefCapacity。相同 requestId 配不同 method、input、actor、lease owner 或 brief capacity 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
 
 ### 7.4 Actor 由入口派生
 
@@ -240,11 +244,12 @@ export interface MutationContext {
 
 export interface ClientSessionContext {
   readonly actor: ActorContext;
+  readonly leaseOwner: LeaseOwnerId;
   readonly capacity?: BriefCapacity;
 }
 ~~~
 
-ActorContext 与 capacity 在创建 EngineClient 或完成 RPC/MCP 握手时由可信 composition 派生，不出现在 ingest / commit / correct 的模型参数中。PrivateUiCaptureContext 不属于 ClientSessionContext 或 protocol wire；它是 engine 在验证活跃 grant 后封装在一次性 capture session 内的私有状态，普通 EngineRuntime.connect、MCP tool input、聊天正文和公开 SDK 都不能构造、cast 或重放它。公开 openInProcess 不能接收任意 ActorContext；普通 SDK 固定为 sdk，CLI / Panel 的直接动作由它们自己的入口绑定 user，MCP 固定为 host，后台 worker 固定为 executor。
+ActorContext、LeaseOwnerId 与 capacity 在创建 EngineClient 或完成 RPC/MCP 握手时由可信 composition 派生，不出现在 ingest / brief / renew / release / commit / correct 的模型参数中。每次 EngineClient session 必须使用不同的 engine-owned LeaseOwnerId；重连得到新 owner，不能借 actor id 或 caller label 继承旧 lease。PrivateUiCaptureContext 不属于 ClientSessionContext 或 protocol wire；它是 engine 在验证活跃 grant 后封装在一次性 capture session 内的私有状态，普通 EngineRuntime.connect、MCP tool input、聊天正文和公开 SDK 都不能构造、cast 或重放它。公开 openInProcess 不能接收任意 ActorContext 或 LeaseOwnerId；普通 SDK 固定为 sdk，CLI / Panel 的直接动作由它们自己的入口绑定 user，MCP 固定为 host，后台 worker 固定为 executor。
 
 MCP correct 仍记录真实 actor=host。它可以记录“宿主转述了用户原话”的 correction provenance，但不能冒充直接 user 动作。普通 SDK 的 Person.correct 同样记录 actor=sdk，而不是把 SDK 调用者猜成 user。CorrectionService 对所有非 user actor 写 relayed provenance、加入 relayed_correction reason 并 suspended；只有 Panel / CLI 的明确 correct、promote、reject 操作能记录 actor=user。actor 是审计来源，不代替文件权限或授权判断。
 

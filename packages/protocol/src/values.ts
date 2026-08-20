@@ -1,4 +1,4 @@
-import type { HostName, RequestId } from "./ids.js";
+import type { HostName, LeaseOwnerId, RequestId } from "./ids.js";
 
 /** Trusted identity attached when a client session is created. */
 export interface ActorContext {
@@ -22,5 +22,6 @@ export interface BriefCapacity {
 /** Trusted session state; it is never accepted inside model tool parameters. */
 export interface ClientSessionContext {
   readonly actor: ActorContext;
+  readonly leaseOwner: LeaseOwnerId;
   readonly capacity?: BriefCapacity;
 }

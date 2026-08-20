@@ -1,9 +1,16 @@
 import { DistillyError, requestIdSchema, transactionRecordSchema } from "@distilly/protocol";
-import type { RequestId, RuntimeSchema, TransactionRecord } from "@distilly/protocol";
+import type {
+  DistillLeaseTransactionRecord,
+  IngestTransactionRecord,
+  RequestId,
+  RuntimeSchema,
+  TransactionRecord,
+} from "@distilly/protocol";
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
 import { canonicalJson } from "./canonical-json.js";
+import { verifyFactChecksum } from "./checksum.js";
 import { listFactDirectory } from "./directory-scan.js";
 import { readMutableFactFile, replaceFactFile } from "./fact-file.js";
 
@@ -24,8 +31,10 @@ const withoutLifecycle = (record: TransactionRecord): Readonly<Record<string, un
   return payload;
 };
 
-const sameRetryIdentity = (left: TransactionRecord, right: TransactionRecord): boolean =>
-  left.transactionKind === right.transactionKind &&
+const sameIngestRetryIdentity = (
+  left: IngestTransactionRecord,
+  right: IngestTransactionRecord,
+): boolean =>
   left.requestId === right.requestId &&
   left.spaceId === right.spaceId &&
   left.subjectId === right.subjectId &&
@@ -36,6 +45,20 @@ const sameRetryIdentity = (left: TransactionRecord, right: TransactionRecord): b
   (!left.createdSubject ||
     !right.createdSubject ||
     left.targetSubjectChecksum === right.targetSubjectChecksum);
+
+const sameLeaseRetryPayload = (
+  left: DistillLeaseTransactionRecord,
+  right: DistillLeaseTransactionRecord,
+): boolean => canonicalJson(withoutLifecycle(left)) === canonicalJson(withoutLifecycle(right));
+
+const verifyNestedFacts = (record: TransactionRecord): void => {
+  verifyFactChecksum(record.operation);
+  if (record.transactionKind === "ingest") {
+    for (const event of record.events) verifyFactChecksum(event);
+  } else {
+    verifyFactChecksum(record.event);
+  }
+};
 
 const assertTransition = (previous: TransactionRecord, next: TransactionRecord): void => {
   if (previous.checksum === next.checksum) return;
@@ -51,9 +74,15 @@ const assertTransition = (previous: TransactionRecord, next: TransactionRecord):
     }
     return;
   }
-  if (next.state !== "prepared" || !sameRetryIdentity(previous, next)) {
+  const mayReprepare =
+    next.state === "prepared" &&
+    previous.transactionKind === next.transactionKind &&
+    (previous.transactionKind === "ingest"
+      ? sameIngestRetryIdentity(previous, next as IngestTransactionRecord)
+      : sameLeaseRetryPayload(previous, next as DistillLeaseTransactionRecord));
+  if (!mayReprepare) {
     throw storageCorrupt(
-      "An aborted transaction can only reprepare the same request, input, actor, and candidate.",
+      "An aborted transaction can only reprepare its permitted immutable request payload.",
     );
   }
 };
@@ -86,6 +115,8 @@ export class FileTransactionStore {
         error,
       );
     }
+    verifyFactChecksum(parsed);
+    verifyNestedFacts(parsed);
     const previous = await this.readOptional(parsed.requestId);
     if (previous === undefined) {
       if (parsed.state !== "prepared") {
@@ -118,6 +149,7 @@ export class FileTransactionStore {
     if (record.requestId !== requestId) {
       throw storageCorrupt("Transaction request id does not match its fact path.");
     }
+    verifyNestedFacts(record);
     return record;
   }
 

@@ -40,7 +40,7 @@ export interface HostPreflight {
 }
 ~~~
 
-unknown 不等于 available。canonical skill 只能使用已知存在的能力；无法探测时询问或走最低能力路径。HostPreflight 对 `structuredToolCalls=false` 返回 host_unsupported；`privateUiCapture=available` 必须满足 §10.2 的完整 conjunction，不能由“宿主有 vision/Computer Use”单字段推导。
+unknown 不等于 available。canonical skill 只能使用已知存在的能力；无法探测时询问或走最低能力路径。HostPreflight 对 `structuredToolCalls=false` 返回 host_unsupported；`privateUiCapture=available` 必须满足 §10.2 的完整 conjunction，不能由“宿主有 vision/Computer Use”单字段推导。HostBinding 从 maxContextTokens/maxToolResultBytes 或保守 fixture 派生 BriefCapacity 时，先扣除 transport envelope、tool wrapper 与 binding 固定开销；传给 engine 的数值就是 HostDistillBriefing 可占用的净预算，engine 不再重复扣减。
 
 ### 17.2 HostBinding
 

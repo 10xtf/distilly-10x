@@ -342,7 +342,7 @@ export declare class DistillyError extends Error {
 }
 ~~~
 
-EngineClient.close() 只取消该 client 的 watch、lease heartbeat 与 session 绑定，不关闭 SQLite、事实 store 或同一 runtime 的其它 client。EngineRuntime / LocalRuntime.close() 才关闭共享资源，只能由创建它的 composition owner 在停止接收调用后执行；它会先关闭仍连接的 child clients，并且幂等。MCP server 与 Panel handle 关闭各自 transport/client，不拥有传入的共享 runtime。openInProcess 是例外：它创建私有 runtime，所以返回的 Distilly.close() 先关 sdk client、再关该私有 runtime。直接 new Distilly({client}) 时，close 仍只委托 client.close()。
+EngineClient.close() 只取消该 client 的 watch 与 session 绑定，不关闭 SQLite、事实 store 或同一 runtime 的其它 client，也不暗中 release durable lease；caller 需在 close 前显式 distill.release，否则 lease 按 expiresAt 自然失效。EngineRuntime / LocalRuntime.close() 才关闭共享资源，只能由创建它的 composition owner 在停止接收调用后执行；它会先关闭仍连接的 child clients，并且幂等。MCP server 与 Panel handle 关闭各自 transport/client，不拥有传入的共享 runtime。openInProcess 是例外：它创建私有 runtime，所以返回的 Distilly.close() 先关 sdk client、再关该私有 runtime。直接 new Distilly({client}) 时，close 仍只委托 client.close()。
 
 不用 call<T>(method: string)：它允许拼错 method、错配 params / result 而编译照过。mutation overload 在类型层强制 requestId；MCP presenter 透传 WireRequest.requestId，facade 为一次顶层调用生成并在底层重试中复用。相同业务动作在调用者主动发起的新顶层调用里可以拿新 requestId，内容寻址的 VersionId 与 stale checks 仍防止重复事实。以后的 HTTP / daemon transport 只能实现这张表，不能改 facade。
 

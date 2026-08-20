@@ -95,6 +95,10 @@ describe("fact foundation defaults", () => {
         layout.versionMaterialManifestFile(subjectId, versionId),
         join("subjects", subjectId, "versions", versionId, "materials.json"),
       ],
+      [
+        layout.versionClaimsFile(subjectId, versionId),
+        join("subjects", subjectId, "versions", versionId, "claims.json"),
+      ],
       [layout.queueDatabaseFile(), join(".index", "queue.db")],
       [layout.queueDirtyFile(), join(".index", "queue.dirty")],
     ];

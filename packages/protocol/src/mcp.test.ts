@@ -17,11 +17,13 @@ const SUBJECT_ID = `subject_${HEX_32}`;
 const SPACE_ID = `space_${HEX_32}`;
 const JOB_ID = `job_${HEX_32}`;
 const LEASE_ID = `lease_${HEX_32}`;
+const LEASE_OWNER_ID = `lease_owner_${HEX_32}`;
 const VERSION_ID = `version_${HEX_64}`;
 const MATERIAL_ID = `mat_${HEX_64}`;
 const CONTENT_DIGEST = `sha256_${HEX_64}`;
 const MATERIAL_SET_HASH = `set_sha256_${HEX_64}`;
 const BRIEF_CONTRACT_DIGEST = `brief_contract_${HEX_64}`;
+const PROMPT_VERSION = `host-distill-v1-sha256_${HEX_64}` as const;
 const SOURCE_GROUP_KEY = `sg_${HEX_64}`;
 const NOW = "2026-08-20T08:00:00.000Z";
 
@@ -37,7 +39,7 @@ const subject = {
 } as const;
 
 const quality = {
-  sourceGroupingVersion: "source-grouping-v1",
+  sourceGroupingVersion: "source-groups-v1",
   activeClaimCount: 0,
   contestedClaimCount: 0,
   userAssertedClaimCount: 0,
@@ -66,7 +68,7 @@ const suspendedVersion = {
   creation: {
     kind: "host_distill",
     briefContractDigest: BRIEF_CONTRACT_DIGEST,
-    promptVersion: "host-distill-v1",
+    promptVersion: PROMPT_VERSION,
     draftSchemaVersion: 1,
   },
   status: "suspended",
@@ -124,17 +126,23 @@ const pendingJob = {
   state: "pending",
   queuedAt: NOW,
 } as const;
+const leaseExpiresAt = "2026-08-20T08:30:00.000Z";
+const leasedJob = {
+  ...pendingJob,
+  state: "leased",
+  leaseExpiresAt,
+} as const;
 const lease = {
   id: LEASE_ID,
   jobId: JOB_ID,
   generation: 1,
   briefContractDigest: BRIEF_CONTRACT_DIGEST,
-  owner: "host-session",
+  owner: LEASE_OWNER_ID,
   acquiredAt: NOW,
-  expiresAt: NOW,
+  expiresAt: leaseExpiresAt,
 } as const;
 const briefing = {
-  job: pendingJob,
+  job: leasedJob,
   lease,
   subject,
   materials: [
@@ -163,8 +171,8 @@ const briefing = {
   ],
   contract: {
     digest: BRIEF_CONTRACT_DIGEST,
-    sourceGroupingVersion: "source-grouping-v1",
-    promptVersion: "host-distill-v1",
+    sourceGroupingVersion: "source-groups-v1",
+    promptVersion: PROMPT_VERSION,
     draftSchemaVersion: 1,
     instructions: "Produce an evidence-bound patch.",
     evidenceRules: ["Quote the supplied material."],

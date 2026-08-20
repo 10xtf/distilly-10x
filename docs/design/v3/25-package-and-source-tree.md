@@ -89,6 +89,7 @@ distilly/
 │   │       │   └── service.ts
 │   │       ├── distill/
 │   │       │   ├── briefing-service.ts
+│   │       │   ├── lease-service.ts
 │   │       │   ├── prompt-catalog.ts
 │   │       │   ├── validate-patch.ts
 │   │       │   ├── resolve-evidence.ts
@@ -239,7 +240,7 @@ panel/server 与 panel/web 使用独立 tsconfig / exports，不提供把两边�
 | Interface | 为什么有真实多实现 |
 |---|---|
 | EngineClient | in-process、Panel HTTP、以后 daemon |
-| QueueRepository | SQLite、测试 fake、以后 worker coordination |
+| QueueRepository | SQLite 与测试 fake 对 verified state seeds 的 disposable projection/read |
 | SourceAdapter | 多来源与社区包 |
 | MaterialParser | OCR、转写、文档解析 |
 | HostBinding / HostInjector / HostFormRenderer / PrivateUiCaptureController | 每个宿主的能力、授权 UI、frame gate 与隔离机制真实不同 |
@@ -267,7 +268,7 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 
 ### 25.5 哪些是 concrete service
 
-- SubjectService、IngestService、BriefingService、CommitService；
+- SubjectService、IngestService、BriefingService、LeaseService、CommitService；
 - CorrectionService、ReviewService、VersionService；
 - FileRequestLock、FileSpaceCatalogLock、FileSpaceIdentityLock、FileSubjectLock、FileTransactionStore、RecoveryService；
 - FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionManifestStore（Step 5 read-only）、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
@@ -300,6 +301,7 @@ export interface IdGenerator {
   spaceId(): SpaceId;
   jobId(): JobId;
   leaseId(): LeaseId;
+  leaseOwnerId(): LeaseOwnerId;
   requestId(): RequestId;
   eventId(): EventId;
   captureAuditRef(): CaptureAuditRef;
@@ -425,9 +427,11 @@ createEngine({root}) 的最终合同是可实例化的 production factory：缺�
 
 这不允许纵向切片对外暴露 partial runtime：Step 5 只用 package-internal composition 驱动 create + ingest + queue 集成测试，不导出 root EngineRuntime/createEngine，也不为缺失 method 安装占位 handler。只有全部 CoreEngineClient methods 都有真实 handler 后，才能同时落地上述 root factory 与 exports；届时任何 method 缺 handler 仍 startup fail。
 
+Step 6 同样只在 package 内组合与 EngineMethodMap 精确对齐的 distill.pending / brief / renew / release handlers、BriefingService/LeaseService 与 QueueRepository reads。它不因四个方法可调用就导出 partial EngineRuntime/createEngine；测试从内部 composition 驱动真实 state/journal/queue 路径。
+
 LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
 
-connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。actor 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client。
+connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。composition 每创建一个 EngineClient 都调用 IdGenerator.leaseOwnerId() 构造完整 ClientSessionContext，外部 options、模型 input 与 callerLabel 都没有覆写入口。actor 与 lease owner 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client，并且两个同 actor client 仍有不同 owner。
 
 registerPrivateUiCapture 使用同一个 HostContext 创建 Controller 和 host action，并在 runtime 内构造实现 PrivateUiCaptureActionPort 的 coordinator。每次 action invocation 执行 authorize → grant.bindOnce → EngineRuntime.openPrivateUiCapture → Controller.capture → session.ingest → session.complete；open 后、ingest 前异常必须先调用无参数 session.abort，并把它返回的 guard reason 或 coordinator_aborted 放进 action result，ingest 自身拒绝则已由 engine 关闭 session并返回 failed。任一步拒绝/撤销都返回 typed result并释放 grant。invocationId 在该 host session 内稳定映射 RequestId，重试只命中同一幂等 ingest。CaptureLivenessPort 是 runtime 对 GrantHandle 的窄 adapter；engine 订阅 revoke 并在同一 session mutex 下于 ingest commit 前重新 status，拒绝 revoked/expired/consumed。CorePrivateUiCaptureSession 与 PrivateUiCaptureContext 不从 engine root exports、protocol、facade 或 MCP 暴露；低层 engine composition 也不能经普通 connect 获得它。
 

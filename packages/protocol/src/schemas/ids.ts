@@ -15,6 +15,7 @@ import type {
   IsoDateTime,
   JobId,
   LeaseId,
+  LeaseOwnerId,
   MaterialId,
   MaterialSetHash,
   ProvenanceDigest,
@@ -53,6 +54,9 @@ export const jobIdSchema = brandedRandomId<JobId>("job_");
 
 /** Runtime schema for an engine-generated lease id. */
 export const leaseIdSchema = brandedRandomId<LeaseId>("lease_");
+
+/** Runtime schema for a client-session lease owner identity. */
+export const leaseOwnerIdSchema = brandedRandomId<LeaseOwnerId>("lease_owner_");
 
 /** Runtime schema for an engine-generated event id. */
 export const eventIdSchema = brandedRandomId<EventId>("event_");
@@ -163,6 +167,7 @@ export const brandedValueSchemas = {
   version: versionIdSchema,
   job: jobIdSchema,
   lease: leaseIdSchema,
+  leaseOwner: leaseOwnerIdSchema,
   claim: claimIdSchema,
   relation: relationIdSchema,
   request: requestIdSchema,

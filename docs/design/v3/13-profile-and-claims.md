@@ -64,7 +64,7 @@ export interface Claim {
 }
 ~~~
 
-quote 必填且必须是规范化 content 的精确子串；locator 存在时必须正好指向 quote。允许同一 claim 引用旧版本材料与本 generation 新材料，但新增引用必须通过当前 material set membership。
+quote 必填且必须是规范化 content 的精确子串；locator 存在时必须正好指向 quote。locator 在 material-text-v1 规范化正文的 Unicode scalar sequence 上计数，start inclusive、end exclusive；不是 UTF-8 byte offset，也不是 JavaScript UTF-16 code-unit offset，必须满足 `0 <= start < end <= scalarLength(content)` 且该 scalar slice 等于 quote。允许同一 claim 引用旧版本材料与本 generation 新材料，但新增引用必须通过当前 material set membership。
 
 ### 13.3 Draft 不带 engine-owned 字段
 

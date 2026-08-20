@@ -6,7 +6,7 @@
 
 .index 首版只做三件事：
 
-1. queue.db：job、lease、attempt、LSN 与幂等工作状态；
+1. queue.db：job/lease 的公开 read projection、attempt、failure 与 projection LSN；
 2. graph.db：relation / mention 的 neighbor projection；
 3. library.json：主体列表、名称/别名、空间、maturity、pending 与 suspended 数；首版实现固定为 JsonLibraryProjection。
 

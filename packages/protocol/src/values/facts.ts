@@ -5,6 +5,8 @@ import type {
   FactChecksum,
   IsoDateTime,
   JobId,
+  LeaseId,
+  LeaseOwnerId,
   MaterialId,
   MaterialSetHash,
   ProvenanceDigest,
@@ -15,6 +17,8 @@ import type {
 } from "../ids.js";
 import type { EngineMethodMap, MutationMethodName } from "../methods.js";
 import type { ActorContext } from "../values.js";
+import type { Claim } from "./claims.js";
+import type { BriefContract } from "./jobs.js";
 import type { IdentityHint, SubjectLifecycle } from "./subjects.js";
 
 /** Integrity envelope shared by every persisted JSON fact. */
@@ -48,6 +52,22 @@ export interface VersionMaterialEntry {
   readonly provenanceDigest: ProvenanceDigest;
 }
 
+/** Immutable claims owned by one persisted profile version. */
+export interface VersionClaimsSnapshot extends FactEnvelope<1> {
+  readonly subjectId: SubjectId;
+  readonly versionId: VersionId;
+  readonly claims: readonly Claim[];
+}
+
+/** Persisted time-bounded authority attached to pending work. */
+export interface PendingLeaseMarker {
+  readonly id: LeaseId;
+  readonly owner: LeaseOwnerId;
+  readonly acquiredAt: IsoDateTime;
+  readonly expiresAt: IsoDateTime;
+  readonly contract: BriefContract;
+}
+
 /** Stable pending-work fields that can rebuild the disposable queue. */
 export interface PendingJobMarker {
   readonly jobId: JobId;
@@ -57,10 +77,11 @@ export interface PendingJobMarker {
   readonly addedMaterialCount: number;
   readonly totalMaterialCount: number;
   readonly queuedAt: IsoDateTime;
+  readonly lease?: PendingLeaseMarker;
 }
 
 /** Authoritative current state for one subject. */
-export interface SubjectStateRecord extends FactEnvelope<1> {
+export interface SubjectStateRecord extends FactEnvelope<2> {
   readonly subjectId: SubjectId;
   readonly generation: number;
   readonly materialSetHash?: MaterialSetHash;
@@ -149,5 +170,34 @@ export type IngestTransactionRecord = IngestTransactionBase &
   IngestTransactionTarget &
   TransactionLifecycle;
 
-/** Root transaction fact union, initially containing only material ingest. */
-export type TransactionRecord = IngestTransactionRecord;
+/** Short lease mutation name persisted by a distillation journal. */
+export type DistillLeaseTransactionMethod = "brief" | "renew" | "release";
+
+type DistillLeaseEngineMethod<M extends DistillLeaseTransactionMethod> = `distill.${M}`;
+
+interface DistillLeaseTransactionBase<
+  M extends DistillLeaseTransactionMethod,
+> extends FactEnvelope<1> {
+  readonly transactionKind: "distill_lease";
+  readonly method: M;
+  readonly requestId: RequestId;
+  readonly subjectId: SubjectId;
+  readonly jobId: JobId;
+  readonly previousStateChecksum: FactChecksum;
+  readonly targetStateChecksum: FactChecksum;
+  readonly previousPending: PendingJobMarker;
+  readonly targetPending: PendingJobMarker;
+  readonly operation: OperationRecord<DistillLeaseEngineMethod<M>>;
+  readonly event: EventRecord;
+  readonly preparedAt: IsoDateTime;
+}
+
+/** Crash-recoverable journal for one lease acquire, renewal, or release. */
+export type DistillLeaseTransactionRecord = {
+  [M in DistillLeaseTransactionMethod]: DistillLeaseTransactionBase<M> & {
+    readonly method: M;
+  } & TransactionLifecycle;
+}[DistillLeaseTransactionMethod];
+
+/** Root transaction fact union for atomic ingest and distillation-lease changes. */
+export type TransactionRecord = IngestTransactionRecord | DistillLeaseTransactionRecord;

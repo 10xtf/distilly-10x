@@ -15,6 +15,7 @@ export type MaterialSetHash = Branded<`set_sha256_${string}`, "MaterialSetHash">
 export type VersionId = Branded<`version_${string}`, "VersionId">;
 export type JobId = Branded<`job_${string}`, "JobId">;
 export type LeaseId = Branded<`lease_${string}`, "LeaseId">;
+export type LeaseOwnerId = Branded<`lease_owner_${string}`, "LeaseOwnerId">;
 export type ClaimId = Branded<`claim_${string}`, "ClaimId">;
 export type RelationId = Branded<`relation_${string}`, "RelationId">;
 export type RequestId = Branded<`req_${string}`, "RequestId">;

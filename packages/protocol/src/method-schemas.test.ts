@@ -24,12 +24,14 @@ const candidateVersionId = `version_${ALT_HEX_64}`;
 const rollbackVersionId = `version_${THIRD_HEX_64}`;
 const jobId = `job_${HEX_32}`;
 const leaseId = `lease_${HEX_32}`;
+const leaseOwnerId = `lease_owner_${HEX_32}`;
 const claimId = `claim_${HEX_64}`;
 const eventId = `event_${HEX_32}`;
 const captureAuditRef = `capture_${HEX_32}`;
 const conversationSourceKey = `conversation_${HEX_64}`;
 const sourceGroupKey = `sg_${HEX_64}`;
 const briefContractDigest = `brief_contract_${HEX_64}`;
+const promptVersion = `host-distill-v1-sha256_${HEX_64}` as const;
 const at = "2026-08-20T00:00:00.000Z";
 
 const space = {
@@ -90,7 +92,7 @@ const currentVersion = {
   creation: {
     kind: "host_distill",
     briefContractDigest,
-    promptVersion: "host-distill-v1",
+    promptVersion,
     draftSchemaVersion: 1,
   },
   status: "current",
@@ -155,12 +157,18 @@ const pendingJob = {
   queuedAt: at,
 } as const;
 
+const leasedJob = {
+  ...pendingJob,
+  state: "leased",
+  leaseExpiresAt: "2026-08-20T00:30:00.000Z",
+} as const;
+
 const lease = {
   id: leaseId,
   jobId,
   generation: 1,
   briefContractDigest,
-  owner: "sdk-test",
+  owner: leaseOwnerId,
   acquiredAt: at,
   expiresAt: "2026-08-20T00:30:00.000Z",
 } as const;
@@ -258,7 +266,7 @@ const materialSummary = {
 } as const;
 
 const briefing = {
-  job: pendingJob,
+  job: leasedJob,
   lease,
   subject,
   baseline: {
@@ -292,7 +300,7 @@ const briefing = {
   contract: {
     digest: briefContractDigest,
     sourceGroupingVersion: "source-groups-v1",
-    promptVersion: "host-distill-v1",
+    promptVersion,
     draftSchemaVersion: 1,
     instructions: "Distill evidence-bounded claims.",
     evidenceRules: ["Quote exact text."],
@@ -620,7 +628,7 @@ const fixtures = {
       runtime: {
         productVersion: "0.0.0",
         wireVersion: "3",
-        promptVersion: "host-distill-v1",
+        promptVersion,
       },
       storage: {
         rootLabel: "distilly-home",

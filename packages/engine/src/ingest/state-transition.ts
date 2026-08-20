@@ -75,17 +75,22 @@ export interface DerivedIngestState {
 const toPendingJob = (
   subjectId: SubjectId,
   marker: NonNullable<SubjectStateRecord["pending"]>,
-): PendingJob => ({
-  id: marker.jobId,
-  subjectId,
-  generation: marker.generation,
-  ...(marker.baseVersionId === undefined ? {} : { baseVersionId: marker.baseVersionId }),
-  materialSetHash: marker.materialSetHash,
-  addedMaterialCount: marker.addedMaterialCount,
-  totalMaterialCount: marker.totalMaterialCount,
-  state: "pending",
-  queuedAt: marker.queuedAt,
-});
+  now: IsoDateTime,
+): PendingJob => {
+  const common = {
+    id: marker.jobId,
+    subjectId,
+    generation: marker.generation,
+    ...(marker.baseVersionId === undefined ? {} : { baseVersionId: marker.baseVersionId }),
+    materialSetHash: marker.materialSetHash,
+    addedMaterialCount: marker.addedMaterialCount,
+    totalMaterialCount: marker.totalMaterialCount,
+    queuedAt: marker.queuedAt,
+  };
+  return marker.lease !== undefined && now < marker.lease.expiresAt
+    ? { ...common, state: "leased", leaseExpiresAt: marker.lease.expiresAt }
+    : { ...common, state: "pending" };
+};
 
 const assertPreviousIsSubset = (
   previous: readonly VersionMaterialEntry[],
@@ -201,7 +206,7 @@ export const deriveIngestState = (input: DeriveIngestStateInput): DerivedIngestS
   }
 
   const state = sealFact<SubjectStateRecord>({
-    schemaVersion: 1,
+    schemaVersion: 2,
     subjectId: input.subjectId,
     generation,
     materialSetHash,
@@ -225,6 +230,6 @@ export const deriveIngestState = (input: DeriveIngestStateInput): DerivedIngestS
         (input.previous.pending.jobId !== pending.jobId ||
           input.previous.pending.generation !== pending.generation ||
           input.previous.pending.materialSetHash !== pending.materialSetHash)),
-    ...(pending === undefined ? {} : { job: toPendingJob(input.subjectId, pending) }),
+    ...(pending === undefined ? {} : { job: toPendingJob(input.subjectId, pending, input.now) }),
   };
 };

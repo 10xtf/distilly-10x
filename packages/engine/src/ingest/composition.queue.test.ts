@@ -18,11 +18,12 @@ import {
 } from "@distilly/protocol";
 
 import { Layout } from "../layout.js";
-import type { SqliteQueueProjectionHooks } from "../queue/sqlite-projection.js";
-import { createStep5IngestComposition } from "./composition.js";
+import type { SqliteQueueRepositoryHooks } from "../queue/sqlite-projection.js";
+import { sealFact } from "../facts/checksum.js";
+import { createStep6Composition } from "./composition.js";
 
 const CAPTURED_AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
-const DIRTY_BYTES = '{"projection":"queue","schemaVersion":1}\n';
+const DIRTY_BYTES = '{"projection":"queue","schemaVersion":2}\n';
 const ACTOR: ActorContext = { kind: "sdk", id: "queue-recovery-integration" };
 const roots: string[] = [];
 
@@ -73,8 +74,8 @@ const makeRoot = async (): Promise<string> => {
   return root;
 };
 
-const open = (root: string, queueHooks?: SqliteQueueProjectionHooks) =>
-  createStep5IngestComposition({
+const open = (root: string, queueHooks?: SqliteQueueRepositoryHooks) =>
+  createStep6Composition({
     root,
     ...(queueHooks === undefined ? {} : { queueHooks }),
   });
@@ -142,7 +143,7 @@ describe("Step 5 queue projection composition recovery", { timeout: 15_000 }, ()
       "incompatible schema version",
       (layout: Layout) => {
         mutateDatabase(layout.queueDatabaseFile(), (database) => {
-          database.exec("PRAGMA user_version = 2");
+          database.exec("PRAGMA user_version = 1");
         });
       },
     ],
@@ -172,6 +173,25 @@ describe("Step 5 queue projection composition recovery", { timeout: 15_000 }, ()
       ]);
     },
   );
+
+  it("fails closed instead of rebuilding from an invalid pending baseline count", async () => {
+    const root = await makeRoot();
+    const { result } = await createQueuedSubject(root);
+    const layout = new Layout(root);
+    const state = await readState(root, result.subject.id);
+    if (state.pending === undefined) throw new Error("Expected pending work in the state fixture.");
+    const invalid = sealFact<SubjectStateRecord>({
+      ...state,
+      pending: { ...state.pending, addedMaterialCount: 0 },
+    });
+    await writeFile(layout.stateFile(result.subject.id), `${JSON.stringify(invalid)}\n`, {
+      mode: 0o600,
+    });
+    await unlink(layout.queueDatabaseFile());
+
+    await expect(open(root)).rejects.toMatchObject({ code: "storage_corrupt" });
+    await expect(readState(root, result.subject.id)).resolves.toEqual(invalid);
+  });
 
   it.each([
     "afterDirtyMarker",

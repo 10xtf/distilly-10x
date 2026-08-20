@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { labelStringSchema, safePositiveIntegerSchema } from "./common.js";
-import { hostNameSchema, requestIdSchema } from "./ids.js";
+import { hostNameSchema, leaseOwnerIdSchema, requestIdSchema } from "./ids.js";
 
 export const actorContextSchema = z.strictObject({
   kind: z.enum(["user", "host", "sdk", "executor", "system"]),
@@ -21,5 +21,6 @@ export const briefCapacitySchema = z.strictObject({
 
 export const clientSessionContextSchema = z.strictObject({
   actor: actorContextSchema,
+  leaseOwner: leaseOwnerIdSchema,
   capacity: briefCapacitySchema.optional(),
 });

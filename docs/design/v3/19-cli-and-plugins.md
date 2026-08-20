@@ -61,7 +61,7 @@ PluginInstallManifest 记录 pluginVersion、engineVersion、wireMajor、promptV
 
 ### 19.4 插件文件树
 
-MCP 包只接收已经绑定 host actor 与 capacity 的 EngineClient；它不 import engine、store 或 Panel：
+MCP 包只接收已经绑定 host actor、engine-owned LeaseOwnerId 与 capacity 的 EngineClient；它不 import engine、store 或 Panel：
 
 ~~~ts
 export interface McpServerOptions {

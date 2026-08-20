@@ -6,8 +6,21 @@ import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 
 import {
+  distillyErrorCodeSchema,
+  factChecksumSchema,
+  isoDateTimeSchema,
+  jobIdSchema,
+  pendingFilterSchema,
+  pendingJobFailureSchema,
   pendingJobMarkerSchema,
+  pendingJobSchema,
   subjectIdSchema,
+  type FactChecksum,
+  type IsoDateTime,
+  type JobId,
+  type LeaseOwnerId,
+  type PendingFilter,
+  type PendingJob,
   type PendingJobMarker,
   type SubjectId,
 } from "@distilly/protocol";
@@ -18,8 +31,8 @@ import { indexUnavailable, storageCorrupt } from "../internal-errors.js";
 import { FileLock } from "../transaction/file-lock.js";
 import type { FileLockLease } from "../transaction/file-lock.js";
 
-const QUEUE_SCHEMA_VERSION = 1;
-const QUEUE_DIRTY_BYTES = '{"projection":"queue","schemaVersion":1}\n';
+const QUEUE_SCHEMA_VERSION = 2;
+const QUEUE_DIRTY_BYTES = '{"projection":"queue","schemaVersion":2}\n';
 const MARKER_MAXIMUM_BYTES = 1_024;
 const QUEUE_TABLE = "queue_jobs";
 const QUEUE_LOCK_DIRECTORY = "queue.projection.lock";
@@ -27,6 +40,7 @@ const QUEUE_LOCK_RETRY_MS = 10;
 
 const CREATE_QUEUE_TABLE_SQL = `CREATE TABLE ${QUEUE_TABLE} (
   subject_id TEXT PRIMARY KEY NOT NULL,
+  state_checksum TEXT NOT NULL,
   job_id TEXT NOT NULL UNIQUE,
   generation INTEGER NOT NULL CHECK (generation >= 0),
   base_version_id TEXT,
@@ -34,30 +48,86 @@ const CREATE_QUEUE_TABLE_SQL = `CREATE TABLE ${QUEUE_TABLE} (
   added_material_count INTEGER NOT NULL CHECK (added_material_count >= 0),
   total_material_count INTEGER NOT NULL CHECK (total_material_count >= 0),
   queued_at TEXT NOT NULL,
-  CHECK (added_material_count <= total_material_count)
+  lease_id TEXT,
+  lease_owner TEXT,
+  lease_acquired_at TEXT,
+  lease_expires_at TEXT,
+  brief_contract_digest TEXT,
+  source_grouping_version TEXT,
+  prompt_version TEXT,
+  draft_schema_version INTEGER,
+  attempt INTEGER NOT NULL DEFAULT 0 CHECK (attempt >= 0),
+  failure_code TEXT,
+  failure_retryable INTEGER,
+  failure_remediation TEXT,
+  last_sequence INTEGER NOT NULL DEFAULT 0 CHECK (last_sequence >= 0),
+  CHECK (added_material_count <= total_material_count),
+  CHECK (
+    (lease_id IS NULL AND lease_owner IS NULL AND lease_acquired_at IS NULL AND
+      lease_expires_at IS NULL AND brief_contract_digest IS NULL AND
+      source_grouping_version IS NULL AND prompt_version IS NULL AND
+      draft_schema_version IS NULL) OR
+    (lease_id IS NOT NULL AND lease_owner IS NOT NULL AND lease_acquired_at IS NOT NULL AND
+      lease_expires_at IS NOT NULL AND brief_contract_digest IS NOT NULL AND
+      source_grouping_version IS NOT NULL AND prompt_version IS NOT NULL AND
+      draft_schema_version IS NOT NULL)
+  ),
+  CHECK (
+    (failure_code IS NULL AND failure_retryable IS NULL AND failure_remediation IS NULL) OR
+    (failure_code IS NOT NULL AND failure_retryable IN (0, 1))
+  )
 ) STRICT`;
 
 const UPSERT_PENDING_SQL = `INSERT INTO ${QUEUE_TABLE} (
   subject_id,
+  state_checksum,
   job_id,
   generation,
   base_version_id,
   material_set_hash,
   added_material_count,
   total_material_count,
-  queued_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  queued_at,
+  lease_id,
+  lease_owner,
+  lease_acquired_at,
+  lease_expires_at,
+  brief_contract_digest,
+  source_grouping_version,
+  prompt_version,
+  draft_schema_version,
+  attempt,
+  failure_code,
+  failure_retryable,
+  failure_remediation,
+  last_sequence
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, NULL, 0)
 ON CONFLICT(subject_id) DO UPDATE SET
+  state_checksum = excluded.state_checksum,
   job_id = excluded.job_id,
   generation = excluded.generation,
   base_version_id = excluded.base_version_id,
   material_set_hash = excluded.material_set_hash,
   added_material_count = excluded.added_material_count,
   total_material_count = excluded.total_material_count,
-  queued_at = excluded.queued_at`;
+  queued_at = excluded.queued_at,
+  lease_id = excluded.lease_id,
+  lease_owner = excluded.lease_owner,
+  lease_acquired_at = excluded.lease_acquired_at,
+  lease_expires_at = excluded.lease_expires_at,
+  brief_contract_digest = excluded.brief_contract_digest,
+  source_grouping_version = excluded.source_grouping_version,
+  prompt_version = excluded.prompt_version,
+  draft_schema_version = excluded.draft_schema_version,
+  attempt = 0,
+  failure_code = NULL,
+  failure_retryable = NULL,
+  failure_remediation = NULL,
+  last_sequence = 0`;
 
 interface QueueRow {
   readonly subject_id: unknown;
+  readonly state_checksum: unknown;
   readonly job_id: unknown;
   readonly generation: unknown;
   readonly base_version_id: unknown;
@@ -65,10 +135,23 @@ interface QueueRow {
   readonly added_material_count: unknown;
   readonly total_material_count: unknown;
   readonly queued_at: unknown;
+  readonly lease_id: unknown;
+  readonly lease_owner: unknown;
+  readonly lease_acquired_at: unknown;
+  readonly lease_expires_at: unknown;
+  readonly brief_contract_digest: unknown;
+  readonly source_grouping_version: unknown;
+  readonly prompt_version: unknown;
+  readonly draft_schema_version: unknown;
+  readonly attempt: unknown;
+  readonly failure_code: unknown;
+  readonly failure_retryable: unknown;
+  readonly failure_remediation: unknown;
+  readonly last_sequence: unknown;
 }
 
 /** Explicit filesystem locations owned by the internal queue projection. */
-export interface SqliteQueueProjectionPaths {
+export interface SqliteQueueRepositoryPaths {
   readonly root: string;
   readonly indexDirectory: string;
   readonly databaseFile: string;
@@ -76,13 +159,30 @@ export interface SqliteQueueProjectionPaths {
 }
 
 /** One fact-verified subject state used to apply or rebuild the queue projection. */
-export interface QueueProjectionSeed {
+export interface VerifiedQueueStateSeed {
   readonly subjectId: SubjectId;
+  readonly stateChecksum: FactChecksum;
   readonly pending?: PendingJobMarker;
 }
 
+/** Public queue view plus projection-only scheduling metadata. */
+export interface PendingJobRecord {
+  readonly job: PendingJob;
+  readonly attempt: number;
+  readonly leaseOwner?: LeaseOwnerId;
+  readonly lastSequence: number;
+}
+
+/** Replaceable queue projection contract used by ingest and lease services. */
+export interface QueueRepository {
+  apply(seed: VerifiedQueueStateSeed): Promise<void>;
+  read(jobId: JobId, now: IsoDateTime): Promise<PendingJobRecord | undefined>;
+  list(filter: PendingFilter, now: IsoDateTime): Promise<readonly PendingJobRecord[]>;
+  rebuild(seeds: () => AsyncIterable<VerifiedQueueStateSeed>, now: IsoDateTime): Promise<void>;
+}
+
 /** Fault-injection hooks for durability-order tests. */
-export interface SqliteQueueProjectionHooks {
+export interface SqliteQueueRepositoryHooks {
   /** Runs after the exact dirty marker is durable and before SQLite changes begin. */
   readonly afterDirtyMarker?: () => void | Promise<void>;
   /** Runs after an apply transaction commits and closes, before the DB file is synchronized. */
@@ -108,10 +208,19 @@ const isWithin = (root: string, path: string): boolean => {
   );
 };
 
-const parseSeed = (seed: QueueProjectionSeed): QueueProjectionSeed => {
+const parseSeed = (seed: VerifiedQueueStateSeed): VerifiedQueueStateSeed => {
   try {
+    const keys = Object.keys(seed);
+    const expectedKeys = seed.pending === undefined ? 2 : 3;
+    if (
+      keys.length !== expectedKeys ||
+      !keys.every((key) => key === "subjectId" || key === "stateChecksum" || key === "pending")
+    ) {
+      throw new TypeError("queue seed must contain only its canonical fields");
+    }
     const subjectId = subjectIdSchema.parse(seed.subjectId);
-    if (seed.pending === undefined) return { subjectId };
+    const stateChecksum = factChecksumSchema.parse(seed.stateChecksum);
+    if (seed.pending === undefined) return { subjectId, stateChecksum };
     const parsed = pendingJobMarkerSchema.parse(seed.pending);
     const pending: PendingJobMarker = {
       jobId: parsed.jobId,
@@ -121,10 +230,19 @@ const parseSeed = (seed: QueueProjectionSeed): QueueProjectionSeed => {
       addedMaterialCount: parsed.addedMaterialCount,
       totalMaterialCount: parsed.totalMaterialCount,
       queuedAt: parsed.queuedAt,
+      ...(parsed.lease === undefined ? {} : { lease: parsed.lease }),
     };
-    return { subjectId, pending };
+    return { subjectId, stateChecksum, pending };
   } catch (error) {
     throw storageCorrupt("Verified queue projection seed is invalid.", error);
+  }
+};
+
+const parseNow = (now: IsoDateTime): IsoDateTime => {
+  try {
+    return isoDateTimeSchema.parse(now);
+  } catch (error) {
+    throw storageCorrupt("Queue read clock is invalid.", error);
   }
 };
 
@@ -154,13 +272,27 @@ const readQueueRows = (database: DatabaseSync): readonly QueueRow[] =>
     .prepare(
       `SELECT
         subject_id,
+        state_checksum,
         job_id,
         generation,
         base_version_id,
         material_set_hash,
         added_material_count,
         total_material_count,
-        queued_at
+        queued_at,
+        lease_id,
+        lease_owner,
+        lease_acquired_at,
+        lease_expires_at,
+        brief_contract_digest,
+        source_grouping_version,
+        prompt_version,
+        draft_schema_version,
+        attempt,
+        failure_code,
+        failure_retryable,
+        failure_remediation,
+        last_sequence
       FROM ${QUEUE_TABLE}
       ORDER BY subject_id`,
     )
@@ -170,6 +302,7 @@ const verifyRows = (database: DatabaseSync): void => {
   for (const row of readQueueRows(database)) {
     try {
       const subjectId = subjectIdSchema.parse(row.subject_id);
+      const stateChecksum = factChecksumSchema.parse(row.state_checksum);
       const pending = pendingJobMarkerSchema.parse({
         jobId: row.job_id,
         generation: row.generation,
@@ -178,9 +311,40 @@ const verifyRows = (database: DatabaseSync): void => {
         addedMaterialCount: row.added_material_count,
         totalMaterialCount: row.total_material_count,
         queuedAt: row.queued_at,
+        ...(row.lease_id === null
+          ? {}
+          : {
+              lease: {
+                id: row.lease_id,
+                owner: row.lease_owner,
+                acquiredAt: row.lease_acquired_at,
+                expiresAt: row.lease_expires_at,
+                contract: {
+                  digest: row.brief_contract_digest,
+                  sourceGroupingVersion: row.source_grouping_version,
+                  promptVersion: row.prompt_version,
+                  draftSchemaVersion: row.draft_schema_version,
+                },
+              },
+            }),
       });
+      const attempt = readInteger(row as unknown as Record<string, unknown>, "attempt");
+      const lastSequence = readInteger(row as unknown as Record<string, unknown>, "last_sequence");
+      if (row.failure_code !== null) {
+        if (row.failure_retryable !== 0 && row.failure_retryable !== 1) {
+          throw new TypeError("failure retryable must be zero or one");
+        }
+        pendingJobFailureSchema.parse({
+          code: distillyErrorCodeSchema.parse(row.failure_code),
+          retryable: row.failure_retryable === 1,
+          ...(row.failure_remediation === null ? {} : { remediation: row.failure_remediation }),
+        });
+      }
       void subjectId;
+      void stateChecksum;
       void pending;
+      void attempt;
+      void lastSequence;
     } catch (error) {
       throw indexUnavailable("Queue projection contains an invalid row.", error);
     }
@@ -193,10 +357,21 @@ const verifyDatabase = (database: DatabaseSync): void => {
     throw indexUnavailable("Queue projection schema version is unavailable.");
   }
 
-  const table = database
-    .prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?")
-    .get(QUEUE_TABLE);
-  if (table?.sql !== CREATE_QUEUE_TABLE_SQL) {
+  const schema = database
+    .prepare(
+      `SELECT type, name, tbl_name, sql
+       FROM sqlite_schema
+       WHERE name NOT GLOB 'sqlite_*'
+       ORDER BY type, name`,
+    )
+    .all();
+  if (
+    schema.length !== 1 ||
+    schema[0]?.type !== "table" ||
+    schema[0]?.name !== QUEUE_TABLE ||
+    schema[0]?.tbl_name !== QUEUE_TABLE ||
+    schema[0]?.sql !== CREATE_QUEUE_TABLE_SQL
+  ) {
     throw indexUnavailable("Queue projection table schema is unavailable.");
   }
 
@@ -209,13 +384,15 @@ const verifyDatabase = (database: DatabaseSync): void => {
 
 const insertPending = (
   database: DatabaseSync,
-  subjectId: SubjectId,
+  seed: VerifiedQueueStateSeed,
   pending: PendingJobMarker,
 ): void => {
+  const lease = pending.lease;
   database
     .prepare(UPSERT_PENDING_SQL)
     .run(
-      subjectId,
+      seed.subjectId,
+      seed.stateChecksum,
       pending.jobId,
       pending.generation,
       pending.baseVersionId ?? null,
@@ -223,17 +400,70 @@ const insertPending = (
       pending.addedMaterialCount,
       pending.totalMaterialCount,
       pending.queuedAt,
+      lease?.id ?? null,
+      lease?.owner ?? null,
+      lease?.acquiredAt ?? null,
+      lease?.expiresAt ?? null,
+      lease?.contract.digest ?? null,
+      lease?.contract.sourceGroupingVersion ?? null,
+      lease?.contract.promptVersion ?? null,
+      lease?.contract.draftSchemaVersion ?? null,
     );
 };
 
-/** Durable, fact-derived SQLite projection of current pending-job markers. */
-export class SqliteQueueProjection {
+const rowToRecord = (row: QueueRow, now: IsoDateTime): PendingJobRecord => {
+  const base = {
+    id: row.job_id,
+    subjectId: row.subject_id,
+    generation: row.generation,
+    ...(row.base_version_id === null ? {} : { baseVersionId: row.base_version_id }),
+    materialSetHash: row.material_set_hash,
+    addedMaterialCount: row.added_material_count,
+    totalMaterialCount: row.total_material_count,
+    queuedAt: row.queued_at,
+  };
+  let job: PendingJob;
+  let leaseOwner: LeaseOwnerId | undefined;
+  if (row.failure_code !== null) {
+    job = pendingJobSchema.parse({
+      ...base,
+      state: "failed",
+      failure: {
+        code: row.failure_code,
+        retryable: row.failure_retryable === 1,
+        ...(row.failure_remediation === null ? {} : { remediation: row.failure_remediation }),
+      },
+    }) as PendingJob;
+  } else if (
+    typeof row.lease_expires_at === "string" &&
+    typeof row.lease_owner === "string" &&
+    now < row.lease_expires_at
+  ) {
+    job = pendingJobSchema.parse({
+      ...base,
+      state: "leased",
+      leaseExpiresAt: row.lease_expires_at,
+    }) as PendingJob;
+    leaseOwner = row.lease_owner as LeaseOwnerId;
+  } else {
+    job = pendingJobSchema.parse({ ...base, state: "pending" }) as PendingJob;
+  }
+  return {
+    job,
+    attempt: row.attempt as number,
+    ...(leaseOwner === undefined ? {} : { leaseOwner }),
+    lastSequence: row.last_sequence as number,
+  };
+};
+
+/** Durable, fact-derived SQLite repository of current pending-job markers. */
+export class SqliteQueueRepository implements QueueRepository {
   private readonly root: string;
   private readonly indexDirectory: string;
   private readonly databaseFile: string;
   private readonly dirtyFile: string;
   private readonly lock: FileLock;
-  private readonly hooks: SqliteQueueProjectionHooks;
+  private readonly hooks: SqliteQueueRepositoryHooks;
 
   /**
    * Creates the package-internal queue projection.
@@ -241,7 +471,7 @@ export class SqliteQueueProjection {
    * @param paths - Explicit confined projection paths.
    * @param hooks - Optional durability fault-injection hooks.
    */
-  constructor(paths: SqliteQueueProjectionPaths, hooks: SqliteQueueProjectionHooks = {}) {
+  constructor(paths: SqliteQueueRepositoryPaths, hooks: SqliteQueueRepositoryHooks = {}) {
     this.root = resolve(paths.root);
     this.indexDirectory = resolve(paths.indexDirectory);
     this.databaseFile = resolve(paths.databaseFile);
@@ -277,7 +507,7 @@ export class SqliteQueueProjection {
    * @param seed - Verified subject id and its current pending marker, if any.
    * @returns A promise resolved only after the projection is durable and clean.
    */
-  async apply(seed: QueueProjectionSeed): Promise<void> {
+  async apply(seed: VerifiedQueueStateSeed): Promise<void> {
     const verifiedSeed = parseSeed(seed);
     await this.withLock(async () => {
       await this.prepareIndexDirectory();
@@ -304,7 +534,7 @@ export class SqliteQueueProjection {
                 .prepare(`DELETE FROM ${QUEUE_TABLE} WHERE subject_id = ?`)
                 .run(verifiedSeed.subjectId);
             } else {
-              insertPending(database, verifiedSeed.subjectId, verifiedSeed.pending);
+              insertPending(database, verifiedSeed, verifiedSeed.pending);
             }
             database.exec("COMMIT");
           } catch (error) {
@@ -326,16 +556,128 @@ export class SqliteQueueProjection {
   }
 
   /**
+   * Reads one projected job and derives expiry from the trusted clock value.
+   *
+   * @param jobId - Job identifier to locate.
+   * @param now - Trusted canonical instant used only to derive expired leases.
+   * @returns The projected job record, or undefined when the id is absent.
+   */
+  async read(jobId: JobId, now: IsoDateTime): Promise<PendingJobRecord | undefined> {
+    let parsedJobId: JobId;
+    try {
+      parsedJobId = jobIdSchema.parse(jobId);
+    } catch (error) {
+      throw storageCorrupt("Queue job id is invalid at the repository boundary.", error);
+    }
+    const instant = parseNow(now);
+    return this.withLock(async () => {
+      await this.prepareIndexDirectory();
+      await this.assertMarkerAbsent();
+      let database: DatabaseSync | undefined;
+      try {
+        database = this.openVerifiedDatabase(true);
+        const row = database
+          .prepare(
+            `SELECT
+              subject_id,
+              state_checksum,
+              job_id,
+              generation,
+              base_version_id,
+              material_set_hash,
+              added_material_count,
+              total_material_count,
+              queued_at,
+              lease_id,
+              lease_owner,
+              lease_acquired_at,
+              lease_expires_at,
+              brief_contract_digest,
+              source_grouping_version,
+              prompt_version,
+              draft_schema_version,
+              attempt,
+              failure_code,
+              failure_retryable,
+              failure_remediation,
+              last_sequence
+            FROM ${QUEUE_TABLE}
+            WHERE job_id = ?`,
+          )
+          .get(parsedJobId) as QueueRow | undefined;
+        return row === undefined ? undefined : rowToRecord(row, instant);
+      } catch (error) {
+        throw this.asUnavailable("Queue projection read failed.", error);
+      } finally {
+        database?.close();
+      }
+    });
+  }
+
+  /**
+   * Lists projected jobs in the canonical queued-at and job-id order.
+   *
+   * @param filter - Optional subject/state filter and bounded result limit.
+   * @param now - Trusted canonical instant used only to derive expired leases.
+   * @returns Filtered projected job records.
+   */
+  async list(filter: PendingFilter, now: IsoDateTime): Promise<readonly PendingJobRecord[]> {
+    let parsedFilter: PendingFilter;
+    try {
+      parsedFilter = pendingFilterSchema.parse(filter) as PendingFilter;
+    } catch (error) {
+      throw storageCorrupt("Queue filter is invalid at the repository boundary.", error);
+    }
+    const instant = parseNow(now);
+    const limit = parsedFilter.limit ?? 200;
+    return this.withLock(async () => {
+      await this.prepareIndexDirectory();
+      await this.assertMarkerAbsent();
+      let database: DatabaseSync | undefined;
+      try {
+        database = this.openVerifiedDatabase(true);
+        const rows = readQueueRows(database)
+          .map((row) => rowToRecord(row, instant))
+          .filter(
+            (record) =>
+              (parsedFilter.subjectId === undefined ||
+                record.job.subjectId === parsedFilter.subjectId) &&
+              (parsedFilter.state === undefined || record.job.state === parsedFilter.state),
+          )
+          .sort((left, right) =>
+            left.job.queuedAt < right.job.queuedAt
+              ? -1
+              : left.job.queuedAt > right.job.queuedAt
+                ? 1
+                : left.job.id < right.job.id
+                  ? -1
+                  : left.job.id > right.job.id
+                    ? 1
+                    : 0,
+          );
+        return rows.slice(0, limit);
+      } catch (error) {
+        throw this.asUnavailable("Queue projection list failed.", error);
+      } finally {
+        database?.close();
+      }
+    });
+  }
+
+  /**
    * Rebuilds the complete queue projection from fact-verified state seeds.
    *
    * @param seeds - Verified subject states whose pending markers are authoritative.
+   * @param now - Trusted canonical instant for rebuild-time lease projection.
    * @returns A promise resolved after atomic replacement and durable marker clearing.
    */
   async rebuild(
-    seeds: Iterable<QueueProjectionSeed> | AsyncIterable<QueueProjectionSeed>,
+    seeds: () => AsyncIterable<VerifiedQueueStateSeed>,
+    now: IsoDateTime,
   ): Promise<void> {
+    parseNow(now);
     await this.withLock(async () => {
-      const verifiedSeeds = await this.collectSeeds(seeds);
+      const verifiedSeeds = await this.collectSeeds(seeds());
       await this.prepareIndexDirectory();
       await this.writeDirtyMarker();
 
@@ -364,7 +706,7 @@ export class SqliteQueueProjection {
           try {
             for (const seed of verifiedSeeds) {
               if (seed.pending !== undefined) {
-                insertPending(database, seed.subjectId, seed.pending);
+                insertPending(database, seed, seed.pending);
               }
             }
             database.exec("COMMIT");
@@ -413,9 +755,9 @@ export class SqliteQueueProjection {
   }
 
   private async collectSeeds(
-    seeds: Iterable<QueueProjectionSeed> | AsyncIterable<QueueProjectionSeed>,
-  ): Promise<readonly QueueProjectionSeed[]> {
-    const collected: QueueProjectionSeed[] = [];
+    seeds: AsyncIterable<VerifiedQueueStateSeed>,
+  ): Promise<readonly VerifiedQueueStateSeed[]> {
+    const collected: VerifiedQueueStateSeed[] = [];
     const subjects = new Set<string>();
     const jobs = new Set<string>();
     for await (const rawSeed of seeds) {
@@ -432,7 +774,9 @@ export class SqliteQueueProjection {
       }
       collected.push(seed);
     }
-    return collected.sort((left, right) => left.subjectId.localeCompare(right.subjectId));
+    return collected.sort((left, right) =>
+      left.subjectId < right.subjectId ? -1 : left.subjectId > right.subjectId ? 1 : 0,
+    );
   }
 
   private async withLock<T>(operation: () => Promise<T>): Promise<T> {

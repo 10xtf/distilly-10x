@@ -32,7 +32,8 @@ const checkSchemaVersion = (value: unknown): void => {
     typeof schemaVersion === "number" &&
     Number.isSafeInteger(schemaVersion) &&
     schemaVersion > 0 &&
-    schemaVersion !== 1
+    schemaVersion !== 1 &&
+    schemaVersion !== 2
   ) {
     throw schemaUnsupported("Fact schemaVersion is not supported.");
   }

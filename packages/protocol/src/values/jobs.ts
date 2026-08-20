@@ -6,6 +6,7 @@ import type {
   IsoDateTime,
   JobId,
   LeaseId,
+  LeaseOwnerId,
   MaterialId,
   MaterialSetHash,
   SubjectId,
@@ -18,8 +19,7 @@ import type { SubjectSummary } from "./subjects.js";
 
 export type PublicJobState = "pending" | "leased" | "failed";
 
-/** Public queue state for one immutable subject generation. */
-export interface PendingJob {
+interface PendingJobBase {
   readonly id: JobId;
   readonly subjectId: SubjectId;
   readonly generation: number;
@@ -27,15 +27,35 @@ export interface PendingJob {
   readonly materialSetHash: MaterialSetHash;
   readonly addedMaterialCount: number;
   readonly totalMaterialCount: number;
-  readonly state: PublicJobState;
   readonly queuedAt: IsoDateTime;
-  readonly leaseExpiresAt?: IsoDateTime;
-  readonly failure?: {
-    readonly code: DistillyErrorCode;
-    readonly retryable: boolean;
-    readonly remediation?: string;
-  };
 }
+
+/** Public failure details projected for a failed pending job. */
+export interface PendingJobFailure {
+  readonly code: DistillyErrorCode;
+  readonly retryable: boolean;
+  readonly remediation?: string;
+}
+
+/** Public queue state for one immutable subject generation. */
+export type PendingJob = PendingJobBase &
+  (
+    | {
+        readonly state: "pending";
+        readonly leaseExpiresAt?: never;
+        readonly failure?: never;
+      }
+    | {
+        readonly state: "leased";
+        readonly leaseExpiresAt: IsoDateTime;
+        readonly failure?: never;
+      }
+    | {
+        readonly state: "failed";
+        readonly leaseExpiresAt?: never;
+        readonly failure: PendingJobFailure;
+      }
+  );
 
 /** Filters public pending-job reads. */
 export interface PendingFilter {
@@ -47,9 +67,9 @@ export interface PendingFilter {
 /** Version-pinned rules that make a host distillation reproducible. */
 export interface BriefContract {
   readonly digest: BriefContractDigest;
-  readonly sourceGroupingVersion: string;
-  readonly promptVersion: string;
-  readonly draftSchemaVersion: number;
+  readonly sourceGroupingVersion: "source-groups-v1";
+  readonly promptVersion: `host-distill-v1-sha256_${string}`;
+  readonly draftSchemaVersion: 1;
 }
 
 /** Exclusive, time-bounded authority to complete one job generation. */
@@ -58,7 +78,7 @@ export interface JobLease {
   readonly jobId: JobId;
   readonly generation: number;
   readonly briefContractDigest: BriefContractDigest;
-  readonly owner: string;
+  readonly owner: LeaseOwnerId;
   readonly acquiredAt: IsoDateTime;
   readonly expiresAt: IsoDateTime;
 }

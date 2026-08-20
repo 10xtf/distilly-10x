@@ -16,26 +16,36 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  briefContractDigestSchema,
+  factChecksumSchema,
+  isoDateTimeSchema,
   jobIdSchema,
+  leaseIdSchema,
+  leaseOwnerIdSchema,
   materialSetHashSchema,
   subjectIdSchema,
   versionIdSchema,
   type PendingJobMarker,
+  type PendingLeaseMarker,
   type SubjectId,
 } from "@distilly/protocol";
 
 import {
-  SqliteQueueProjection,
-  type QueueProjectionSeed,
-  type SqliteQueueProjectionHooks,
-  type SqliteQueueProjectionPaths,
+  SqliteQueueRepository,
+  type SqliteQueueRepositoryHooks,
+  type SqliteQueueRepositoryPaths,
+  type VerifiedQueueStateSeed,
 } from "./sqlite-projection.js";
 
-const DIRTY_BYTES = '{"projection":"queue","schemaVersion":1}\n';
+const DIRTY_BYTES = '{"projection":"queue","schemaVersion":2}\n';
+const NOW = isoDateTimeSchema.parse("2026-08-20T00:10:00.000Z");
 const roots: string[] = [];
+
+type SeedWithPending = VerifiedQueueStateSeed & { readonly pending: PendingJobMarker };
 
 interface QueueRow {
   readonly subject_id: string;
+  readonly state_checksum: string;
   readonly job_id: string;
   readonly generation: number;
   readonly base_version_id: string | null;
@@ -43,9 +53,22 @@ interface QueueRow {
   readonly added_material_count: number;
   readonly total_material_count: number;
   readonly queued_at: string;
+  readonly lease_id: string | null;
+  readonly lease_owner: string | null;
+  readonly lease_acquired_at: string | null;
+  readonly lease_expires_at: string | null;
+  readonly brief_contract_digest: string | null;
+  readonly source_grouping_version: string | null;
+  readonly prompt_version: string | null;
+  readonly draft_schema_version: number | null;
+  readonly attempt: number;
+  readonly failure_code: string | null;
+  readonly failure_retryable: number | null;
+  readonly failure_remediation: string | null;
+  readonly last_sequence: number;
 }
 
-const makePaths = async (): Promise<SqliteQueueProjectionPaths> => {
+const makePaths = async (): Promise<SqliteQueueRepositoryPaths> => {
   const root = await mkdtemp(join(tmpdir(), "distilly-queue-projection-"));
   roots.push(root);
   const indexDirectory = join(root, ".index");
@@ -75,6 +98,72 @@ const pending = (
   queuedAt: `2026-08-20T00:00:0${generation}.000Z` as PendingJobMarker["queuedAt"],
 });
 
+const lease = (digit: string, expiresAt = "2026-08-20T00:30:00.000Z"): PendingLeaseMarker => ({
+  id: leaseIdSchema.parse(`lease_${digit.repeat(32)}`),
+  owner: leaseOwnerIdSchema.parse(`lease_owner_${digit.repeat(32)}`),
+  acquiredAt: isoDateTimeSchema.parse("2026-08-20T00:00:00.000Z"),
+  expiresAt: isoDateTimeSchema.parse(expiresAt),
+  contract: {
+    digest: briefContractDigestSchema.parse(`brief_contract_${digit.repeat(64)}`),
+    sourceGroupingVersion: "source-groups-v1",
+    promptVersion: `host-distill-v1-sha256_${digit.repeat(64)}`,
+    draftSchemaVersion: 1,
+  },
+});
+
+const stateChecksum = (digit: string) =>
+  factChecksumSchema.parse(`fact_sha256_${digit.repeat(64)}`);
+
+const hexadecimal = (value: number, width: number): string =>
+  value.toString(16).padStart(width, "0");
+
+const indexedSeed = (index: number): SeedWithPending => ({
+  subjectId: subjectIdSchema.parse(`subject_${hexadecimal(1_000 - index, 32)}`),
+  stateChecksum: factChecksumSchema.parse(`fact_sha256_${hexadecimal(index + 1, 64)}`),
+  pending: {
+    jobId: jobIdSchema.parse(`job_${hexadecimal(index, 32)}`),
+    generation: 1,
+    materialSetHash: materialSetHashSchema.parse(`set_sha256_${hexadecimal(index + 1, 64)}`),
+    addedMaterialCount: 1,
+    totalMaterialCount: 1,
+    queuedAt: isoDateTimeSchema.parse("2026-08-20T00:00:00.000Z"),
+  },
+});
+
+function queueSeed(
+  subjectId: SubjectId,
+  marker: PendingJobMarker,
+  checksumDigit?: string,
+): SeedWithPending;
+function queueSeed(
+  subjectId: SubjectId,
+  marker?: undefined,
+  checksumDigit?: string,
+): VerifiedQueueStateSeed;
+function queueSeed(
+  subjectId: SubjectId,
+  marker?: PendingJobMarker,
+  checksumDigit = "c",
+): VerifiedQueueStateSeed {
+  return {
+    subjectId,
+    stateChecksum: stateChecksum(checksumDigit),
+    ...(marker === undefined ? {} : { pending: marker }),
+  };
+}
+
+const asAsyncSeeds = (
+  seeds: readonly VerifiedQueueStateSeed[],
+): AsyncIterable<VerifiedQueueStateSeed> => ({
+  [Symbol.asyncIterator]() {
+    const iterator = seeds[Symbol.iterator]();
+    return { next: () => Promise.resolve(iterator.next()) };
+  },
+});
+
+const rebuild = (repository: SqliteQueueRepository, seeds: readonly VerifiedQueueStateSeed[]) =>
+  repository.rebuild(() => asAsyncSeeds(seeds), NOW);
+
 const readRows = (databaseFile: string): readonly QueueRow[] => {
   const database = new DatabaseSync(databaseFile, { readOnly: true });
   try {
@@ -82,13 +171,27 @@ const readRows = (databaseFile: string): readonly QueueRow[] => {
       .prepare(
         `SELECT
           subject_id,
+          state_checksum,
           job_id,
           generation,
           base_version_id,
           material_set_hash,
           added_material_count,
           total_material_count,
-          queued_at
+          queued_at,
+          lease_id,
+          lease_owner,
+          lease_acquired_at,
+          lease_expires_at,
+          brief_contract_digest,
+          source_grouping_version,
+          prompt_version,
+          draft_schema_version,
+          attempt,
+          failure_code,
+          failure_retryable,
+          failure_remediation,
+          last_sequence
         FROM queue_jobs
         ORDER BY subject_id`,
       )
@@ -123,12 +226,12 @@ afterEach(async () => {
 describe("SQLite queue projection", () => {
   it("creates the frozen schema and validates exact fact-owned marker fields", async () => {
     const paths = await makePaths();
-    const seed = { subjectId: subject("1"), pending: pending("2", 1, { base: "3" }) };
-    const projection = new SqliteQueueProjection(paths);
+    const seed = queueSeed(subject("1"), pending("2", 1, { base: "3" }));
+    const projection = new SqliteQueueRepository(paths);
 
-    await projection.rebuild([seed]);
+    await rebuild(projection, [seed]);
 
-    expect(readScalar(paths.databaseFile, "PRAGMA user_version")).toEqual({ user_version: 1 });
+    expect(readScalar(paths.databaseFile, "PRAGMA user_version")).toEqual({ user_version: 2 });
     expect(readScalar(paths.databaseFile, "PRAGMA synchronous")).toEqual({ synchronous: 2 });
     expect(readScalar(paths.databaseFile, "PRAGMA journal_mode")).toEqual({
       journal_mode: "delete",
@@ -142,6 +245,7 @@ describe("SQLite queue projection", () => {
     expect(readRows(paths.databaseFile)).toEqual([
       {
         subject_id: seed.subjectId,
+        state_checksum: seed.stateChecksum,
         job_id: seed.pending.jobId,
         generation: seed.pending.generation,
         base_version_id: seed.pending.baseVersionId,
@@ -149,9 +253,29 @@ describe("SQLite queue projection", () => {
         added_material_count: seed.pending.addedMaterialCount,
         total_material_count: seed.pending.totalMaterialCount,
         queued_at: seed.pending.queuedAt,
+        lease_id: null,
+        lease_owner: null,
+        lease_acquired_at: null,
+        lease_expires_at: null,
+        brief_contract_digest: null,
+        source_grouping_version: null,
+        prompt_version: null,
+        draft_schema_version: null,
+        attempt: 0,
+        failure_code: null,
+        failure_retryable: null,
+        failure_remediation: null,
+        last_sequence: 0,
       },
     ]);
     await expect(projection.verifyAvailable()).resolves.toBeUndefined();
+
+    const database = new DatabaseSync(paths.databaseFile);
+    database.exec("CREATE TABLE unexpected (value TEXT) STRICT");
+    database.close();
+    await expect(projection.verifyAvailable()).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
 
     const malformed = {
       ...seed.pending,
@@ -159,32 +283,212 @@ describe("SQLite queue projection", () => {
     } as unknown as PendingJobMarker;
     const otherPaths = await makePaths();
     await expect(
-      new SqliteQueueProjection(otherPaths).rebuild([
-        { subjectId: subject("4"), pending: malformed },
-      ]),
+      rebuild(new SqliteQueueRepository(otherPaths), [queueSeed(subject("4"), malformed)]),
     ).rejects.toMatchObject({ code: "storage_corrupt" });
     await expect(exists(otherPaths.databaseFile)).resolves.toBe(false);
     await expect(exists(otherPaths.dirtyFile)).resolves.toBe(false);
+
+    const unexpectedSeed = {
+      ...queueSeed(subject("5"), pending("6", 1)),
+      unexpected: true,
+    } as unknown as VerifiedQueueStateSeed;
+    await expect(
+      rebuild(new SqliteQueueRepository(await makePaths()), [unexpectedSeed]),
+    ).rejects.toMatchObject({ code: "storage_corrupt" });
+  });
+
+  it("projects fact-owned leases and derives expiry, filters, and stable list order", async () => {
+    const paths = await makePaths();
+    const repository = new SqliteQueueRepository(paths);
+    const first = {
+      ...pending("2", 1),
+      queuedAt: isoDateTimeSchema.parse("2026-08-20T00:00:02.000Z"),
+      lease: lease("4"),
+    };
+    const second = {
+      ...pending("3", 1),
+      queuedAt: isoDateTimeSchema.parse("2026-08-20T00:00:01.000Z"),
+    };
+    const expired = {
+      ...pending("5", 1),
+      queuedAt: isoDateTimeSchema.parse("2026-08-20T00:00:03.000Z"),
+      lease: lease("6", "2026-08-20T00:05:00.000Z"),
+    };
+    await rebuild(repository, [
+      queueSeed(subject("1"), first),
+      queueSeed(subject("2"), second, "d"),
+      queueSeed(subject("3"), expired, "e"),
+    ]);
+
+    await expect(repository.read(first.jobId, NOW)).resolves.toMatchObject({
+      job: { id: first.jobId, state: "leased", leaseExpiresAt: first.lease.expiresAt },
+      leaseOwner: first.lease.owner,
+      attempt: 0,
+      lastSequence: 0,
+    });
+    const atExpiry = await repository.read(first.jobId, first.lease.expiresAt);
+    expect(atExpiry).toMatchObject({
+      job: { id: first.jobId, state: "pending" },
+      attempt: 0,
+      lastSequence: 0,
+    });
+    expect(atExpiry).not.toHaveProperty("leaseOwner");
+    const expiredAfterRebuild = await repository.read(expired.jobId, NOW);
+    expect(expiredAfterRebuild?.job.state).toBe("pending");
+    expect(expiredAfterRebuild).not.toHaveProperty("leaseOwner");
+    expect(readRows(paths.databaseFile).find((row) => row.job_id === expired.jobId)).toMatchObject({
+      lease_id: expired.lease.id,
+      lease_owner: expired.lease.owner,
+    });
+    expect((await repository.list({}, NOW)).map((record) => record.job.id)).toEqual([
+      second.jobId,
+      first.jobId,
+      expired.jobId,
+    ]);
+    expect(await repository.list({ state: "leased" }, NOW)).toHaveLength(1);
+    expect(await repository.list({ state: "pending" }, NOW)).toHaveLength(2);
+    expect(
+      (await repository.list({ subjectId: subject("2"), limit: 1 }, NOW)).map(
+        (record) => record.job.id,
+      ),
+    ).toEqual([second.jobId]);
+  });
+
+  it("projects failure metadata and clears every ephemeral field on fact apply and rebuild", async () => {
+    const paths = await makePaths();
+    const repository = new SqliteQueueRepository(paths);
+    const marker = pending("2", 1);
+    const leasedMarker = { ...marker, lease: lease("4") };
+    const seed = queueSeed(subject("1"), marker);
+    const leasedSeed = queueSeed(seed.subjectId, leasedMarker, "d");
+    await rebuild(repository, [seed]);
+
+    let database = new DatabaseSync(paths.databaseFile);
+    database
+      .prepare(
+        `UPDATE queue_jobs
+         SET attempt = 3,
+             failure_code = 'adapter_failed',
+             failure_retryable = 1,
+             failure_remediation = 'Retry the adapter.',
+             last_sequence = 9
+         WHERE subject_id = ?`,
+      )
+      .run(seed.subjectId);
+    database.close();
+
+    await expect(repository.read(marker.jobId, NOW)).resolves.toEqual({
+      job: {
+        id: marker.jobId,
+        subjectId: seed.subjectId,
+        generation: marker.generation,
+        materialSetHash: marker.materialSetHash,
+        addedMaterialCount: marker.addedMaterialCount,
+        totalMaterialCount: marker.totalMaterialCount,
+        queuedAt: marker.queuedAt,
+        state: "failed",
+        failure: {
+          code: "adapter_failed",
+          retryable: true,
+          remediation: "Retry the adapter.",
+        },
+      },
+      attempt: 3,
+      lastSequence: 9,
+    });
+    await expect(repository.list({ state: "failed" }, NOW)).resolves.toHaveLength(1);
+
+    await repository.apply(leasedSeed);
+    await expect(repository.read(marker.jobId, NOW)).resolves.toMatchObject({
+      job: { state: "leased", leaseExpiresAt: leasedMarker.lease.expiresAt },
+      leaseOwner: leasedMarker.lease.owner,
+      attempt: 0,
+      lastSequence: 0,
+    });
+    expect(readRows(paths.databaseFile)[0]).toMatchObject({
+      state_checksum: leasedSeed.stateChecksum,
+      lease_id: leasedMarker.lease.id,
+      lease_owner: leasedMarker.lease.owner,
+      brief_contract_digest: leasedMarker.lease.contract.digest,
+      attempt: 0,
+      failure_code: null,
+      failure_retryable: null,
+      failure_remediation: null,
+      last_sequence: 0,
+    });
+
+    database = new DatabaseSync(paths.databaseFile);
+    database
+      .prepare(
+        `UPDATE queue_jobs
+         SET attempt = 2,
+             failure_code = 'busy',
+             failure_retryable = 1,
+             last_sequence = 7
+         WHERE subject_id = ?`,
+      )
+      .run(seed.subjectId);
+    database.close();
+
+    await rebuild(repository, [leasedSeed]);
+    expect(readRows(paths.databaseFile)[0]).toMatchObject({
+      lease_id: leasedMarker.lease.id,
+      lease_owner: leasedMarker.lease.owner,
+      attempt: 0,
+      failure_code: null,
+      last_sequence: 0,
+    });
+  });
+
+  it("filters before limiting, defaults and caps limit at 200, and sorts by queuedAt then JobId", async () => {
+    const paths = await makePaths();
+    const repository = new SqliteQueueRepository(paths);
+    const seeds = Array.from({ length: 201 }, (_, index) => indexedSeed(index));
+    await rebuild(repository, seeds.toReversed());
+
+    const defaultPage = await repository.list({}, NOW);
+    expect(defaultPage).toHaveLength(200);
+    expect(defaultPage.map((record) => record.job.id)).toEqual(
+      seeds.slice(0, 200).map((seed) => seed.pending.jobId),
+    );
+    await expect(repository.list({ limit: 200 }, NOW)).resolves.toEqual(defaultPage);
+    const lastSeed = seeds[200];
+    expect(lastSeed).toBeDefined();
+    if (lastSeed === undefined) throw new Error("missing final queue seed");
+    expect(
+      (await repository.list({ subjectId: lastSeed.subjectId, limit: 1 }, NOW)).map(
+        (record) => record.job.id,
+      ),
+    ).toEqual([lastSeed.pending.jobId]);
+    await expect(repository.list({ limit: 201 }, NOW)).rejects.toMatchObject({
+      code: "storage_corrupt",
+    });
   });
 
   it("uses the exact durable marker and fails closed for exact or malformed dirty state", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
+    await rebuild(new SqliteQueueRepository(paths), []);
     let observedMarker: string | undefined;
     let rowsBeforeApply: readonly QueueRow[] | undefined;
-    const projection = new SqliteQueueProjection(paths, {
+    const projection = new SqliteQueueRepository(paths, {
       async afterDirtyMarker() {
         observedMarker = await readFile(paths.dirtyFile, "utf8");
         rowsBeforeApply = readRows(paths.databaseFile);
       },
     });
 
-    await projection.apply({ subjectId: subject("1"), pending: pending("2", 1) });
+    await projection.apply(queueSeed(subject("1"), pending("2", 1)));
     expect(observedMarker).toBe(DIRTY_BYTES);
     expect(rowsBeforeApply).toEqual([]);
     await expect(exists(paths.dirtyFile)).resolves.toBe(false);
 
     await writeFile(paths.dirtyFile, DIRTY_BYTES, { mode: 0o600 });
+    await expect(projection.verifyAvailable()).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
+    await writeFile(paths.dirtyFile, '{"projection":"queue","schemaVersion":1}\n', {
+      mode: 0o600,
+    });
     await expect(projection.verifyAvailable()).rejects.toMatchObject({
       code: "index_unavailable",
     });
@@ -196,14 +500,14 @@ describe("SQLite queue projection", () => {
 
   it("applies idempotent upserts, replaces generations, and deletes absent pending state", async () => {
     const paths = await makePaths();
-    const projection = new SqliteQueueProjection(paths);
+    const projection = new SqliteQueueRepository(paths);
     const subjectId = subject("1");
     const first = pending("2", 1);
     const second = pending("3", 2, { added: 2, total: 3 });
-    await projection.rebuild([]);
+    await rebuild(projection, []);
 
-    await projection.apply({ subjectId, pending: first });
-    await projection.apply({ subjectId, pending: first });
+    await projection.apply(queueSeed(subjectId, first));
+    await projection.apply(queueSeed(subjectId, first));
     expect(readRows(paths.databaseFile)).toHaveLength(1);
     expect(readRows(paths.databaseFile)[0]).toMatchObject({
       subject_id: subjectId,
@@ -211,7 +515,7 @@ describe("SQLite queue projection", () => {
       generation: 1,
     });
 
-    await projection.apply({ subjectId, pending: second });
+    await projection.apply(queueSeed(subjectId, second, "d"));
     expect(readRows(paths.databaseFile)).toHaveLength(1);
     expect(readRows(paths.databaseFile)[0]).toMatchObject({
       subject_id: subjectId,
@@ -220,13 +524,13 @@ describe("SQLite queue projection", () => {
       material_set_hash: second.materialSetHash,
     });
 
-    await projection.apply({ subjectId });
+    await projection.apply(queueSeed(subjectId, undefined, "e"));
     expect(readRows(paths.databaseFile)).toEqual([]);
   });
 
   it("serializes concurrent subjects across the complete dirty-marker lifetime", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
+    await rebuild(new SqliteQueueRepository(paths), []);
     let markerCount = 0;
     let enterFirst: (() => void) | undefined;
     let releaseFirst: (() => void) | undefined;
@@ -236,7 +540,7 @@ describe("SQLite queue projection", () => {
     const firstMayContinue = new Promise<void>((resolve) => {
       releaseFirst = resolve;
     });
-    const projection = new SqliteQueueProjection(paths, {
+    const projection = new SqliteQueueRepository(paths, {
       async afterDirtyMarker() {
         markerCount += 1;
         if (markerCount === 1) {
@@ -246,14 +550,12 @@ describe("SQLite queue projection", () => {
       },
     });
 
-    const first = projection.apply({ subjectId: subject("1"), pending: pending("2", 1) });
+    const first = projection.apply(queueSeed(subject("1"), pending("2", 1)));
     await firstEntered;
     let secondSettled = false;
-    const second = projection
-      .apply({ subjectId: subject("3"), pending: pending("4", 1) })
-      .then(() => {
-        secondSettled = true;
-      });
+    const second = projection.apply(queueSeed(subject("3"), pending("4", 1), "d")).then(() => {
+      secondSettled = true;
+    });
     await delay(50);
     expect(secondSettled).toBe(false);
     releaseFirst?.();
@@ -266,12 +568,47 @@ describe("SQLite queue projection", () => {
     await expect(exists(paths.dirtyFile)).resolves.toBe(false);
   });
 
+  it("does not invoke the rebuild supplier until the projection lock is held", async () => {
+    const paths = await makePaths();
+    await rebuild(new SqliteQueueRepository(paths), []);
+    let enterApply: (() => void) | undefined;
+    let releaseApply: (() => void) | undefined;
+    const applyEntered = new Promise<void>((resolve) => {
+      enterApply = resolve;
+    });
+    const applyMayContinue = new Promise<void>((resolve) => {
+      releaseApply = resolve;
+    });
+    const repository = new SqliteQueueRepository(paths, {
+      async afterDirtyMarker() {
+        enterApply?.();
+        await applyMayContinue;
+      },
+    });
+    const seed = queueSeed(subject("1"), pending("2", 1));
+    const applying = repository.apply(seed);
+    await applyEntered;
+
+    let supplierCalled = false;
+    const rebuilding = repository.rebuild(() => {
+      supplierCalled = true;
+      return asAsyncSeeds([seed]);
+    }, NOW);
+    await delay(50);
+    expect(supplierCalled).toBe(false);
+
+    releaseApply?.();
+    await applying;
+    await rebuilding;
+    expect(supplierCalled).toBe(true);
+  });
+
   it("collects rebuild facts under the projection lock so a waiting apply stays newest", async () => {
     const paths = await makePaths();
-    const projection = new SqliteQueueProjection(paths);
-    const oldSeed = { subjectId: subject("1"), pending: pending("2", 1) };
-    const newSeed = { subjectId: subject("1"), pending: pending("3", 2) };
-    await projection.rebuild([oldSeed]);
+    const projection = new SqliteQueueRepository(paths);
+    const oldSeed = queueSeed(subject("1"), pending("2", 1));
+    const newSeed = queueSeed(subject("1"), pending("3", 2), "d");
+    await rebuild(projection, [oldSeed]);
     let enterCollection: (() => void) | undefined;
     let releaseCollection: (() => void) | undefined;
     const collectionEntered = new Promise<void>((resolve) => {
@@ -280,13 +617,13 @@ describe("SQLite queue projection", () => {
     const collectionMayContinue = new Promise<void>((resolve) => {
       releaseCollection = resolve;
     });
-    const staleSnapshot = async function* (): AsyncGenerator<QueueProjectionSeed> {
+    const staleSnapshot = async function* (): AsyncGenerator<VerifiedQueueStateSeed> {
       yield oldSeed;
       enterCollection?.();
       await collectionMayContinue;
     };
 
-    const rebuild = projection.rebuild(staleSnapshot());
+    const rebuilding = projection.rebuild(() => staleSnapshot(), NOW);
     await collectionEntered;
     let applySettled = false;
     const apply = projection.apply(newSeed).then(() => {
@@ -295,7 +632,7 @@ describe("SQLite queue projection", () => {
     await delay(50);
     expect(applySettled).toBe(false);
     releaseCollection?.();
-    await Promise.all([rebuild, apply]);
+    await Promise.all([rebuilding, apply]);
 
     expect(readRows(paths.databaseFile)).toEqual([
       expect.objectContaining({
@@ -308,16 +645,16 @@ describe("SQLite queue projection", () => {
 
   it("leaves the projection dirty when failure is injected after SQLite commit", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
-    const projection = new SqliteQueueProjection(paths, {
+    await rebuild(new SqliteQueueRepository(paths), []);
+    const projection = new SqliteQueueRepository(paths, {
       afterApplyCommit() {
         throw new Error("injected after SQL commit");
       },
     });
 
-    await expect(
-      projection.apply({ subjectId: subject("1"), pending: pending("2", 1) }),
-    ).rejects.toMatchObject({ code: "index_unavailable" });
+    await expect(projection.apply(queueSeed(subject("1"), pending("2", 1)))).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
     await expect(readFile(paths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
     expect(readRows(paths.databaseFile)).toHaveLength(1);
     await expect(projection.verifyAvailable()).rejects.toMatchObject({
@@ -327,48 +664,48 @@ describe("SQLite queue projection", () => {
 
   it("leaves the old projection dirty when failure is injected immediately after the marker", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
-    const projection = new SqliteQueueProjection(paths, {
+    await rebuild(new SqliteQueueRepository(paths), []);
+    const projection = new SqliteQueueRepository(paths, {
       afterDirtyMarker() {
         throw new Error("injected after dirty marker");
       },
     });
 
-    await expect(
-      projection.apply({ subjectId: subject("1"), pending: pending("2", 1) }),
-    ).rejects.toMatchObject({ code: "index_unavailable" });
+    await expect(projection.apply(queueSeed(subject("1"), pending("2", 1)))).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
     await expect(readFile(paths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
     expect(readRows(paths.databaseFile)).toEqual([]);
   });
 
   it("leaves the committed projection dirty when failure is injected after database fsync", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
-    const projection = new SqliteQueueProjection(paths, {
+    await rebuild(new SqliteQueueRepository(paths), []);
+    const projection = new SqliteQueueRepository(paths, {
       afterApplyDatabaseSync() {
         throw new Error("injected after database fsync");
       },
     });
 
-    await expect(
-      projection.apply({ subjectId: subject("1"), pending: pending("2", 1) }),
-    ).rejects.toMatchObject({ code: "index_unavailable" });
+    await expect(projection.apply(queueSeed(subject("1"), pending("2", 1)))).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
     await expect(readFile(paths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
     expect(readRows(paths.databaseFile)).toHaveLength(1);
   });
 
   it("restores the exact marker when clearing fails after unlink and before parent sync", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([]);
-    const projection = new SqliteQueueProjection(paths, {
+    await rebuild(new SqliteQueueRepository(paths), []);
+    const projection = new SqliteQueueRepository(paths, {
       afterDirtyMarkerUnlink() {
         throw new Error("injected after marker unlink");
       },
     });
 
-    await expect(
-      projection.apply({ subjectId: subject("1"), pending: pending("2", 1) }),
-    ).rejects.toMatchObject({ code: "index_unavailable" });
+    await expect(projection.apply(queueSeed(subject("1"), pending("2", 1)))).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
     await expect(readFile(paths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
     expect(readRows(paths.databaseFile)).toEqual([
       expect.objectContaining({ subject_id: subject("1"), job_id: pending("2", 1).jobId }),
@@ -377,17 +714,15 @@ describe("SQLite queue projection", () => {
 
   it("leaves an atomically replaced rebuild dirty when final marker clearing is interrupted", async () => {
     const paths = await makePaths();
-    await new SqliteQueueProjection(paths).rebuild([
-      { subjectId: subject("1"), pending: pending("2", 1) },
-    ]);
-    const replacement = { subjectId: subject("3"), pending: pending("4", 2) };
-    const projection = new SqliteQueueProjection(paths, {
+    await rebuild(new SqliteQueueRepository(paths), [queueSeed(subject("1"), pending("2", 1))]);
+    const replacement = queueSeed(subject("3"), pending("4", 2), "d");
+    const projection = new SqliteQueueRepository(paths, {
       afterRebuildReplaceSync() {
         throw new Error("injected after rebuild replacement");
       },
     });
 
-    await expect(projection.rebuild([replacement])).rejects.toMatchObject({
+    await expect(rebuild(projection, [replacement])).rejects.toMatchObject({
       code: "index_unavailable",
     });
     await expect(readFile(paths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
@@ -401,7 +736,7 @@ describe("SQLite queue projection", () => {
 
   it("never turns missing, corrupt, row-invalid, or version-mismatched storage into empty", async () => {
     const missingPaths = await makePaths();
-    const missing = new SqliteQueueProjection(missingPaths);
+    const missing = new SqliteQueueRepository(missingPaths);
     await expect(missing.verifyAvailable()).rejects.toMatchObject({
       code: "index_unavailable",
     });
@@ -410,24 +745,24 @@ describe("SQLite queue projection", () => {
     const corruptPaths = await makePaths();
     await mkdir(corruptPaths.indexDirectory, { mode: 0o700 });
     await writeFile(corruptPaths.databaseFile, "not sqlite", { mode: 0o600 });
-    const corrupt = new SqliteQueueProjection(corruptPaths);
+    const corrupt = new SqliteQueueRepository(corruptPaths);
     await expect(corrupt.verifyAvailable()).rejects.toMatchObject({ code: "index_unavailable" });
-    await expect(
-      corrupt.apply({ subjectId: subject("1"), pending: pending("2", 1) }),
-    ).rejects.toMatchObject({ code: "index_unavailable" });
+    await expect(corrupt.apply(queueSeed(subject("1"), pending("2", 1)))).rejects.toMatchObject({
+      code: "index_unavailable",
+    });
     await expect(readFile(corruptPaths.dirtyFile, "utf8")).resolves.toBe(DIRTY_BYTES);
 
     const versionPaths = await makePaths();
-    const projection = new SqliteQueueProjection(versionPaths);
-    await projection.rebuild([{ subjectId: subject("1"), pending: pending("2", 1) }]);
+    const projection = new SqliteQueueRepository(versionPaths);
+    await rebuild(projection, [queueSeed(subject("1"), pending("2", 1))]);
     let database = new DatabaseSync(versionPaths.databaseFile);
-    database.exec("PRAGMA user_version = 2");
+    database.exec("PRAGMA user_version = 1");
     database.close();
     await expect(projection.verifyAvailable()).rejects.toMatchObject({
       code: "index_unavailable",
     });
 
-    await projection.rebuild([{ subjectId: subject("1"), pending: pending("2", 1) }]);
+    await rebuild(projection, [queueSeed(subject("1"), pending("2", 1))]);
     database = new DatabaseSync(versionPaths.databaseFile);
     database.prepare("UPDATE queue_jobs SET job_id = 'bad'").run();
     database.close();
@@ -438,17 +773,17 @@ describe("SQLite queue projection", () => {
 
   it("rebuilds a lost projection from verified seeds without changing JobId", async () => {
     const paths = await makePaths();
-    const seed: QueueProjectionSeed = {
-      subjectId: subject("1"),
-      pending: pending("2", 4, { added: 2, total: 5 }),
-    };
-    const projection = new SqliteQueueProjection(paths);
-    await projection.rebuild([seed]);
+    const seed: VerifiedQueueStateSeed = queueSeed(
+      subject("1"),
+      pending("2", 4, { added: 2, total: 5 }),
+    );
+    const projection = new SqliteQueueRepository(paths);
+    await rebuild(projection, [seed]);
     const originalJobId = readRows(paths.databaseFile)[0]?.job_id;
 
     await rm(paths.databaseFile);
     await writeFile(paths.dirtyFile, DIRTY_BYTES, { mode: 0o600 });
-    await projection.rebuild([seed]);
+    await rebuild(projection, [seed]);
 
     expect(readRows(paths.databaseFile)).toHaveLength(1);
     expect(readRows(paths.databaseFile)[0]?.job_id).toBe(originalJobId);
@@ -458,11 +793,11 @@ describe("SQLite queue projection", () => {
 
   it("keeps the marker through DB fsync and rebuild replace-parent-sync", async () => {
     const paths = await makePaths();
-    const initial = { subjectId: subject("1"), pending: pending("2", 1) };
-    await new SqliteQueueProjection(paths).rebuild([initial]);
-    const replacement = { subjectId: subject("3"), pending: pending("4", 2) };
+    const initial = queueSeed(subject("1"), pending("2", 1));
+    await rebuild(new SqliteQueueRepository(paths), [initial]);
+    const replacement = queueSeed(subject("3"), pending("4", 2), "d");
     const observations: string[] = [];
-    const hooks: SqliteQueueProjectionHooks = {
+    const hooks: SqliteQueueRepositoryHooks = {
       async afterRebuildReplaceSync() {
         observations.push(await readFile(paths.dirtyFile, "utf8"));
         expect(readRows(paths.databaseFile)[0]?.job_id).toBe(replacement.pending.jobId);
@@ -472,11 +807,12 @@ describe("SQLite queue projection", () => {
         expect(readRows(paths.databaseFile)[0]?.generation).toBe(3);
       },
     };
-    const projection = new SqliteQueueProjection(paths, hooks);
+    const projection = new SqliteQueueRepository(paths, hooks);
 
-    await projection.rebuild([replacement]);
+    await rebuild(projection, [replacement]);
     await projection.apply({
       subjectId: replacement.subjectId,
+      stateChecksum: stateChecksum("e"),
       pending: pending("5", 3, { added: 3, total: 4 }),
     });
 
@@ -496,9 +832,7 @@ describe("SQLite queue projection", () => {
       await symlink(outside, paths.databaseFile);
 
       await expect(
-        new SqliteQueueProjection(paths).rebuild([
-          { subjectId: subject("1"), pending: pending("2", 1) },
-        ]),
+        rebuild(new SqliteQueueRepository(paths), [queueSeed(subject("1"), pending("2", 1))]),
       ).rejects.toMatchObject({ code: "index_unavailable" });
 
       await expect(readFile(outside, "utf8")).resolves.toBe("outside");

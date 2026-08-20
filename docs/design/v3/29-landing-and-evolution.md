@@ -9,7 +9,7 @@
 3. **Protocol**：完整 ids / value grammars、WIRE_LIMITS、JSON-safe errors / EmptyResult、EngineMethodMap、五工具 runtime + draft-2020-12 descriptor registry 与 snapshots。
 4. **Fact foundation**：Layout、FactEnvelope/checksum、atomic write、space/subject/material/state/event/operation stores、full SHA-256、space identity / subject lock。
 5. **Create + ingest + queue**：root request lock / operation / transaction、current material manifest、ingest journal/recovery、built-in people / inline space 串行化、保守重复创建、material-text/source-identity v1、request idempotency、auto-v1 与窄 queue projection，以及空 store 到 enqueue now 的真实磁盘路径与 generation。该切片只用 package-internal composition，不落 subjects.create 空主体、public pending/lease service、root EngineRuntime/createEngine 或占位 handlers。
-6. **Briefing + lease**：pending list/brief/renew/release、incremental baseline、prompt asset、超限失败；在这一步才扩展 Step 5 的内部 queue projection 为 public pending / lease service。
+6. **Briefing + lease**：一次不可拆的内部纵向切片交付 SubjectStateRecord v2/PendingLeaseMarker、LeaseOwnerId session 绑定、PendingJob 判别联合、verified state→queue user_version=2 read/list/rebuild、source-groups-v1、incremental baseline、raw-byte-versioned prompt asset、exact BriefContract、容量 fixed point，以及 brief/renew/release 的 DistillLeaseTransactionRecord/OperationRecord/EventRecord 崩溃恢复。验收必须从真实 Step 5 pending state 经 package-internal EngineMethodMap-compatible handlers 完成 list→brief→renew/release、并发 owner 冲突、expiry、idempotent replay、queue 删除/v1 rebuild、prepared journal 每个 crash point与超限前零写入；该切片不导出 partial EngineRuntime/createEngine，也不包含 claim commit。
 7. **Claim patch + commit**：evidence resolver、patch apply、quality、renderer、journal、current/suspended。
 8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke；root EngineRuntime/createEngine 仍要等全部 CoreEngineClient handlers 可用才导出，不因五工具 presenter 先完成就暴露 partial runtime。
 9. **Host bindings + setup**：Codex / Claude Code capability、canonical skill、runtime bootstrap、doctor。
@@ -52,11 +52,12 @@
 - 不存在、跨主体、跨 generation evidence 和错误 quote hard reject；
 - 相同 requestId 不重复建主体、材料或版本；
 - 同 generation 两个 brief 只有一个 lease；
-- lease renew / expiry / release 可恢复；
+- lease owner 绑定 client session，renew / expiry / release 由 state.pending.lease 与 distill-lease journal 可恢复；
 - lease 后新材料使旧 commit stale，新 generation pending；
-- briefing 超限不返回半份；
+- briefing 使用 source-groups-v1、raw asset prompt version、exact BriefContract 与 fixed-point capacity；超限在 journal/state 前失败且不返回半份；
 - transaction 每个 crash point 恢复后只有一个 current；
-- 删除 .index 不丢人物事实，rebuild 后服务恢复；
+- 删除 .index 或打开 queue user_version=1 不丢人物事实；v2 rebuild 在 projection lock 内读取 verified state，保留 active lease并把 expired marker显示 pending；
+- version 的 claims.json 单一快照与 materials/version/content/evidence 交叉可验证，createdIn 不与 VersionId preimage 循环；
 - correction 真实进入 corrections，privacy purge 精确删除。
 
 ### 29.5 宿主与安全验收

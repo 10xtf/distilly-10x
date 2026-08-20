@@ -1,5 +1,5 @@
 import { DistillyError } from "@distilly/protocol";
-import type { AmbiguousSubjectCandidates, SubjectSummary } from "@distilly/protocol";
+import type { AmbiguousSubjectCandidates, JsonObject, SubjectSummary } from "@distilly/protocol";
 
 /**
  * Builds a stable invalid-input error for an engine boundary.
@@ -80,6 +80,59 @@ export const idempotencyConflict = (message: string): DistillyError =>
   });
 
 /**
+ * Returns the stable direct-SDK error for an absent current pending job.
+ *
+ * @param message - Safe explanation for the caller.
+ * @returns A non-retryable nothing-pending error.
+ */
+export const nothingPending = (message = "No matching pending job is available."): DistillyError =>
+  new DistillyError({ code: "nothing_pending", message, retryable: false });
+
+/**
+ * Returns the retryable error used when another active lease owns the job.
+ *
+ * @param message - Safe explanation for the caller.
+ * @returns A retryable lease-conflict error.
+ */
+export const leaseConflict = (
+  message = "The pending job already has an active lease.",
+): DistillyError =>
+  new DistillyError({
+    code: "lease_conflict",
+    message,
+    retryable: true,
+    remediation: "Wait for expiry or release the active lease before briefing again.",
+  });
+
+/**
+ * Returns the stable error for a lease that is no longer active.
+ *
+ * @param message - Safe explanation for the caller.
+ * @returns A non-retryable lease-expired error.
+ */
+export const leaseExpired = (message = "The distillation lease has expired."): DistillyError =>
+  new DistillyError({
+    code: "lease_expired",
+    message,
+    retryable: false,
+    remediation: "Acquire a new briefing lease for the current job.",
+  });
+
+/**
+ * Returns the stable error for a job replaced by a newer subject generation.
+ *
+ * @param message - Safe explanation for the caller.
+ * @returns A non-retryable stale-job error.
+ */
+export const staleJob = (message = "The distillation job is no longer current."): DistillyError =>
+  new DistillyError({
+    code: "stale_job",
+    message,
+    retryable: false,
+    remediation: "List pending work and brief the current generation.",
+  });
+
+/**
  * Builds the typed single-candidate duplicate response used by create ingest.
  *
  * @param subject - Existing subject selected by the deterministic duplicate rule.
@@ -134,3 +187,32 @@ export const indexUnavailable = (message: string, cause?: unknown): DistillyErro
     },
     cause === undefined ? undefined : { cause },
   );
+
+/**
+ * Builds the stable error used when a client has no trusted briefing capacity.
+ *
+ * @returns A non-retryable host-capability error.
+ */
+export const briefingCapacityUnavailable = (): DistillyError =>
+  new DistillyError({
+    code: "host_unsupported",
+    message: "This client session has no verified briefing capacity.",
+    retryable: false,
+    remediation: "Reconnect through a binding with a tested capacity or supply SDK capacity.",
+  });
+
+/**
+ * Builds a content-free briefing capacity failure.
+ *
+ * @param details - Safe aggregate measurements and trusted limits.
+ * @returns A non-retryable complete-briefing size error.
+ */
+export const briefingTooLarge = (details: JsonObject): DistillyError =>
+  new DistillyError({
+    code: "briefing_too_large",
+    message: "The complete distillation briefing exceeds a verified session limit.",
+    retryable: false,
+    remediation:
+      "Use a larger-capacity host or reduce the new research batch; Distilly will not truncate it.",
+    details,
+  });

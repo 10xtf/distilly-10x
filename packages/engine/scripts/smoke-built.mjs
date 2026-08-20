@@ -9,6 +9,14 @@ import { setTimeout as delay } from "node:timers/promises";
 const rootModule = await import("@distilly/engine");
 assert.deepEqual(Object.keys(rootModule), [], "the Engine root export must remain empty");
 
+const { PromptCatalog } = await import("../lib/distill/prompt-catalog.js");
+const promptContract = await new PromptCatalog().load();
+assert.equal(
+  promptContract.promptVersion,
+  "host-distill-v1-sha256_667e3c0cc6cc55a1ba32f0476c17af5540659267d4b66a31c4c258adc259db1e",
+  "the built package must load the exact packed host-distill prompt",
+);
+
 const startChild = (root, eventFile, label, holdMilliseconds) => {
   const child = spawn(
     process.execPath,
@@ -133,8 +141,8 @@ const ingestRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-ingest-")
 let left;
 let right;
 try {
-  const { createStep5IngestComposition } = await import("../lib/ingest/composition.js");
-  await createStep5IngestComposition({ root: ingestRoot });
+  const { createStep6Composition } = await import("../lib/ingest/composition.js");
+  await createStep6Composition({ root: ingestRoot });
   left = startIngestChild(ingestRoot, `req_${"1".repeat(32)}`);
   right = startIngestChild(ingestRoot, `req_${"2".repeat(32)}`);
   const [leftExit, rightExit] = await withDeadline(
@@ -168,4 +176,4 @@ try {
   await rm(ingestRoot, { recursive: true, force: true });
 }
 
-process.stdout.write("engine built lock and ingest smoke passed\n");
+process.stdout.write("engine built prompt, lock, and ingest smoke passed\n");

@@ -24,6 +24,7 @@ const contentDigest = `sha256_${"4".repeat(64)}`;
 const materialSetHash = `set_sha256_${"5".repeat(64)}`;
 const spaceId = `space_${"6".repeat(32)}`;
 const jobId = `job_${"7".repeat(32)}`;
+const leaseOwner = `lease_owner_${"8".repeat(32)}`;
 
 const capabilities = {
   webResearch: "available",
@@ -126,7 +127,15 @@ describe("trusted session schemas", () => {
     expect(actorContextSchema.parse(actor)).toEqual(actor);
     expect(mutationContextSchema.parse({ requestId })).toEqual({ requestId });
     expect(briefCapacitySchema.parse(capacity)).toEqual(capacity);
-    expect(clientSessionContextSchema.parse({ actor, capacity })).toEqual({ actor, capacity });
+    expect(clientSessionContextSchema.parse({ actor, leaseOwner, capacity })).toEqual({
+      actor,
+      leaseOwner,
+      capacity,
+    });
+    expect(() => clientSessionContextSchema.parse({ actor, capacity })).toThrow();
+    expect(() =>
+      clientSessionContextSchema.parse({ actor, leaseOwner: "host-session", capacity }),
+    ).toThrow();
     expect(() => briefCapacitySchema.parse({ ...capacity, maximumInputTokens: 0 })).toThrow();
     expect(() => actorContextSchema.parse({ ...actor, extra: true })).toThrow();
   });

@@ -130,7 +130,7 @@ const requiredState = async (
 
 const initialState = (subjectId: SubjectId): SubjectStateRecord =>
   sealFact<SubjectStateRecord>({
-    schemaVersion: 1,
+    schemaVersion: 2,
     subjectId,
     generation: 0,
     materialManifest: [],
@@ -664,10 +664,13 @@ export class IngestService {
       if (transaction.requestId === requestId || transaction.state !== "prepared") continue;
       if (
         transaction.subjectId === subjectId ||
-        (creating && transaction.createdSubject && transaction.spaceId === spaceId)
+        (creating &&
+          transaction.transactionKind === "ingest" &&
+          transaction.createdSubject &&
+          transaction.spaceId === spaceId)
       ) {
         throw lockBusy(
-          "Another prepared ingest must be reconciled before this subject can change.",
+          "Another prepared transaction must be reconciled before this subject can change.",
         );
       }
     }

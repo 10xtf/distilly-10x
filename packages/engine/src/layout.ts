@@ -371,6 +371,17 @@ export class Layout {
   }
 
   /**
+   * Path of the immutable claims snapshot for one profile version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute version-claims-snapshot path.
+   */
+  versionClaimsFile(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionDirectory(subjectId, versionId), "claims.json");
+  }
+
+  /**
    * Path of the disposable queue database.
    *
    * @returns The confined absolute queue-database path.

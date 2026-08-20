@@ -30,7 +30,7 @@
 - 宿主启动的 distilly mcp stdio 进程；
 - 用户打开的 distilly panel 回环 HTTP 进程。
 
-CLI 命令还可能成为第三个短进程。因此“第一版只有一个 writer”不成立。所有 subject 写入通过跨进程 FileSubjectLock；job lease 通过 SQLite 条件更新；事实提交仍以文件 state commit point 为准。
+CLI 命令还可能成为第三个短进程。因此“第一版只有一个 writer”不成立。所有 subject 写入通过跨进程 FileSubjectLock；job lease 也在 request → subject lock 下用 state transaction 提交，SQLite 只接收事后 projection apply。
 
 不要求常驻 daemon。Panel 生命周期属于 panel 命令；MCP 生命周期属于宿主；CLI 每次独立启动 composition root。
 
@@ -76,6 +76,8 @@ collecting → pending → leased → committed
                  └── terminal failure
 ~~~
 
+lease expired → pending 是按读取时 clock 派生的公开状态，不代表 timer、state rewrite 或 expiry event。
+
 **Version**
 
 ~~~text
@@ -88,7 +90,7 @@ prepared 不是公开状态：state.json 原子切换前，外部看不到该版
 
 ### 5.5 新材料与旧 lease
 
-lease 锁定 job generation，而不是锁住主体不让继续 ingest。新材料可以落盘并产生 generation + 1；旧 lease 仍可读，但 commit 必须返回 stale_job，不能发布只看见旧材料的 candidate。新 generation 保持 pending，避免材料丢失。
+lease 锁定 job generation，而不是锁住主体不让继续 ingest。新材料可以落盘并产生 generation + 1；新 PendingJobMarker 整体替换旧 marker/lease，旧 brief 的 OperationRecord 仍可幂等重放，但 commit 必须按 job/generation 返回 stale_job，不能发布只看见旧材料的 candidate。新 generation 保持 pending，避免材料丢失。
 
 ### 5.6 事件与 watch
 

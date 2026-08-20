@@ -91,7 +91,7 @@ MaterialInput.kind 表示**规范化后的文本形态**，不是原始载体：
 
 artifact 定位当前被采集的 artifact；representationOf 只表示“这份材料是同一底层 artifact 的字幕、OCR、镜像或逐字转载”。一篇引用访谈并加入自己报道的文章不是该访谈的 representation。source.access 独立描述取得时是公开、受限还是私人来源；它不复用 sensitivity（本地导出策略）或 role（语义 coverage）。access 是 host/user 提供且可审核的 traceability 声明，不是 engine 证明网页真的公开。source.role 是宿主给人看的 coverage 标签，不是“独立=true”或质量权重，不能直接驱动 maturity。
 
-source.uri 是本次取得文本的 retrieval location；artifact.canonicalUri 是 artifact 身份，两者可以因镜像、AMP 或字幕页而不同，不能互相覆盖。URI 均使用与 identity hint 相同的保守 http(s) normalization；不跟 redirect、不删 tracking query、不猜两个域名等价。ArtifactLocator 每个已存在的标识分别发 proof key：`provider:<normalized-provider>:external:<NFC-opaque-id>` 与 `uri:<normalized-canonical-uri>`；同时给出两者会把两个 key 连接。representationOf 发相同命名空间的 root keys，因此可以与另一材料的 artifact key 相连。source.uri 只在没有 artifact locator 时作为 fallback proof key；ContentDigest 始终是最后的保守 collapse key。非法 URI、空 provider/externalId 或同一对象内 canonicalization 自相矛盾返回 invalid_input；“看起来像同一人/同一报道”不做 fuzzy 合并。
+source.uri 是本次取得文本的 retrieval location；artifact.canonicalUri 是 artifact 身份，两者可以因镜像、AMP 或字幕页而不同，不能互相覆盖。URI 均使用与 identity hint 相同的保守 http(s) normalization；不跟 redirect、不删 tracking query、不猜两个域名等价。`source-groups-v1` 对 artifact 与 representationOf 使用同一 locator proof namespace，source.uri 只在该材料没有 artifact locator 时作为 fallback，即使 representationOf 另有 root proof 也不抹掉这个 retrieval fallback；ContentDigest 始终提供最后的保守 collapse key。非法 URI、空 provider/externalId 或同一对象内 canonicalization 自相矛盾返回 invalid_input；“看起来像同一人/同一报道”不做 fuzzy 合并。
 
 deriveSourceIdentity 的优先级不同：先用规范化 retrieval URI，缺失时用 artifact provider/externalId 或 canonicalUri，最后才是 kind + request-scoped clientRef。这样镜像仍有不同 MaterialId，source grouping 再决定它们是否同源。
 
@@ -141,14 +141,24 @@ export interface SourceGroup {
 }
 
 export interface SourceGroupingSnapshot {
-  readonly sourceGroupingVersion: string;
+  readonly sourceGroupingVersion: "source-groups-v1";
   readonly groups: ReadonlyMap<MaterialId, SourceGroup>;
 }
 ~~~
 
-第一版用版本化、确定性的 union 算法合组：相同 RawId 或 ConversationSourceKey；相同 artifact locator；相同 representationOf locator；一份材料的 representationOf 等于另一份的 artifact；相同规范化 canonical URI；或相同 ContentDigest，都属于同一组。CaptureAuditRef 只标记一次授权，不参与分组。SourceGroupKey 从该连通分量的 canonical proof keys 派生，与输入顺序无关；不做 fuzzy 文本相似度，也不调用 LLM。exact_republication 是保守去膨胀：它只能减少佐证数，不能把内容相似误写成事实冲突。
+`source-groups-v1` 先为每份 MaterialRecord 生成以下 exact UTF-8 proof keys；字段缺失就不生成对应 key，任何组件值含 U+0000 都在材料规范化边界拒绝：
 
-diversityStatus 是完整三态而不是从 boolean 猜：component 含 source.access=public 且经结构校验的 artifact locator / canonical URI（artifact 缺失时可用规范化 public http(s) source.uri），并且每个 qualifying proof key 都没有 restricted/private 冲突时是 eligible；没有 eligible proof，且包含 restricted/private、correction、private ConversationSourceKey 或 access conflict 时是 ineligible；只剩公开性声明但没有可校验 locator / proof 的是 unknown。same_raw、representation、exact_republication 本身只合并，不能授予 eligible，但 component 中另有合格公开 artifact 时可以继承该组的 eligible；出现 qualifying-key access conflict 则优先 ineligible。cautions 是引擎派生、排序稳定的解释，不参与模型输入；Panel 直接展示 access_conflict/private_source/restricted_source/correction/insufficient_public_proof，不能从分页材料重算。provenance 不足或私人直接会话的材料仍保留并可作 evidence；unknown 不能像旧规则那样默认各算一份独立佐证，同一 account/thread 的多次 grant 也始终合为一组。corroborated、stable 与 source_diversity_decreased 只使用 status=eligible 的 groups。source role 只用于 briefing 和 Panel 展示，第一版代码不声称能机械证明公开性、编辑、作者或公司组织上的真正独立性。
+- raw extraction：`raw-v1\0<RawId>`；
+- private conversation：`conversation-v1\0<ConversationSourceKey>`；
+- artifact 或 representationOf 的 provider/externalId：`provider-artifact-v1\0<normalized-provider>\0<NFC-externalId>`；
+- artifact 或 representationOf 的 canonical URI：`uri-v1\0<canonicalUri>`；只要 artifact locator 不存在，source.uri 就在同一 `uri-v1\0<canonicalUri>` namespace 作为 fallback；
+- normalized body：`content-v1\0<ContentDigest>`。
+
+同一材料拥有的所有 keys 先 union；任意两个不同 MaterialId 共享任一 key 时再 union，直到得到与输入顺序无关的连通分量。CaptureAuditRef 不生成 key，也不参与组件 identity。每个组件把其全部 sorted unique proof keys 做 canonical JSON，`SourceGroupKey = "sg_" + SHA-256("source-groups-v1\0" + canonicalJson(keys))`。不做 fuzzy 文本相似度，也不调用 LLM。
+
+`bases` 只记录确实把两个**不同 MaterialId** 连在一起的理由：共享 raw、conversation、representation locator、artifact provider locator、canonical URI 或 content digest 分别映射到 same_raw、same_private_conversation、representation_of、provider_artifact、canonical_uri、exact_republication；一个共享 locator 同时满足多种 provenance 关系时保留全部真实理由。组件没有任何跨材料连接时 bases 恰为 `["unknown"]`，否则不含 unknown。去重后始终按 SourceGroupBasis 的声明顺序排列。exact_republication 是保守去膨胀：它只能减少佐证数，不能把内容相似误写成事实冲突。
+
+diversityStatus 是完整三态而不是从 boolean 猜。qualifying public proof key **只**包括 artifact 的 provider/externalId 或 canonicalUri，以及没有 artifact 时 fallback 的 source.uri；representationOf、RawId、ConversationSourceKey 与 ContentDigest 都不能授予 eligible。若同一个 qualifying key 同时出现在 access=public 与 access=private/restricted 的材料上，优先 ineligible 并产生 access_conflict。否则，组件中至少一个 access=public 的 qualifying key就为 eligible；再否则，组件含 private/restricted access、correction 或 ConversationSourceKey 时为 ineligible；其余为 unknown。private_source、restricted_source、correction 与 insufficient_public_proof 仍按事实产生，不会因组件另有 public key 被隐藏；cautions 去重后严格按 SourceGroupCaution 的声明顺序排列。provenance 不足或私人直接会话的材料仍保留并可作 evidence；unknown 不能像旧规则那样默认各算一份独立佐证，同一 account/thread 的多次 grant 也始终合为一组。corroborated、stable 与 source_diversity_decreased 只使用 status=eligible 的 groups。source role 只用于 briefing 和 Panel 展示，第一版代码不声称能机械证明公开性、编辑、作者或公司组织上的真正独立性。
 
 #### 10.4.2 私人 UI capture 的授权边界
 

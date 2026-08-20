@@ -16,6 +16,7 @@
   },
   "files": [
     "lib",
+    "prompts",
     "!lib/**/*.test.*"
   ],
   "sideEffects": false,
@@ -23,6 +24,7 @@
     "@distilly/protocol": "workspace:*"
   },
   "scripts": {
-    "smoke:built": "node scripts/smoke-built.mjs"
+    "smoke:built": "node scripts/smoke-built.mjs",
+    "snapshots": "vitest --root ../.. run packages/engine/src/distill/prompt-catalog.test.ts"
   }
 }

@@ -5,6 +5,7 @@ import type {
   EventId,
   JobId,
   LeaseId,
+  LeaseOwnerId,
   RequestId,
   SpaceId,
   SubjectId,
@@ -55,6 +56,15 @@ export class CryptoIdGenerator implements IdGenerator {
    */
   leaseId(): LeaseId {
     return `lease_${random128()}` as LeaseId;
+  }
+
+  /**
+   * Generates an opaque owner token for one trusted client session.
+   *
+   * @returns A fresh 128-bit session-bound lease owner identifier.
+   */
+  leaseOwnerId(): LeaseOwnerId {
+    return `lease_owner_${random128()}` as LeaseOwnerId;
   }
 
   /**

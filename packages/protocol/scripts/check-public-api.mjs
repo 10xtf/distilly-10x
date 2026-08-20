@@ -50,6 +50,8 @@ CorrectionProvenance
 CreateSubjectInput
 CreatedDisposition
 DiffInput
+DistillLeaseTransactionMethod
+DistillLeaseTransactionRecord
 DistillPatch
 DistillyErrorCode
 DistillyMcpToolName
@@ -108,6 +110,7 @@ JsonPrimitive
 JsonSchemaObject
 JsonValue
 LeaseId
+LeaseOwnerId
 LibraryEntry
 LibraryPage
 LibraryQuery
@@ -137,7 +140,9 @@ OperationTombstoneRecord
 ParserExtractionMethod
 PendingFilter
 PendingJob
+PendingJobFailure
 PendingJobMarker
+PendingLeaseMarker
 PendingToolInput
 PendingToolOutput
 PendingToolValue
@@ -208,6 +213,7 @@ TextDerivationInput
 TransactionRecord
 UninstallInput
 Unsubscribe
+VersionClaimsSnapshot
 VersionCreation
 VersionId
 VersionMaterialEntry
@@ -269,6 +275,8 @@ createSubjectInputSchema
 createdDispositionSchema
 decodeEngineEvent
 diffInputSchema
+distillLeaseTransactionMethodSchema
+distillLeaseTransactionRecordSchema
 distillPatchSchema
 distillyErrorCodeSchema
 distillyMcpTools
@@ -313,6 +321,7 @@ isoDateTimeSchema
 jobIdSchema
 jobLeaseSchema
 leaseIdSchema
+leaseOwnerIdSchema
 libraryEntrySchema
 libraryPageSchema
 libraryQuerySchema
@@ -336,8 +345,10 @@ operationScopeSchema
 operationTombstoneRecordSchema
 parserExtractionMethodSchema
 pendingFilterSchema
+pendingJobFailureSchema
 pendingJobMarkerSchema
 pendingJobSchema
+pendingLeaseMarkerSchema
 privateUiCaptureActionAbortReasonSchema
 privateUiCaptureActionResultSchema
 privateUiCaptureAuditStopSchema
@@ -399,6 +410,7 @@ textDerivationInputSchema
 textDerivationSchema
 transactionRecordSchema
 uninstallInputSchema
+versionClaimsSnapshotSchema
 versionCreationSchema
 versionIdSchema
 versionMaterialEntrySchema

@@ -1749,17 +1749,202 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "type": "object",
         },
         "__schema10": {
+          "additionalProperties": false,
+          "properties": {
+            "addedMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "baseVersionId": {
+              "$ref": "#/$defs/__schema12",
+            },
+            "generation": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "id": {
+              "$ref": "#/$defs/__schema11",
+            },
+            "materialSetHash": {
+              "$ref": "#/$defs/__schema7",
+            },
+            "queuedAt": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "state": {
+              "const": "pending",
+              "type": "string",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema2",
+            },
+            "totalMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+          },
+          "required": [
+            "id",
+            "subjectId",
+            "generation",
+            "materialSetHash",
+            "addedMaterialCount",
+            "totalMaterialCount",
+            "queuedAt",
+            "state",
+          ],
+          "type": "object",
+        },
+        "__schema11": {
+          "pattern": "^job_[0-9a-f]{32}$",
+          "type": "string",
+        },
+        "__schema12": {
+          "$ref": "#/$defs/__schema5",
+        },
+        "__schema13": {
           "format": "date-time",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
           "type": "string",
         },
-        "__schema11": {
+        "__schema14": {
+          "additionalProperties": false,
+          "properties": {
+            "addedMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "baseVersionId": {
+              "$ref": "#/$defs/__schema12",
+            },
+            "generation": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "id": {
+              "$ref": "#/$defs/__schema11",
+            },
+            "leaseExpiresAt": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "materialSetHash": {
+              "$ref": "#/$defs/__schema7",
+            },
+            "queuedAt": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "state": {
+              "const": "leased",
+              "type": "string",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema2",
+            },
+            "totalMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+          },
+          "required": [
+            "id",
+            "subjectId",
+            "generation",
+            "materialSetHash",
+            "addedMaterialCount",
+            "totalMaterialCount",
+            "queuedAt",
+            "state",
+            "leaseExpiresAt",
+          ],
+          "type": "object",
+        },
+        "__schema15": {
+          "additionalProperties": false,
+          "properties": {
+            "addedMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "baseVersionId": {
+              "$ref": "#/$defs/__schema12",
+            },
+            "failure": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "enum": [
+                    "invalid_input",
+                    "not_found",
+                    "already_exists",
+                    "ambiguous_subject",
+                    "idempotency_conflict",
+                    "nothing_pending",
+                    "lease_conflict",
+                    "lease_expired",
+                    "stale_job",
+                    "briefing_too_large",
+                    "evidence_invalid",
+                    "context_too_large",
+                    "review_conflict",
+                    "busy",
+                    "storage_corrupt",
+                    "schema_unsupported",
+                    "index_unavailable",
+                    "host_unsupported",
+                    "adapter_failed",
+                    "permission_denied",
+                  ],
+                  "type": "string",
+                },
+                "remediation": {
+                  "$ref": "#/$defs/__schema16",
+                },
+                "retryable": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "code",
+                "retryable",
+              ],
+              "type": "object",
+            },
+            "generation": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "id": {
+              "$ref": "#/$defs/__schema11",
+            },
+            "materialSetHash": {
+              "$ref": "#/$defs/__schema7",
+            },
+            "queuedAt": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "state": {
+              "const": "failed",
+              "type": "string",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema2",
+            },
+            "totalMaterialCount": {
+              "$ref": "#/$defs/__schema8",
+            },
+          },
+          "required": [
+            "id",
+            "subjectId",
+            "generation",
+            "materialSetHash",
+            "addedMaterialCount",
+            "totalMaterialCount",
+            "queuedAt",
+            "state",
+            "failure",
+          ],
+          "type": "object",
+        },
+        "__schema16": {
           "maxLength": 8192,
           "minLength": 1,
           "type": "string",
           "x-distilly-maxUtf8Bytes": 8192,
         },
-        "__schema12": {
+        "__schema17": {
           "additionalProperties": false,
           "properties": {
             "generation": {
@@ -1796,29 +1981,33 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema13": {
+        "__schema18": {
           "type": "boolean",
         },
-        "__schema14": {
+        "__schema19": {
           "$ref": "#/$defs/__schema3",
         },
-        "__schema15": {
-          "$ref": "#/$defs/__schema11",
+        "__schema2": {
+          "pattern": "^subject_[0-9a-f]{32}$",
+          "type": "string",
         },
-        "__schema16": {
+        "__schema20": {
+          "$ref": "#/$defs/__schema16",
+        },
+        "__schema21": {
           "additionalProperties": {
-            "$ref": "#/$defs/__schema18",
+            "$ref": "#/$defs/__schema23",
           },
           "maxProperties": 64,
           "propertyNames": {
-            "$ref": "#/$defs/__schema17",
+            "$ref": "#/$defs/__schema22",
           },
           "type": "object",
         },
-        "__schema17": {
+        "__schema22": {
           "type": "string",
         },
-        "__schema18": {
+        "__schema23": {
           "anyOf": [
             {
               "type": "string",
@@ -1834,28 +2023,24 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             {
               "items": {
-                "$ref": "#/$defs/__schema18",
+                "$ref": "#/$defs/__schema23",
               },
               "maxItems": 64,
               "type": "array",
             },
             {
               "additionalProperties": {
-                "$ref": "#/$defs/__schema18",
+                "$ref": "#/$defs/__schema23",
               },
               "maxProperties": 64,
               "propertyNames": {
-                "$ref": "#/$defs/__schema19",
+                "$ref": "#/$defs/__schema24",
               },
               "type": "object",
             },
           ],
         },
-        "__schema19": {
-          "type": "string",
-        },
-        "__schema2": {
-          "pattern": "^subject_[0-9a-f]{32}$",
+        "__schema24": {
           "type": "string",
         },
         "__schema3": {
@@ -1995,97 +2180,17 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "type": "integer",
         },
         "__schema9": {
-          "additionalProperties": false,
-          "properties": {
-            "addedMaterialCount": {
-              "$ref": "#/$defs/__schema8",
-            },
-            "baseVersionId": {
-              "$ref": "#/$defs/__schema5",
-            },
-            "failure": {
-              "additionalProperties": false,
-              "properties": {
-                "code": {
-                  "enum": [
-                    "invalid_input",
-                    "not_found",
-                    "already_exists",
-                    "ambiguous_subject",
-                    "idempotency_conflict",
-                    "nothing_pending",
-                    "lease_conflict",
-                    "lease_expired",
-                    "stale_job",
-                    "briefing_too_large",
-                    "evidence_invalid",
-                    "context_too_large",
-                    "review_conflict",
-                    "busy",
-                    "storage_corrupt",
-                    "schema_unsupported",
-                    "index_unavailable",
-                    "host_unsupported",
-                    "adapter_failed",
-                    "permission_denied",
-                  ],
-                  "type": "string",
-                },
-                "remediation": {
-                  "$ref": "#/$defs/__schema11",
-                },
-                "retryable": {
-                  "type": "boolean",
-                },
-              },
-              "required": [
-                "code",
-                "retryable",
-              ],
-              "type": "object",
-            },
-            "generation": {
-              "$ref": "#/$defs/__schema8",
-            },
-            "id": {
-              "pattern": "^job_[0-9a-f]{32}$",
-              "type": "string",
-            },
-            "leaseExpiresAt": {
+          "oneOf": [
+            {
               "$ref": "#/$defs/__schema10",
             },
-            "materialSetHash": {
-              "$ref": "#/$defs/__schema7",
+            {
+              "$ref": "#/$defs/__schema14",
             },
-            "queuedAt": {
-              "$ref": "#/$defs/__schema10",
+            {
+              "$ref": "#/$defs/__schema15",
             },
-            "state": {
-              "enum": [
-                "pending",
-                "leased",
-                "failed",
-              ],
-              "type": "string",
-            },
-            "subjectId": {
-              "$ref": "#/$defs/__schema2",
-            },
-            "totalMaterialCount": {
-              "$ref": "#/$defs/__schema8",
-            },
-          },
-          "required": [
-            "id",
-            "subjectId",
-            "generation",
-            "materialSetHash",
-            "addedMaterialCount",
-            "totalMaterialCount",
-            "state",
-            "queuedAt",
           ],
-          "type": "object",
         },
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2166,7 +2271,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "$ref": "#/$defs/__schema0",
                 },
                 {
-                  "$ref": "#/$defs/__schema12",
+                  "$ref": "#/$defs/__schema17",
                 },
               ],
               "x-distilly-propertyPathsEqual": [
@@ -2225,19 +2330,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema16",
+                      "$ref": "#/$defs/__schema21",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema19",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema16",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema15",
+                      "$ref": "#/$defs/__schema20",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema18",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
@@ -2273,19 +2378,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema16",
+                      "$ref": "#/$defs/__schema21",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema19",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema16",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema15",
+                      "$ref": "#/$defs/__schema20",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema18",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
@@ -2351,19 +2456,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema16",
+                      "$ref": "#/$defs/__schema21",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema19",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema16",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema15",
+                      "$ref": "#/$defs/__schema20",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema18",
                     },
                   },
                   "required": [
@@ -2559,13 +2664,70 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
     "outputSchema": {
       "$defs": {
         "__schema0": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/__schema1",
+            },
+            {
+              "$ref": "#/$defs/__schema9",
+            },
+            {
+              "$ref": "#/$defs/__schema10",
+            },
+          ],
+        },
+        "__schema1": {
           "additionalProperties": false,
           "properties": {
             "addedMaterialCount": {
-              "$ref": "#/$defs/__schema3",
+              "$ref": "#/$defs/__schema4",
             },
             "baseVersionId": {
+              "$ref": "#/$defs/__schema5",
+            },
+            "generation": {
               "$ref": "#/$defs/__schema4",
+            },
+            "id": {
+              "$ref": "#/$defs/__schema2",
+            },
+            "materialSetHash": {
+              "$ref": "#/$defs/__schema7",
+            },
+            "queuedAt": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "state": {
+              "const": "pending",
+              "type": "string",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema3",
+            },
+            "totalMaterialCount": {
+              "$ref": "#/$defs/__schema4",
+            },
+          },
+          "required": [
+            "id",
+            "subjectId",
+            "generation",
+            "materialSetHash",
+            "addedMaterialCount",
+            "totalMaterialCount",
+            "queuedAt",
+            "state",
+          ],
+          "type": "object",
+        },
+        "__schema10": {
+          "additionalProperties": false,
+          "properties": {
+            "addedMaterialCount": {
+              "$ref": "#/$defs/__schema4",
+            },
+            "baseVersionId": {
+              "$ref": "#/$defs/__schema5",
             },
             "failure": {
               "additionalProperties": false,
@@ -2596,7 +2758,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "remediation": {
-                  "$ref": "#/$defs/__schema6",
+                  "$ref": "#/$defs/__schema11",
                 },
                 "retryable": {
                   "type": "boolean",
@@ -2609,34 +2771,26 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "type": "object",
             },
             "generation": {
-              "$ref": "#/$defs/__schema3",
+              "$ref": "#/$defs/__schema4",
             },
             "id": {
-              "$ref": "#/$defs/__schema1",
-            },
-            "leaseExpiresAt": {
-              "$ref": "#/$defs/__schema5",
+              "$ref": "#/$defs/__schema2",
             },
             "materialSetHash": {
-              "pattern": "^set_sha256_[0-9a-f]{64}$",
-              "type": "string",
+              "$ref": "#/$defs/__schema7",
             },
             "queuedAt": {
-              "$ref": "#/$defs/__schema5",
+              "$ref": "#/$defs/__schema8",
             },
             "state": {
-              "enum": [
-                "pending",
-                "leased",
-                "failed",
-              ],
+              "const": "failed",
               "type": "string",
             },
             "subjectId": {
-              "$ref": "#/$defs/__schema2",
+              "$ref": "#/$defs/__schema3",
             },
             "totalMaterialCount": {
-              "$ref": "#/$defs/__schema3",
+              "$ref": "#/$defs/__schema4",
             },
           },
           "required": [
@@ -2646,37 +2800,88 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             "materialSetHash",
             "addedMaterialCount",
             "totalMaterialCount",
-            "state",
             "queuedAt",
+            "state",
+            "failure",
           ],
           "type": "object",
         },
-        "__schema1": {
-          "pattern": "^job_[0-9a-f]{32}$",
+        "__schema11": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string",
+          "x-distilly-maxUtf8Bytes": 8192,
+        },
+        "__schema12": {
+          "additionalProperties": false,
+          "properties": {
+            "acquiredAt": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "briefContractDigest": {
+              "$ref": "#/$defs/__schema14",
+            },
+            "expiresAt": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "generation": {
+              "$ref": "#/$defs/__schema4",
+            },
+            "id": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "jobId": {
+              "$ref": "#/$defs/__schema2",
+            },
+            "owner": {
+              "$ref": "#/$defs/__schema15",
+            },
+          },
+          "required": [
+            "id",
+            "jobId",
+            "generation",
+            "briefContractDigest",
+            "owner",
+            "acquiredAt",
+            "expiresAt",
+          ],
+          "type": "object",
+        },
+        "__schema13": {
+          "pattern": "^lease_[0-9a-f]{32}$",
           "type": "string",
         },
-        "__schema10": {
+        "__schema14": {
+          "pattern": "^brief_contract_[0-9a-f]{64}$",
+          "type": "string",
+        },
+        "__schema15": {
+          "pattern": "^lease_owner_[0-9a-f]{32}$",
+          "type": "string",
+        },
+        "__schema16": {
           "additionalProperties": false,
           "properties": {
             "aliases": {
               "items": {
-                "$ref": "#/$defs/__schema9",
+                "$ref": "#/$defs/__schema17",
               },
               "maxItems": 64,
               "type": "array",
             },
             "currentVersionId": {
-              "$ref": "#/$defs/__schema4",
+              "$ref": "#/$defs/__schema6",
             },
             "displayName": {
-              "$ref": "#/$defs/__schema9",
+              "$ref": "#/$defs/__schema17",
             },
             "id": {
-              "$ref": "#/$defs/__schema2",
+              "$ref": "#/$defs/__schema3",
             },
             "identityHints": {
               "items": {
-                "$ref": "#/$defs/__schema11",
+                "$ref": "#/$defs/__schema18",
               },
               "maxItems": 64,
               "type": "array",
@@ -2692,7 +2897,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "additionalProperties": false,
               "properties": {
                 "displayName": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "id": {
                   "pattern": "^space_[0-9a-f]{32}$",
@@ -2725,7 +2930,13 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema11": {
+        "__schema17": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string",
+          "x-distilly-maxUtf8Bytes": 1024,
+        },
+        "__schema18": {
           "oneOf": [
             {
               "additionalProperties": false,
@@ -2735,7 +2946,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "value": {
-                  "$ref": "#/$defs/__schema12",
+                  "$ref": "#/$defs/__schema19",
                 },
               },
               "required": [
@@ -2748,14 +2959,14 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "additionalProperties": false,
               "properties": {
                 "handle": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "kind": {
                   "const": "account",
                   "type": "string",
                 },
                 "provider": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                   "pattern": "^[a-z][a-z0-9._-]*$",
                 },
               },
@@ -2774,11 +2985,11 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "provider": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                   "pattern": "^[a-z][a-z0-9._-]*$",
                 },
                 "value": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
               },
               "required": [
@@ -2796,7 +3007,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "value": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
               },
               "required": [
@@ -2807,7 +3018,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
           ],
         },
-        "__schema12": {
+        "__schema19": {
           "format": "uri",
           "maxLength": 8192,
           "minLength": 1,
@@ -2815,21 +3026,227 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "type": "string",
           "x-distilly-maxUtf8Bytes": 8192,
         },
-        "__schema13": {
+        "__schema2": {
+          "pattern": "^job_[0-9a-f]{32}$",
+          "type": "string",
+        },
+        "__schema20": {
+          "additionalProperties": false,
+          "properties": {
+            "claims": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "createdIn": {
+                    "$ref": "#/$defs/__schema6",
+                  },
+                  "evidence": {
+                    "items": {
+                      "$ref": "#/$defs/__schema22",
+                    },
+                    "maxItems": 64,
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "facet": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[a-z][a-z0-9_]{0,31}(?:\\.[a-z][a-z0-9_]{0,31})*$",
+                    "type": "string",
+                  },
+                  "id": {
+                    "$ref": "#/$defs/__schema21",
+                  },
+                  "observedIn": {
+                    "items": {
+                      "$ref": "#/$defs/__schema17",
+                    },
+                    "maxItems": 64,
+                    "type": "array",
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "contested",
+                      "superseded",
+                    ],
+                    "type": "string",
+                  },
+                  "strength": {
+                    "enum": [
+                      "user_asserted",
+                      "single_source",
+                      "corroborated",
+                      "contested",
+                      "imported_unverified",
+                    ],
+                    "type": "string",
+                  },
+                  "supersededBy": {
+                    "$ref": "#/$defs/__schema21",
+                  },
+                  "text": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                    "x-distilly-maxUtf8Bytes": 16384,
+                  },
+                  "validFrom": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "validTo": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                },
+                "required": [
+                  "id",
+                  "facet",
+                  "text",
+                  "evidence",
+                  "status",
+                  "strength",
+                  "observedIn",
+                  "createdIn",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "evidenceFacts": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "derivation": {
+                    "$ref": "#/$defs/__schema27",
+                  },
+                  "flags": {
+                    "items": {
+                      "$ref": "#/$defs/__schema31",
+                    },
+                    "maxItems": 64,
+                    "type": "array",
+                  },
+                  "materialId": {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  "sensitivity": {
+                    "enum": [
+                      "private",
+                      "shareable",
+                    ],
+                    "type": "string",
+                  },
+                  "source": {
+                    "$ref": "#/$defs/__schema25",
+                  },
+                  "sourceGroup": {
+                    "$ref": "#/$defs/__schema28",
+                  },
+                },
+                "required": [
+                  "materialId",
+                  "source",
+                  "derivation",
+                  "sourceGroup",
+                  "sensitivity",
+                  "flags",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "quality": {
+              "additionalProperties": false,
+              "properties": {
+                "activeClaimCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "contestedClaimCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "corroboratedClaimCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "coveredCoreFacets": {
+                  "items": {
+                    "$ref": "#/$defs/__schema24",
+                  },
+                  "maxItems": 7,
+                  "type": "array",
+                },
+                "diversityEligibleSourceGroupCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "maturity": {
+                  "enum": [
+                    "sparse",
+                    "forming",
+                    "stable",
+                  ],
+                  "type": "string",
+                },
+                "sourceGroupCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "sourceGroupingVersion": {
+                  "$ref": "#/$defs/__schema17",
+                },
+                "uncoveredCoreFacets": {
+                  "items": {
+                    "$ref": "#/$defs/__schema24",
+                  },
+                  "maxItems": 7,
+                  "type": "array",
+                },
+                "unknownSourceGroupCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "userAssertedClaimCount": {
+                  "$ref": "#/$defs/__schema4",
+                },
+              },
+              "required": [
+                "sourceGroupingVersion",
+                "activeClaimCount",
+                "contestedClaimCount",
+                "userAssertedClaimCount",
+                "corroboratedClaimCount",
+                "sourceGroupCount",
+                "diversityEligibleSourceGroupCount",
+                "unknownSourceGroupCount",
+                "coveredCoreFacets",
+                "uncoveredCoreFacets",
+                "maturity",
+              ],
+              "type": "object",
+            },
+            "versionId": {
+              "$ref": "#/$defs/__schema6",
+            },
+          },
+          "required": [
+            "versionId",
+            "claims",
+            "quality",
+            "evidenceFacts",
+          ],
+          "type": "object",
+        },
+        "__schema21": {
           "pattern": "^claim_[0-9a-f]{64}$",
           "type": "string",
         },
-        "__schema14": {
+        "__schema22": {
           "additionalProperties": false,
           "properties": {
             "locator": {
               "additionalProperties": false,
               "properties": {
                 "end": {
-                  "$ref": "#/$defs/__schema3",
+                  "$ref": "#/$defs/__schema4",
                 },
                 "start": {
-                  "$ref": "#/$defs/__schema3",
+                  "$ref": "#/$defs/__schema4",
                 },
               },
               "required": [
@@ -2843,7 +3260,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               },
             },
             "materialId": {
-              "$ref": "#/$defs/__schema15",
+              "$ref": "#/$defs/__schema23",
             },
             "quote": {
               "maxLength": 65536,
@@ -2858,11 +3275,11 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema15": {
+        "__schema23": {
           "pattern": "^mat_[0-9a-f]{64}$",
           "type": "string",
         },
-        "__schema16": {
+        "__schema24": {
           "enum": [
             "identity",
             "voice",
@@ -2874,7 +3291,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "string",
         },
-        "__schema17": {
+        "__schema25": {
           "additionalProperties": false,
           "properties": {
             "access": {
@@ -2886,20 +3303,20 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "type": "string",
             },
             "artifact": {
-              "$ref": "#/$defs/__schema18",
+              "$ref": "#/$defs/__schema26",
             },
             "authors": {
               "items": {
-                "$ref": "#/$defs/__schema9",
+                "$ref": "#/$defs/__schema17",
               },
               "maxItems": 64,
               "type": "array",
             },
             "capturedAt": {
-              "$ref": "#/$defs/__schema5",
+              "$ref": "#/$defs/__schema8",
             },
             "language": {
-              "$ref": "#/$defs/__schema9",
+              "$ref": "#/$defs/__schema17",
             },
             "medium": {
               "enum": [
@@ -2916,13 +3333,13 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "type": "string",
             },
             "occurredAt": {
-              "$ref": "#/$defs/__schema5",
+              "$ref": "#/$defs/__schema8",
             },
             "publishedAt": {
-              "$ref": "#/$defs/__schema5",
+              "$ref": "#/$defs/__schema8",
             },
             "representationOf": {
-              "$ref": "#/$defs/__schema18",
+              "$ref": "#/$defs/__schema26",
             },
             "role": {
               "enum": [
@@ -2935,10 +3352,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "type": "string",
             },
             "title": {
-              "$ref": "#/$defs/__schema9",
+              "$ref": "#/$defs/__schema17",
             },
             "uri": {
-              "$ref": "#/$defs/__schema12",
+              "$ref": "#/$defs/__schema19",
             },
           },
           "required": [
@@ -2949,19 +3366,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema18": {
+        "__schema26": {
           "anyOf": [
             {
               "additionalProperties": false,
               "properties": {
                 "canonicalUri": {
-                  "$ref": "#/$defs/__schema12",
+                  "$ref": "#/$defs/__schema19",
                 },
                 "externalId": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "provider": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
               },
               "required": [
@@ -2974,13 +3391,13 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "additionalProperties": false,
               "properties": {
                 "canonicalUri": {
-                  "$ref": "#/$defs/__schema12",
+                  "$ref": "#/$defs/__schema19",
                 },
                 "externalId": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "provider": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
               },
               "required": [
@@ -2991,7 +3408,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
           ],
         },
-        "__schema19": {
+        "__schema27": {
           "oneOf": [
             {
               "additionalProperties": false,
@@ -3014,7 +3431,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "language": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "method": {
                   "enum": [
@@ -3028,10 +3445,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "producer": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "producerVersion": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
               },
               "required": [
@@ -3049,7 +3466,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "language": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "method": {
                   "enum": [
@@ -3062,10 +3479,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "producer": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "producerVersion": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema17",
                 },
                 "rawId": {
                   "pattern": "^raw_[0-9a-f]{64}$",
@@ -3082,23 +3499,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
           ],
         },
-        "__schema2": {
-          "pattern": "^subject_[0-9a-f]{32}$",
-          "type": "string",
-        },
-        "__schema20": {
+        "__schema28": {
           "additionalProperties": false,
           "properties": {
             "bases": {
               "items": {
-                "$ref": "#/$defs/__schema21",
+                "$ref": "#/$defs/__schema29",
               },
               "maxItems": 64,
               "type": "array",
             },
             "cautions": {
               "items": {
-                "$ref": "#/$defs/__schema22",
+                "$ref": "#/$defs/__schema30",
               },
               "maxItems": 64,
               "type": "array",
@@ -3124,7 +3537,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema21": {
+        "__schema29": {
           "enum": [
             "same_raw",
             "same_private_conversation",
@@ -3136,7 +3549,11 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "string",
         },
-        "__schema22": {
+        "__schema3": {
+          "pattern": "^subject_[0-9a-f]{32}$",
+          "type": "string",
+        },
+        "__schema30": {
           "enum": [
             "access_conflict",
             "private_source",
@@ -3146,43 +3563,167 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "string",
         },
-        "__schema23": {
+        "__schema31": {
           "const": "suspicious_source",
           "type": "string",
         },
-        "__schema24": {
+        "__schema32": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "maxLength": 1048576,
+                "minLength": 1,
+                "type": "string",
+                "x-distilly-maxUtf8Bytes": 1048576,
+              },
+              "contentDigest": {
+                "pattern": "^sha256_[0-9a-f]{64}$",
+                "type": "string",
+              },
+              "derivation": {
+                "$ref": "#/$defs/__schema27",
+              },
+              "kind": {
+                "enum": [
+                  "web",
+                  "document",
+                  "message",
+                  "email",
+                  "transcript",
+                  "derived_text",
+                  "correction",
+                ],
+                "type": "string",
+              },
+              "materialId": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "ref": {
+                "pattern": "^m(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$",
+                "type": "string",
+              },
+              "sensitivity": {
+                "enum": [
+                  "private",
+                  "shareable",
+                ],
+                "type": "string",
+              },
+              "source": {
+                "$ref": "#/$defs/__schema25",
+              },
+              "sourceGroup": {
+                "$ref": "#/$defs/__schema28",
+              },
+            },
+            "required": [
+              "ref",
+              "materialId",
+              "contentDigest",
+              "kind",
+              "content",
+              "source",
+              "derivation",
+              "sourceGroup",
+              "sensitivity",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "__schema33": {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "$ref": "#/$defs/__schema14",
+            },
+            "draftSchemaVersion": {
+              "const": 1,
+              "type": "number",
+            },
+            "evidenceRules": {
+              "items": {
+                "$ref": "#/$defs/__schema11",
+              },
+              "maxItems": 64,
+              "type": "array",
+            },
+            "instructions": {
+              "$ref": "#/$defs/__schema11",
+            },
+            "promptVersion": {
+              "pattern": "^host-distill-v1-sha256_[0-9a-f]{64}$",
+              "type": "string",
+            },
+            "sourceGroupingVersion": {
+              "const": "source-groups-v1",
+              "type": "string",
+            },
+          },
+          "required": [
+            "digest",
+            "sourceGroupingVersion",
+            "promptVersion",
+            "draftSchemaVersion",
+            "instructions",
+            "evidenceRules",
+          ],
+          "type": "object",
+        },
+        "__schema34": {
+          "additionalProperties": false,
+          "properties": {
+            "estimatedInputTokens": {
+              "$ref": "#/$defs/__schema35",
+            },
+            "maximumInputTokens": {
+              "$ref": "#/$defs/__schema35",
+            },
+            "maximumOutputBytes": {
+              "$ref": "#/$defs/__schema35",
+            },
+          },
+          "required": [
+            "estimatedInputTokens",
+            "maximumInputTokens",
+            "maximumOutputBytes",
+          ],
+          "type": "object",
+        },
+        "__schema35": {
           "exclusiveMinimum": 0,
           "maximum": 9007199254740991,
           "type": "integer",
         },
-        "__schema25": {
+        "__schema36": {
           "type": "boolean",
         },
-        "__schema26": {
-          "$ref": "#/$defs/__schema9",
+        "__schema37": {
+          "$ref": "#/$defs/__schema17",
         },
-        "__schema27": {
-          "$ref": "#/$defs/__schema6",
+        "__schema38": {
+          "$ref": "#/$defs/__schema11",
         },
-        "__schema28": {
+        "__schema39": {
           "additionalProperties": {
-            "$ref": "#/$defs/__schema30",
+            "$ref": "#/$defs/__schema41",
           },
           "maxProperties": 64,
           "propertyNames": {
-            "$ref": "#/$defs/__schema29",
+            "$ref": "#/$defs/__schema40",
           },
           "type": "object",
         },
-        "__schema29": {
-          "type": "string",
-        },
-        "__schema3": {
+        "__schema4": {
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer",
         },
-        "__schema30": {
+        "__schema40": {
+          "type": "string",
+        },
+        "__schema41": {
           "anyOf": [
             {
               "type": "string",
@@ -3198,87 +3739,89 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             {
               "items": {
-                "$ref": "#/$defs/__schema30",
+                "$ref": "#/$defs/__schema41",
               },
               "maxItems": 64,
               "type": "array",
             },
             {
               "additionalProperties": {
-                "$ref": "#/$defs/__schema30",
+                "$ref": "#/$defs/__schema41",
               },
               "maxProperties": 64,
               "propertyNames": {
-                "$ref": "#/$defs/__schema31",
+                "$ref": "#/$defs/__schema42",
               },
               "type": "object",
             },
           ],
         },
-        "__schema31": {
-          "type": "string",
-        },
-        "__schema4": {
-          "pattern": "^version_[0-9a-f]{64}$",
+        "__schema42": {
           "type": "string",
         },
         "__schema5": {
+          "$ref": "#/$defs/__schema6",
+        },
+        "__schema6": {
+          "pattern": "^version_[0-9a-f]{64}$",
+          "type": "string",
+        },
+        "__schema7": {
+          "pattern": "^set_sha256_[0-9a-f]{64}$",
+          "type": "string",
+        },
+        "__schema8": {
           "format": "date-time",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
           "type": "string",
         },
-        "__schema6": {
-          "maxLength": 8192,
-          "minLength": 1,
-          "type": "string",
-          "x-distilly-maxUtf8Bytes": 8192,
-        },
-        "__schema7": {
+        "__schema9": {
           "additionalProperties": false,
           "properties": {
-            "acquiredAt": {
-              "$ref": "#/$defs/__schema5",
+            "addedMaterialCount": {
+              "$ref": "#/$defs/__schema4",
             },
-            "briefContractDigest": {
-              "$ref": "#/$defs/__schema8",
-            },
-            "expiresAt": {
+            "baseVersionId": {
               "$ref": "#/$defs/__schema5",
             },
             "generation": {
-              "$ref": "#/$defs/__schema3",
+              "$ref": "#/$defs/__schema4",
             },
             "id": {
-              "pattern": "^lease_[0-9a-f]{32}$",
+              "$ref": "#/$defs/__schema2",
+            },
+            "leaseExpiresAt": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "materialSetHash": {
+              "$ref": "#/$defs/__schema7",
+            },
+            "queuedAt": {
+              "$ref": "#/$defs/__schema8",
+            },
+            "state": {
+              "const": "leased",
               "type": "string",
             },
-            "jobId": {
-              "$ref": "#/$defs/__schema1",
+            "subjectId": {
+              "$ref": "#/$defs/__schema3",
             },
-            "owner": {
-              "$ref": "#/$defs/__schema9",
+            "totalMaterialCount": {
+              "$ref": "#/$defs/__schema4",
             },
           },
           "required": [
             "id",
-            "jobId",
+            "subjectId",
             "generation",
-            "briefContractDigest",
-            "owner",
-            "acquiredAt",
-            "expiresAt",
+            "materialSetHash",
+            "addedMaterialCount",
+            "totalMaterialCount",
+            "queuedAt",
+            "state",
+            "leaseExpiresAt",
           ],
           "type": "object",
-        },
-        "__schema8": {
-          "pattern": "^brief_contract_[0-9a-f]{64}$",
-          "type": "string",
-        },
-        "__schema9": {
-          "maxLength": 1024,
-          "minLength": 1,
-          "type": "string",
-          "x-distilly-maxUtf8Bytes": 1024,
         },
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3321,336 +3864,25 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "additionalProperties": false,
                       "properties": {
                         "baseline": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "claims": {
-                              "items": {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "createdIn": {
-                                    "$ref": "#/$defs/__schema4",
-                                  },
-                                  "evidence": {
-                                    "items": {
-                                      "$ref": "#/$defs/__schema14",
-                                    },
-                                    "maxItems": 64,
-                                    "minItems": 1,
-                                    "type": "array",
-                                  },
-                                  "facet": {
-                                    "maxLength": 128,
-                                    "minLength": 1,
-                                    "pattern": "^[a-z][a-z0-9_]{0,31}(?:\\.[a-z][a-z0-9_]{0,31})*$",
-                                    "type": "string",
-                                  },
-                                  "id": {
-                                    "$ref": "#/$defs/__schema13",
-                                  },
-                                  "observedIn": {
-                                    "items": {
-                                      "$ref": "#/$defs/__schema9",
-                                    },
-                                    "maxItems": 64,
-                                    "type": "array",
-                                  },
-                                  "status": {
-                                    "enum": [
-                                      "active",
-                                      "contested",
-                                      "superseded",
-                                    ],
-                                    "type": "string",
-                                  },
-                                  "strength": {
-                                    "enum": [
-                                      "user_asserted",
-                                      "single_source",
-                                      "corroborated",
-                                      "contested",
-                                      "imported_unverified",
-                                    ],
-                                    "type": "string",
-                                  },
-                                  "supersededBy": {
-                                    "$ref": "#/$defs/__schema13",
-                                  },
-                                  "text": {
-                                    "maxLength": 16384,
-                                    "minLength": 1,
-                                    "type": "string",
-                                    "x-distilly-maxUtf8Bytes": 16384,
-                                  },
-                                  "validFrom": {
-                                    "$ref": "#/$defs/__schema5",
-                                  },
-                                  "validTo": {
-                                    "$ref": "#/$defs/__schema5",
-                                  },
-                                },
-                                "required": [
-                                  "id",
-                                  "facet",
-                                  "text",
-                                  "evidence",
-                                  "status",
-                                  "strength",
-                                  "observedIn",
-                                  "createdIn",
-                                ],
-                                "type": "object",
-                              },
-                              "type": "array",
-                            },
-                            "evidenceFacts": {
-                              "items": {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "derivation": {
-                                    "$ref": "#/$defs/__schema19",
-                                  },
-                                  "flags": {
-                                    "items": {
-                                      "$ref": "#/$defs/__schema23",
-                                    },
-                                    "maxItems": 64,
-                                    "type": "array",
-                                  },
-                                  "materialId": {
-                                    "$ref": "#/$defs/__schema15",
-                                  },
-                                  "sensitivity": {
-                                    "enum": [
-                                      "private",
-                                      "shareable",
-                                    ],
-                                    "type": "string",
-                                  },
-                                  "source": {
-                                    "$ref": "#/$defs/__schema17",
-                                  },
-                                  "sourceGroup": {
-                                    "$ref": "#/$defs/__schema20",
-                                  },
-                                },
-                                "required": [
-                                  "materialId",
-                                  "source",
-                                  "derivation",
-                                  "sourceGroup",
-                                  "sensitivity",
-                                  "flags",
-                                ],
-                                "type": "object",
-                              },
-                              "type": "array",
-                            },
-                            "quality": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "activeClaimCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "contestedClaimCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "corroboratedClaimCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "coveredCoreFacets": {
-                                  "items": {
-                                    "$ref": "#/$defs/__schema16",
-                                  },
-                                  "maxItems": 7,
-                                  "type": "array",
-                                },
-                                "diversityEligibleSourceGroupCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "maturity": {
-                                  "enum": [
-                                    "sparse",
-                                    "forming",
-                                    "stable",
-                                  ],
-                                  "type": "string",
-                                },
-                                "sourceGroupCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "sourceGroupingVersion": {
-                                  "$ref": "#/$defs/__schema9",
-                                },
-                                "uncoveredCoreFacets": {
-                                  "items": {
-                                    "$ref": "#/$defs/__schema16",
-                                  },
-                                  "maxItems": 7,
-                                  "type": "array",
-                                },
-                                "unknownSourceGroupCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                                "userAssertedClaimCount": {
-                                  "$ref": "#/$defs/__schema3",
-                                },
-                              },
-                              "required": [
-                                "sourceGroupingVersion",
-                                "activeClaimCount",
-                                "contestedClaimCount",
-                                "userAssertedClaimCount",
-                                "corroboratedClaimCount",
-                                "sourceGroupCount",
-                                "diversityEligibleSourceGroupCount",
-                                "unknownSourceGroupCount",
-                                "coveredCoreFacets",
-                                "uncoveredCoreFacets",
-                                "maturity",
-                              ],
-                              "type": "object",
-                            },
-                            "versionId": {
-                              "$ref": "#/$defs/__schema4",
-                            },
-                          },
-                          "required": [
-                            "versionId",
-                            "claims",
-                            "quality",
-                            "evidenceFacts",
-                          ],
-                          "type": "object",
+                          "$ref": "#/$defs/__schema20",
                         },
                         "contract": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "digest": {
-                              "$ref": "#/$defs/__schema8",
-                            },
-                            "draftSchemaVersion": {
-                              "$ref": "#/$defs/__schema24",
-                            },
-                            "evidenceRules": {
-                              "items": {
-                                "$ref": "#/$defs/__schema6",
-                              },
-                              "maxItems": 64,
-                              "type": "array",
-                            },
-                            "instructions": {
-                              "$ref": "#/$defs/__schema6",
-                            },
-                            "promptVersion": {
-                              "$ref": "#/$defs/__schema9",
-                            },
-                            "sourceGroupingVersion": {
-                              "$ref": "#/$defs/__schema9",
-                            },
-                          },
-                          "required": [
-                            "digest",
-                            "sourceGroupingVersion",
-                            "promptVersion",
-                            "draftSchemaVersion",
-                            "instructions",
-                            "evidenceRules",
-                          ],
-                          "type": "object",
+                          "$ref": "#/$defs/__schema33",
                         },
                         "job": {
                           "$ref": "#/$defs/__schema0",
                         },
                         "lease": {
-                          "$ref": "#/$defs/__schema7",
+                          "$ref": "#/$defs/__schema12",
                         },
                         "limits": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "estimatedInputTokens": {
-                              "$ref": "#/$defs/__schema3",
-                            },
-                            "maximumInputTokens": {
-                              "$ref": "#/$defs/__schema24",
-                            },
-                            "maximumOutputBytes": {
-                              "$ref": "#/$defs/__schema24",
-                            },
-                          },
-                          "required": [
-                            "estimatedInputTokens",
-                            "maximumInputTokens",
-                            "maximumOutputBytes",
-                          ],
-                          "type": "object",
+                          "$ref": "#/$defs/__schema34",
                         },
                         "materials": {
-                          "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                              "content": {
-                                "maxLength": 1048576,
-                                "minLength": 1,
-                                "type": "string",
-                                "x-distilly-maxUtf8Bytes": 1048576,
-                              },
-                              "contentDigest": {
-                                "pattern": "^sha256_[0-9a-f]{64}$",
-                                "type": "string",
-                              },
-                              "derivation": {
-                                "$ref": "#/$defs/__schema19",
-                              },
-                              "kind": {
-                                "enum": [
-                                  "web",
-                                  "document",
-                                  "message",
-                                  "email",
-                                  "transcript",
-                                  "derived_text",
-                                  "correction",
-                                ],
-                                "type": "string",
-                              },
-                              "materialId": {
-                                "$ref": "#/$defs/__schema15",
-                              },
-                              "ref": {
-                                "pattern": "^m(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$",
-                                "type": "string",
-                              },
-                              "sensitivity": {
-                                "enum": [
-                                  "private",
-                                  "shareable",
-                                ],
-                                "type": "string",
-                              },
-                              "source": {
-                                "$ref": "#/$defs/__schema17",
-                              },
-                              "sourceGroup": {
-                                "$ref": "#/$defs/__schema20",
-                              },
-                            },
-                            "required": [
-                              "ref",
-                              "materialId",
-                              "contentDigest",
-                              "kind",
-                              "content",
-                              "source",
-                              "derivation",
-                              "sourceGroup",
-                              "sensitivity",
-                            ],
-                            "type": "object",
-                          },
-                          "type": "array",
+                          "$ref": "#/$defs/__schema32",
                         },
                         "subject": {
-                          "$ref": "#/$defs/__schema10",
+                          "$ref": "#/$defs/__schema16",
                         },
                       },
                       "required": [
@@ -3682,7 +3914,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "lease": {
-                      "$ref": "#/$defs/__schema7",
+                      "$ref": "#/$defs/__schema12",
                     },
                   },
                   "required": [
@@ -3695,7 +3927,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "additionalProperties": false,
                   "properties": {
                     "jobId": {
-                      "$ref": "#/$defs/__schema1",
+                      "$ref": "#/$defs/__schema2",
                     },
                     "kind": {
                       "const": "released",
@@ -3748,19 +3980,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema39",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema26",
+                      "$ref": "#/$defs/__schema37",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema6",
+                      "$ref": "#/$defs/__schema11",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema27",
+                      "$ref": "#/$defs/__schema38",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema25",
+                      "$ref": "#/$defs/__schema36",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
@@ -3770,7 +4002,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                           "type": "string",
                         },
                         "subject": {
-                          "$ref": "#/$defs/__schema10",
+                          "$ref": "#/$defs/__schema16",
                         },
                       },
                       "required": [
@@ -3796,33 +4028,33 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema39",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema26",
+                      "$ref": "#/$defs/__schema37",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema6",
+                      "$ref": "#/$defs/__schema11",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema27",
+                      "$ref": "#/$defs/__schema38",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema25",
+                      "$ref": "#/$defs/__schema36",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
                       "properties": {
                         "candidates": {
                           "items": {
-                            "$ref": "#/$defs/__schema10",
+                            "$ref": "#/$defs/__schema16",
                           },
                           "prefixItems": [
                             {
-                              "$ref": "#/$defs/__schema10",
+                              "$ref": "#/$defs/__schema16",
                             },
                             {
-                              "$ref": "#/$defs/__schema10",
+                              "$ref": "#/$defs/__schema16",
                             },
                           ],
                           "type": "array",
@@ -3874,19 +4106,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema39",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema26",
+                      "$ref": "#/$defs/__schema37",
                     },
                     "message": {
-                      "$ref": "#/$defs/__schema6",
+                      "$ref": "#/$defs/__schema11",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema27",
+                      "$ref": "#/$defs/__schema38",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema25",
+                      "$ref": "#/$defs/__schema36",
                     },
                   },
                   "required": [

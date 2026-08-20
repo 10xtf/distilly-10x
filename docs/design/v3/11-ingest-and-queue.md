@@ -75,7 +75,7 @@ export declare function hashMaterialSet(
 ): MaterialSetHash;
 export declare function deriveSourceGroups(
   records: readonly MaterialRecord[],
-  sourceGroupingVersion: string,
+  sourceGroupingVersion: "source-groups-v1",
 ): SourceGroupingSnapshot;
 ~~~
 
@@ -87,7 +87,7 @@ correction 的 source identity 使用固定 correction namespace + RequestId；�
 
 deriveSourceIdentity 拒绝任何 preimage 组件中的 U+0000，且只能取第一个可用 namespace：`source-uri-v1\0<canonical source.uri>` → `artifact-external-v1\0<normalized provider>\0<NFC externalId>` → `artifact-uri-v1\0<canonical artifact.canonicalUri>` → `client-ref-v1\0<requestId>\0<kind>\0<NFC clientRef>`。这个优先级只定义 MaterialId 的 request-stable 身份；source grouping 仍独立使用 artifact / representation proof。
 
-deriveSourceIdentity 只服务 MaterialId 幂等，不能拿来计算来源多样性。deriveSourceGroups 必须显式接收 lease 或历史 version 固定的 sourceGroupingVersion，对本次 material set 做 O(n) proof-key map / union，再返回带同一版本的 snapshot；禁止读取进程全局“最新规则”。算法版本与 QualitySummary 一同写进 version。历史 version 不因以后升级 grouping 规则而静默重算。
+deriveSourceIdentity 只服务 MaterialId 幂等，不能拿来计算来源多样性。deriveSourceGroups 必须显式接收 lease 或历史 version 固定的 sourceGroupingVersion，对本次 material set 做 O(n) proof-key map / union，再返回带同一版本的 snapshot；禁止读取进程全局“最新规则”。首版唯一合法值是 source-groups-v1；新增算法要先扩判别版本与历史实现，不能让同名版本改变。算法版本与 QualitySummary 一同写进 version。历史 version 不因以后升级 grouping 规则而静默重算。
 
 ### 11.3 enqueue 语义
 
@@ -98,7 +98,7 @@ deriveSourceIdentity 只服务 MaterialId 幂等，不能拿来计算来源多�
 
 baseline 不存 state 或 queue：state.currentVersionId 存在时，engine 通过最小 read-only FileVersionManifestStore 读取并验证对应 VersionRecord + VersionMaterialManifest，用 current state.materialManifest 减该 version manifest 计算累计 uncommitted set、addedMaterialCount 与 oldest storedAt；没有 current version 时 baseline 为空，所有当前材料都是 uncommitted。manifest 或对应 facts 校验失败是 storage_corrupt，不回退扫描猜测。
 
-auto-v1 只在每次 ingest attempt 的 subject lock 内评估，duplicate-only 也评估，没有 timer 或后台唤醒。已有 state.pending 且仍是当前 generation/materialSetHash 时，auto 与 now 都复用其 JobId；一旦 ingest 产生新 generation，即使旧 pending 存在且 auto 未达阈值，也必须以新 JobId/generation 替换 state.pending 并 upsert 新 job，使旧 lease 失效。同一 generation/set 不会产生第二个自动 job。用户在 Panel / CLI 显式 redistill 是另一种有原因、有 executor 记录的操作，不伪装成 ingest。
+auto-v1 只在每次 ingest attempt 的 subject lock 内评估，duplicate-only 也评估，没有 timer 或后台唤醒。已有 state.pending 且仍是当前 generation/materialSetHash 时，auto 与 now 都复用其 JobId；一旦 ingest 产生新 generation，即使旧 pending 存在且 auto 未达阈值，也必须以新 JobId/generation 替换 state.pending，并 post-commit apply 新 verified seed，使旧 lease 失效。同一 generation/set 不会产生第二个自动 job。用户在 Panel / CLI 显式 redistill 是另一种有原因、有 executor 记录的操作，不伪装成 ingest。
 
 ### 11.4 Job 类型
 
@@ -106,7 +106,7 @@ auto-v1 只在每次 ingest attempt 的 subject lock 内评估，duplicate-only 
 export type PublicJobState =
   | "pending" | "leased" | "failed";
 
-export interface PendingJob {
+interface PendingJobBase {
   readonly id: JobId;
   readonly subjectId: SubjectId;
   readonly generation: number;
@@ -114,20 +114,36 @@ export interface PendingJob {
   readonly materialSetHash: MaterialSetHash;
   readonly addedMaterialCount: number;
   readonly totalMaterialCount: number;
-  readonly state: PublicJobState;
   readonly queuedAt: IsoDateTime;
-  readonly leaseExpiresAt?: IsoDateTime;
-  readonly failure?: {
-    readonly code: DistillyErrorCode;
-    readonly retryable: boolean;
-    readonly remediation?: string;
-  };
 }
+
+export interface PendingJobFailure {
+  readonly code: DistillyErrorCode;
+  readonly retryable: boolean;
+  readonly remediation?: string;
+}
+
+export type PendingJob =
+  | (PendingJobBase & {
+      readonly state: "pending";
+      readonly leaseExpiresAt?: never;
+      readonly failure?: never;
+    })
+  | (PendingJobBase & {
+      readonly state: "leased";
+      readonly leaseExpiresAt: IsoDateTime;
+      readonly failure?: never;
+    })
+  | (PendingJobBase & {
+      readonly state: "failed";
+      readonly leaseExpiresAt?: never;
+      readonly failure: PendingJobFailure;
+    });
 ~~~
 
-queue.db 内部可以有 processing、attempt、owner 和 LSN；这些不是稳定公开状态。state.json 的 PendingJobMarker 是 authoritative，保存稳定 job identity、generation、hash、base、counts 与 queuedAt；删除 queue.db 后遍历全部 state.pending 重建为 pending，不从目录或旧 SQLite 行猜测。queue projection 写失败只标 dirty，绝不回滚已提交事实。Step 5 只实现 ingest 需要的内部窄 upsert/rebuild 投影；PendingFilter、list/acquire/renew/release 等 public pending / lease service 属于 Step 6。
+PendingJob 是状态判别联合：leased 必须带 leaseExpiresAt，failed 必须带 failure，另两个分支不能泄漏这些字段。state.json 的 PendingJobMarker 是 authoritative，保存稳定 job identity、generation、hash、base、counts 与 queuedAt；其可选 lease 保存事实 owner、expiry 与完整 contract。public state 在读取时派生：`now < expiresAt` 才是 leased，已过期 marker 显示 pending；queue projection 中的 failure 可显示 failed。attempt、failure 与 projection LSN 不是人物事实，rebuild 可以清零；lease 不能从 SQLite 猜测或丢失。queue projection 写失败只标 dirty，绝不回滚已提交事实。Step 5 只实现 ingest 需要的内部窄 apply/rebuild 投影；PendingFilter、public list 与事实 lease service 属于 Step 6。
 
-`.index/queue.dirty` 是 projection marker，不是人物事实；其 canonical bytes 固定为 `{"projection":"queue","schemaVersion":1}\n`。每次 post-commit SQLite apply 前先 atomic write + fsync 该 marker，SQLite transaction 成功且 DB durable 后才 unlink marker 并 fsync `.index`。queue.db 的 `PRAGMA user_version=1`；DB 缺失/corrupt、marker 存在或 marker 内容不是上述 exact bytes 一律视为 dirty，不得对外伪装成空。rebuild 从所有 verified state.pending 写同目录 sibling DB，close + fsync 后 atomic replace queue.db 并 fsync parent，最后按同样的 durable 顺序清 marker。
+`.index/queue.dirty` 是 projection marker，不是人物事实；其 canonical bytes 固定为 `{"projection":"queue","schemaVersion":2}\n`。每次 post-commit SQLite apply 前先 atomic write + fsync 该 marker，SQLite transaction 成功且 DB durable 后才 unlink marker 并 fsync `.index`。queue.db 的 exact schema 是 `PRAGMA user_version=2`。DB 缺失/corrupt、user_version 不等于 2、marker 存在或 marker 内容不是上述 exact bytes，一律先视为 index_unavailable，不得查询、更不能伪装成空。特别是 Step 5 的 user_version=1 只触发从全部 verified SubjectStateRecord schemaVersion=2 自动重建：不 ALTER、不逐行升级、不把旧 lease 列补默认值。rebuild 从 state seeds 写同目录 sibling DB，close + fsync 后 atomic replace queue.db 并 fsync parent，最后按同样的 durable 顺序清 marker；成功后才开放读，失败继续返回 index_unavailable。
 
 ### 11.5 QueueRepository
 
@@ -138,39 +154,36 @@ export interface PendingFilter {
   readonly limit?: number;
 }
 
-export interface PendingJobRecord extends PendingJob {
+export interface VerifiedQueueStateSeed {
+  readonly subjectId: SubjectId;
+  readonly stateChecksum: FactChecksum;
+  readonly pending?: PendingJobMarker;
+}
+
+export interface PendingJobRecord {
+  readonly job: PendingJob;
   readonly attempt: number;
-  readonly leaseOwner?: string;
+  readonly leaseOwner?: LeaseOwnerId;
   readonly lastSequence: number;
 }
 
-export interface JobLeaseRecord extends JobLease {
-  readonly attempt: number;
-  readonly contract: BriefContract;
-}
-
-export type LeaseOutcome =
-  | { readonly kind: "released"; readonly reason?: string }
-  | { readonly kind: "committed"; readonly versionId: VersionId }
-  | { readonly kind: "failed"; readonly failure: PendingJob["failure"] }
-  | { readonly kind: "stale" };
-
 export interface QueueRepository {
-  upsert(job: PendingJobRecord): Promise<void>;
-  list(filter: PendingFilter): Promise<readonly PendingJobRecord[]>;
-  acquire(
-    jobId: JobId,
-    owner: string,
+  apply(seed: VerifiedQueueStateSeed): Promise<void>;
+  read(jobId: JobId, now: IsoDateTime): Promise<PendingJobRecord | undefined>;
+  list(
+    filter: PendingFilter,
     now: IsoDateTime,
-    contract: BriefContract,
-  ): Promise<JobLeaseRecord>;
-  renew(leaseId: LeaseId, now: IsoDateTime): Promise<JobLeaseRecord>;
-  release(leaseId: LeaseId, outcome: LeaseOutcome): Promise<void>;
-  recoverExpired(now: IsoDateTime): Promise<number>;
+  ): Promise<readonly PendingJobRecord[]>;
+  rebuild(
+    seeds: () => AsyncIterable<VerifiedQueueStateSeed>,
+    now: IsoDateTime,
+  ): Promise<void>;
 }
 ~~~
 
-这是 interface，因为 SQLite、测试 fake 和以后远程 worker 会有真实第二实现。生产实现使用 node:sqlite 的条件 UPDATE；acquire 受影响行数为 0 就是 lease_conflict。
+VerifiedQueueStateSeed 只能由 verified state reader 在 checksum、schemaVersion=2、pending/job/lease 交叉约束全部通过后构造。apply 以 subject 为替换单位：没有 pending 时删除该 subject 的旧 public row，有 pending 时投影当前 marker；read/list 的 now 只派生 expired→pending，不写 state。list 的 limit 缺省与最大值都是 200，结果固定按 queuedAt ASC、JobId canonical UTF-8 ASC；subjectId/state 过滤先于 limit。
+
+rebuild 必须先取得 queue projection lock，**然后**才调用 seed supplier 并在该锁内完整迭代 verified states、构造 sibling DB、durable replace、清 dirty marker；禁止在锁外预物化数组或 snapshot。与之并发的 writer 可以先提交 state，但它的 queue apply 会等待同一 projection lock，并在 rebuild 释放后覆盖自己的 subject row，因此最终不能出现 clean-but-stale。rebuild 保留未过期 lease 的 owner/expiry/contract，过期 marker 投影为 pending，并把 attempt=0、failure absent、lastSequence=0。QueueRepository 不接收 acquire/renew/release 的 owner 或 outcome，也不拥有 lease mutation；它仍是 interface，因为 SQLite 与测试 fake 是真实两种实现。
 
 ### 11.6 新 generation
 
@@ -178,9 +191,9 @@ export interface QueueRepository {
 
 - 新材料写事实；
 - state generation 增一；
-- queue UPSERT 新 job；
+- state.pending 以新 job 整体替换并投影到 queue；
 - 旧 lease 不再能 commit；
-- 旧 job 可在 lease 释放后归档为 stale；
+- 旧 projection row 可删除或标为 stale，但不能恢复为事实；
 - 新 job 不因旧 worker finish 而被标 done。
 
 这条用 generation 条件更新证明，不靠“通常不会并发”。

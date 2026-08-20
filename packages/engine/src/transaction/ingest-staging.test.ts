@@ -135,7 +135,7 @@ const entryFor = (record: MaterialRecord): VersionMaterialEntry => ({
 const makeState = (material: MaterialRecord): SubjectStateRecord => {
   const materialManifest = [entryFor(material)];
   return sealFact<SubjectStateRecord>({
-    schemaVersion: 1,
+    schemaVersion: 2,
     subjectId: SUBJECT_ID,
     generation: 1,
     materialSetHash: hashMaterialSet(materialManifest),

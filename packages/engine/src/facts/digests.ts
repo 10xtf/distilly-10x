@@ -1,4 +1,6 @@
 import type {
+  BriefContract,
+  BriefContractDigest,
   CaptureAuditRef,
   ConversationSourceKey,
   ContentDigest,
@@ -19,6 +21,29 @@ import { sha256Hex } from "./checksum.js";
 
 const PROVENANCE_NAMESPACE = "distilly:provenance:v1\0";
 const MATERIAL_SET_NAMESPACE = "distilly:material-set:v1\0";
+const BRIEF_CONTRACT_NAMESPACE = "brief-contract-v1\0";
+
+/**
+ * Recomputes the digest that pins source grouping, prompt bytes, and draft schema.
+ *
+ * @param contract - Exact version fields; the digest itself is excluded from the preimage.
+ * @returns The namespaced full SHA-256 brief-contract digest.
+ */
+export const digestBriefContract = (
+  contract: Omit<BriefContract, "digest">,
+): BriefContractDigest => {
+  const fields = {
+    sourceGroupingVersion: contract.sourceGroupingVersion,
+    promptVersion: contract.promptVersion,
+    draftSchemaVersion: contract.draftSchemaVersion,
+  };
+  return `brief_contract_${sha256Hex(
+    new Uint8Array([
+      ...new TextEncoder().encode(BRIEF_CONTRACT_NAMESPACE),
+      ...canonicalJsonBytes(fields),
+    ]),
+  )}` as BriefContractDigest;
+};
 
 /**
  * Hashes normalized UTF-8 material text with full SHA-256.

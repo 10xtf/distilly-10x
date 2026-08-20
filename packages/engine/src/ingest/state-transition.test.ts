@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type {
+  BriefContractDigest,
   ContentDigest,
   IsoDateTime,
   JobId,
+  LeaseId,
+  LeaseOwnerId,
   MaterialId,
   ProvenanceDigest,
   SubjectId,
@@ -19,6 +22,14 @@ import { deriveIngestState } from "./state-transition.js";
 const SUBJECT_ID = "subject_11111111111111111111111111111111" as SubjectId;
 const VERSION_ID = `version_${"2".repeat(64)}` as VersionId;
 const NOW = "2026-08-20T10:30:00.000Z" as IsoDateTime;
+const LEASE_ID = "lease_11111111111111111111111111111111" as LeaseId;
+const LEASE_OWNER_ID = "lease_owner_11111111111111111111111111111111" as LeaseOwnerId;
+const BRIEF_CONTRACT = {
+  digest: `brief_contract_${"3".repeat(64)}` as BriefContractDigest,
+  sourceGroupingVersion: "source-groups-v1",
+  promptVersion: `host-distill-v1-sha256_${"4".repeat(64)}` as const,
+  draftSchemaVersion: 1,
+} as const;
 
 const entry = (digit: string): VersionMaterialEntry => ({
   materialId: `mat_${digit.repeat(64)}` as MaterialId,
@@ -35,7 +46,7 @@ const state = (
   } = {},
 ): SubjectStateRecord =>
   sealFact<SubjectStateRecord>({
-    schemaVersion: 1,
+    schemaVersion: 2,
     subjectId: SUBJECT_ID,
     generation: options.generation ?? (manifest.length === 0 ? 0 : 1),
     ...(manifest.length === 0 ? {} : { materialSetHash: hashMaterialSet(manifest) }),
@@ -177,19 +188,27 @@ describe("ingest state transition", () => {
     expect(derived.job).toBeUndefined();
   });
 
-  it("reuses a same-generation job and replaces it after a new generation", () => {
+  it("preserves a same-generation lease view and drops the lease after a new generation", () => {
     const first = entry("1");
     const second = entry("2");
     const materialSetHash = hashMaterialSet([first]);
-    const previous = state([first], {
-      pending: {
-        jobId: "job_11111111111111111111111111111111" as JobId,
-        generation: 1,
-        materialSetHash,
-        addedMaterialCount: 1,
-        totalMaterialCount: 1,
-        queuedAt: "2026-08-20T10:00:00.000Z" as IsoDateTime,
+    const pending = {
+      jobId: "job_11111111111111111111111111111111" as JobId,
+      generation: 1,
+      materialSetHash,
+      addedMaterialCount: 1,
+      totalMaterialCount: 1,
+      queuedAt: "2026-08-20T10:00:00.000Z" as IsoDateTime,
+      lease: {
+        id: LEASE_ID,
+        owner: LEASE_OWNER_ID,
+        acquiredAt: "2026-08-20T10:00:00.000Z" as IsoDateTime,
+        expiresAt: "2026-08-20T11:00:00.000Z" as IsoDateTime,
+        contract: BRIEF_CONTRACT,
       },
+    };
+    const previous = state([first], {
+      pending,
     });
     const nextJobId = vi.fn(() => "job_22222222222222222222222222222222" as JobId);
 
@@ -203,9 +222,38 @@ describe("ingest state transition", () => {
         now: NOW,
         nextJobId,
       });
-      expect(same.job?.id).toBe(previous.pending?.jobId);
+      expect(same.job).toMatchObject({
+        id: previous.pending?.jobId,
+        state: "leased",
+        leaseExpiresAt: pending.lease.expiresAt,
+      });
+      expect(same.state.pending?.lease).toEqual(pending.lease);
       expect(same.pendingChanged).toBe(false);
     }
+    expect(nextJobId).not.toHaveBeenCalled();
+
+    const expiredPrevious = state([first], {
+      pending: {
+        ...pending,
+        lease: {
+          ...pending.lease,
+          expiresAt: "2026-08-20T10:15:00.000Z" as IsoDateTime,
+        },
+      },
+    });
+    const expired = deriveIngestState({
+      subjectId: SUBJECT_ID,
+      previous: expiredPrevious,
+      targetManifest: [first],
+      storedAtByMaterialId: stored([first]),
+      enqueue: "auto",
+      now: NOW,
+      nextJobId,
+    });
+    expect(expired.job).toMatchObject({ id: pending.jobId, state: "pending" });
+    expect(expired.job).not.toHaveProperty("leaseExpiresAt");
+    expect(expired.state.pending).toEqual(expiredPrevious.pending);
+    expect(expired.pendingChanged).toBe(false);
     expect(nextJobId).not.toHaveBeenCalled();
 
     const changed = deriveIngestState({
@@ -219,7 +267,12 @@ describe("ingest state transition", () => {
     });
     expect(changed.state.generation).toBe(2);
     expect(changed.pendingChanged).toBe(true);
-    expect(changed.job?.id).toBe("job_22222222222222222222222222222222");
+    expect(changed.job).toMatchObject({
+      id: "job_22222222222222222222222222222222",
+      state: "pending",
+      generation: 2,
+    });
+    expect(changed.state.pending).not.toHaveProperty("lease");
   });
 
   it("rejects manifest rewrites and mismatched baselines", () => {

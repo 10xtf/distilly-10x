@@ -21,7 +21,7 @@
 ├── manifest.json
 ├── subject.json
 ├── version.json
-├── claims.jsonl
+├── claims.json
 ├── evidence/
 │   └── <bundle-evidence-id>/
 │       ├── evidence.json               # 公开 provenance、原 MaterialId、digest

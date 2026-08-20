@@ -11,6 +11,7 @@ import {
   contentDigestSchema,
   materialIdSchema,
   requestIdSchema,
+  subjectStateRecordSchema,
   transactionRecordSchema,
   versionMaterialManifestSchema,
   versionIdSchema,
@@ -22,6 +23,8 @@ import {
   type IngestTransactionRecord,
   type IsoDateTime,
   type JobId,
+  type LeaseId,
+  type LeaseOwnerId,
   type OperationRecord,
   type RequestId,
   type RuntimeSchema,
@@ -45,8 +48,8 @@ import { FileTransactionStore } from "../facts/transaction-store.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import type { RecoveryHooks } from "../transaction/recovery.js";
-import { createStep5IngestComposition } from "./composition.js";
-import type { Step5IngestComposition } from "./composition.js";
+import { createStep6Composition } from "./composition.js";
+import type { Step6Composition } from "./composition.js";
 import type { IngestServiceHooks } from "./service.js";
 
 const AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
@@ -74,6 +77,11 @@ const VERSION_MANIFEST_SCHEMA: RuntimeSchema<VersionMaterialManifest> = {
     return versionMaterialManifestSchema.parse(value);
   },
 };
+const STATE_SCHEMA: RuntimeSchema<SubjectStateRecord> = {
+  parse(value) {
+    return subjectStateRecordSchema.parse(value) as SubjectStateRecord;
+  },
+};
 const TRANSACTION_SCHEMA: RuntimeSchema<IngestTransactionRecord> = {
   parse(value) {
     return transactionRecordSchema.parse(value) as IngestTransactionRecord;
@@ -93,6 +101,8 @@ class SequenceIds implements IdGenerator {
   private subject = 1;
   private space = 1;
   private job = 1;
+  private lease = 1;
+  private owner = 1;
   private event = 1;
 
   subjectId(): SubjectId {
@@ -105,6 +115,14 @@ class SequenceIds implements IdGenerator {
 
   jobId(): JobId {
     return `job_${(this.job++).toString(16).padStart(32, "0")}` as JobId;
+  }
+
+  leaseId(): LeaseId {
+    return `lease_${(this.lease++).toString(16).padStart(32, "0")}` as LeaseId;
+  }
+
+  leaseOwnerId(): LeaseOwnerId {
+    return `lease_owner_${(this.owner++).toString(16).padStart(32, "0")}` as LeaseOwnerId;
   }
 
   eventId(): EventId {
@@ -178,14 +196,14 @@ const open = async (
   ids: SequenceIds,
   clock: FakeClock,
   options: OpenOptions = {},
-): Promise<Step5IngestComposition> => {
+): Promise<Step6Composition> => {
   const eventBus = new InProcessEventBus();
   if (options.published !== undefined) {
     eventBus.subscribe((event) => {
       options.published?.push(event);
     });
   }
-  return createStep5IngestComposition({
+  return createStep6Composition({
     root,
     ids,
     clock,
@@ -551,11 +569,19 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
     });
     const facts = stores(root);
     const state = await facts.states.read(created.subject.id);
-    await facts.states.write(
-      sealFact({
-        ...state,
-        currentVersionId: versionIdSchema.parse(`version_${"a".repeat(64)}`),
-      }),
+    const missingVersionId = versionIdSchema.parse(`version_${"a".repeat(64)}`);
+    const invalidState = sealFact<SubjectStateRecord>({
+      ...state,
+      currentVersionId: missingVersionId,
+      ...(state.pending === undefined
+        ? {}
+        : { pending: { ...state.pending, baseVersionId: missingVersionId } }),
+    });
+    await replaceFactFile(
+      root,
+      facts.layout.stateFile(created.subject.id),
+      invalidState,
+      STATE_SCHEMA,
     );
 
     await rejectCode(
@@ -610,7 +636,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       VERSION_MANIFEST_SCHEMA,
     );
     const committedState = sealFact<SubjectStateRecord>({
-      schemaVersion: 1,
+      schemaVersion: 2,
       subjectId: state.subjectId,
       generation: state.generation,
       materialSetHash: state.materialSetHash,
@@ -713,6 +739,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
     );
     const facts = stores(root);
     const transaction = await facts.transactions.read(request(1));
+    if (transaction.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
     const staging = facts.layout.ingestStagingDirectory(request(1), transaction.subjectId);
     await mkdir(staging, { recursive: true, mode: 0o700 });
     await writeFile(join(staging, "partial"), "partial", { mode: 0o600 });
@@ -801,6 +828,9 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
 
     const facts = stores(root);
     const transaction = await facts.transactions.read(request(1));
+    if (transaction.transactionKind !== "ingest") {
+      throw new Error("expected an ingest transaction fixture");
+    }
     const operationPayload = {
       ...transaction.operation,
       result: {
@@ -813,10 +843,14 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       checksum: computeFactChecksum(operationPayload),
     };
     const transactionPayload = { ...transaction, operation };
+    const forged = TRANSACTION_SCHEMA.parse({
+      ...transactionPayload,
+      checksum: computeFactChecksum(transactionPayload),
+    });
     await replaceFactFile(
       root,
       facts.layout.transactionFile(request(1)),
-      { ...transactionPayload, checksum: computeFactChecksum(transactionPayload) },
+      forged,
       TRANSACTION_SCHEMA,
     );
 
@@ -843,6 +877,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
 
     const facts = stores(root);
     const transaction = await facts.transactions.read(request(1));
+    if (transaction.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
     const operationPayload = {
       ...transaction.operation,
       result: {
@@ -863,10 +898,14 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       checksum: computeFactChecksum(operationPayload),
     };
     const transactionPayload = { ...transaction, operation };
+    const forged = TRANSACTION_SCHEMA.parse({
+      ...transactionPayload,
+      checksum: computeFactChecksum(transactionPayload),
+    });
     await replaceFactFile(
       root,
       facts.layout.transactionFile(request(1)),
-      { ...transactionPayload, checksum: computeFactChecksum(transactionPayload) },
+      forged,
       TRANSACTION_SCHEMA,
     );
 
@@ -947,7 +986,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       throw new Error("Expected a non-empty previous material set.");
     }
     const thirdState = sealFact<SubjectStateRecord>({
-      schemaVersion: 1,
+      schemaVersion: 2,
       subjectId: previous.subjectId,
       generation: previous.generation + 1,
       materialSetHash: previous.materialSetHash,
@@ -985,6 +1024,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
         "simulated process crash",
       );
 
+      clock.current = "2026-08-20T10:29:59.000Z" as IsoDateTime;
       const published: EngineEvent[] = [];
       const recovered = await open(root, ids, clock, { published });
       const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(1) });
@@ -992,6 +1032,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       expect(await stores(root).operations.read(request(1))).toMatchObject({ result });
       expect(await stores(root).transactions.read(request(1))).toMatchObject({
         state: "committed",
+        finishedAt: AT,
       });
       const eventFiles = await readdir(
         join(stores(root).layout.subjectDirectory(result.subject.id), "events"),

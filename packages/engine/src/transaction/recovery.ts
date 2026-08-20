@@ -1,11 +1,17 @@
 import { DistillyError, transactionRecordSchema } from "@distilly/protocol";
 import type {
+  DistillLeaseTransactionRecord,
   EngineEvent,
+  EventId,
+  EventRecord,
   IngestTransactionRecord,
   IsoDateTime,
+  PendingJobMarker,
   RequestId,
   SubjectRecord,
+  SubjectId,
   SubjectStateRecord,
+  TransactionRecord,
 } from "@distilly/protocol";
 
 import type { Clock } from "../defaults/system-clock.js";
@@ -13,14 +19,14 @@ import type { FileEventStore } from "../facts/event-store.js";
 import type { FileMaterialStore } from "../facts/material-store.js";
 import type { FileOperationStore } from "../facts/operation-store.js";
 import type { FileSpaceStore } from "../facts/space-store.js";
-import { computeFactChecksum } from "../facts/checksum.js";
+import { computeFactChecksum, verifyFactChecksum } from "../facts/checksum.js";
 import { canonicalJson } from "../facts/canonical-json.js";
 import type { FileStateStore } from "../facts/state-store.js";
 import type { FileSubjectStore } from "../facts/subject-store.js";
 import type { FileTransactionStore } from "../facts/transaction-store.js";
 import { storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
-import type { SqliteQueueProjection } from "../queue/sqlite-projection.js";
+import type { QueueRepository } from "../queue/sqlite-projection.js";
 import type { FileIngestStaging } from "./ingest-staging.js";
 import type { FileRequestLock } from "./request-lock.js";
 import type { FileSpaceIdentityLock } from "./space-identity-lock.js";
@@ -32,19 +38,17 @@ export interface RecoveryHooks {
   /** Runs after the immutable completed operation is durable. */
   readonly afterOperation?: () => void | Promise<void>;
   /** Runs after one immutable event is durable. */
-  readonly afterEvent?: (
-    eventId: IngestTransactionRecord["events"][number]["eventId"],
-  ) => void | Promise<void>;
+  readonly afterEvent?: (eventId: EventId) => void | Promise<void>;
   /** Runs after the queue projection is durable and clean. */
   readonly afterQueue?: () => void | Promise<void>;
 }
 
 const optionalSubject = async (
   store: FileSubjectStore,
-  request: IngestTransactionRecord,
+  subjectId: SubjectId,
 ): Promise<SubjectRecord | undefined> => {
   try {
-    return await store.read(request.subjectId);
+    return await store.read(subjectId);
   } catch (error) {
     if (error instanceof DistillyError && error.code === "not_found") return undefined;
     throw error;
@@ -53,17 +57,30 @@ const optionalSubject = async (
 
 const optionalState = async (
   store: FileStateStore,
-  request: IngestTransactionRecord,
+  subjectId: SubjectId,
 ): Promise<SubjectStateRecord | undefined> => {
   try {
-    return await store.read(request.subjectId);
+    return await store.read(subjectId);
   } catch (error) {
     if (error instanceof DistillyError && error.code === "not_found") return undefined;
     throw error;
   }
 };
 
-const terminalTransaction = (
+const optionalEvent = async (
+  store: FileEventStore,
+  subjectId: SubjectId,
+  eventId: EventId,
+): Promise<EventRecord | undefined> => {
+  try {
+    return await store.read(subjectId, eventId);
+  } catch (error) {
+    if (error instanceof DistillyError && error.code === "not_found") return undefined;
+    throw error;
+  }
+};
+
+const terminalIngestTransaction = (
   transaction: IngestTransactionRecord,
   state: "committed" | "aborted",
   finishedAt: IsoDateTime,
@@ -95,6 +112,130 @@ const terminalTransaction = (
     ...payload,
     checksum: computeFactChecksum(payload),
   }) as IngestTransactionRecord;
+};
+
+const terminalLeaseTransaction = (
+  transaction: DistillLeaseTransactionRecord,
+  state: "committed" | "aborted",
+  finishedAt: IsoDateTime,
+): DistillLeaseTransactionRecord => {
+  const common = {
+    schemaVersion: 1,
+    transactionKind: "distill_lease",
+    method: transaction.method,
+    requestId: transaction.requestId,
+    subjectId: transaction.subjectId,
+    jobId: transaction.jobId,
+    previousStateChecksum: transaction.previousStateChecksum,
+    targetStateChecksum: transaction.targetStateChecksum,
+    previousPending: transaction.previousPending,
+    targetPending: transaction.targetPending,
+    operation: transaction.operation,
+    event: transaction.event,
+    preparedAt: transaction.preparedAt,
+    finishedAt,
+  } as const;
+  const payload = { ...common, state };
+  return transactionRecordSchema.parse({
+    ...payload,
+    checksum: computeFactChecksum(payload),
+  }) as DistillLeaseTransactionRecord;
+};
+
+const statePayloadWithPending = (
+  state: SubjectStateRecord,
+  pending: PendingJobMarker,
+): Readonly<Record<string, unknown>> => ({
+  schemaVersion: 2,
+  subjectId: state.subjectId,
+  generation: state.generation,
+  ...(state.materialSetHash === undefined ? {} : { materialSetHash: state.materialSetHash }),
+  materialManifest: state.materialManifest,
+  ...(state.currentVersionId === undefined ? {} : { currentVersionId: state.currentVersionId }),
+  ...(state.suspendedVersionId === undefined
+    ? {}
+    : { suspendedVersionId: state.suspendedVersionId }),
+  pending,
+});
+
+const samePending = (left: PendingJobMarker, right: PendingJobMarker): boolean =>
+  canonicalJson(left) === canonicalJson(right);
+
+const terminalTime = (preparedAt: IsoDateTime, now: IsoDateTime): IsoDateTime =>
+  now < preparedAt ? preparedAt : now;
+
+const expectedLeaseExpiry = (completedAt: IsoDateTime): string =>
+  new Date(Date.parse(completedAt) + 30 * 60 * 1_000).toISOString();
+
+const assertLeaseTransitionTime = (transaction: DistillLeaseTransactionRecord): void => {
+  verifyFactChecksum(transaction.operation);
+  verifyFactChecksum(transaction.event);
+  const previousLease = transaction.previousPending.lease;
+  const targetLease = transaction.targetPending.lease;
+  switch (transaction.method) {
+    case "brief":
+      if (
+        targetLease === undefined ||
+        targetLease.acquiredAt !== transaction.operation.completedAt ||
+        targetLease.expiresAt !== expectedLeaseExpiry(transaction.operation.completedAt) ||
+        (previousLease !== undefined && previousLease.expiresAt > targetLease.acquiredAt)
+      ) {
+        throw storageCorrupt(
+          "Recovered brief journal does not describe a valid lease acquisition.",
+        );
+      }
+      return;
+    case "renew":
+      if (
+        previousLease === undefined ||
+        targetLease === undefined ||
+        transaction.operation.completedAt < previousLease.acquiredAt ||
+        previousLease.expiresAt <= transaction.operation.completedAt ||
+        targetLease.expiresAt !== expectedLeaseExpiry(transaction.operation.completedAt)
+      ) {
+        throw storageCorrupt("Recovered renew journal does not describe an active lease.");
+      }
+      return;
+    case "release":
+      if (
+        previousLease === undefined ||
+        targetLease !== undefined ||
+        previousLease.expiresAt <= transaction.operation.completedAt
+      ) {
+        throw storageCorrupt("Recovered release journal does not describe an active lease.");
+      }
+      return;
+    default: {
+      const exhaustive: never = transaction;
+      return exhaustive;
+    }
+  }
+};
+
+const assertLeaseState = (
+  transaction: DistillLeaseTransactionRecord,
+  state: SubjectStateRecord,
+  position: "previous" | "target",
+): void => {
+  assertLeaseTransitionTime(transaction);
+  if (state.subjectId !== transaction.subjectId || state.pending === undefined) {
+    throw storageCorrupt("Recovered lease state does not contain the journal-owned pending job.");
+  }
+  const expectedPending =
+    position === "target" ? transaction.targetPending : transaction.previousPending;
+  if (!samePending(state.pending, expectedPending)) {
+    throw storageCorrupt("Recovered lease state pending marker does not match its journal.");
+  }
+  const counterpartPending =
+    position === "target" ? transaction.previousPending : transaction.targetPending;
+  const counterpartChecksum = computeFactChecksum(
+    statePayloadWithPending(state, counterpartPending),
+  );
+  const expectedCounterpartChecksum =
+    position === "target" ? transaction.previousStateChecksum : transaction.targetStateChecksum;
+  if (counterpartChecksum !== expectedCounterpartChecksum) {
+    throw storageCorrupt("Recovered lease journal changes state outside the pending lease marker.");
+  }
 };
 
 const assertTargetState = (
@@ -148,12 +289,24 @@ const assertTargetState = (
       job.materialSetHash !== pending.materialSetHash ||
       job.addedMaterialCount !== pending.addedMaterialCount ||
       job.totalMaterialCount !== pending.totalMaterialCount ||
-      job.state !== "pending" ||
       job.queuedAt !== pending.queuedAt ||
-      job.leaseExpiresAt !== undefined ||
       job.failure !== undefined)
   ) {
     throw storageCorrupt("Recovered pending marker does not match the stored ingest job.");
+  }
+  if (job !== undefined && pending !== undefined) {
+    const activeLease =
+      pending.lease !== undefined && transaction.operation.completedAt < pending.lease.expiresAt
+        ? pending.lease
+        : undefined;
+    if (
+      (activeLease === undefined &&
+        (job.state !== "pending" || job.leaseExpiresAt !== undefined)) ||
+      (activeLease !== undefined &&
+        (job.state !== "leased" || job.leaseExpiresAt !== activeLease.expiresAt))
+    ) {
+      throw storageCorrupt("Recovered ingest job lease state does not match its pending marker.");
+    }
   }
 };
 
@@ -170,13 +323,13 @@ export interface RecoveryDependencies {
   readonly requestLocks: FileRequestLock;
   readonly spaceIdentityLocks: FileSpaceIdentityLock;
   readonly subjectLocks: FileSubjectLock;
-  readonly queue: SqliteQueueProjection;
+  readonly queue: QueueRepository;
   readonly eventBus: EventBus;
   readonly clock: Clock;
   readonly hooks?: RecoveryHooks;
 }
 
-/** Reconciles prepared ingest journals from facts without regenerating semantic output. */
+/** Reconciles prepared ingest and lease journals without regenerating semantic output. */
 export class RecoveryService {
   readonly #transactions: FileTransactionStore;
   readonly #operations: FileOperationStore;
@@ -189,7 +342,7 @@ export class RecoveryService {
   readonly #requestLocks: FileRequestLock;
   readonly #spaceIdentityLocks: FileSpaceIdentityLock;
   readonly #subjectLocks: FileSubjectLock;
-  readonly #queue: SqliteQueueProjection;
+  readonly #queue: QueueRepository;
   readonly #eventBus: EventBus;
   readonly #clock: Clock;
   readonly #hooks: RecoveryHooks;
@@ -236,9 +389,10 @@ export class RecoveryService {
       const transaction = await this.#transactions.readOptional(requestId);
       if (transaction === undefined || transaction.state !== "prepared") return;
 
-      const identityLease = transaction.createdSubject
-        ? await this.#spaceIdentityLocks.acquire(transaction.spaceId)
-        : undefined;
+      const identityLease =
+        transaction.transactionKind === "ingest" && transaction.createdSubject
+          ? await this.#spaceIdentityLocks.acquire(transaction.spaceId)
+          : undefined;
       try {
         const subjectLease = await this.#subjectLocks.acquire(transaction.subjectId);
         try {
@@ -290,21 +444,70 @@ export class RecoveryService {
     }
     await this.#queue.apply({
       subjectId: transaction.subjectId,
+      stateChecksum: state.checksum,
       ...(state.pending === undefined ? {} : { pending: state.pending }),
     });
     await this.#hooks.afterQueue?.();
     await this.#transactions.write(
-      terminalTransaction(transaction, "committed", this.#clock.now()),
+      terminalIngestTransaction(
+        transaction,
+        "committed",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
     );
     return transaction.events.map((record) => record.event);
   }
 
-  private async reconcileLocked(
+  /**
+   * Materializes one already-committed lease mutation from its exact journal payload.
+   *
+   * The caller must hold the journal's request and subject locks. The returned
+   * event is published only after those locks have been released.
+   *
+   * @param transaction - Prepared lease journal whose target state is visible.
+   * @param state - Verified target state currently visible at the subject path.
+   * @returns The exact persisted invalidation ready for post-lock publication.
+   */
+  async materializeLeaseCommitted(
+    transaction: DistillLeaseTransactionRecord,
+    state: SubjectStateRecord,
+  ): Promise<readonly EngineEvent[]> {
+    if (transaction.state !== "prepared" || state.checksum !== transaction.targetStateChecksum) {
+      throw storageCorrupt("Only a visible prepared lease target can be materialized.");
+    }
+    assertLeaseState(transaction, state, "target");
+    await this.#operations.write(transaction.operation);
+    await this.#hooks.afterOperation?.();
+    await this.#events.write(transaction.subjectId, transaction.event);
+    await this.#hooks.afterEvent?.(transaction.event.eventId);
+    await this.#queue.apply({
+      subjectId: transaction.subjectId,
+      stateChecksum: state.checksum,
+      pending: transaction.targetPending,
+    });
+    await this.#hooks.afterQueue?.();
+    await this.#transactions.write(
+      terminalLeaseTransaction(
+        transaction,
+        "committed",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
+    return [transaction.event.event];
+  }
+
+  private async reconcileLocked(transaction: TransactionRecord): Promise<readonly EngineEvent[]> {
+    return transaction.transactionKind === "ingest"
+      ? this.reconcileIngestLocked(transaction)
+      : this.reconcileLeaseLocked(transaction);
+  }
+
+  private async reconcileIngestLocked(
     transaction: IngestTransactionRecord,
   ): Promise<readonly EngineEvent[]> {
-    const subject = await optionalSubject(this.#subjects, transaction);
+    const subject = await optionalSubject(this.#subjects, transaction.subjectId);
     const state =
-      subject === undefined ? undefined : await optionalState(this.#states, transaction);
+      subject === undefined ? undefined : await optionalState(this.#states, transaction.subjectId);
     if (subject !== undefined && subject.spaceId !== transaction.spaceId) {
       throw storageCorrupt("Recovered subject space does not match its ingest journal.");
     }
@@ -339,7 +542,53 @@ export class RecoveryService {
         await this.#materials.removeJournalMaterial(transaction.subjectId, entry);
       }
     }
-    await this.#transactions.write(terminalTransaction(transaction, "aborted", this.#clock.now()));
+    await this.#transactions.write(
+      terminalIngestTransaction(
+        transaction,
+        "aborted",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
     return [];
+  }
+
+  private async reconcileLeaseLocked(
+    transaction: DistillLeaseTransactionRecord,
+  ): Promise<readonly EngineEvent[]> {
+    const subject = await optionalSubject(this.#subjects, transaction.subjectId);
+    if (subject === undefined) {
+      throw storageCorrupt("Prepared lease journal references a missing subject.");
+    }
+    const state = await optionalState(this.#states, transaction.subjectId);
+    if (state === undefined) {
+      throw storageCorrupt("Prepared lease journal references a missing subject state.");
+    }
+
+    if (state.checksum === transaction.targetStateChecksum) {
+      return this.materializeLeaseCommitted(transaction, state);
+    }
+    if (state.checksum === transaction.previousStateChecksum) {
+      assertLeaseState(transaction, state, "previous");
+      const operation = await this.#operations.readOptional(transaction.requestId);
+      const event = await optionalEvent(
+        this.#events,
+        transaction.subjectId,
+        transaction.event.eventId,
+      );
+      if (operation !== undefined || event !== undefined) {
+        throw storageCorrupt(
+          "A previous-state lease journal cannot have post-commit operation or event facts.",
+        );
+      }
+      await this.#transactions.write(
+        terminalLeaseTransaction(
+          transaction,
+          "aborted",
+          terminalTime(transaction.preparedAt, this.#clock.now()),
+        ),
+      );
+      return [];
+    }
+    throw storageCorrupt("Prepared lease is neither at its target nor its previous fact state.");
   }
 }

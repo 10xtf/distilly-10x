@@ -457,9 +457,12 @@ describe("Step 5 root fact stores", () => {
     ]);
 
     const committed = makeTransaction(REQUEST_ID, "committed");
+    if (committed.state !== "committed") throw new Error("Expected a committed transaction.");
     await transactions.write(committed);
     await expect(transactions.read(REQUEST_ID)).resolves.toEqual(committed);
     await transactions.write(committed);
+    await expectCode(transactions.write({ ...committed, finishedAt: AT }), "storage_corrupt");
+    await expect(transactions.read(REQUEST_ID)).resolves.toEqual(committed);
     await expectCode(transactions.write(first), "storage_corrupt");
     await expectCode(
       transactions.write(makeTransaction(THIRD_REQUEST_ID, "committed")),

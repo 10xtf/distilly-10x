@@ -3,17 +3,20 @@ import { z } from "zod";
 import { WIRE_LIMITS } from "../json.js";
 import type { MutationMethodName } from "../methods.js";
 import type {
+  DistillLeaseTransactionRecord,
   EventRecord,
   FactEnvelope,
   IngestTransactionRecord,
   OperationScope,
   OperationTombstoneRecord,
+  PendingLeaseMarker,
   PendingJobMarker,
   SpaceRecord,
   StoredOperationResult,
   SubjectRecord,
   SubjectStateRecord,
   TransactionRecord,
+  VersionClaimsSnapshot,
   VersionMaterialEntry,
 } from "../values/facts.js";
 import type { VersionMaterialManifest, VersionRecord } from "../values/versions.js";
@@ -24,6 +27,7 @@ import {
 } from "./common.js";
 import type { MatchingSchema } from "./common.js";
 import { actorContextSchema } from "./context.js";
+import { claimSchema } from "./claims.js";
 import { engineEventSchema } from "./events.js";
 import {
   bundleExportResultSchema,
@@ -31,7 +35,12 @@ import {
   exportRefSchema,
   installRefSchema,
 } from "./hosts.js";
-import { hostDistillBriefingSchema, jobLeaseSchema, pendingJobSchema } from "./jobs.js";
+import {
+  briefContractSchema,
+  hostDistillBriefingSchema,
+  jobLeaseSchema,
+  pendingJobSchema,
+} from "./jobs.js";
 import { ingestFilesResultSchema, ingestResultSchema } from "./materials.js";
 import {
   contentDigestSchema,
@@ -39,6 +48,8 @@ import {
   factChecksumSchema,
   isoDateTimeSchema,
   jobIdSchema,
+  leaseIdSchema,
+  leaseOwnerIdSchema,
   materialIdSchema,
   materialSetHashSchema,
   provenanceDigestSchema,
@@ -63,6 +74,11 @@ const schemaFor =
 
 const factEnvelopeV1Shape = {
   schemaVersion: z.literal(1),
+  checksum: factChecksumSchema,
+} as const;
+
+const factEnvelopeV2Shape = {
+  schemaVersion: z.literal(2),
   checksum: factChecksumSchema,
 } as const;
 
@@ -127,6 +143,46 @@ const sortedMaterialEntriesSchema = z
     }
   });
 
+const sortedClaimsSchema = z.array(claimSchema).superRefine((claims, context) => {
+  for (let index = 1; index < claims.length; index += 1) {
+    const previous = claims[index - 1];
+    const current = claims[index];
+    if (previous !== undefined && current !== undefined && previous.id >= current.id) {
+      context.addIssue({
+        code: "custom",
+        path: [index, "id"],
+        message: "claims must be strictly ordered by ClaimId",
+      });
+    }
+  }
+});
+
+/** Runtime schema for immutable claims owned by one persisted version. */
+export const versionClaimsSnapshotSchema = schemaFor<VersionClaimsSnapshot>()(
+  z.strictObject({
+    ...factEnvelopeV1Shape,
+    subjectId: subjectIdSchema,
+    versionId: versionIdSchema,
+    claims: sortedClaimsSchema,
+  }),
+);
+
+/** Runtime schema for one persisted pending-work lease. */
+export const pendingLeaseMarkerSchema = schemaFor<PendingLeaseMarker>()(
+  z
+    .strictObject({
+      id: leaseIdSchema,
+      owner: leaseOwnerIdSchema,
+      acquiredAt: isoDateTimeSchema,
+      expiresAt: isoDateTimeSchema,
+      contract: briefContractSchema,
+    })
+    .refine((lease) => lease.expiresAt > lease.acquiredAt, {
+      path: ["expiresAt"],
+      message: "pending lease expiry must be later than acquisition",
+    }),
+);
+
 /** Runtime schema for the fact-owned subset of pending job state. */
 export const pendingJobMarkerSchema = schemaFor<PendingJobMarker>()(
   z
@@ -138,6 +194,7 @@ export const pendingJobMarkerSchema = schemaFor<PendingJobMarker>()(
       addedMaterialCount: safeNonNegativeIntegerSchema,
       totalMaterialCount: safeNonNegativeIntegerSchema,
       queuedAt: isoDateTimeSchema,
+      lease: pendingLeaseMarkerSchema.optional(),
     })
     .superRefine((marker, context) => {
       if (marker.addedMaterialCount > marker.totalMaterialCount) {
@@ -154,7 +211,7 @@ export const pendingJobMarkerSchema = schemaFor<PendingJobMarker>()(
 export const subjectStateRecordSchema = schemaFor<SubjectStateRecord>()(
   z
     .strictObject({
-      ...factEnvelopeV1Shape,
+      ...factEnvelopeV2Shape,
       subjectId: subjectIdSchema,
       generation: safeNonNegativeIntegerSchema,
       materialSetHash: materialSetHashSchema.optional(),
@@ -224,6 +281,13 @@ export const subjectStateRecordSchema = schemaFor<SubjectStateRecord>()(
             code: "custom",
             path: ["pending", "totalMaterialCount"],
             message: "pending total count must match the subject manifest",
+          });
+        }
+        if (state.pending.baseVersionId !== state.currentVersionId) {
+          context.addIssue({
+            code: "custom",
+            path: ["pending", "baseVersionId"],
+            message: "pending base version must match the current subject version",
           });
         }
       }
@@ -679,7 +743,281 @@ export const ingestTransactionRecordSchema = schemaFor<IngestTransactionRecord>(
     }),
 );
 
+const distillLeaseTransactionBaseShape = {
+  ...factEnvelopeV1Shape,
+  transactionKind: z.literal("distill_lease"),
+  requestId: requestIdSchema,
+  subjectId: subjectIdSchema,
+  jobId: jobIdSchema,
+  previousStateChecksum: factChecksumSchema,
+  targetStateChecksum: factChecksumSchema,
+  previousPending: pendingJobMarkerSchema,
+  targetPending: pendingJobMarkerSchema,
+  event: eventRecordSchema,
+  preparedAt: isoDateTimeSchema,
+} as const;
+
+/** Runtime schema for one persisted lease transaction method discriminant. */
+export const distillLeaseTransactionMethodSchema = z.enum(["brief", "renew", "release"]);
+
+const distillLeaseTransactionVariant = <M extends "brief" | "renew" | "release">(
+  method: M,
+  operation: (typeof operationRecordVariants)[`distill.${M}`],
+) =>
+  z.union([
+    z.strictObject({
+      ...distillLeaseTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("prepared"),
+    }),
+    z.strictObject({
+      ...distillLeaseTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("committed"),
+      finishedAt: isoDateTimeSchema,
+    }),
+    z.strictObject({
+      ...distillLeaseTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("aborted"),
+      finishedAt: isoDateTimeSchema,
+    }),
+  ]);
+
+const distillLeaseTransactionUnionSchema = z.union([
+  distillLeaseTransactionVariant("brief", operationRecordVariants["distill.brief"]),
+  distillLeaseTransactionVariant("renew", operationRecordVariants["distill.renew"]),
+  distillLeaseTransactionVariant("release", operationRecordVariants["distill.release"]),
+]);
+
+type ParsedDistillLeaseTransaction = z.infer<typeof distillLeaseTransactionUnionSchema>;
+type ParsedPendingJobMarker = z.infer<typeof pendingJobMarkerSchema>;
+
+const pendingStableFieldsEqual = (
+  left: ParsedPendingJobMarker,
+  right: ParsedPendingJobMarker,
+): boolean =>
+  left.jobId === right.jobId &&
+  left.generation === right.generation &&
+  left.baseVersionId === right.baseVersionId &&
+  left.materialSetHash === right.materialSetHash &&
+  left.addedMaterialCount === right.addedMaterialCount &&
+  left.totalMaterialCount === right.totalMaterialCount &&
+  left.queuedAt === right.queuedAt;
+
+const briefContractsEqual = (
+  left: PendingLeaseMarker["contract"],
+  right: PendingLeaseMarker["contract"],
+): boolean =>
+  left.digest === right.digest &&
+  left.sourceGroupingVersion === right.sourceGroupingVersion &&
+  left.promptVersion === right.promptVersion &&
+  left.draftSchemaVersion === right.draftSchemaVersion;
+
+const pendingMarkerMatchesBriefing = (
+  marker: ParsedPendingJobMarker,
+  transaction: Extract<ParsedDistillLeaseTransaction, { readonly method: "brief" }>,
+): boolean => {
+  const briefing = transaction.operation.result;
+  return (
+    briefing.job.id === marker.jobId &&
+    briefing.job.subjectId === transaction.subjectId &&
+    briefing.job.generation === marker.generation &&
+    briefing.job.baseVersionId === marker.baseVersionId &&
+    briefing.job.materialSetHash === marker.materialSetHash &&
+    briefing.job.addedMaterialCount === marker.addedMaterialCount &&
+    briefing.job.totalMaterialCount === marker.totalMaterialCount &&
+    briefing.job.queuedAt === marker.queuedAt &&
+    briefing.job.state === "leased" &&
+    marker.lease !== undefined &&
+    briefing.job.leaseExpiresAt === marker.lease.expiresAt &&
+    briefing.lease.id === marker.lease.id &&
+    briefing.lease.jobId === marker.jobId &&
+    briefing.lease.generation === marker.generation &&
+    briefing.lease.owner === marker.lease.owner &&
+    briefing.lease.acquiredAt === marker.lease.acquiredAt &&
+    briefing.lease.expiresAt === marker.lease.expiresAt &&
+    briefing.lease.briefContractDigest === marker.lease.contract.digest &&
+    briefContractsEqual(marker.lease.contract, briefing.contract) &&
+    briefing.subject.currentVersionId === marker.baseVersionId
+  );
+};
+
+const leaseMarkerMatchesJobLease = (
+  marker: ParsedPendingJobMarker,
+  result: z.infer<typeof jobLeaseSchema>,
+): boolean =>
+  marker.lease !== undefined &&
+  result.id === marker.lease.id &&
+  result.jobId === marker.jobId &&
+  result.generation === marker.generation &&
+  result.owner === marker.lease.owner &&
+  result.acquiredAt === marker.lease.acquiredAt &&
+  result.expiresAt === marker.lease.expiresAt &&
+  result.briefContractDigest === marker.lease.contract.digest;
+
+/** Runtime schema for an atomic lease acquire, renewal, or release journal. */
+export const distillLeaseTransactionRecordSchema = schemaFor<DistillLeaseTransactionRecord>()(
+  distillLeaseTransactionUnionSchema.superRefine((transaction, context) => {
+    if (transaction.state !== "prepared" && transaction.finishedAt < transaction.preparedAt) {
+      context.addIssue({
+        code: "custom",
+        path: ["finishedAt"],
+        message: "lease journal finish time cannot precede preparation",
+      });
+    }
+    if (transaction.previousPending.jobId !== transaction.jobId) {
+      context.addIssue({
+        code: "custom",
+        path: ["previousPending", "jobId"],
+        message: "previous pending marker must match the journal job",
+      });
+    }
+    if (transaction.targetPending.jobId !== transaction.jobId) {
+      context.addIssue({
+        code: "custom",
+        path: ["targetPending", "jobId"],
+        message: "target pending marker must match the journal job",
+      });
+    }
+    if (!pendingStableFieldsEqual(transaction.previousPending, transaction.targetPending)) {
+      context.addIssue({
+        code: "custom",
+        path: ["targetPending"],
+        message: "lease transactions cannot change stable pending-job fields",
+      });
+    }
+    if (transaction.operation.requestId !== transaction.requestId) {
+      context.addIssue({
+        code: "custom",
+        path: ["operation", "requestId"],
+        message: "operation request id must match the lease journal",
+      });
+    }
+    if (
+      transaction.operation.scope.kind !== "subject" ||
+      transaction.operation.scope.subjectId !== transaction.subjectId
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["operation", "scope"],
+        message: "operation scope must match the lease journal subject",
+      });
+    }
+    if (transaction.event.event.kind !== "job.changed") {
+      context.addIssue({
+        code: "custom",
+        path: ["event", "event", "kind"],
+        message: "lease journals require exactly one job.changed event",
+      });
+    }
+    if (transaction.event.event.subjectId !== transaction.subjectId) {
+      context.addIssue({
+        code: "custom",
+        path: ["event", "event", "subjectId"],
+        message: "lease journal event subject must match the journal",
+      });
+    }
+    if (transaction.event.event.versionId !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["event", "event", "versionId"],
+        message: "job.changed events cannot identify a version",
+      });
+    }
+    if (transaction.event.requestId !== transaction.requestId) {
+      context.addIssue({
+        code: "custom",
+        path: ["event", "requestId"],
+        message: "lease journal event request id must match the journal",
+      });
+    }
+    if (!actorsEqual(transaction.event.actor, transaction.operation.actor)) {
+      context.addIssue({
+        code: "custom",
+        path: ["event", "actor"],
+        message: "lease journal event actor must match the stored operation",
+      });
+    }
+
+    switch (transaction.method) {
+      case "brief": {
+        if (transaction.targetPending.lease === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["targetPending", "lease"],
+            message: "brief must persist the acquired lease",
+          });
+        } else if (!pendingMarkerMatchesBriefing(transaction.targetPending, transaction)) {
+          context.addIssue({
+            code: "custom",
+            path: ["operation", "result"],
+            message: "brief result must exactly match the target pending marker",
+          });
+        }
+        break;
+      }
+      case "renew": {
+        const previousLease = transaction.previousPending.lease;
+        const targetLease = transaction.targetPending.lease;
+        if (previousLease === undefined || targetLease === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["targetPending", "lease"],
+            message: "renew requires previous and target leases",
+          });
+          break;
+        }
+        if (
+          previousLease.id !== targetLease.id ||
+          previousLease.owner !== targetLease.owner ||
+          previousLease.acquiredAt !== targetLease.acquiredAt ||
+          !briefContractsEqual(previousLease.contract, targetLease.contract) ||
+          targetLease.expiresAt <= previousLease.expiresAt
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["targetPending", "lease"],
+            message: "renew may only extend the expiry of the existing lease",
+          });
+        }
+        if (!leaseMarkerMatchesJobLease(transaction.targetPending, transaction.operation.result)) {
+          context.addIssue({
+            code: "custom",
+            path: ["operation", "result"],
+            message: "renew result must exactly match the target pending marker",
+          });
+        }
+        break;
+      }
+      case "release":
+        if (transaction.previousPending.lease === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["previousPending", "lease"],
+            message: "release requires a previous lease",
+          });
+        }
+        if (transaction.targetPending.lease !== undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["targetPending", "lease"],
+            message: "release must remove the pending lease",
+          });
+        }
+        break;
+      default: {
+        const exhaustive: never = transaction;
+        return exhaustive;
+      }
+    }
+  }),
+);
+
 /** Runtime schema for the root transaction fact union. */
 export const transactionRecordSchema = schemaFor<TransactionRecord>()(
-  ingestTransactionRecordSchema,
+  z.union([ingestTransactionRecordSchema, distillLeaseTransactionRecordSchema]),
 );

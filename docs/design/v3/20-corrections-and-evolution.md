@@ -57,7 +57,7 @@ full 受 briefing 上限；它不是修复 invalid evidence 的捷径。Version 
 
 ### 20.4 编辑与删除
 
-首版 Panel 不直接改 claims.jsonl：
+首版 Panel 不直接改版本目录中的 claims.json：
 
 - 改人物事实 → correction；
 - 认为 claim 已过时 → correction + supersedes；

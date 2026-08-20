@@ -6,7 +6,7 @@
 
 1. 校验 wire schema 与 requestId 幂等。
 2. 取得 subject lock，重新读取 state。
-3. 校验 job、generation、lease、briefContractDigest、materialSetHash 与 baseVersionId；从 lease record 取得 pinned BriefContract。
+3. 校验 job、generation、session LeaseOwnerId、state.pending.lease、briefContractDigest、materialSetHash 与 baseVersionId；从 verified PendingLeaseMarker 取得 pinned BriefContract。
 4. 校验 patch operation 与目标 ClaimId。
 5. 解析每个 BriefMaterialRef，验证 MaterialId 属于主体与当前集合。
 6. 读取真实 content，验证 quote / locator。
@@ -162,12 +162,20 @@ export interface ReviewLaunch {
 export interface VersionMaterialManifest extends FactEnvelope<1> {
   readonly items: readonly VersionMaterialEntry[];
 }
+
+export interface VersionClaimsSnapshot extends FactEnvelope<1> {
+  readonly subjectId: SubjectId;
+  readonly versionId: VersionId;
+  readonly claims: readonly Claim[];
+}
 ~~~
 
 VersionId 由引擎生成，调用方不可指定。VersionCreation 是互斥来源合同：只有 distill.commit 产生 host_distill 并必须带 lease 固定的 digest / prompt / draft schema；correction、rollback、bundle import 与 renderer-only 记录各自真实来源，不能伪造 sentinel briefing。parentId 始终是创建时的 current / CAS 基线；derivedFromCandidateVersionId 只在 correction 替代 suspended candidate 时存在，说明 claims 的内容派生边，不改变 promote 的 parent 校验。promote 把原 current 变 historical，candidate 变 current；reject 不删除 version。rollback 创建新的 current version / event 指向选定历史内容，不把历史指针静默倒回。
 
 version.json 保存不可变 VersionRecord，只记录创建时的 createdDisposition，不随 promote / reject 改写。VersionSummary.status 是读取 state.json 与 review events 后得到的派生状态；current、suspended、historical、rejected 的转移只写 state/event。这样“不可变版本”与“可审核状态”不是两个互相冲突的真相。
 
-每个 version 同事务写 VersionMaterialManifest 到 materials.json，items 按 MaterialId canonical bytes 严格升序且不得重复；按 hashMaterialSet 规则重算必须等于 VersionRecord.materialSetHash，items.length 必须等于 materialCount，每项摘要还必须与对应不可变 MaterialRecord 一致。它是历史 material membership 的事实 manifest，不复制正文。Panel 的 atVersionId、历史 source grouping、bundle evidence 与恢复都从该 manifest 取集合，不能试图从不可逆 hash 或当前目录猜历史 generation。privacy purge 仍可按 §20.5 删除受影响历史与 manifest，并留下无内容 tombstone。
+每个 version 同事务写 VersionMaterialManifest 到 materials.json，items 按 MaterialId canonical UTF-8 bytes 严格升序且不得重复；按 hashMaterialSet 规则重算必须等于 VersionRecord.materialSetHash，items.length 必须等于 materialCount，每项摘要还必须与对应不可变 MaterialRecord 一致。它是历史 material membership 的事实 manifest，不复制正文。Panel 的 atVersionId、历史 source grouping、bundle evidence 与恢复都从该 manifest 取集合，不能试图从不可逆 hash 或当前目录猜历史 generation。
+
+同事务还把**一个**完整 VersionClaimsSnapshot 写到 `versions/<version-id>/claims.json`；不是 jsonl，不允许每 claim 一个 envelope，也不允许“文件存在但尾部被截断”仍被当成部分版本。snapshot.subjectId/versionId 必须分别等于 VersionRecord.subjectId/id，claims 按 ClaimId canonical UTF-8 bytes 严格升序且不得重复。verified version reader 必须一起读取并验证 version.json、materials.json、claims.json、manifest 引用的每个 MaterialRecord 与 content.txt：文件存在、FactEnvelope/path/id、material content digest、manifest 摘要、claim evidence membership、精确 quote 和 Unicode-scalar locator 都成立后才返回。上述必需文件任一缺失、claim 引用 manifest 外 material、正文或 quote/locator 不匹配、重复或乱序都返回 storage_corrupt，不返回 partial profile；未知 schemaVersion 仍按 schema_unsupported。privacy purge 可按 §20.5 删除受影响历史、manifest 与 snapshot，并留下无内容 tombstone。
 
 ---

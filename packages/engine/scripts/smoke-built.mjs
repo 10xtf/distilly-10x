@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
-const rootModule = await import("../lib/index.js");
+const rootModule = await import("@distilly/engine");
 assert.deepEqual(Object.keys(rootModule), [], "the Engine root export must remain empty");
 
 const startChild = (root, eventFile, label, holdMilliseconds) => {

@@ -209,6 +209,68 @@ function targetForBareSpecifier(specifier, packageNames) {
   return undefined;
 }
 
+function targetForDependencyAlias(
+  specifier,
+  packageNames,
+  declaringDirectory,
+  packageNamesByDirectory,
+) {
+  if (typeof specifier !== "string") {
+    return undefined;
+  }
+  let reference;
+  let acceptsNamedPackage = false;
+  if (specifier.startsWith("npm:")) {
+    reference = specifier.slice("npm:".length);
+    acceptsNamedPackage = true;
+  } else if (specifier.startsWith("workspace:")) {
+    reference = specifier.slice("workspace:".length);
+    acceptsNamedPackage = true;
+  } else if (specifier.startsWith("link:")) {
+    reference = specifier.slice("link:".length);
+  } else if (specifier.startsWith("file:")) {
+    reference = specifier.slice("file:".length);
+  } else if (
+    specifier === "." ||
+    specifier === ".." ||
+    specifier.startsWith("./") ||
+    specifier.startsWith("../")
+  ) {
+    reference = specifier;
+  } else {
+    return undefined;
+  }
+
+  if (
+    (reference === "." ||
+      reference === ".." ||
+      reference.startsWith("./") ||
+      reference.startsWith("../"))
+  ) {
+    return packageNamesByDirectory.get(resolve(declaringDirectory, reference));
+  }
+
+  if (!acceptsNamedPackage) {
+    return undefined;
+  }
+
+  for (const packageName of packageNames) {
+    if (reference === packageName || reference.startsWith(`${packageName}@`)) {
+      return packageName;
+    }
+  }
+  return /^(@distilly\/[^/@]+)(?:@.*)?$/.exec(reference)?.[1];
+}
+
+function targetForSourceSpecifier(specifier, packageNames, aliases) {
+  for (const [alias, target] of aliases) {
+    if (specifier === alias || specifier.startsWith(`${alias}/`)) {
+      return target;
+    }
+  }
+  return targetForBareSpecifier(specifier, packageNames);
+}
+
 function packageForPath(path, packages) {
   return packages.find((candidate) => isInside(candidate.directory, path));
 }
@@ -310,9 +372,13 @@ export async function verify(root = process.cwd()) {
   const packagesByPath = [...packages].sort(
     (left, right) => right.directory.length - left.directory.length,
   );
+  const packageNamesByDirectory = new Map(
+    packages.map((packageEntry) => [packageEntry.directory, packageEntry.name]),
+  );
   const graph = new Map([...packageNames].sort().map((name) => [name, new Set()]));
 
   for (const packageEntry of packages) {
+    const internalAliases = new Map();
     for (const section of DEPENDENCY_SECTIONS) {
       const dependencies = packageEntry.manifest[section];
       if (dependencies === undefined) {
@@ -329,7 +395,17 @@ export async function verify(root = process.cwd()) {
         continue;
       }
       for (const dependency of Object.keys(dependencies).sort()) {
-        const target = targetForBareSpecifier(dependency, orderedPackageNames);
+        const aliasTarget = targetForDependencyAlias(
+          dependencies[dependency],
+          orderedPackageNames,
+          packageEntry.directory,
+          packageNamesByDirectory,
+        );
+        if (aliasTarget !== undefined) {
+          internalAliases.set(dependency, aliasTarget);
+        }
+        const target =
+          aliasTarget ?? targetForBareSpecifier(dependency, orderedPackageNames);
         if (target === undefined) {
           continue;
         }
@@ -350,6 +426,10 @@ export async function verify(root = process.cwd()) {
         });
       }
     }
+
+    const orderedInternalAliases = [...internalAliases].sort(
+      ([left], [right]) => right.length - left.length || compareText(left, right),
+    );
 
     for (const path of await sourceFiles(packageEntry.sourceDirectory)) {
       const sourceText = await readFile(path, "utf8");
@@ -411,9 +491,10 @@ export async function verify(root = process.cwd()) {
           continue;
         }
 
-        const target = targetForBareSpecifier(
+        const target = targetForSourceSpecifier(
           specifier.value,
           orderedPackageNames,
+          orderedInternalAliases,
         );
         if (target === undefined) {
           continue;

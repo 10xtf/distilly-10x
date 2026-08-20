@@ -59,7 +59,7 @@ npx distilly@VERSION setup 是 bootstrap 入口，但只有 complete EngineRunti
 
 ### 19.3 版本握手
 
-PluginInstallManifest 记录 pluginVersion、engineVersion、wireMajor、promptVersion 与 launcher digest。MCP initialize 暴露 server version；canonical skill 的 minimum / maximum wire major 与 engine 握手。
+PluginInstallManifest 是 Step 12 写入 `~/.distilly/` 的机器级安装事实，记录 pluginVersion、engineVersion、wireMajor、promptVersion 与 launcher digest；它不是 source tree 的 `plugins/release-manifest.json`。MCP initialize 暴露 server version；canonical skill 的 minimum / maximum wire major 与 engine 握手。
 
 - major 不兼容：拒绝工具调用并给 upgrade / rollback 命令；
 - plugin patch 落后但 wire 兼容：doctor 警告，不阻塞；
@@ -107,26 +107,69 @@ handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；S
 
 ~~~text
 plugins/
+├── release-manifest.json                # assembler 生成；repo release contract
 ├── shared/
-│   ├── skills/
-│   │   └── distilly/
-│   │       ├── SKILL.md                 # 唯一 canonical orchestration
-│   │       └── references/
-│   └── assets/
+│   └── skills/
+│       └── distilly/
+│           ├── SKILL.md                 # 唯一 canonical orchestration
+│           ├── references/
+│           └── assets/
 ├── codex/
 │   ├── .codex-plugin/plugin.json
-│   ├── .mcp.json.template
+│   ├── .mcp.json.template               # Step 12 input；不可安装
 │   ├── hooks/
-│   └── skills/                          # release assembler 生成 copy
+│   └── skills/distilly/                 # assembler exact mirror
 ├── claude-code/
 │   ├── .claude-plugin/plugin.json
-│   ├── .mcp.json.template
+│   ├── .mcp.json.template               # Step 12 input；不可安装
 │   ├── hooks/
-│   └── skills/                          # release assembler 生成 copy
+│   └── skills/distilly/                 # assembler exact mirror
 └── fixtures/
 ~~~
 
-源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。release assembler 从 shared 复制，写 content digest；门禁重新生成并 diff，防止两家漂移。
+canonical skill root 精确为 `plugins/shared/skills/distilly`。tree walk 递归包含其下每个 regular file，包括 SKILL.md、references 与 skill-local assets；空目录不进入 digest，root 内任何 symlink、socket、device 或其它非 regular file 都拒绝。relative path 必须是无前导 slash、反斜杠、NUL、空 segment、`.` 或 `..` 的 UTF-8 POSIX path，并按 path 的 UTF-8 bytes 严格升序。每项精确为 `{ path, contentDigest }`，其中 `contentDigest = "sha256_" + SHA-256(rawFileBytes)`；assembler 不做 LF、Unicode、frontmatter 或 Markdown normalization。canonical tree digest 固定为：
+
+~~~text
+"sha256_" + SHA-256(
+  "canonical-skill-tree-v1\0" +
+  canonicalJson(sortedFiles)
+)
+~~~
+
+assembler 把 canonical root exact-mirror 到 `plugins/codex/skills/distilly` 与 `plugins/claude-code/skills/distilly`：创建缺项、逐 raw byte 覆盖漂移项，并删除目标中 source 不存在的 stale file/empty directory；目标路径也不得穿过 symlink。完成后两个 target 重新 walk 得到与 canonical 完全相同的 file tuple 与 tree digest，否则 assembly 失败。canonical SKILL.md 的 frontmatter name 固定 distilly；宿主差异只在 target manifest/hook，不能在两个 skill copy 中插入条件化 bytes。
+
+`plugins/release-manifest.json` 的 schemaVersion 固定 1，exact shape 是：
+
+~~~ts
+export interface PluginReleaseManifestV1 {
+  readonly schemaVersion: 1;
+  readonly releaseVersion: string;
+  readonly wire: {
+    readonly minimumMajor: 3;
+    readonly maximumMajor: 3;
+  };
+  readonly canonicalSkill: {
+    readonly root: "plugins/shared/skills/distilly";
+    readonly digest: `sha256_${string}`;
+    readonly files: readonly {
+      readonly path: string;
+      readonly contentDigest: `sha256_${string}`;
+    }[];
+  };
+  readonly targets: readonly {
+    readonly host: HostName;
+    readonly pluginRoot: string;
+    readonly pluginManifestPath: string;
+    readonly pluginManifestDigest: `sha256_${string}`;
+    readonly skillRoot: string;
+    readonly skillDigest: `sha256_${string}`;
+  }[];
+}
+~~~
+
+releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
+
+Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 Step 12 setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；Step 9 因此不宣称这些 source trees 可启动 MCP。Step 12 才把 sentinel 替换为 JSON-escaped absolute launcher path，写目标宿主实际读取的 `.mcp.json`，再做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
 
 ### 19.5 三种分发概念
 

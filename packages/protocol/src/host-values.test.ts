@@ -9,6 +9,7 @@ import {
 import {
   capturedPrivateTranscriptSchema,
   hostCapabilitiesSchema,
+  hostPreflightEvidenceSchema,
   hostPreflightSchema,
   privateUiCaptureActionResultSchema,
   privateUiCaptureAuthorizationSchema,
@@ -44,6 +45,48 @@ const capabilities = {
   opensLoopbackUrls: true,
   maxContextTokens: 128_000,
   maxToolResultBytes: 1_000_000,
+} as const;
+
+const hostHandshakeEvidence = {
+  kind: "host_handshake",
+  host: "codex",
+  hostVersion: "2026.08.21",
+  environment: "desktop",
+  releaseVersion: "0.0.0",
+  wireMajor: 3,
+  canonicalSkillDigest: `sha256_${"9".repeat(64)}`,
+} as const;
+
+const bindingFixtureEvidence = {
+  kind: "binding_fixture",
+  fixtureId: "codex-desktop-2026.08.21",
+  host: "codex",
+  hostVersion: "2026.08.21",
+  environment: "desktop",
+  releaseVersion: "0.0.0",
+  wireMajor: 3,
+  canonicalSkillDigest: `sha256_${"9".repeat(64)}`,
+} as const;
+
+const hostHandshakeCapacity = {
+  maximumInputTokens: 128_000,
+  maximumToolResultBytes: 1_000_000,
+  source: "host_handshake",
+} as const;
+
+const bindingFixtureCapacity = {
+  maximumInputTokens: 96_000,
+  maximumToolResultBytes: 750_000,
+  source: "binding_fixture",
+} as const;
+
+const unsupportedError = {
+  code: "host_unsupported",
+  message: "This host does not provide structured tool calls.",
+  retryable: false,
+  fieldPath: "capabilities.structuredToolCalls",
+  remediation: "Upgrade the host and restart the session.",
+  details: { host: "codex" },
 } as const;
 
 const subject = {
@@ -142,15 +185,133 @@ describe("trusted session schemas", () => {
 });
 
 describe("host capability and private-capture schemas", () => {
-  it("keeps capability reports strict and integer-bounded", () => {
+  it("keeps capability reports strict, canonical, and internally consistent", () => {
     expect(hostCapabilitiesSchema.parse(capabilities)).toEqual(capabilities);
     expect(
-      hostPreflightSchema.parse({ ok: true, capabilities, warnings: [], remediation: "None" }),
+      hostCapabilitiesSchema.parse({
+        ...capabilities,
+        lifecycleHooks: ["session_start", "session_end", "command"],
+      }),
+    ).toBeDefined();
+    expect(
+      hostCapabilitiesSchema.parse({
+        ...capabilities,
+        lifecycleHooks: ["session_start", "command"],
+      }),
     ).toBeDefined();
     expect(() =>
       hostCapabilitiesSchema.parse({ ...capabilities, maxContextTokens: Number.MAX_VALUE }),
     ).toThrow();
     expect(() => hostCapabilitiesSchema.parse({ ...capabilities, webResearch: true })).toThrow();
+    expect(() =>
+      hostCapabilitiesSchema.parse({
+        ...capabilities,
+        lifecycleHooks: ["session_end", "session_start"],
+      }),
+    ).toThrow();
+    expect(() =>
+      hostCapabilitiesSchema.parse({
+        ...capabilities,
+        lifecycleHooks: ["session_end", "session_end"],
+      }),
+    ).toThrow();
+    expect(() =>
+      hostCapabilitiesSchema.parse({
+        ...capabilities,
+        subruns: false,
+        subrunsInheritMcp: true,
+      }),
+    ).toThrow();
+  });
+
+  it("parses exact handshake, fixture, and unsupported preflight branches", () => {
+    expect(hostPreflightEvidenceSchema.parse(hostHandshakeEvidence)).toEqual(hostHandshakeEvidence);
+    expect(hostPreflightEvidenceSchema.parse(bindingFixtureEvidence)).toEqual(
+      bindingFixtureEvidence,
+    );
+
+    const handshakeSuccess = {
+      ok: true,
+      capabilities,
+      capacity: hostHandshakeCapacity,
+      evidence: hostHandshakeEvidence,
+      warnings: [],
+    } as const;
+    const fixtureSuccess = {
+      ok: true,
+      capabilities,
+      capacity: bindingFixtureCapacity,
+      evidence: bindingFixtureEvidence,
+      warnings: ["Private UI capture is unavailable."],
+    } as const;
+    const failure = {
+      ok: false,
+      capabilities: { ...capabilities, structuredToolCalls: false },
+      error: unsupportedError,
+      warnings: ["Structured tool calls are unavailable."],
+    } as const;
+
+    expect(hostPreflightSchema.parse(handshakeSuccess)).toEqual(handshakeSuccess);
+    expect(hostPreflightSchema.parse(fixtureSuccess)).toEqual(fixtureSuccess);
+    expect(hostPreflightSchema.parse(failure)).toEqual(failure);
+  });
+
+  it("rejects unproven capacities and malformed preflight branches", () => {
+    const success = {
+      ok: true,
+      capabilities,
+      capacity: hostHandshakeCapacity,
+      evidence: hostHandshakeEvidence,
+      warnings: [],
+    } as const;
+    const failure = {
+      ok: false,
+      capabilities: { ...capabilities, structuredToolCalls: false },
+      error: unsupportedError,
+      warnings: ["Structured tool calls are unavailable."],
+    } as const;
+
+    const invalidPreflights = [
+      {
+        ...success,
+        capabilities: { ...capabilities, structuredToolCalls: false },
+      },
+      { ...success, capacity: { ...hostHandshakeCapacity, source: "sdk_explicit" } },
+      { ...success, capacity: bindingFixtureCapacity },
+      { ...success, error: unsupportedError },
+      { ok: true, capabilities, capacity: hostHandshakeCapacity, warnings: [] },
+      { ...failure, capacity: hostHandshakeCapacity },
+      { ...failure, evidence: hostHandshakeEvidence },
+      { ...failure, error: { ...unsupportedError, code: "permission_denied" } },
+      { ...failure, error: { ...unsupportedError, retryable: true } },
+      { ...failure, error: { ...unsupportedError, subjectResolution: { kind: "found" } } },
+      { ...failure, remediation: "Legacy top-level remediation is forbidden." },
+      { ok: false, capabilities: failure.capabilities, warnings: failure.warnings },
+    ] as const;
+
+    for (const invalidPreflight of invalidPreflights) {
+      expect(() => hostPreflightSchema.parse(invalidPreflight)).toThrow();
+    }
+  });
+
+  it("keeps evidence keys exact, branded, and bounded", () => {
+    const invalidEvidence = [
+      { ...hostHandshakeEvidence, host: "Codex" },
+      { ...hostHandshakeEvidence, hostVersion: "" },
+      { ...hostHandshakeEvidence, environment: "server" },
+      { ...hostHandshakeEvidence, releaseVersion: "" },
+      { ...hostHandshakeEvidence, wireMajor: 4 },
+      { ...hostHandshakeEvidence, canonicalSkillDigest: "sha256_short" },
+      { ...hostHandshakeEvidence, extra: true },
+      { ...bindingFixtureEvidence, fixtureId: "x".repeat(1_025) },
+      { ...bindingFixtureEvidence, releaseVersion: "" },
+      { ...bindingFixtureEvidence, wireMajor: 4 },
+      { ...bindingFixtureEvidence, canonicalSkillDigest: "sha256_short" },
+    ] as const;
+
+    for (const evidence of invalidEvidence) {
+      expect(() => hostPreflightEvidenceSchema.parse(evidence)).toThrow();
+    }
   });
 
   it("requires the complete private-capture capability conjunction", () => {
@@ -176,20 +337,6 @@ describe("host capability and private-capture schemas", () => {
         captureDataPolicy: "unknown",
       }),
     ).toThrow();
-    expect(() =>
-      hostPreflightSchema.parse({
-        ok: true,
-        capabilities: { ...capabilities, structuredToolCalls: false },
-        warnings: [],
-      }),
-    ).toThrow();
-    expect(() =>
-      hostPreflightSchema.parse({
-        ok: false,
-        capabilities: { ...capabilities, structuredToolCalls: false },
-        warnings: ["Structured tool calls are unavailable."],
-      }),
-    ).not.toThrow();
   });
 
   it("validates bounded scope and authorization metadata", () => {

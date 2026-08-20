@@ -86,10 +86,12 @@ GetToolValue
 HostCapabilities
 HostDistillBriefing
 HostDistillContract
+HostEnvironment
 HostExportInput
 HostExtractionMethod
 HostName
 HostPreflight
+HostPreflightEvidence
 IdentityHint
 IngestFilesInput
 IngestFilesResult
@@ -308,6 +310,7 @@ hostDistillContractSchema
 hostExportInputSchema
 hostExtractionMethodSchema
 hostNameSchema
+hostPreflightEvidenceSchema
 hostPreflightSchema
 identityHintSchema
 ingestFilesInputSchema

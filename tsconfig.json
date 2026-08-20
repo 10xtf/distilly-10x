@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/protocol" },
     { "path": "packages/engine" },
+    { "path": "packages/bindings" },
     { "path": "packages/distilly" },
     { "path": "packages/mcp" }
   ]

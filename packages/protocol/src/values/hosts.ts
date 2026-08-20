@@ -1,4 +1,5 @@
 import type { DistillyWireError } from "../errors.js";
+import type { BriefCapacity } from "../values.js";
 import type {
   ContentDigest,
   HostName,
@@ -13,6 +14,9 @@ import type { SubjectRef, SubjectSummary } from "./subjects.js";
 import type { ReviewRef, VersionSummary } from "./versions.js";
 
 export type CapabilityAvailability = "available" | "unavailable" | "unknown";
+
+/** Host surface on which one trusted capability preflight was observed. */
+export type HostEnvironment = "desktop" | "cli" | "ci";
 
 /** Host features known to the canonical skill after trusted detection. */
 export interface HostCapabilities {
@@ -35,13 +39,46 @@ export interface HostCapabilities {
   readonly maxToolResultBytes?: number;
 }
 
-/** Host capability probe result and actionable compatibility warnings. */
-export interface HostPreflight {
-  readonly ok: boolean;
-  readonly capabilities: HostCapabilities;
-  readonly warnings: readonly string[];
-  readonly remediation?: string;
-}
+/** Trusted proof used to select a validated net briefing capacity. */
+export type HostPreflightEvidence =
+  | {
+      readonly kind: "host_handshake";
+      readonly host: HostName;
+      readonly hostVersion: string;
+      readonly environment: HostEnvironment;
+      readonly releaseVersion: string;
+      readonly wireMajor: 3;
+      readonly canonicalSkillDigest: ContentDigest;
+    }
+  | {
+      readonly kind: "binding_fixture";
+      readonly fixtureId: string;
+      readonly host: HostName;
+      readonly hostVersion: string;
+      readonly environment: HostEnvironment;
+      readonly releaseVersion: string;
+      readonly wireMajor: 3;
+      readonly canonicalSkillDigest: ContentDigest;
+    };
+
+/** Exact host capability preflight success or terminal compatibility failure. */
+export type HostPreflight =
+  | {
+      readonly ok: true;
+      readonly capabilities: HostCapabilities;
+      readonly capacity: BriefCapacity;
+      readonly evidence: HostPreflightEvidence;
+      readonly warnings: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly capabilities: HostCapabilities;
+      readonly error: DistillyWireError & {
+        readonly code: "host_unsupported";
+        readonly retryable: false;
+      };
+      readonly warnings: readonly string[];
+    };
 
 export type PrivateUiCaptureRange =
   | {

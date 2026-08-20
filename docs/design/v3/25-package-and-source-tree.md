@@ -146,8 +146,9 @@ distilly/
 │   │   └── src/
 │   │       ├── protocol.ts
 │   │       ├── registry.ts
-│   │       ├── codex/
-│   │       └── claude-code/
+│   │       ├── capability-fixture.ts
+│   │       ├── codex/capability.ts
+│   │       └── claude-code/capability.ts
 │   ├── adapters/
 │   │   └── src/
 │   │       ├── protocol.ts
@@ -230,7 +231,7 @@ plugins → CLI launcher（进程边界，不是 TS import）
 | @distilly/mcp/stdio | stdio runner | Node only |
 | @distilly/panel/server | startPanelServer、PanelLauncher | Node only |
 | @distilly/panel/web | HttpEngineClient 与 UI bootstrap | browser only |
-| @distilly/bindings | interfaces、registry、builtin factories | Node only |
+| @distilly/bindings | interfaces、registry、Step 9 capability factories；full factories 到 production composition 才导出 | Node only |
 | @distilly/adapters | adapter / parser contracts 与 registry | Node only |
 | @distilly/cli | 只有 executable，不承诺 library barrel | Node only |
 
@@ -244,7 +245,7 @@ panel/server 与 panel/web 使用独立 tsconfig / exports，不提供把两边�
 | QueueRepository | SQLite 与测试 fake 对 verified state seeds 的 disposable projection/read |
 | SourceAdapter | 多来源与社区包 |
 | MaterialParser | OCR、转写、文档解析 |
-| HostBinding / HostInjector / HostFormRenderer / PrivateUiCaptureController | 每个宿主的能力、授权 UI、frame gate 与隔离机制真实不同 |
+| HostCapabilityBinding / HostBinding / HostInjector / HostFormRenderer / PrivateUiCaptureController | 每个宿主的能力、授权 UI、frame gate 与隔离机制真实不同 |
 | DraftProducer | 宿主模型、可选后台 provider |
 | LibraryProjection | JSON/SQLite、测试 fake、以后本地全文 |
 | Clock / IdGenerator / EngineEventBus | 生产与确定性测试边界 |
@@ -282,11 +283,13 @@ Step 7 只在 `@distilly/engine` package 内组合 `distill.commit` 的 Evidence
 
 Step 8 的 Distilly、Person 与 McpServer 同样是 injected-client adapters，不是新的 service/composition root。facade tests 注入 full fake EngineClient；MCP stdio child 注入 full fake EngineClient + ReviewPresenter。`@distilly/cli` executable、`distilly/node`、createEngine、createLocalRuntime 和任何能打开真实 DISTILLY_ROOT 的入口都不在该 slice；不得为了让 built smoke 启动而新增一个改名的 workflow runtime、unsupported handler 或 test backend 的 production export。
 
+Step 9 的 `@distilly/bindings` 也不是 composition root。它只导出 HostCapabilityBinding/full HostBinding interfaces、判别 registry、净 capacity fixture validator 与 Codex / Claude Code capability factories；两个 builtin 都 kind=capability 且 privateUiCapture=unavailable。该 slice 不导出 concrete HostInjector、HostFormRenderer、PrivateUiCaptureController、plugin installer、doctor、setup 或 production host client。canonical skill assembler 是 repo build tooling，不从 bindings barrel 变成 runtime API。
+
 ### 25.6 为什么没有 public abstract class
 
 TypeScript 的扩展方需要结构契约，不需要继承我们的状态、构造器与 protected helper。V3 第一版导出 **零个 abstract class**：
 
-- SourceAdapter / HostBinding 用 interface；
+- SourceAdapter / HostCapabilityBinding / HostBinding 用 interface；
 - Distilly / Person / DistillyError 是 concrete public classes；
 - Store / service 是 package-internal concrete；
 - 两个实现真正共享算法时提取纯函数；
@@ -428,7 +431,7 @@ export declare function createLocalRuntime(
 
 engine 不知道 AdapterRegistry、HostRegistry、Panel 或具体 parser registry，但拥有文件摄取事务和窄 MaterialParserPort。materials.ingestFiles 是 core method：engine 校验路径、读取 bytes、先把原始输入写 RawStore，再调用 port；无 parser、解析失败或没有 material 时返回 unparsed RawId，只有解析出的 MaterialInput 才按 §9.4/§11 的同一 create-or-existing transaction 进入 material / generation / queue 流程。parser 永远不能写 store 或伪造 rawStored。
 
-createEngine({root}) 的最终合同是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。
+createEngine({root}) 的最终合同是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。Step 9 的 capability-only factories 不能作为 LocalRuntime 的 production defaults；Step 12 只能在 injector/form renderer 与 install/doctor 全部真实可用后构造新的 Codex / Claude Code kind=full registry。
 
 这不允许纵向切片对外暴露 partial runtime：Step 5 只用 package-internal composition 驱动 create + ingest + queue 集成测试，不导出 root EngineRuntime/createEngine，也不为缺失 method 安装占位 handler。只有全部 CoreEngineClient methods 都有真实 handler 后，才能同时落地上述 root factory 与 exports；届时任何 method 缺 handler 仍 startup fail。
 
@@ -436,7 +439,7 @@ Step 6 同样只在 package 内组合与 EngineMethodMap 精确对齐的 distill
 
 Step 8 也不例外。一个 TypeScript object 即使只被 McpServer 的五个 handler 调用，只要以 EngineClient/CoreEngineClient 身份交给 production entry，就承诺了完整 MethodMap；对其它 method throw host_unsupported / unsupported、延迟到第一次调用失败或用 generic call cast 隐藏缺口都属于 partial runtime。真实 stdio transport conformance 可以注入 test-only full fake，因为它只证明 transport；production `distilly mcp`、CLI 数据命令与 distilly/node 必须等待 §29 的 Core closure + production composition feature。
 
-LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
+LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code kind=full builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包；capability-only entry 出现在 production registry 时 startup fail，而不是等 hosts.install 才报缺方法。
 
 connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。composition 每创建一个 EngineClient 都调用 IdGenerator.leaseOwnerId() 构造完整 ClientSessionContext，外部 options、模型 input 与 callerLabel 都没有覆写入口。actor 与 lease owner 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client，并且两个同 actor client 仍有不同 owner。
 
@@ -446,6 +449,6 @@ audit 的 materialCount 由一次成功 IngestResult 中 engine 接受的 privat
 
 openInProcess 使用上述 production defaults，并独占它创建的 LocalRuntime；测试显式传 fake clock / ids，但使用真实 temp fact stores。createEngine / createLocalRuntime 先 recover 再接收 client；构造器不做隐式网络、secret 或插件安装。CoreEngineClient / EngineClient 的 close 只解绑 session，EngineRuntime / LocalRuntime 的 close 才由 composition owner 关闭共享 queue、event bus 与 stores。
 
-production composition feature 开始时先用 `satisfies Record<CoreMethodName, ...>` 与逐 key integration fixture 证明全部 CoreMethodName 都有真实 handler，再允许同一 feature 的最后阶段增加 engine/runtime/node/CLI exports；顺序上的“先证明再 export”不把中间 worktree 状态变成可发布 partial API。该 feature 还组合已经落地的 HostBinding、PanelLauncher 与 CorrectionService，给 MCP 创建 host client、给 direct CLI/Panel 创建彼此独立的 user client，并把 setup/fresh-install 放在这些真实入口之后。
+production composition feature 开始时先用 `satisfies Record<CoreMethodName, ...>` 与逐 key integration fixture 证明全部 CoreMethodName 都有真实 handler，再允许同一 feature 的最后阶段增加 engine/runtime/node/CLI exports；顺序上的“先证明再 export”不把中间 worktree 状态变成可发布 partial API。该 feature 把 Step 9 capability binding、Step 11 injector/form renderer、Step 12 installer/doctor 组合成新的 kind=full HostBinding factories，再与 PanelLauncher、CorrectionService 合成 runtime，给 MCP 创建 host client、给 direct CLI/Panel 创建彼此独立的 user client，并把 setup/fresh-install 放在这些真实入口之后。
 
 ---

@@ -269,6 +269,7 @@ GOVERNED_PREFIXES = (
     "tools/",
     "scripts/",
     "prompts/",
+    "plugins/",
     ".githooks/",
     ".agents/skills/",
     ".github/",

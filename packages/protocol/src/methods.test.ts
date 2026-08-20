@@ -6,7 +6,7 @@ import type {
   EngineClient,
   RuntimeOwnedMethodName,
 } from "./engine-client.js";
-import type { FacetPath } from "./ids.js";
+import type { ContentDigest, FacetPath, HostName } from "./ids.js";
 import type {
   EmptyResult,
   EngineMethodMap,
@@ -14,7 +14,7 @@ import type {
   MutationMethodName,
   QueryMethodName,
 } from "./methods.js";
-import type { MutationContext } from "./values.js";
+import type { BriefCapacity, MutationContext } from "./values.js";
 import type { Claim, ClaimDraft } from "./values/claims.js";
 import type {
   BundleExportInput,
@@ -29,8 +29,10 @@ import type {
   DoctorSnapshot,
   ExportRef,
   HostCapabilities,
+  HostEnvironment,
   HostExportInput,
   HostPreflight,
+  HostPreflightEvidence,
   InstallInput,
   InstallRef,
   PrivateUiCaptureActionAbortReason,
@@ -279,6 +281,25 @@ describe("host and private capture value contracts", () => {
       | "maxToolResultBytes"
     >();
     expectTypeOf<HostPreflight["capabilities"]>().toEqualTypeOf<HostCapabilities>();
+    expectTypeOf<HostPreflightEvidence["kind"]>().toEqualTypeOf<
+      "host_handshake" | "binding_fixture"
+    >();
+    expectTypeOf<HostPreflightEvidence["host"]>().toEqualTypeOf<HostName>();
+    expectTypeOf<HostPreflightEvidence["environment"]>().toEqualTypeOf<HostEnvironment>();
+    expectTypeOf<HostPreflightEvidence["canonicalSkillDigest"]>().toEqualTypeOf<ContentDigest>();
+
+    type SuccessfulPreflight = Extract<HostPreflight, { readonly ok: true }>;
+    type FailedPreflight = Extract<HostPreflight, { readonly ok: false }>;
+    expectTypeOf<keyof SuccessfulPreflight>().toEqualTypeOf<
+      "ok" | "capabilities" | "capacity" | "evidence" | "warnings"
+    >();
+    expectTypeOf<SuccessfulPreflight["capacity"]>().toEqualTypeOf<BriefCapacity>();
+    expectTypeOf<SuccessfulPreflight["evidence"]>().toEqualTypeOf<HostPreflightEvidence>();
+    expectTypeOf<keyof FailedPreflight>().toEqualTypeOf<
+      "ok" | "capabilities" | "error" | "warnings"
+    >();
+    expectTypeOf<FailedPreflight["error"]["code"]>().toEqualTypeOf<"host_unsupported">();
+    expectTypeOf<FailedPreflight["error"]["retryable"]>().toEqualTypeOf<false>();
   });
 
   it("keeps capture scope and authorization serializable", () => {

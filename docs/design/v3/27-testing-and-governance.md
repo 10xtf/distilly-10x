@@ -77,7 +77,7 @@ Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开�
 - 相同 patch / material set 在不同 BriefContract 下产生不同 VersionId；renew 保持原 briefContractDigest；
 - 相同 RequestId 的 brief/renew/release 只在 method+params+actor+owner（brief 再加 canonical capacity）完全相同时精确重放；换 client owner 或 capacity 返回 idempotency_conflict；
 - brief 以完整 briefing 作为 OperationRecord.result；prepared journal、state swap、operation、唯一 job.changed event、queue apply 的每个 crash point都做 target-first recovery，previous abort、target finish、第三态 storage_corrupt；ingest 在同 subject lock 下先阻断/reconcile prepared lease journal；
-- capacity missing 返回 host_unsupported；完整 compact canonical JSON 的 fixed-point byte/token 估算在等于/超过 host token、host result bytes、4,194,304-byte internal cap、999 refs 各边界有 fixtures，任何失败都发生在 journal/state lease前，details 不含材料内容；maximumOutputBytes 固定 65,536；
+- capacity missing 返回 host_unsupported；host capacity 只能来自直接净 handshake、exact versioned end-to-end truncation fixture 或 SDK explicit，gross max field 减固定 wrapper 的实现必须有反例 fixture并被拒绝；完整 compact canonical JSON 的 fixed-point byte/token 估算在等于/超过 host token、host result bytes、4,194,304-byte internal cap、999 refs 各边界有 fixtures，任何失败都发生在 journal/state lease前，details 不含材料内容；maximumOutputBytes 固定 65,536；
 - accepted DistillPatch canonical bytes=65,536 通过、65,537 invalid_input；active suspended、stale job、lease missing/owner/expiry、pinned algorithm、patch/target/date/cycle、evidence/locator 与 corrupt storage 按 §7.6 exact precedence/code，所有 hard reject 证明 journal/version/state/operation/event/projection 零写且 pending/lease逐字节不变；
 - current success 证明 current=new、suspended absent、pending absent；suspended success 证明 current unchanged、suspended=new、pending absent；两者的 operation/result、reason tuple、两事件顺序与 terminal journal exact replay 不漂移；
 - stale worker finish 不覆盖新 generation；
@@ -93,6 +93,8 @@ clean root → get not_found → ingest(create) → research fixture materials �
 
 这条 clean-root 流程不属于 Step 8 injected-client stdio smoke。correct→review 只有在真实 CorrectionService、PanelLauncher/ReviewPresenter、全部 Core handlers 与 production composition 落地后才进入 FakeHost；更早的 fake correct/suspended result 只证明 handler shape，不能写成 correction、Panel 或 keyless product 已实现。
 
+Step 9 单独做 capability-binding conformance：HostPreflight runtime schema 必须接受且只接受 success(capabilities+capacity+evidence+warnings) 或 failure(capabilities+host_unsupported error+warnings)；success 强制 structuredToolCalls、evidence.kind/capacity.source 一致，failure 禁止 capacity/evidence。Codex / Claude Code factory 只消费 injected HostPreflightProvider 的 unknown payload，不探 HOME、PATH、进程或网络；provider throw、unknown-key、host/environment/source mismatch、gross-only limit、缺净预算与过期 fixture 都 fail closed，并 snapshot §17.2 exact fallback capabilities/non-retryable sanitized error。binding_fixture 必须绑定 exact host/version/environment/release/wire/canonical-skill digest并在真实宿主截断边界验证 structuredContent 与 JSON text duplication；tuple 任一字段变化必须重跑 fixture。两 builtin 一律 privateUiCapture=unavailable。HostRegistry 覆盖 capability/full 两分支、跨分支 duplicate 无 mutation、get exact 与 list HostName UTF-8 稳定顺序；Injector/FormRenderer 不可单独注册。
+
 还要覆盖：
 
 - no web fallback；
@@ -103,9 +105,9 @@ clean root → get not_found → ingest(create) → research fixture materials �
 - briefing_too_large；
 - suspended + Panel review。
 
-FakeHost 不声称证明真实宿主 UI；每个实际 binding 另有 manifest / launcher / capability smoke。
+FakeHost 不声称证明真实宿主 UI；Step 9 capability binding 只有 manifest/capability/fixture smoke，launcher/install/doctor smoke 等 kind=full factory 在 Step 12 才成立。
 
-private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。
+未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。Step 9 的两个 capability binding 不运行这套 available-lane fixture，只验证 unavailable 与 paste/export fallback。
 
 ### 27.6 Panel
 
@@ -121,13 +123,15 @@ private UI capture conformance 还必须覆盖：第一帧前原生 consent；ex
 
 ### 27.7 Fresh install
 
+Step 9 release-assembly gate 从 canonical root 递归覆盖 nested references/assets、raw byte digest、POSIX UTF-8 path order、source/target symlink拒绝、target stale prune、两个 mirror 的 exact file tuple/tree digest、两个 platform manifest raw digest、releaseVersion 同源与 schemaVersion=1 release-manifest canonical bytes。check mode 必须证明第二次生成零 diff；改变一个 nested byte、删 source file、注入 stale target、改变 package version或任一 exact target path 都产生预期 diff/failure。`.mcp.json.template` sentinel 存在但不出现在 release target/platform manifest/installable archive；该 gate 不执行 setup，也不宣称 source tree 是可启动插件。
+
 从 Core closure + production composition 之后构建的发布包而不是 source；此前的 injected-client stdio child 不满足本节：
 
 - npx setup 写 versioned runtime 与绝对 launcher；
 - 两宿主 manifest schema；
 - MCP tools/list 恰好五工具，且 name/title/description/schemas/hints 与 protocol snapshot 字节一致；
 - engine / plugin wire mismatch 拒绝；
-- skill copies 与 canonical digest 相同；
+- skill copies 与 release manifest 的 canonical recursive tree digest 相同；
 - 路径含空格、非 ASCII 与 Windows separator fixture；
 - upgrade 原子切换且可 rollback；
 - uninstall 保留 DISTILLY_ROOT 人物事实。

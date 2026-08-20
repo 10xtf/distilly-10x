@@ -25,7 +25,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 
 ### 2.4 从私人一对一消息补充人物材料
 
-用户说“把我和微信好友 X 在这段时间里的对话转成材料”。skill 先解析 X；唯一命中使用 existing target，不命中准备 create target，多候选仍询问。随后做 private UI capability preflight，并展示一个 binding 注册的、必须由用户手势触发的 capture card / command；它在当前 task 内显示 app/account/thread/range、text-only、用途、宿主处理与 Distilly retention。确认后 runtime coordinator 驱动宿主只读滚动、转录目标好友发言，按连续 turn 形成 private transcript，并通过 engine-owned capture session 调用同一个 IngestService。create target 与首批 transcript 原子落地，结果以 IngestResult 返回当前 skill；这个原生 action 不出现在 MCP tools/list。完成或任何 scope/window 变化立即关闭 grant。不能隔离窗口、宿主政策未知、群聊或附件则拒绝，并请用户改为粘贴或导出文本。
+用户说“把我和微信好友 X 在这段时间里的对话转成材料”。skill 先要求可信 HostPreflight success、structured tool calls、净 briefing capacity/evidence 与 exact five-tool runtime 全部可用；任一缺失就停止，不调用 get、不调研也不模拟结果。通过后解析 X；唯一命中使用 existing target，不命中准备 create target，多候选仍询问。只有 accepted preflight 报告 privateUiCapture available 时，才展示一个 binding 注册的、必须由用户手势触发的 capture card / command；它在当前 task 内显示 app/account/thread/range、text-only、用途、宿主处理与 Distilly retention。确认后 runtime coordinator 驱动宿主只读滚动、转录目标好友发言，按连续 turn 形成 private transcript，并通过 engine-owned capture session 调用同一个 IngestService。create target 与首批 transcript 原子落地，结果以 IngestResult 返回当前 skill；这个原生 action 不出现在 MCP tools/list。完成或任何 scope/window 变化立即关闭 grant。不能隔离窗口、宿主政策未知、群聊或附件则拒绝，并请用户改为粘贴或导出文本。
 
 ### 2.5 用户纠正
 

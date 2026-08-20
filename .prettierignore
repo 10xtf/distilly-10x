@@ -12,3 +12,8 @@ coverage/
 /scripts/
 /tests/
 /tools/
+
+# Plugin release bytes are generated and verified by assemble_plugins.py.
+/plugins/release-manifest.json
+/plugins/codex/.codex-plugin/plugin.json
+/plugins/claude-code/.claude-plugin/plugin.json

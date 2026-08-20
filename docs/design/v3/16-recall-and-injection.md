@@ -30,10 +30,12 @@ Profile.displayName 与 VersionRecord.subjectDisplayName 是同一个 version-ti
 ### 16.3 HostInjector
 
 ~~~ts
+export type HostEnvironment = "desktop" | "cli" | "ci";
+
 export interface HostContext {
   readonly sessionId: string;
   readonly workingDirectory?: string;
-  readonly environment: "desktop" | "cli" | "ci";
+  readonly environment: HostEnvironment;
 }
 
 export interface Injection {
@@ -50,7 +52,6 @@ export interface HostSpawnRequest {
 
 export interface HostInjector {
   readonly host: HostName;
-  preflight(context: HostContext): Promise<HostPreflight>;
   injectSubrun(
     injection: Injection,
     request: HostSpawnRequest,
@@ -67,7 +68,7 @@ export interface HostInjector {
 }
 ~~~
 
-HostInjector 是 interface；每个宿主有独立实现并显式注册。它只能包装中性 profile，不重新蒸馏一份“Claude 版”或“Codex 版”人物。
+HostInjector 是 full HostBinding 创建的 interface，不单独注册，也不做 capability preflight。它只能包装中性 profile，不重新蒸馏一份“Claude 版”或“Codex 版”人物。§29 Step 9 只冻结此合同，不交付 Codex / Claude Code concrete injector；Recall/install slice 才实现 injector 与 form renderer，production composition 再由 full binding 创建它们。
 
 ### 16.4 禁止写全局指令
 

@@ -3,12 +3,14 @@ import { z } from "zod";
 import { WIRE_LIMITS } from "../json.js";
 import {
   httpUrlSchema,
+  jsonObjectSchema,
   labelStringSchema,
   reasonStringSchema,
   safeNonNegativeIntegerSchema,
   safePositiveIntegerSchema,
   uriStringSchema,
 } from "./common.js";
+import { briefCapacitySchema } from "./context.js";
 import {
   contentDigestSchema,
   hostNameSchema,
@@ -24,6 +26,24 @@ import { distillyWireErrorSchema } from "./wire.js";
 
 export const capabilityAvailabilitySchema = z.enum(["available", "unavailable", "unknown"]);
 
+const lifecycleHookOrder = {
+  session_start: 0,
+  session_end: 1,
+  command: 2,
+} as const;
+
+const lifecycleHooksSchema = z
+  .array(z.enum(["session_start", "session_end", "command"]))
+  .max(WIRE_LIMITS.smallArrayItems)
+  .refine(
+    (hooks) =>
+      hooks.every(
+        (hook, index) =>
+          index === 0 || lifecycleHookOrder[hooks[index - 1]!] < lifecycleHookOrder[hook],
+      ),
+    { message: "lifecycle hooks must be unique and in canonical order" },
+  );
+
 export const hostCapabilitiesSchema = z
   .strictObject({
     webResearch: capabilityAvailabilitySchema,
@@ -37,9 +57,7 @@ export const hostCapabilitiesSchema = z
     windowScopedCapture: capabilityAvailabilitySchema,
     captureDataPolicy: z.enum(["known", "unknown"]),
     structuredToolCalls: z.boolean(),
-    lifecycleHooks: z
-      .array(z.enum(["session_start", "session_end", "command"]))
-      .max(WIRE_LIMITS.smallArrayItems),
+    lifecycleHooks: lifecycleHooksSchema,
     subruns: z.boolean(),
     subrunsInheritMcp: z.boolean(),
     opensLoopbackUrls: z.boolean(),
@@ -67,21 +85,76 @@ export const hostCapabilitiesSchema = z
         message: "private UI capture requires a known capture data policy",
       });
     }
+    if (capabilities.subrunsInheritMcp && !capabilities.subruns) {
+      context.addIssue({
+        code: "custom",
+        path: ["subrunsInheritMcp"],
+        message: "MCP inheritance requires subrun support",
+      });
+    }
   });
 
+export const hostPreflightEvidenceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("host_handshake"),
+    host: hostNameSchema,
+    hostVersion: labelStringSchema,
+    environment: z.enum(["desktop", "cli", "ci"]),
+    releaseVersion: labelStringSchema,
+    wireMajor: z.literal(3),
+    canonicalSkillDigest: contentDigestSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("binding_fixture"),
+    fixtureId: labelStringSchema,
+    host: hostNameSchema,
+    hostVersion: labelStringSchema,
+    environment: z.enum(["desktop", "cli", "ci"]),
+    releaseVersion: labelStringSchema,
+    wireMajor: z.literal(3),
+    canonicalSkillDigest: contentDigestSchema,
+  }),
+]);
+
+const hostUnsupportedWireErrorSchema = z.strictObject({
+  code: z.literal("host_unsupported"),
+  message: reasonStringSchema,
+  retryable: z.literal(false),
+  fieldPath: labelStringSchema.optional(),
+  remediation: reasonStringSchema.optional(),
+  details: jsonObjectSchema.optional(),
+});
+
 export const hostPreflightSchema = z
-  .strictObject({
-    ok: z.boolean(),
-    capabilities: hostCapabilitiesSchema,
-    warnings: z.array(reasonStringSchema).max(WIRE_LIMITS.smallArrayItems),
-    remediation: reasonStringSchema.optional(),
-  })
+  .discriminatedUnion("ok", [
+    z.strictObject({
+      ok: z.literal(true),
+      capabilities: hostCapabilitiesSchema,
+      capacity: briefCapacitySchema,
+      evidence: hostPreflightEvidenceSchema,
+      warnings: z.array(reasonStringSchema).max(WIRE_LIMITS.smallArrayItems),
+    }),
+    z.strictObject({
+      ok: z.literal(false),
+      capabilities: hostCapabilitiesSchema,
+      error: hostUnsupportedWireErrorSchema,
+      warnings: z.array(reasonStringSchema).max(WIRE_LIMITS.smallArrayItems),
+    }),
+  ])
   .superRefine((preflight, context) => {
-    if (preflight.ok && !preflight.capabilities.structuredToolCalls) {
+    if (!preflight.ok) return;
+    if (!preflight.capabilities.structuredToolCalls) {
       context.addIssue({
         code: "custom",
         path: ["capabilities", "structuredToolCalls"],
         message: "a successful preflight requires structured tool calls",
+      });
+    }
+    if (preflight.capacity.source !== preflight.evidence.kind) {
+      context.addIssue({
+        code: "custom",
+        path: ["capacity", "source"],
+        message: "capacity source must match preflight evidence",
       });
     }
   });

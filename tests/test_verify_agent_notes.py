@@ -225,6 +225,7 @@ The choice may change.
         governed_paths = (
             "packages/protocol/src/index.ts",
             "packages/protocol/package.json",
+            "plugins/shared/skills/distilly/SKILL.md",
             "package.json",
             "pnpm-workspace.yaml",
             "pnpm-lock.yaml",
@@ -251,6 +252,7 @@ The choice may change.
     def test_typescript_workspace_and_root_configs_accept_changed_note(self) -> None:
         changes = [
             Change("M", "packages/protocol/src/index.ts"),
+            Change("M", "plugins/codex/.codex-plugin/plugin.json"),
             Change("M", "package.json"),
             Change("M", "pnpm-workspace.yaml"),
             Change("M", "pnpm-lock.yaml"),

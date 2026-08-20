@@ -71,7 +71,7 @@ test("accepts engine to protocol", async (testContext) => {
   assert.equal(result.stderr, "");
 });
 
-test("accepts the facade and MCP packages depending only on protocol", async (testContext) => {
+test("accepts facade, MCP, and bindings depending only on protocol", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
@@ -86,6 +86,12 @@ test("accepts the facade and MCP packages depending only on protocol", async (te
         "mcp",
         "@distilly/mcp",
         'export type { EngineClient } from "@distilly/protocol";\n',
+        { "@distilly/protocol": "workspace:*" },
+      ],
+      [
+        "bindings",
+        "@distilly/bindings",
+        'export type { HostPreflight } from "@distilly/protocol";\n',
         { "@distilly/protocol": "workspace:*" },
       ],
     ],
@@ -136,6 +142,101 @@ for (const [directory, name, forbiddenTarget] of [
     assert.match(result.stderr, new RegExp(`${name} may not depend on ${forbiddenTarget}`));
   });
 }
+
+for (const [directory, name, forbiddenTarget] of [
+  ["protocol", "@distilly/protocol", "@distilly/bindings"],
+  ["engine", "@distilly/engine", "@distilly/bindings"],
+  ["distilly", "distilly", "@distilly/bindings"],
+  ["mcp", "@distilly/mcp", "@distilly/bindings"],
+  ["bindings", "@distilly/bindings", "@distilly/engine"],
+  ["bindings", "@distilly/bindings", "distilly"],
+  ["bindings", "@distilly/bindings", "@distilly/mcp"],
+]) {
+  test(`rejects ${name} depending on ${forbiddenTarget}`, async (testContext) => {
+    const sources = {
+      protocol: "export interface Protocol {}\n",
+      engine: "export interface Engine {}\n",
+      distilly: "export interface Facade {}\n",
+      mcp: "export interface Mcp {}\n",
+      bindings: "export interface Bindings {}\n",
+    };
+    const manifests = {
+      protocol: {},
+      engine: {},
+      distilly: {},
+      mcp: {},
+      bindings: {},
+    };
+    sources[directory] = `export type { Forbidden } from "${forbiddenTarget}";\n`;
+    manifests[directory] = { [forbiddenTarget]: "workspace:*" };
+    const root = await workspace(testContext, {
+      protocolSource: sources.protocol,
+      engineSource: sources.engine,
+      protocolDependencies: manifests.protocol,
+      engineDependencies: manifests.engine,
+      additionalPackages: [
+        ["distilly", "distilly", sources.distilly, manifests.distilly],
+        ["mcp", "@distilly/mcp", sources.mcp, manifests.mcp],
+        ["bindings", "@distilly/bindings", sources.bindings, manifests.bindings],
+      ],
+    });
+
+    const result = run(root);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /\[forbidden-internal-dependency]/);
+    assert.match(result.stderr, /\[forbidden-internal-import]/);
+    assert.match(result.stderr, new RegExp(`${name} may not depend on ${forbiddenTarget}`));
+  });
+}
+
+test("rejects bindings to engine through a relative workspace alias and subpath", async (
+  testContext,
+) => {
+  const root = await workspace(testContext, {
+    protocolSource: "export interface Protocol {}\n",
+    engineSource: "export interface Engine {}\n",
+    additionalPackages: [
+      [
+        "bindings",
+        "@distilly/bindings",
+        'export type { Engine } from "hidden-engine/internal";\n',
+        { "hidden-engine": "workspace:../engine" },
+      ],
+    ],
+  });
+
+  const result = run(root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[forbidden-internal-dependency]/);
+  assert.match(result.stderr, /\[forbidden-internal-import]/);
+  assert.match(result.stderr, /@distilly\/bindings may not depend on @distilly\/engine/);
+});
+
+test("rejects bindings bypassing engine through a cross-package relative import", async (
+  testContext,
+) => {
+  const root = await workspace(testContext, {
+    protocolSource: "export interface Protocol {}\n",
+    engineSource: "export interface Engine {}\n",
+    additionalPackages: [
+      [
+        "bindings",
+        "@distilly/bindings",
+        'export type { Engine } from "../../engine/src/index.js";\n',
+        {},
+      ],
+    ],
+  });
+
+  const result = run(root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[cross-package-relative-import]/);
+  assert.match(result.stderr, /\[forbidden-internal-import]/);
+  assert.match(result.stderr, /@distilly\/bindings may not depend on @distilly\/engine/);
+});
 
 test("accepts allowed internal npm and workspace aliases", async (testContext) => {
   const root = await workspace(testContext, {

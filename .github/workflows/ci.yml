@@ -79,6 +79,9 @@ jobs:
       - name: Report TypeScript coverage
         run: pnpm run test:coverage
 
+      - name: Verify readable snapshots
+        run: pnpm run snapshots
+
       - name: Build packages
         run: pnpm run build
 

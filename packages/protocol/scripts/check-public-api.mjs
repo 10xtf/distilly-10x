@@ -1,0 +1,453 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const expectedTypeExports = `
+ActorContext
+AmbiguousSubjectCandidates
+ArtifactLocator
+BaselineEvidenceDraft
+Branded
+BriefCapacity
+BriefContract
+BriefContractDigest
+BriefEvidenceDraft
+BriefEvidenceFact
+BriefInput
+BriefMaterial
+BriefMaterialRef
+BundleExportInput
+BundleExportResult
+BundleImportInput
+BundleImportResult
+BundleInspectInput
+BundleInspection
+CapabilityAvailability
+CaptureAuditRef
+CaptureScopeDigest
+CapturedPrivateTranscript
+Claim
+ClaimDraft
+ClaimId
+ClaimOperation
+ClaimStatus
+ClientSessionContext
+CommitInput
+CommitResult
+CommitToolInput
+CommitToolOutput
+CommitToolValue
+ContentDigest
+ConversationSourceKey
+CoreEngineClient
+CoreFacetName
+CoreMethodName
+CorrectInput
+CorrectToolInput
+CorrectToolOutput
+CorrectToolValue
+CorrectionDraft
+CorrectionProvenance
+CreateSubjectInput
+CreatedDisposition
+DiffInput
+DistillPatch
+DistillyErrorCode
+DistillyMcpToolName
+DistillyWireError
+DoctorInput
+DoctorSnapshot
+EmptyResult
+EngineClient
+EngineEvent
+EngineEventDecodeHandlers
+EngineEventDecodeResult
+EngineMethodMap
+EventId
+EventRecord
+EvidenceDraft
+EvidenceRef
+EvidenceStrength
+ExportOptions
+ExportRef
+ExtensionStatus
+FacetPath
+FactChecksum
+FactEnvelope
+FileIngestItemResult
+GetMaterialInput
+GetProfileInput
+GetToolInput
+GetToolOutput
+GetToolValue
+HostCapabilities
+HostDistillBriefing
+HostDistillContract
+HostExportInput
+HostExtractionMethod
+HostName
+HostPreflight
+IdentityHint
+IngestFilesInput
+IngestFilesResult
+IngestInput
+IngestItemResult
+IngestResult
+IngestSubjectTarget
+IngestToolInput
+IngestToolOutput
+IngestToolValue
+IngestTransactionRecord
+InstallInput
+InstallOptions
+InstallRef
+IsoDateTime
+JobId
+JobLease
+JsonObject
+JsonPrimitive
+JsonSchemaObject
+JsonValue
+LeaseId
+LibraryEntry
+LibraryPage
+LibraryQuery
+LineageEvent
+LineageInput
+MaterialId
+MaterialInput
+MaterialPage
+MaterialQuery
+MaterialRecord
+MaterialSetHash
+MaterialSource
+MaterialSourceInput
+MaterialSummary
+MaterialView
+Maturity
+McpToolAnnotations
+McpToolContract
+Method
+MethodSchemas
+MutationContext
+MutationMethodName
+OperationRecord
+ParserExtractionMethod
+PendingFilter
+PendingJob
+PendingJobMarker
+PendingToolInput
+PendingToolOutput
+PendingToolValue
+PrivateUiCaptureActionAbortReason
+PrivateUiCaptureActionResult
+PrivateUiCaptureAuditStop
+PrivateUiCaptureAuthorization
+PrivateUiCaptureGrantStatus
+PrivateUiCaptureGuardStopReason
+PrivateUiCaptureIngestResult
+PrivateUiCaptureRange
+PrivateUiCaptureRefusalReason
+PrivateUiCaptureRefused
+PrivateUiCaptureScope
+PrivateUiCaptureStopReason
+Profile
+ProfileDiff
+ProvenanceDigest
+PublicJobState
+PurgeSubjectInput
+QualitySummary
+QueryMethodName
+RawId
+RebuildResult
+RedistillInput
+RelationId
+RelationOperationDraft
+ReleaseLeaseInput
+RenewLeaseInput
+RequestId
+ResolveSubjectInput
+ResolveSubjectResult
+ReviewActionInput
+ReviewItem
+ReviewLaunch
+ReviewQuery
+ReviewReason
+ReviewRef
+RollbackInput
+RuntimeOwnedMethodName
+RuntimeSchema
+SourceAccess
+SourceDiversityStatus
+SourceGroup
+SourceGroupBasis
+SourceGroupCaution
+SourceGroupKey
+SourceGroupingContext
+SourceGroupingSnapshot
+SourceMedium
+SourceRole
+SpaceId
+SpaceRecord
+SpaceSummary
+StoredOperationResult
+SubjectId
+SubjectLifecycle
+SubjectPage
+SubjectQuery
+SubjectRecord
+SubjectRef
+SubjectSelector
+SubjectStateRecord
+SubjectStatus
+SubjectSummary
+TextDerivation
+TextDerivationInput
+UninstallInput
+Unsubscribe
+VersionCreation
+VersionId
+VersionMaterialEntry
+VersionMaterialManifest
+VersionRecord
+VersionStatus
+VersionSummary
+WireFailure
+WireRequest
+WireSuccess
+`
+  .trim()
+  .split("\n");
+
+export const expectedRuntimeExports = `
+BUILTIN_HOSTS
+DISTILLY_ERROR_CODES
+DistillyError
+JSON_SCHEMA_DIALECT
+WIRE_LIMITS
+WIRE_VERSION
+actorContextSchema
+ambiguousSubjectCandidatesSchema
+artifactLocatorSchema
+briefCapacitySchema
+briefContractDigestSchema
+briefContractSchema
+briefEvidenceFactSchema
+briefInputSchema
+briefMaterialRefSchema
+briefMaterialSchema
+bundleExportInputSchema
+bundleExportResultSchema
+bundleImportInputSchema
+bundleImportResultSchema
+bundleInspectInputSchema
+bundleInspectionSchema
+capabilityAvailabilitySchema
+captureAuditRefSchema
+captureScopeDigestSchema
+capturedPrivateTranscriptSchema
+claimDraftSchema
+claimIdSchema
+claimOperationSchema
+claimSchema
+claimStatusSchema
+clientSessionContextSchema
+commitInputSchema
+commitResultSchema
+contentDigestSchema
+conversationSourceKeySchema
+coreFacetNameSchema
+correctInputSchema
+correctionDraftSchema
+correctionProvenanceSchema
+createSubjectInputSchema
+createdDispositionSchema
+decodeEngineEvent
+diffInputSchema
+distillPatchSchema
+distillyErrorCodeSchema
+distillyMcpTools
+distillyWireErrorSchema
+doctorInputSchema
+doctorSnapshotSchema
+engineEventSchema
+engineMethodSchemas
+eventIdSchema
+eventRecordSchema
+evidenceDraftSchema
+evidenceRefSchema
+evidenceStrengthSchema
+exportOptionsSchema
+exportRefSchema
+extensionStatusSchema
+facetPathSchema
+factChecksumSchema
+factEnvelopeSchema
+fileIngestItemResultSchema
+getMaterialInputSchema
+getProfileInputSchema
+hostCapabilitiesSchema
+hostDistillBriefingSchema
+hostDistillContractSchema
+hostExportInputSchema
+hostExtractionMethodSchema
+hostNameSchema
+hostPreflightSchema
+identityHintSchema
+ingestFilesInputSchema
+ingestFilesResultSchema
+ingestInputSchema
+ingestItemResultSchema
+ingestResultSchema
+ingestSubjectTargetSchema
+ingestTransactionRecordSchema
+installInputSchema
+installOptionsSchema
+installRefSchema
+isoDateTimeSchema
+jobIdSchema
+jobLeaseSchema
+leaseIdSchema
+libraryEntrySchema
+libraryPageSchema
+libraryQuerySchema
+lineageEventSchema
+lineageInputSchema
+materialIdSchema
+materialInputSchema
+materialPageSchema
+materialQuerySchema
+materialRecordSchema
+materialSetHashSchema
+materialSourceInputSchema
+materialSourceSchema
+materialSummarySchema
+materialViewSchema
+maturitySchema
+mutationContextSchema
+operationRecordSchema
+parserExtractionMethodSchema
+pendingFilterSchema
+pendingJobMarkerSchema
+pendingJobSchema
+privateUiCaptureActionAbortReasonSchema
+privateUiCaptureActionResultSchema
+privateUiCaptureAuditStopSchema
+privateUiCaptureAuthorizationSchema
+privateUiCaptureGrantStatusSchema
+privateUiCaptureGuardStopReasonSchema
+privateUiCaptureIngestResultSchema
+privateUiCaptureRangeSchema
+privateUiCaptureRefusalReasonSchema
+privateUiCaptureRefusedSchema
+privateUiCaptureScopeSchema
+privateUiCaptureStopReasonSchema
+profileDiffSchema
+profileSchema
+provenanceDigestSchema
+publicJobStateSchema
+purgeSubjectInputSchema
+qualitySummarySchema
+rawIdSchema
+rebuildResultSchema
+redistillInputSchema
+relationIdSchema
+relationOperationDraftSchema
+releaseLeaseInputSchema
+renewLeaseInputSchema
+requestIdSchema
+resolveSubjectInputSchema
+resolveSubjectResultSchema
+reviewActionInputSchema
+reviewItemSchema
+reviewLaunchSchema
+reviewQuerySchema
+reviewReasonSchema
+reviewRefSchema
+rollbackInputSchema
+sourceAccessSchema
+sourceDiversityStatusSchema
+sourceGroupBasisSchema
+sourceGroupCautionSchema
+sourceGroupKeySchema
+sourceGroupSchema
+sourceGroupingContextSchema
+sourceMediumSchema
+sourceRoleSchema
+spaceIdSchema
+spaceRecordSchema
+spaceSummarySchema
+subjectIdSchema
+subjectLifecycleSchema
+subjectPageSchema
+subjectQuerySchema
+subjectRecordSchema
+subjectRefSchema
+subjectSelectorSchema
+subjectStateRecordSchema
+subjectStatusSchema
+subjectSummarySchema
+textDerivationInputSchema
+textDerivationSchema
+uninstallInputSchema
+versionCreationSchema
+versionIdSchema
+versionMaterialEntrySchema
+versionMaterialManifestSchema
+versionRecordSchema
+versionStatusSchema
+versionSummarySchema
+wireFailureSchema
+wireRequestSchema
+wireSuccessSchema
+`
+  .trim()
+  .split("\n");
+
+const source = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
+const declarationPattern = /export( type)? \{([\s\S]*?)\} from "[^"]+";/g;
+const actualTypeExports = [];
+const actualRuntimeExports = [];
+let cursor = 0;
+
+for (const declaration of source.matchAll(declarationPattern)) {
+  assert.equal(
+    source.slice(cursor, declaration.index).trim(),
+    "",
+    "Protocol root may contain only explicit named re-export declarations",
+  );
+  cursor = (declaration.index ?? 0) + declaration[0].length;
+
+  const names = (declaration[2] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  for (const name of names) {
+    assert.match(
+      name,
+      /^[A-Za-z_$][A-Za-z0-9_$]*$/,
+      "Aliases and type-in-value escapes are forbidden",
+    );
+  }
+  (declaration[1] === " type" ? actualTypeExports : actualRuntimeExports).push(...names);
+}
+
+assert.equal(
+  source.slice(cursor).trim(),
+  "",
+  "Protocol root may contain only explicit named re-export declarations",
+);
+assert.equal(
+  new Set([...actualTypeExports, ...actualRuntimeExports]).size,
+  actualTypeExports.length + actualRuntimeExports.length,
+  "Protocol root exports must not be duplicated",
+);
+assert.deepEqual(
+  actualTypeExports.sort(),
+  expectedTypeExports,
+  "Update the reviewed type allowlist",
+);
+assert.deepEqual(
+  actualRuntimeExports.sort(),
+  expectedRuntimeExports,
+  "Update the reviewed runtime allowlist",
+);

@@ -26,11 +26,11 @@ Sixteen stages from bootstrap to monthly audit, each with an owner and a verdict
 
 Growth is signal-driven. V3 §27 keeps target gates tied to a behavior or release face, so the suite does not acquire twenty verifiers on day one. A checker with no corresponding failure is pure cost: it slows every change and gets whitelisted after its first false positive.
 
-### Current foundation evidence
+### Current implementation evidence
 
-The implemented slice is a pinned `pnpm` workspace with a minimal built and self-imported `@distilly/protocol` package exposing only the canonical V3 wire-major sentinel. Its real stages cover formatting and lint, no-emit typecheck, fail-closed Vitest discovery, reported coverage, TypeScript build, package self-import, exports and type resolution, and unused or undeclared dependency hygiene. The CI definition exercises Node 22.19 and 24 across Linux and macOS; the Python documentation, Agent Note, compile, unittest, and Ruff lanes remain in place for the legacy tree. The governed-diff predicate includes `packages/` and the root pnpm, TypeScript, ESLint, Vitest, Knip, and Prettier configuration surfaces while preserving the standing tests-only exemption for co-located Vitest files and snapshots.
+The implemented slice is a pinned `pnpm` workspace plus the V3 §29.1 `@distilly/protocol` contract. Its real stages cover formatting and lint, no-emit typecheck, fail-closed Vitest discovery, reported coverage, readable Protocol snapshots, TypeScript build, package self-import, exports and type resolution, and unused or undeclared dependency hygiene. Protocol gates cover the 35-method schema registry, the exact five MCP descriptors, an explicit public-export allowlist, and the built entry. The CI definition exercises Node 22.19 and 24 across Linux and macOS; the Python documentation, Agent Note, compile, unittest, and Ruff lanes remain in place for the legacy tree. The governed-diff predicate includes `packages/` and the root pnpm, TypeScript, ESLint, Vitest, Knip, and Prettier configuration surfaces while preserving the standing tests-only exemption for co-located Vitest files and snapshots.
 
-This evidence proves the workspace and package foundation, not the complete Protocol contract or the full lifecycle proposed here. Protocol grammars, schemas, errors, methods, events, MCP descriptors and snapshots; Engine facts and recovery; host workflows; fresh install; release automation; and eventual parity-backed retirement of Python governance remain unimplemented, so this Note remains proposed.
+This evidence proves the workspace and serializable Protocol contract, not the full lifecycle proposed here. Model-visible `prompt()` / `SKILL.md` / host-instruction snapshots, Engine facts and recovery behavior, host workflows, fresh install, release automation, and eventual parity-backed retirement of Python governance remain unimplemented, so this Note remains proposed.
 
 ## Alternatives considered
 

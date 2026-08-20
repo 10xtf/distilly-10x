@@ -6,7 +6,7 @@ Status: proposed
 
 The approved v1 design specified the product in Python: `src/distilly/api.py`, synchronous signatures, and `models.py` living inside the client package. Three of the four faces the product must serve are Node hosts — the Claude Code plugin, the Codex plugin and its MCP App surface, and the later panel. Keeping the engine in Python forces the protocol to be written twice, and the two copies will drift on exactly the field names v1 promised to freeze. The Python signatures are also synchronous, which blocks a host event loop when the same calls run inside an MCP server.
 
-Nothing has shipped yet: there is no `src/`, no product package, and no on-disk `~/.distilly/`. The cost of changing language is a design rewrite, not a migration of running code.
+There is still no runnable product or on-disk `~/.distilly/` installation. The current tree stops at the workspace and the built `@distilly/protocol` types and runtime schemas; the Engine, facade, MCP server, CLI, bindings, and Panel remain unimplemented. Changing the product language therefore still does not migrate running user data or behavior.
 
 ## Proposal
 

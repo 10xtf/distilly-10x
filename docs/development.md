@@ -14,7 +14,7 @@ pnpm install --frozen-lockfile
 
 Product implementation reads [design/README.md](design/README.md) before code. The design is the target contract; [architecture.md](architecture.md) records what is shipped.
 
-Python 3.9+ remains required for the published skill and repository governance. The TypeScript product requires Node `^22.19 || ^24`; Corepack reads the pinned package manager from `package.json`, and `pnpm install --frozen-lockfile` installs exactly the committed lock. The workspace currently contains the minimal `@distilly/protocol` build foundation, but not the complete Protocol contract, an Engine, or a runnable product ([design §27](design/v3/27-testing-and-governance.md)).
+Python 3.9+ remains required for the published skill and repository governance. The TypeScript product requires Node `^22.19 || ^24`; Corepack reads the pinned package manager from `package.json`, and `pnpm install --frozen-lockfile` installs exactly the committed lock. The workspace currently contains the V3 §29.1 `@distilly/protocol` slice, but no Engine or runnable product ([design §27](design/v3/27-testing-and-governance.md)).
 
 Optional local hooks run only cheap deterministic checks. Enable the tracked hook for this clone with `git config core.hooksPath .githooks`. On a feature branch, resolve the PR base from the base repository and record its exact metadata SHA with `git config branch.<branch>.distillyBase <baseRefOid>`; a fork's `origin` is not automatically the base repository. The hook requires a clean, checked-out local head and rejects multi-branch pushes, persistent-branch deletion, and non-fast-forward updates; push another branch separately from its own clean checkout. CI remains authoritative because Git cannot force contributors to install a hook.
 
@@ -31,8 +31,9 @@ Match the check to the change. Do not default to the full suite.
 | Behavior of a collector or writer | the unittest that would fail if that behavior regressed |
 | TypeScript formatting or lint | `pnpm run gates:fast` |
 | TypeScript signatures | `pnpm run typecheck` |
-| TypeScript foundation behavior | `pnpm run test` or the narrow owning Vitest file |
+| Protocol behavior | `pnpm run test` or the narrow owning Vitest file |
 | TypeScript coverage report | `pnpm run test:coverage` |
+| Protocol public snapshot | `pnpm run snapshots` |
 | Built package or export map | `pnpm run build`, then `pnpm run hygiene` |
 | Full local gate aggregation | `pnpm run gates` |
 | Outgoing product PR | [distilly-code-review](../.agents/skills/distilly-code-review/SKILL.md) against [process/code-review.md](process/code-review.md) |
@@ -48,7 +49,7 @@ Before push, follow [.agents/skills/distilly-pre-push-checks/SKILL.md](../.agent
 5. Stage only that feature, review `git diff --cached --stat`, `git diff --cached`, and `git diff --cached --check`, then create one local feature commit. Do not create checkpoint, WIP, fixup, or contribution-by-contribution history.
 6. Begin another independent feature only after the previous feature commit exists. Local commits need no additional permission; push, PR, and publication remain opt-in.
 
-CI on `dot-skill`, `distilly`, and `main` runs governance once; frozen install, fast gates, typecheck, tests, coverage, build, and package hygiene on Node 22.19/24 across Linux and macOS; compile and `python -B scripts/run_tests.py` on Python 3.9/3.11; and Ruff. Missing tests are an error, not a successful skip. CI becomes a merge/push gate only when the base repository has the [required branch protection](cookbook/protecting-governed-branches.md); otherwise it is post-push detection.
+CI on `dot-skill`, `distilly`, and `main` runs governance once; frozen install, fast gates, typecheck, tests, coverage, snapshots, build, and package hygiene on Node 22.19/24 across Linux and macOS; compile and `python -B scripts/run_tests.py` on Python 3.9/3.11; and Ruff. Missing tests are an error, not a successful skip. CI becomes a merge/push gate only when the base repository has the [required branch protection](cookbook/protecting-governed-branches.md); otherwise it is post-push detection.
 
 GitHub loads community PR templates from the default branch. Shared discovery files such as root `AGENTS.md` and `.github/PULL_REQUEST_TEMPLATE.md` must land on the default `dot-skill` branch as well as the branch that consumes them; a `distilly`-only copy does not change the new-PR form.
 
@@ -129,4 +130,4 @@ A successful handoff lets the next agent recover the exact repo, base, objective
 
 Product code goes in the `packages/` workspaces named in [design §25](design/v3/25-package-and-source-tree.md): `@distilly/protocol`, `@distilly/engine`, `@distilly/runtime`, `@distilly/adapters`, `@distilly/bindings`, `@distilly/mcp`, `@distilly/panel`, `@distilly/cli`, and the `distilly` facade. The dependency direction is one-way: engine, bindings, adapters, facade, MCP, and Panel web depend on protocol; Panel server additionally depends on MCP's narrow ReviewPresenter type; runtime composes engine + bindings + adapters; CLI composes runtime + MCP + Panel. A shared wire type belongs in protocol, not whichever package needed it first.
 
-The workspace, its gates, and the minimal `@distilly/protocol` build foundation are implemented. The complete Protocol contract, every other package named above, and all Engine behavior remain target design; do not create empty packages or infer product behavior from the wire-major sentinel. `tools/` and `prompts/` continue to take defect fixes for the published skill only — no V3 behavior and no third tree invented to avoid the package cut ([design §29.1](design/v3/29-landing-and-evolution.md)).
+The workspace, its gates, and the V3 §29.1 `@distilly/protocol` slice are implemented. Every other package named above and all Engine behavior remain target design; do not create empty packages or infer Engine behavior from protocol types. `tools/` and `prompts/` continue to take defect fixes for the published skill only — no V3 behavior and no third tree invented to avoid the package cut ([design §29.1](design/v3/29-landing-and-evolution.md)).

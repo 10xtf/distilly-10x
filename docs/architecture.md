@@ -6,13 +6,13 @@ Do not implement from this page alone. Load [design/README.md](design/README.md)
 
 ## What exists now
 
-This section describes the product tree represented by the current change. Workspace experiments outside the governed product diff are not shipped evidence.
+This section describes the current product tree. Workspace experiments outside the governed product diff are not shipped evidence.
 
-- The root `pnpm` workspace pins Node `^22.19 || ^24`, its package manager and dependencies in `pnpm-lock.yaml`, and real format, lint, typecheck, Vitest, coverage, build, built-entry, export-map, type-resolution, and dependency-hygiene commands.
-- `packages/protocol/` is the only TypeScript product package present. It is a build foundation, not the V3 Protocol slice: the root exports only `WIRE_VERSION` and its runtime schema so the real test, ESM build, pack, import, export-map, and type-resolution faces can be exercised without pretending the remaining wire contract exists.
-- No branded ids, wire/error envelopes, EngineMethodMap, EngineClient/Event contracts, MCP descriptors, Engine, runtime, facade, MCP server, CLI, binding, Panel, plugin runtime, deterministic source-grouping/claim functions, or `~/.distilly/` fact layer exists yet.
-- `tools/` and `prompts/` remain frozen Python serving the published skill. Tests under `tests/` still cover that skill writer, installers, research helpers, and repository governance; the TypeScript foundation tests live with their source under `packages/protocol/src/`.
-- CI on `dot-skill`, `distilly`, and `main` reports documentation and Agent Note governance once, exercises the TypeScript foundation on Node 22.19 and 24 across Linux and macOS, and retains Python 3.9/3.11 compile and fail-closed unittest lanes plus Ruff while the legacy skill remains.
+- The root `pnpm` workspace pins Node `^22.19 || ^24`, its package manager and dependencies in `pnpm-lock.yaml`, and real format, lint, typecheck, Vitest, coverage, snapshot, build, built-entry, export-map, type-resolution, and dependency-hygiene commands.
+- `packages/protocol/` is the only TypeScript product package implemented so far. It provides the V3 §29.1 Protocol slice: branded ids and value families, wire/error envelopes, trusted-session and private-capture values, fact-record shapes, all 35 EngineMethodMap schemas, EngineClient/Event contracts, the exact five MCP tool descriptors with runtime and draft-2020-12 schemas, strict runtime boundary schemas, and a built ESM entry.
+- Protocol contains no product business logic. No Engine, fact store, hashing implementation, transaction or recovery behavior, runtime, facade, MCP server, CLI, binding, Panel, plugin runtime, deterministic source-grouping/claim functions, or `~/.distilly/` fact layer exists yet.
+- `tools/` and `prompts/` remain frozen Python serving the published skill. Tests under `tests/` still cover that skill writer, installers, research helpers, and repository governance; the TypeScript protocol tests live with their source under `packages/protocol/src/`.
+- CI on `dot-skill`, `distilly`, and `main` reports documentation and Agent Note governance once, exercises the TypeScript workspace and Protocol contract on Node 22.19 and 24 across Linux and macOS, and retains Python 3.9/3.11 compile and fail-closed unittest lanes plus Ruff while the legacy skill remains.
 - Generated design chapters, local Markdown links, and governed-diff Note ownership are checked by scripts under `scripts/`.
 - Required-check enforcement is external GitHub state, not a fact stored in this tree. Verify it with the [branch-protection cookbook](cookbook/protecting-governed-branches.md) before claiming a red check blocks a push or merge.
 
@@ -49,7 +49,7 @@ The contract is the uncut design. Entry points:
 
 ```
 published skill: materials → tools/ + prompts/ → work.md + persona.md + SKILL.md → host skills/
-product foundation: packages/protocol/src → V3 wire-major schema + ESM lib entry
+product protocol:   packages/protocol/src → types + runtime schemas + ESM lib entry
 ```
 
 ## Target data flow (design)

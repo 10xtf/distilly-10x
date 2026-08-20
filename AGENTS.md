@@ -16,7 +16,7 @@ Do not create per-file, per-function, per-test, subagent, checkpoint, fixup, or 
 
 - Before product code on `distilly`, read [docs/design/README.md](docs/design/README.md) and the chapter that owns the change. [docs/design/system-v3.md](docs/design/system-v3.md) is the in-force contract; V2 and V1 are deprecated history; [docs/architecture.md](docs/architecture.md) is the shipped-state map. Do not apply target APIs as current behavior on `dot-skill`.
 - Product code is TypeScript. `tools/` and `prompts/` are frozen Python serving the published skill: defects only, no new behavior. Retirement conditions are in [design §28](docs/design/v3/28-migration-and-compatibility.md).
-- The current TypeScript product tree is the `pnpm` workspace plus a minimal `@distilly/protocol` build foundation that exposes only the V3 wire-major sentinel and its runtime schema. The complete Protocol contract, Engine behavior, runtime, facade, MCP server, CLI, bindings, Panel, plugins, and the `~/.distilly/` fact layer remain unshipped.
+- The current TypeScript product tree is the `pnpm` workspace and the V3 §29.1 `@distilly/protocol` slice. Engine behavior, runtime, facade, MCP server, CLI, bindings, Panel, plugins, and the `~/.distilly/` fact layer remain unshipped.
 - Every governed change adds or updates an [Agent Note](.agents/notes/README.md) in the same PR. The diff gate defines governed paths; tests, translations, assets, and local-only edits are exempt unless they change a shared decision.
 - Document current state in standing docs. Put rationale in Agent Notes; put procedures in [docs/cookbook/](docs/cookbook/).
 - Target implementation invariant (not shipped): Markdown and jsonl under `~/.distilly/` are the fact layer; indexes are disposable.
@@ -26,7 +26,7 @@ Do not create per-file, per-function, per-test, subagent, checkpoint, fixup, or 
 - Target implementation invariant (not shipped): temporary personas enter only that sub-run via `get` / `prompt`, never global `AGENTS.md`, `CLAUDE.md`, or `agent.md`.
 - Target implementation invariant (not shipped): first-version recall injects the full profile and fails visibly if it does not fit.
 - Target implementation invariant (not shipped): `SourceAdapter` and `HostInjector` are separate seams; relations are an additive post-core slice; commit is not O(n²).
-- Target implementation invariant (not shipped): every public I/O operation is async, ids are branded, the error `code` union is the wire contract, and runtime validation happens only at the boundaries listed in [design §7.6](docs/design/v3/07-protocol-types.md).
+- Target implementation invariant (encoded in Protocol types and schemas; implementations and callers remain unshipped): every public I/O operation is async, ids are branded, the error `code` union is the wire contract, and runtime validation happens only at the boundaries listed in [design §7.6](docs/design/v3/07-protocol-types.md).
 - Target implementation invariant (not shipped): the `~/.distilly/` format is language-neutral; immutable versions plus `state.json` are facts, while `node:sqlite` backs only disposable queue and graph projections, never retrieval.
 - Target implementation invariant (not shipped): claims are the semantic truth; the host cannot submit ids, actor, quality, version, or Markdown, and risky valid candidates suspend without replacing current.
 - When reviewing a PR or an outgoing product diff, follow [docs/process/code-review.md](docs/process/code-review.md) and [distilly-code-review](.agents/skills/distilly-code-review/SKILL.md).
@@ -57,6 +57,7 @@ pnpm run gates:fast
 pnpm run typecheck
 pnpm run test
 pnpm run test:coverage
+pnpm run snapshots
 pnpm run build
 pnpm run hygiene
 python3 -B scripts/verify_docs.py
@@ -68,6 +69,6 @@ python3 -B scripts/run_tests.py
 
 Run the narrowest set that can fail for the change. CI runs on `dot-skill`, `distilly`, and `main`; branch protection determines whether a red result merely detects or actually blocks the change.
 
-These are the gates that exist today. The TypeScript suite currently proves the workspace, package face, and minimal Protocol build foundation; the complete Protocol contract, Engine behavior, and later release tiers remain in [design §27](docs/design/v3/27-testing-and-governance.md).
+These are the gates that exist today. The TypeScript suite currently proves the workspace and Protocol wire contract; Engine behavior and later release tiers remain in [design §27](docs/design/v3/27-testing-and-governance.md).
 
 Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a symlink).

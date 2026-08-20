@@ -9,10 +9,11 @@ Do not implement from this page alone. Load [design/README.md](design/README.md)
 This section describes the current product tree. Workspace experiments outside the governed product diff are not shipped evidence.
 
 - The root `pnpm` workspace pins Node `^22.19 || ^24`, its package manager and dependencies in `pnpm-lock.yaml`, and real format, lint, typecheck, Vitest, coverage, snapshot, build, built-entry, export-map, type-resolution, and dependency-hygiene commands.
-- `packages/protocol/` is the only TypeScript product package implemented so far. It provides the V3 §29.1 Protocol slice: branded ids and value families, wire/error envelopes, trusted-session and private-capture values, fact-record shapes, all 35 EngineMethodMap schemas, EngineClient/Event contracts, the exact five MCP tool descriptors with runtime and draft-2020-12 schemas, strict runtime boundary schemas, and a built ESM entry.
-- Protocol contains no product business logic. No Engine, fact store, hashing implementation, transaction or recovery behavior, runtime, facade, MCP server, CLI, binding, Panel, plugin runtime, deterministic source-grouping/claim functions, or `~/.distilly/` fact layer exists yet.
-- `tools/` and `prompts/` remain frozen Python serving the published skill. Tests under `tests/` still cover that skill writer, installers, research helpers, and repository governance; the TypeScript protocol tests live with their source under `packages/protocol/src/`.
-- CI on `dot-skill`, `distilly`, and `main` reports documentation and Agent Note governance once, exercises the TypeScript workspace and Protocol contract on Node 22.19 and 24 across Linux and macOS, and retains Python 3.9/3.11 compile and fail-closed unittest lanes plus Ruff while the legacy skill remains.
+- `packages/protocol/` provides the V3 §29.1 Protocol slice: branded ids and value families, wire/error envelopes, trusted-session and private-capture values, fact-record shapes, all 35 EngineMethodMap schemas, EngineClient/Event contracts, the exact five MCP tool descriptors with runtime and draft-2020-12 schemas, strict runtime boundary schemas, and a built ESM entry.
+- `packages/engine/` provides the internal V3 §29.1 Fact-foundation slice: confined layout paths, canonical JSON and full SHA-256 fact/material identities, durable atomic file publication, concrete space/subject/material/state/event/operation stores, and space-identity/subject cross-process locks with heartbeat and dead-owner recovery. Store reads validate Protocol schemas, checksums, path ids, subject/space references, material bodies, and current material manifests. The package root intentionally exports no partial Engine API.
+- No complete Engine factory or runtime, create/ingest service, prepared journal or recovery service, queue/index, facade, MCP server, CLI, binding, Panel, plugin runtime, deterministic source-grouping/claim functions, or user `~/.distilly/` installation exists yet. Protocol types and the internal fact foundation are not a runnable product.
+- `tools/` and `prompts/` remain frozen Python serving the published skill. Tests under `tests/` cover that skill writer, installers, research helpers, and repository governance; TypeScript tests live with their source under `packages/*/src/`, with built-entry scripts under each package.
+- CI on `dot-skill`, `distilly`, and `main` reports documentation and Agent Note governance once, exercises the TypeScript workspace, Protocol contract, package-boundary gate, and Engine fact foundation on Node 22.19 and 24 across Linux and macOS, and retains Python 3.9/3.11 compile and fail-closed unittest lanes plus Ruff while the legacy skill remains.
 - Generated design chapters, local Markdown links, and governed-diff Note ownership are checked by scripts under `scripts/`.
 - Required-check enforcement is external GitHub state, not a fact stored in this tree. Verify it with the [branch-protection cookbook](cookbook/protecting-governed-branches.md) before claiming a red check blocks a push or merge.
 
@@ -50,6 +51,7 @@ The contract is the uncut design. Entry points:
 ```
 published skill: materials → tools/ + prompts/ → work.md + persona.md + SKILL.md → host skills/
 product protocol:   packages/protocol/src → types + runtime schemas + ESM lib entry
+fact foundation:    packages/engine/src   → verified local facts + locks; no EngineRuntime yet
 ```
 
 ## Target data flow (design)

@@ -16,7 +16,7 @@ Do not create per-file, per-function, per-test, subagent, checkpoint, fixup, or 
 
 - Before product code on `distilly`, read [docs/design/README.md](docs/design/README.md) and the chapter that owns the change. [docs/design/system-v3.md](docs/design/system-v3.md) is the in-force contract; V2 and V1 are deprecated history; [docs/architecture.md](docs/architecture.md) is the shipped-state map. Do not apply target APIs as current behavior on `dot-skill`.
 - Product code is TypeScript. `tools/` and `prompts/` are frozen Python serving the published skill: defects only, no new behavior. Retirement conditions are in [design §28](docs/design/v3/28-migration-and-compatibility.md).
-- The current TypeScript product tree is the `pnpm` workspace and the V3 §29.1 `@distilly/protocol` slice. Engine behavior, runtime, facade, MCP server, CLI, bindings, Panel, plugins, and the `~/.distilly/` fact layer remain unshipped.
+- The current TypeScript product tree is the `pnpm` workspace, the V3 §29.1 `@distilly/protocol` slice, and the internal `@distilly/engine` fact foundation. The Engine package currently provides layout, hashing, atomic fact files, concrete fact stores, and cross-process locks only; no complete Engine runtime, create/ingest flow, queue, facade, MCP server, CLI, bindings, Panel, plugins, or user `~/.distilly/` installation is shipped.
 - Every governed change adds or updates an [Agent Note](.agents/notes/README.md) in the same PR. The diff gate defines governed paths; tests, translations, assets, and local-only edits are exempt unless they change a shared decision.
 - Document current state in standing docs. Put rationale in Agent Notes; put procedures in [docs/cookbook/](docs/cookbook/).
 - Target implementation invariant (not shipped): Markdown and jsonl under `~/.distilly/` are the fact layer; indexes are disposable.
@@ -69,6 +69,6 @@ python3 -B scripts/run_tests.py
 
 Run the narrowest set that can fail for the change. CI runs on `dot-skill`, `distilly`, and `main`; branch protection determines whether a red result merely detects or actually blocks the change.
 
-These are the gates that exist today. The TypeScript suite currently proves the workspace and Protocol wire contract; Engine behavior and later release tiers remain in [design §27](docs/design/v3/27-testing-and-governance.md).
+These are the gates that exist today. The TypeScript suite currently proves the workspace, Protocol wire contract, package dependency direction, and Engine fact-foundation primitives; create/ingest, recovery, runtime behavior, and later release tiers remain in [design §27](docs/design/v3/27-testing-and-governance.md).
 
 Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a symlink).

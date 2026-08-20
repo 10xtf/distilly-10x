@@ -6,6 +6,9 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": [],
+    "paths": {
+      "@distilly/protocol": ["./packages/protocol/src/index.ts"]
+    },
 
     "strict": true,
     "noUncheckedIndexedAccess": true,

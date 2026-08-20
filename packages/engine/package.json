@@ -1,0 +1,28 @@
+{
+  "name": "@distilly/engine",
+  "version": "0.0.0",
+  "description": "Private local fact implementation for the Distilly engine.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": "^22.19 || ^24"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "!lib/**/*.test.*"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@distilly/protocol": "workspace:*"
+  },
+  "scripts": {
+    "smoke:built": "node scripts/smoke-built.mjs"
+  }
+}

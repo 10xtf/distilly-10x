@@ -12,14 +12,16 @@
     "lint": "eslint .",
     "gates:fast": "pnpm run format:check && pnpm run lint",
     "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:boundaries",
     "test:coverage": "vitest run --coverage",
+    "test:boundaries": "node --test tests/check_package_boundaries.test.mjs",
+    "check:boundaries": "node scripts/check_package_boundaries.mjs .",
     "snapshots": "pnpm -r --if-present run snapshots",
     "docs": "python3 -B scripts/verify_docs.py",
     "notes": "python3 -B scripts/verify_agent_notes.py",
     "build": "tsc -b --force",
     "smoke:built": "pnpm -r --if-present run smoke:built",
-    "hygiene": "knip && pnpm run smoke:built && pnpm -r exec publint && pnpm -r exec attw --pack --profile esm-only .",
+    "hygiene": "pnpm run check:boundaries && knip && pnpm run smoke:built && pnpm -r exec publint && pnpm -r exec attw --pack --profile esm-only .",
     "gates": "pnpm run gates:fast && pnpm run typecheck && pnpm run test && pnpm run test:coverage && pnpm run snapshots && pnpm run docs && pnpm run notes && pnpm run build && pnpm run hygiene"
   },
   "devDependencies": {

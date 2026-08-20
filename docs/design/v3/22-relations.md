@@ -36,7 +36,7 @@ type 使用开放点分路径，如 work.founded、family.parent、canon.rival�
 
 ### 22.3 RelationOperationDraft
 
-宿主可以在 DistillPatch 附 relationOperations，但 feature flag 未启用时 validator 明确拒绝，不静默丢：
+首发 Step 7 的 DistillPatch **没有** relationOperations，closed-object schema 对该 unknown key 返回 invalid_input。下列 RelationOperationDraft 只属于 §29 Step 13 的 additive relation slice；该 slice 必须新增明确 method/patch discriminant、事实 transaction 与 gate 后才可启用，不能用 Step 7 feature flag 偷偷接受或静默丢弃：
 
 ~~~ts
 export type RelationOperationDraft =

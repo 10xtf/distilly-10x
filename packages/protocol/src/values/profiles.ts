@@ -22,6 +22,7 @@ export interface QualitySummary {
 /** Complete structured and deterministically rendered profile. */
 export interface Profile {
   readonly subjectId: SubjectId;
+  readonly displayName: string;
   readonly versionId: VersionId;
   readonly claims: readonly Claim[];
   readonly core: Readonly<Record<CoreFacetName, string>>;

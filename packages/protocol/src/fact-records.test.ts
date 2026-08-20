@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { WIRE_LIMITS } from "./json.js";
 import type { EngineMethodMap, MutationMethodName } from "./methods.js";
 import {
+  distillCommitTransactionRecordSchema,
   distillLeaseTransactionMethodSchema,
   distillLeaseTransactionRecordSchema,
   eventRecordSchema,
@@ -44,6 +45,7 @@ import {
   versionIdSchema,
 } from "./schemas/ids.js";
 import type {
+  DistillCommitTransactionRecord,
   DistillLeaseTransactionMethod,
   DistillLeaseTransactionRecord,
   EventRecord,
@@ -159,6 +161,7 @@ const suspendedVersion = {
 
 const profile = {
   subjectId,
+  displayName: "Ada",
   versionId,
   claims: [],
   core: {
@@ -631,6 +634,7 @@ const versionRecord = {
   checksum: factChecksum,
   id: versionId,
   subjectId,
+  subjectDisplayName: "Ada",
   generation: 1,
   materialSetHash,
   materialCount: 1,
@@ -722,6 +726,118 @@ const preparedReleaseTransaction = {
   operation: operationRecords["distill.release"],
 } satisfies DistillLeaseTransactionRecord;
 
+const commitVersion = {
+  ...currentVersion,
+  id: candidateVersionId,
+  parentId: versionId,
+} as const;
+
+const commitProfile = {
+  ...profile,
+  versionId: candidateVersionId,
+} as const;
+
+const commitVersionRecord = {
+  ...versionRecord,
+  id: candidateVersionId,
+  parentId: versionId,
+  rendererVersion: "profile-renderer-v1",
+} satisfies VersionRecord;
+
+const commitClaimsSnapshot = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  subjectId,
+  versionId: candidateVersionId,
+  claims: [],
+} satisfies VersionClaimsSnapshot;
+
+const commitTargetState = {
+  schemaVersion: 2,
+  checksum: otherFactChecksum,
+  subjectId,
+  generation: 1,
+  materialSetHash,
+  materialManifest: [firstEntry],
+  currentVersionId: candidateVersionId,
+} satisfies SubjectStateRecord;
+
+const versionCurrentEvent = {
+  ...eventRecord,
+  eventId: eventIdSchema.parse(`event_${THIRD_HEX_32}`),
+  event: { kind: "version.current", subjectId, versionId: candidateVersionId, at },
+} satisfies EventRecord;
+
+const commitOperation = {
+  ...operationRecords["distill.commit"],
+  result: {
+    kind: "current",
+    version: commitVersion,
+    profile: commitProfile,
+  },
+} satisfies OperationRecord<"distill.commit">;
+
+const preparedCommitTransaction = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  transactionKind: "distill_commit",
+  requestId,
+  subjectId,
+  jobId,
+  leaseId,
+  leaseOwner: leaseOwnerId,
+  previousStateChecksum: otherFactChecksum,
+  previousPending: leasedPendingMarker,
+  targetState: commitTargetState,
+  acceptedPatch: { operations: [] },
+  patchDigest: contentDigest,
+  version: commitVersionRecord,
+  materialManifest: versionManifest,
+  claims: commitClaimsSnapshot,
+  profile: commitProfile,
+  prompt: "# Distilly simulation context\n",
+  operation: commitOperation,
+  events: [versionCurrentEvent, jobChangedEvent],
+  preparedAt: at,
+  state: "prepared",
+} satisfies DistillCommitTransactionRecord;
+
+const reviewReasons = [{ code: "manual_review_requested", note: "Review identity." }] as const;
+
+const suspendedCommitVersionRecord = {
+  ...commitVersionRecord,
+  createdDisposition: "suspended",
+  reviewReasons,
+} satisfies VersionRecord;
+
+const versionSuspendedEvent = {
+  ...versionCurrentEvent,
+  event: { kind: "version.suspended", subjectId, versionId: candidateVersionId, at },
+} satisfies EventRecord;
+
+const suspendedCommitOperation = {
+  ...commitOperation,
+  result: {
+    kind: "suspended",
+    candidate: { ...commitVersion, status: "suspended" },
+    currentVersionId: versionId,
+    reasons: reviewReasons,
+    review: { subjectId, candidateVersionId },
+  },
+} satisfies OperationRecord<"distill.commit">;
+
+const preparedSuspendedCommitTransaction = {
+  ...preparedCommitTransaction,
+  targetState: {
+    ...commitTargetState,
+    currentVersionId: versionId,
+    suspendedVersionId: candidateVersionId,
+  },
+  version: suspendedCommitVersionRecord,
+  operation: suspendedCommitOperation,
+  events: [versionSuspendedEvent, jobChangedEvent],
+} satisfies DistillCommitTransactionRecord;
+
 const parseRoundTrip = (schema: { parse(value: unknown): unknown }, fixture: unknown): unknown => {
   const parsed = schema.parse(fixture);
   const serialized = JSON.stringify(parsed);
@@ -753,7 +869,7 @@ describe("persisted fact runtime schemas", () => {
     expectTypeOf<keyof typeof operationRecords>().toEqualTypeOf<MutationMethodName>();
     expectTypeOf<OperationFact>().toEqualTypeOf<OperationRecord | OperationTombstoneRecord>();
     expectTypeOf<TransactionRecord>().toEqualTypeOf<
-      IngestTransactionRecord | DistillLeaseTransactionRecord
+      IngestTransactionRecord | DistillLeaseTransactionRecord | DistillCommitTransactionRecord
     >();
     expectTypeOf<DistillLeaseTransactionMethod>().toEqualTypeOf<"brief" | "renew" | "release">();
     expect(distillLeaseTransactionMethodSchema.parse("brief")).toBe("brief");
@@ -883,6 +999,18 @@ describe("persisted fact runtime schemas", () => {
         { ...preparedReleaseTransaction, state: "aborted", finishedAt },
       ],
       [transactionRecordSchema, preparedBriefTransaction],
+      [distillCommitTransactionRecordSchema, preparedCommitTransaction],
+      [distillCommitTransactionRecordSchema, preparedSuspendedCommitTransaction],
+      [
+        distillCommitTransactionRecordSchema,
+        { ...preparedCommitTransaction, state: "committed", finishedAt },
+      ],
+      [
+        distillCommitTransactionRecordSchema,
+        { ...preparedCommitTransaction, state: "aborted", finishedAt },
+      ],
+      [transactionRecordSchema, preparedCommitTransaction],
+      [transactionRecordSchema, preparedSuspendedCommitTransaction],
     ] as const;
 
     for (const [schema, fixture] of fixtures) parseRoundTrip(schema, fixture);
@@ -939,6 +1067,180 @@ describe("persisted fact runtime schemas", () => {
         ),
       }),
     ).toThrow();
+  });
+
+  it("correlates version disposition with persisted review reasons", () => {
+    expect(() => versionRecordSchema.parse(versionRecord)).not.toThrow();
+    expect(() => versionRecordSchema.parse(suspendedCommitVersionRecord)).not.toThrow();
+    expect(() => versionRecordSchema.parse({ ...versionRecord, reviewReasons })).toThrow();
+    expect(() =>
+      versionRecordSchema.parse({
+        ...suspendedCommitVersionRecord,
+        reviewReasons: undefined,
+      }),
+    ).toThrow();
+  });
+
+  it("enforces distill commit lifecycle and complete cross-record correlations", () => {
+    const otherLeaseId = leaseIdSchema.parse(`lease_${ALT_HEX_32}`);
+    const otherLeaseOwner = leaseOwnerIdSchema.parse(`lease_owner_${ALT_HEX_32}`);
+    const invalidTransactions: readonly unknown[] = [
+      { ...preparedCommitTransaction, finishedAt },
+      { ...preparedCommitTransaction, state: "committed" },
+      {
+        ...preparedCommitTransaction,
+        preparedAt: finishedAt,
+        state: "committed",
+        finishedAt: at,
+      },
+      { ...preparedCommitTransaction, leaseId: otherLeaseId },
+      { ...preparedCommitTransaction, leaseOwner: otherLeaseOwner },
+      {
+        ...preparedCommitTransaction,
+        previousPending: { ...leasedPendingMarker, lease: undefined },
+      },
+      {
+        ...preparedCommitTransaction,
+        previousPending: {
+          ...leasedPendingMarker,
+          jobId: jobIdSchema.parse(`job_${ALT_HEX_32}`),
+        },
+      },
+      {
+        ...preparedCommitTransaction,
+        targetState: { ...commitTargetState, pending: leasedPendingMarker },
+      },
+      {
+        ...preparedCommitTransaction,
+        targetState: { ...commitTargetState, subjectId: otherSubjectId },
+      },
+      {
+        ...preparedCommitTransaction,
+        targetState: { ...commitTargetState, generation: 2 },
+      },
+      {
+        ...preparedCommitTransaction,
+        targetState: {
+          ...commitTargetState,
+          materialManifest: [firstEntry, secondEntry],
+        },
+      },
+      {
+        ...preparedCommitTransaction,
+        targetState: { ...commitTargetState, currentVersionId: versionId },
+      },
+      {
+        ...preparedCommitTransaction,
+        version: { ...commitVersionRecord, subjectId: otherSubjectId },
+      },
+      {
+        ...preparedCommitTransaction,
+        version: { ...commitVersionRecord, parentId: candidateVersionId },
+      },
+      {
+        ...preparedCommitTransaction,
+        version: { ...commitVersionRecord, generation: 2 },
+      },
+      {
+        ...preparedCommitTransaction,
+        version: {
+          ...commitVersionRecord,
+          creation: { ...commitVersionRecord.creation, promptVersion: "other-prompt" },
+        },
+      },
+      {
+        ...preparedCommitTransaction,
+        version: { ...commitVersionRecord, materialCount: 2 },
+      },
+      {
+        ...preparedCommitTransaction,
+        claims: { ...commitClaimsSnapshot, versionId },
+      },
+      {
+        ...preparedCommitTransaction,
+        profile: { ...commitProfile, displayName: "Augusta" },
+      },
+      {
+        ...preparedCommitTransaction,
+        profile: { ...commitProfile, claims: [firstClaim] },
+      },
+      {
+        ...preparedCommitTransaction,
+        profile: {
+          ...commitProfile,
+          quality: { ...quality, activeClaimCount: 1 },
+        },
+      },
+      { ...preparedCommitTransaction, prompt: "" },
+      {
+        ...preparedCommitTransaction,
+        operation: { ...commitOperation, requestId: otherRequestId },
+      },
+      {
+        ...preparedCommitTransaction,
+        operation: { ...commitOperation, actor: { kind: "sdk", id: "other-sdk" } },
+      },
+      {
+        ...preparedCommitTransaction,
+        operation: {
+          ...commitOperation,
+          result: {
+            ...commitOperation.result,
+            version: { ...commitVersion, id: versionId },
+          },
+        },
+      },
+      {
+        ...preparedCommitTransaction,
+        events: [
+          { ...versionCurrentEvent, event: { ...versionCurrentEvent.event, versionId } },
+          jobChangedEvent,
+        ],
+      },
+      {
+        ...preparedCommitTransaction,
+        events: [
+          versionCurrentEvent,
+          {
+            ...jobChangedEvent,
+            event: { ...jobChangedEvent.event, versionId: candidateVersionId },
+          },
+        ],
+      },
+      {
+        ...preparedCommitTransaction,
+        events: [versionCurrentEvent, { ...jobChangedEvent, eventId: versionCurrentEvent.eventId }],
+      },
+      {
+        ...preparedCommitTransaction,
+        events: [
+          versionCurrentEvent,
+          { ...jobChangedEvent, event: { ...jobChangedEvent.event, at: finishedAt } },
+        ],
+      },
+      {
+        ...preparedCommitTransaction,
+        version: { ...commitVersionRecord, createdAt: finishedAt },
+      },
+      {
+        ...preparedCommitTransaction,
+        operation: { ...commitOperation, completedAt: finishedAt },
+      },
+      {
+        ...preparedSuspendedCommitTransaction,
+        operation: {
+          ...suspendedCommitOperation,
+          result: {
+            ...suspendedCommitOperation.result,
+            reasons: [{ code: "source_diversity_decreased" }],
+          },
+        },
+      },
+    ];
+
+    for (const transaction of invalidTransactions) {
+      expect(() => distillCommitTransactionRecordSchema.parse(transaction)).toThrow();
+    }
   });
 
   it("accepts large sorted manifests without imposing a wire-list cap", () => {

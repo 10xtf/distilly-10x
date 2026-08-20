@@ -94,6 +94,8 @@ materials 按 materialId 稳定排序，依次分配 m001..m999 BriefMaterialRef
 
 短句柄只在该 job generation 有效，不能跨 job 复制。存入 Claim 的 EvidenceRef 使用 MaterialId，不保存 m001。
 
+commit 不读取 distill.brief OperationRecord 来恢复短句柄，因为 completed operation 可被 privacy purge，而 commit 的授权事实来自仍在 state 的 active lease。它在 subject lock 内从 verified `state.pending`、lease 固定的 BriefContract、base VersionRecord/VersionClaimsSnapshot/VersionMaterialManifest、当前 state.materialManifest 与对应 MaterialRecord/content 重建 package-private EvidenceContext：当前 manifest 相对 base manifest 的排序差集按 MaterialId 重新分配恰好 m001..mNNN，base claim/index 精确映射已有 EvidenceRef，完整当前 material set 用 pinned `source-groups-v1` 重算 grouping。EvidenceContext 只携带 ref→material、base claim/evidence、material body/provenance/grouping 与 verified contract，不是 protocol/wire 类型，也不包含 mutable SubjectRecord 展示字段。缺失或不支持 pinned 算法返回 schema_unsupported，fact/checksum/member 不一致返回 storage_corrupt；绝不从 current defaults、brief operation payload 或目录扫描猜测。
+
 briefing 不包含 raw bytes、本地绝对路径或私人 capture 的屏幕帧。固定 instructions 明确：OCR、字幕与转写是派生文本；相同 sourceGroup 的材料不能写成互相佐证；没有可靠 speaker attribution 时，不把采访者、弹幕或其它参与者的话写成主体原话。
 
 ### 12.4 Lease
@@ -145,7 +147,7 @@ interface DistillLeaseService {
 - renew 要求 job、lease id、generation、owner 都匹配且 lease active；它保留 lease id、owner、acquiredAt、generation、digest 与完整 contract，只把 expiresAt 写为 now+30 分钟；已过期返回 lease_expired 且不写 journal/state/event；
 - release 有相同的 job/id/owner/active 检查，只删除 target PendingJobMarker.lease，保留整个 job marker；已过期返回 lease_expired 且不写事实；
 - 产生新 generation 的 ingest 用新 job marker整体替换旧 pending/lease；旧 commit 根据 job id 与 generation 返回 stale_job；
-- commit 成功或 hard reject 的后续 lease 处置由 CommitService 的未来 transaction 明确定义，不能让 projection 先改事实。
+- commit hard reject 零写入并保留整个 pending/lease，允许调用方用新 requestId 修正 patch；成功 commit 的 target state 无 pending/lease。current 成功令 current 指向新 version 且 suspended 缺失，suspended 成功保留旧 current 并令 suspended 指向新 version；已有 active suspended 时在 journal 前返回 review_conflict。不能让 projection 先改事实。
 
 commit 回显 digest 后，CommitService 从 verified state.pending.lease 选择被固定的 grouping 与 draft validator，并把 promptVersion 记入版本；不能从进程当前默认值重新读取。binary 升级后若仍支持该 snapshot，旧 lease 可正常完成；若所需算法或 schema 已不可用，返回 schema_unsupported 并要求显式 release / 重新 brief，绝不静默按新规则算 quality。
 
@@ -153,7 +155,7 @@ commit 回显 digest 后，CommitService 从 verified state.pending.lease 选择
 
 BriefingService 只使用 ClientSessionContext 中经过握手的 BriefCapacity；模型不能在 pending 输入里自报或放大。HostBinding 把 host 报告/fixture 转成 capacity 时已经扣除 transport envelope、tool wrapper 与 binding 自身开销，因此 engine 不再做第二次猜测性扣减。MCP initialize / binding fixture 建立 capacity；宿主能力 unknown 时只可使用该宿主经过端到端截断测试的保守 fixture，没有 fixture就 host_unsupported。普通 SDK 必须在打开 client 时显式给 capacity；ClientSessionContext 没有 capacity 时 brief 直接 host_unsupported，不创建 lease。
 
-内部常量固定为 maximumBriefingBytes=4,194,304、maximumMaterialRefs=999、maximumOutputBytes=65,536；最后一项是未来 DistillPatch compact canonical JSON 的 bytes budget，不是让模型返回任意 65,536 字节文本。容量算法先构造包括 limits 在内的完整 HostDistillBriefing，然后求 fixed point：令 estimatedInputTokens 从 0 开始，反复把它写回对象并计算 compact canonical JSON 的 UTF-8 byte length，直到新值等于字段值；该稳定值就是 estimatedInputTokens，采用保守的 1 UTF-8 byte = 1 token。最终**完整 briefing** 的 serializedBytes 必须同时 `<= 4,194,304`、`<= capacity.maximumToolResultBytes`，estimatedInputTokens 必须 `<= capacity.maximumInputTokens`，refs 必须 `<= 999`；等于上限允许。
+内部常量固定为 maximumBriefingBytes=4,194,304、maximumMaterialRefs=999、maximumOutputBytes=65,536；最后一项就是 accepted DistillPatch compact canonical JSON 的 UTF-8 bytes budget，不是让模型返回任意 65,536 字节文本。commit 在 evidence resolution 或 journal 写入前对 schema-validated canonical patch bytes 计数；`<= 65,536`（恰好等于也允许），`65,537` 返回 invalid_input 并零写入。brief 容量算法先构造包括 limits 在内的完整 HostDistillBriefing，然后求 fixed point：令 estimatedInputTokens 从 0 开始，反复把它写回对象并计算 compact canonical JSON 的 UTF-8 byte length，直到新值等于字段值；该稳定值就是 estimatedInputTokens，采用保守的 1 UTF-8 byte = 1 token。最终**完整 briefing** 的 serializedBytes 必须同时 `<= 4,194,304`、`<= capacity.maximumToolResultBytes`，estimatedInputTokens 必须 `<= capacity.maximumInputTokens`，refs 必须 `<= 999`；等于上限允许。
 
 任一超限都必须在 prepared journal、state lease、operation 或 event 之前返回 briefing_too_large。error.details 是以下 exact content-free shape：
 

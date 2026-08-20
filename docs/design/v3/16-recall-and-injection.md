@@ -15,13 +15,15 @@
 
 ### 16.2 Prompt contract
 
-renderPrompt 只从 Profile 生成：
+renderPrompt 只从不可变 version 的 Profile 生成，不查询当前 SubjectSummary/SubjectRecord：
 
 - subject display name、version、maturity；
 - active claims 按 core / domain 稳定排序；
 - voice 例句与 boundaries；
 - contested claims 的明确警告；
 - 固定行为说明：“这是证据约束的模拟，不是本人，也不要编造未记录事实”。
+
+Profile.displayName 与 VersionRecord.subjectDisplayName 是同一个 version-time 值并进入 VersionId preimage；主体以后改名不改变历史 prompt。精确模板、JSON escaping 与单 LF 规则由 §13.4 的 `profile-renderer-v1` 定义，本节不另造第二套 renderer。
 
 第一版整份注入。若序列化后超过 HostCapabilities.maxContextTokens 或调用方给的 limit，抛 context_too_large，列出字节、估算 token 与可用 remediation。不能悄悄删掉 boundaries、conflicts 或低频细节。
 

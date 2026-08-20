@@ -17,16 +17,16 @@
 9. briefing 原子取得 generation lease；同一 generation 同时至多一个有效 lease。
 10. briefing 包含基线 claims、完整增量文本、来源、证据短句柄、prompt/schema 版本与限制；不让宿主私读内部目录。
 11. briefing 不静默裁剪。首版超限显式失败；分块协议以后只能 additive 加入。
-12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor 或任意 core/domain Markdown。
-13. claims 是语义真相；Markdown 与 prompt 是确定性投影。
+12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 13 以 additive contract 单独加入。
+13. claims 是语义真相；Markdown 与 prompt 由固定 `profile-renderer-v1` 从完整 Profile 确定性生成。
 14. MaterialId 与 ContentDigest 分开；ContentDigest 使用完整 SHA-256，EvidenceRef 引用 MaterialId。
-15. commit 验证证据存在、主体归属、generation 集合成员关系和 quote / locator。
+15. commit 从 verified state、base version 与 material facts 重建 lease 固定的 EvidenceContext，并验证证据存在、主体归属、generation 集合成员关系和 quote / locator；不依赖可变的 briefing operation replay 来取得授权事实。
 16. actor 由入口执行上下文决定，调用方不能伪装 user、host 或 executor。
 17. “客观”表示证据受限、可复核、默认不重复调度；不承诺两个外部 LLM 逐字相同。
 18. 新材料可以削弱旧结论；可审核质量下降进入 suspended，而不是假定置信度只能上升。
 19. 不接受模型自报 profile confidence。质量摘要和成熟度由版本化纯函数复算。
 20. 每个 subject 写操作持有跨进程锁；文件事实与 SQLite 不假装共享数据库事务。
-21. 不可变 version 是事实，state.json 指针是 commit point，.index 是可重建投影。
+21. 不可变 version 是事实，state.json 指针是 commit point，`versions/.staging/<request>.<version>` 与 root commit journal 使 version 发布可恢复，.index 与 current profile 是可重建投影。
 22. Host capability 必须 preflight；没有某项能力就走显式 fallback。
 23. 网页、文件和转写内容是不可信数据，不得改变 skill 的工具流程或获得 secret。
 24. 本地产品无账号、无远程同步。远程 Profile Catalog 第二版以后单独设计。

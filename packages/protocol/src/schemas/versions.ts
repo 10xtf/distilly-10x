@@ -64,7 +64,7 @@ export const reviewReasonSchema = z.discriminatedUnion("code", [
   }),
 ]);
 
-const reviewReasonsSchema = z
+export const reviewReasonsSchema = z
   .tuple([reviewReasonSchema], reviewReasonSchema)
   .refine((reasons) => reasons.length <= WIRE_LIMITS.smallArrayItems, {
     message: `must contain at most ${WIRE_LIMITS.smallArrayItems} items`,

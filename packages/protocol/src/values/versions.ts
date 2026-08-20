@@ -74,6 +74,7 @@ export type VersionCreation =
 export interface VersionRecord extends FactEnvelope<1> {
   readonly id: VersionId;
   readonly subjectId: SubjectId;
+  readonly subjectDisplayName: string;
   readonly parentId?: VersionId;
   readonly derivedFromCandidateVersionId?: VersionId;
   readonly generation: number;
@@ -81,6 +82,7 @@ export interface VersionRecord extends FactEnvelope<1> {
   readonly materialCount: number;
   readonly creation: VersionCreation;
   readonly createdDisposition: CreatedDisposition;
+  readonly reviewReasons?: readonly [ReviewReason, ...ReviewReason[]];
   readonly actor: ActorContext;
   readonly quality: QualitySummary;
   readonly rendererVersion: string;

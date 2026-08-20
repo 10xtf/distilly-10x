@@ -14,8 +14,6 @@ import {
   spaceIdSchema,
   subjectIdSchema,
   versionIdSchema,
-  versionMaterialManifestSchema,
-  versionRecordSchema,
 } from "@distilly/protocol";
 import type {
   DistillyErrorCode,
@@ -23,7 +21,7 @@ import type {
   FactEnvelope,
   MaterialRecord,
   OperationRecord,
-  RuntimeSchema,
+  Profile,
   SpaceRecord,
   SubjectId,
   SubjectRecord,
@@ -31,6 +29,7 @@ import type {
   SubjectSummary,
   VersionMaterialEntry,
   VersionMaterialManifest,
+  VersionClaimsSnapshot,
   VersionRecord,
 } from "@distilly/protocol";
 import { mkdir, readFile, rename, rm, symlink, unlink, writeFile } from "node:fs/promises";
@@ -40,6 +39,10 @@ import { mkdtemp } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Layout } from "../layout.js";
+import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
+import type { VersionIdentityPayload } from "../profile/version-id.js";
+import { deriveVersionId } from "../profile/version-id.js";
+import { FileVersionStaging } from "../transaction/version-staging.js";
 import { computeFactChecksum, sealFact } from "./checksum.js";
 import {
   deriveMaterialId,
@@ -49,12 +52,12 @@ import {
   hashMaterialSet,
 } from "./digests.js";
 import { FileEventStore } from "./event-store.js";
-import { createFactFile } from "./fact-file.js";
 import { FileMaterialStore } from "./material-store.js";
 import { FileOperationStore } from "./operation-store.js";
 import { FileSpaceStore } from "./space-store.js";
 import { FileStateStore } from "./state-store.js";
 import { FileSubjectStore } from "./subject-store.js";
+import { FileVersionStore } from "./version-store.js";
 
 const HEX_32 = "0".repeat(32);
 const ALT_HEX_32 = "1".repeat(32);
@@ -69,23 +72,10 @@ const EVENT_ID = eventIdSchema.parse(`event_${HEX_32}`);
 const OTHER_EVENT_ID = eventIdSchema.parse(`event_${ALT_HEX_32}`);
 const REQUEST_ID = requestIdSchema.parse(`req_${HEX_32}`);
 const OTHER_REQUEST_ID = requestIdSchema.parse(`req_${ALT_HEX_32}`);
-const VERSION_ID = versionIdSchema.parse(`version_${HEX_64}`);
 const OTHER_VERSION_ID = versionIdSchema.parse(`version_${ALT_HEX_64}`);
 const AT = isoDateTimeSchema.parse("2026-08-20T00:00:00.000Z");
 const LATER = isoDateTimeSchema.parse("2026-08-20T00:01:00.000Z");
 const CANONICAL_SPACE_BYTES = `{"checksum":"fact_sha256_fe51be64a2d3df70e654c6be7d3d0ae762cf295676c97c476406d9eb3d921c06","displayName":"People","id":"space_${HEX_32}","kind":"people","schemaVersion":1}\n`;
-
-const VERSION_SCHEMA: RuntimeSchema<VersionRecord> = {
-  parse(value) {
-    return versionRecordSchema.parse(value) as VersionRecord;
-  },
-};
-
-const VERSION_MANIFEST_SCHEMA: RuntimeSchema<VersionMaterialManifest> = {
-  parse(value) {
-    return versionMaterialManifestSchema.parse(value);
-  },
-};
 
 const VERSION_QUALITY = {
   sourceGroupingVersion: "source-groups-v1",
@@ -93,12 +83,20 @@ const VERSION_QUALITY = {
   contestedClaimCount: 0,
   userAssertedClaimCount: 0,
   corroboratedClaimCount: 0,
-  sourceGroupCount: 1,
-  diversityEligibleSourceGroupCount: 1,
+  sourceGroupCount: 0,
+  diversityEligibleSourceGroupCount: 0,
   unknownSourceGroupCount: 0,
-  coveredCoreFacets: ["identity"],
-  uncoveredCoreFacets: ["voice", "psyche", "relations", "boundaries", "texture", "timeline"],
-  maturity: "forming",
+  coveredCoreFacets: [],
+  uncoveredCoreFacets: [
+    "identity",
+    "voice",
+    "psyche",
+    "relations",
+    "boundaries",
+    "texture",
+    "timeline",
+  ],
+  maturity: "sparse",
 } as const;
 
 const roots: string[] = [];
@@ -304,42 +302,67 @@ const makePendingState = (
 
 const writeVersion = async (
   harness: Harness,
-  versionId: VersionRecord["id"],
   items: readonly VersionMaterialEntry[],
-): Promise<void> => {
+  fixtureName: string,
+): Promise<VersionRecord["id"]> => {
   const manifestItems = [...items].sort((left, right) =>
     left.materialId < right.materialId ? -1 : left.materialId > right.materialId ? 1 : 0,
   );
+  const identity: VersionIdentityPayload = {
+    subjectId: SUBJECT_ID,
+    subjectDisplayName: "Ada",
+    generation: 1,
+    materialSetHash: hashMaterialSet(manifestItems),
+    creation: {
+      kind: "bundle_import",
+      bundleDigest: contentDigestSchema.parse(`sha256_${HEX_64}`),
+    },
+    createdDisposition: "current",
+    actor: { kind: "system", id: `state-baseline-${fixtureName}` },
+    quality: VERSION_QUALITY,
+    rendererVersion: PROFILE_RENDERER_VERSION,
+  };
+  const versionId = deriveVersionId(identity, []);
   const version = sealFact<VersionRecord>({
     schemaVersion: 1,
     id: versionId,
-    subjectId: SUBJECT_ID,
-    generation: 1,
-    materialSetHash: hashMaterialSet(manifestItems),
+    ...identity,
     materialCount: manifestItems.length,
-    creation: { kind: "renderer_only", sourceVersionId: versionId },
-    createdDisposition: "current",
-    actor: { kind: "system", id: "state-baseline-test" },
-    quality: VERSION_QUALITY,
-    rendererVersion: "renderer-v1",
     createdAt: AT,
   });
   const manifest = sealFact<VersionMaterialManifest>({
     schemaVersion: 1,
     items: manifestItems,
   });
-  await createFactFile(
-    harness.root,
-    harness.layout.versionFile(SUBJECT_ID, versionId),
-    version,
-    VERSION_SCHEMA,
-  );
-  await createFactFile(
-    harness.root,
-    harness.layout.versionMaterialManifestFile(SUBJECT_ID, versionId),
-    manifest,
-    VERSION_MANIFEST_SCHEMA,
-  );
+  const claims = sealFact<VersionClaimsSnapshot>({
+    schemaVersion: 1,
+    subjectId: SUBJECT_ID,
+    versionId,
+    claims: [],
+  });
+  const rendering = renderProfile({
+    subjectId: SUBJECT_ID,
+    displayName: "Ada",
+    versionId,
+    claims: [],
+    quality: VERSION_QUALITY,
+  });
+  const profile: Profile = {
+    subjectId: SUBJECT_ID,
+    displayName: "Ada",
+    versionId,
+    claims: [],
+    core: rendering.core,
+    domains: rendering.domains,
+    rendered: rendering.markdown,
+    quality: VERSION_QUALITY,
+  };
+  const artifacts = { version, manifest, claims, profile, prompt: renderPrompt(profile) };
+  const versions = new FileVersionStore(harness.layout, harness.materials);
+  const staging = new FileVersionStaging(harness.layout, versions);
+  await staging.prepare(REQUEST_ID, artifacts);
+  await staging.publish(REQUEST_ID, artifacts);
+  return versionId;
 };
 
 const makeEvent = (eventId = EVENT_ID, subjectId = SUBJECT_ID, at = AT): EventRecord =>
@@ -684,18 +707,18 @@ describe("concrete fact stores", () => {
     await expect(harness.states.read(SUBJECT_ID)).resolves.toEqual(firstVersion);
     await rejectAtWriteAndRead(makePendingState([baselineEntry], 0));
 
-    await writeVersion(harness, VERSION_ID, [baselineEntry]);
-    const incremental = makePendingState([baselineEntry, addedEntry], 1, VERSION_ID);
+    const baselineVersionId = await writeVersion(harness, [baselineEntry], "baseline");
+    const incremental = makePendingState([baselineEntry, addedEntry], 1, baselineVersionId);
     await harness.states.write(incremental);
     await expect(harness.states.read(SUBJECT_ID)).resolves.toEqual(incremental);
-    await rejectAtWriteAndRead(makePendingState([baselineEntry, addedEntry], 0, VERSION_ID));
+    await rejectAtWriteAndRead(makePendingState([baselineEntry, addedEntry], 0, baselineVersionId));
 
     await rejectAtWriteAndRead(makePendingState([baselineEntry, addedEntry], 1, OTHER_VERSION_ID));
-    await writeVersion(harness, OTHER_VERSION_ID, [addedEntry]);
-    await rejectAtWriteAndRead(makePendingState([baselineEntry], 0, OTHER_VERSION_ID));
+    const otherVersionId = await writeVersion(harness, [addedEntry], "other");
+    await rejectAtWriteAndRead(makePendingState([baselineEntry], 0, otherVersionId));
 
-    await unlink(harness.layout.versionMaterialManifestFile(SUBJECT_ID, OTHER_VERSION_ID));
-    await rejectAtWriteAndRead(makePendingState([baselineEntry, addedEntry], 1, OTHER_VERSION_ID));
+    await unlink(harness.layout.versionMaterialManifestFile(SUBJECT_ID, otherVersionId));
+    await rejectAtWriteAndRead(makePendingState([baselineEntry, addedEntry], 1, otherVersionId));
   });
 
   it("rejects unsorted and duplicate material manifests at the state-store boundary", async () => {

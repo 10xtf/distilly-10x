@@ -17,9 +17,11 @@ import type {
 } from "../ids.js";
 import type { EngineMethodMap, MutationMethodName } from "../methods.js";
 import type { ActorContext } from "../values.js";
-import type { Claim } from "./claims.js";
+import type { Claim, DistillPatch } from "./claims.js";
 import type { BriefContract } from "./jobs.js";
+import type { Profile } from "./profiles.js";
 import type { IdentityHint, SubjectLifecycle } from "./subjects.js";
+import type { VersionMaterialManifest, VersionRecord } from "./versions.js";
 
 /** Integrity envelope shared by every persisted JSON fact. */
 export interface FactEnvelope<V extends number = number> {
@@ -199,5 +201,32 @@ export type DistillLeaseTransactionRecord = {
   } & TransactionLifecycle;
 }[DistillLeaseTransactionMethod];
 
-/** Root transaction fact union for atomic ingest and distillation-lease changes. */
-export type TransactionRecord = IngestTransactionRecord | DistillLeaseTransactionRecord;
+/** Complete prepared payload shared by every distillation commit lifecycle branch. */
+export interface DistillCommitTransactionBase extends FactEnvelope<1> {
+  readonly transactionKind: "distill_commit";
+  readonly requestId: RequestId;
+  readonly subjectId: SubjectId;
+  readonly jobId: JobId;
+  readonly leaseId: LeaseId;
+  readonly leaseOwner: LeaseOwnerId;
+  readonly previousStateChecksum: FactChecksum;
+  readonly previousPending: PendingJobMarker;
+  readonly targetState: SubjectStateRecord;
+  readonly acceptedPatch: DistillPatch;
+  readonly patchDigest: ContentDigest;
+  readonly version: VersionRecord;
+  readonly materialManifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+  readonly profile: Profile;
+  readonly prompt: string;
+  readonly operation: OperationRecord<"distill.commit">;
+  readonly events: readonly [EventRecord, EventRecord];
+  readonly preparedAt: IsoDateTime;
+}
+
+/** Crash-recoverable journal for one deterministic distillation commit. */
+export type DistillCommitTransactionRecord = DistillCommitTransactionBase & TransactionLifecycle;
+
+/** Root transaction fact union for every atomic fact-layer mutation. */
+export type TransactionRecord =
+  IngestTransactionRecord | DistillLeaseTransactionRecord | DistillCommitTransactionRecord;

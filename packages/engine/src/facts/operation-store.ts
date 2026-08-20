@@ -1,4 +1,9 @@
-import { DistillyError, operationFactSchema, operationRecordSchema } from "@distilly/protocol";
+import {
+  DistillyError,
+  operationFactSchema,
+  operationRecordSchema,
+  requestIdSchema,
+} from "@distilly/protocol";
 import type {
   CommitResult,
   OperationFact,
@@ -11,6 +16,7 @@ import type {
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
 import { createFactFile, readFactFile } from "./fact-file.js";
+import { listFactDirectory } from "./directory-scan.js";
 import type { FileSubjectStore } from "./subject-store.js";
 
 const storedOperationFactSchema: RuntimeSchema<OperationFact> = {
@@ -27,6 +33,9 @@ const completedOperationSchema: RuntimeSchema<OperationRecord> = {
 
 const isFileCollision = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "EEXIST";
+
+const OPERATION_FILE_PATTERN = /^(req_[0-9a-f]{32})\.json$/u;
+const OPERATION_TEMP_PATTERN = /^\.req_[0-9a-f]{32}\.json\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp$/u;
 
 const requireSubject = async (subjects: FileSubjectStore, subjectId: SubjectId): Promise<void> => {
   try {
@@ -186,5 +195,27 @@ export class FileOperationStore {
       if (error instanceof DistillyError && error.code === "not_found") return undefined;
       throw error;
     }
+  }
+
+  /**
+   * Lists every verified operation fact in canonical RequestId order.
+   *
+   * @returns All completed operations and purge tombstones.
+   */
+  async list(): Promise<readonly OperationFact[]> {
+    const records: OperationFact[] = [];
+    for (const entry of await listFactDirectory(
+      this.#layout.root,
+      this.#layout.operationsDirectory(),
+    )) {
+      if (entry.name === ".locks" && entry.kind === "directory") continue;
+      if (OPERATION_TEMP_PATTERN.test(entry.name) && entry.kind === "file") continue;
+      const match = OPERATION_FILE_PATTERN.exec(entry.name);
+      if (match === null || entry.kind !== "file") {
+        throw storageCorrupt("Operations directory contains an unknown entry.");
+      }
+      records.push(await this.read(requestIdSchema.parse(match[1])));
+    }
+    return records;
   }
 }

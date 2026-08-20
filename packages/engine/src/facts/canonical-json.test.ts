@@ -18,6 +18,7 @@ import { computeFactChecksum, sealFact, sha256Hex, verifyFactChecksum } from "./
 import {
   deriveMaterialId,
   digestContent,
+  digestDistillPatch,
   digestMaterialProvenance,
   hashMaterialSet,
 } from "./digests.js";
@@ -121,6 +122,12 @@ describe("canonical fact hashes", () => {
     );
     const corrupted: ExampleFact = { ...fact, name: "Grace" };
     expect(() => verifyFactChecksum(corrupted)).toThrow(/checksum/u);
+  });
+
+  it("pins the accepted claim-patch digest namespace and canonical bytes", () => {
+    expect(digestDistillPatch({ operations: [] })).toBe(
+      "sha256_0a7da371318bb6f058df1497434d4773901dbd4ccd1a928ea91e4675c828e09d",
+    );
   });
 
   it("hashes material sets independently of caller order", () => {

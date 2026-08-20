@@ -20,7 +20,7 @@ import {
 import { Layout } from "../layout.js";
 import type { SqliteQueueRepositoryHooks } from "../queue/sqlite-projection.js";
 import { sealFact } from "../facts/checksum.js";
-import { createStep6Composition } from "./composition.js";
+import { createInternalEngineComposition } from "./composition.js";
 
 const CAPTURED_AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
 const DIRTY_BYTES = '{"projection":"queue","schemaVersion":2}\n';
@@ -75,7 +75,7 @@ const makeRoot = async (): Promise<string> => {
 };
 
 const open = (root: string, queueHooks?: SqliteQueueRepositoryHooks) =>
-  createStep6Composition({
+  createInternalEngineComposition({
     root,
     ...(queueHooks === undefined ? {} : { queueHooks }),
   });

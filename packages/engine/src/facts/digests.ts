@@ -5,6 +5,7 @@ import type {
   ConversationSourceKey,
   ContentDigest,
   CorrectionProvenance,
+  DistillPatch,
   MaterialId,
   MaterialInput,
   MaterialRecord,
@@ -22,6 +23,7 @@ import { sha256Hex } from "./checksum.js";
 const PROVENANCE_NAMESPACE = "distilly:provenance:v1\0";
 const MATERIAL_SET_NAMESPACE = "distilly:material-set:v1\0";
 const BRIEF_CONTRACT_NAMESPACE = "brief-contract-v1\0";
+const DISTILL_PATCH_NAMESPACE = "distill-patch-v1\0";
 
 /**
  * Recomputes the digest that pins source grouping, prompt bytes, and draft schema.
@@ -53,6 +55,20 @@ export const digestBriefContract = (
  */
 export const digestContent = (content: string): ContentDigest =>
   `sha256_${sha256Hex(content)}` as ContentDigest;
+
+/**
+ * Hashes one accepted claim patch for durable commit-journal correlation.
+ *
+ * @param patch - Schema-normalized, claim-only patch accepted by CommitService.
+ * @returns The namespaced full SHA-256 patch digest.
+ */
+export const digestDistillPatch = (patch: DistillPatch): ContentDigest =>
+  `sha256_${sha256Hex(
+    new Uint8Array([
+      ...new TextEncoder().encode(DISTILL_PATCH_NAMESPACE),
+      ...canonicalJsonBytes(patch),
+    ]),
+  )}` as ContentDigest;
 
 /** Normalized fields covered by ProvenanceDigest. */
 export interface MaterialProvenanceInput {

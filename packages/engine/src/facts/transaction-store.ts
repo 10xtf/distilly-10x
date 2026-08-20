@@ -1,6 +1,5 @@
 import { DistillyError, requestIdSchema, transactionRecordSchema } from "@distilly/protocol";
 import type {
-  DistillLeaseTransactionRecord,
   IngestTransactionRecord,
   RequestId,
   RuntimeSchema,
@@ -46,17 +45,31 @@ const sameIngestRetryIdentity = (
     !right.createdSubject ||
     left.targetSubjectChecksum === right.targetSubjectChecksum);
 
-const sameLeaseRetryPayload = (
-  left: DistillLeaseTransactionRecord,
-  right: DistillLeaseTransactionRecord,
-): boolean => canonicalJson(withoutLifecycle(left)) === canonicalJson(withoutLifecycle(right));
+const sameExactRetryPayload = (left: TransactionRecord, right: TransactionRecord): boolean =>
+  canonicalJson(withoutLifecycle(left)) === canonicalJson(withoutLifecycle(right));
 
 const verifyNestedFacts = (record: TransactionRecord): void => {
   verifyFactChecksum(record.operation);
-  if (record.transactionKind === "ingest") {
-    for (const event of record.events) verifyFactChecksum(event);
-  } else {
+  if (record.transactionKind === "distill_lease") {
     verifyFactChecksum(record.event);
+    return;
+  }
+  for (const event of record.events) verifyFactChecksum(event);
+};
+
+const mayReprepareTransaction = (previous: TransactionRecord, next: TransactionRecord): boolean => {
+  if (previous.transactionKind !== next.transactionKind) return false;
+  switch (previous.transactionKind) {
+    case "ingest":
+      return sameIngestRetryIdentity(previous, next as IngestTransactionRecord);
+    case "distill_lease":
+      return sameExactRetryPayload(previous, next);
+    case "distill_commit":
+      return sameExactRetryPayload(previous, next);
+    default: {
+      const exhaustive: never = previous;
+      return exhaustive;
+    }
   }
 };
 
@@ -74,12 +87,7 @@ const assertTransition = (previous: TransactionRecord, next: TransactionRecord):
     }
     return;
   }
-  const mayReprepare =
-    next.state === "prepared" &&
-    previous.transactionKind === next.transactionKind &&
-    (previous.transactionKind === "ingest"
-      ? sameIngestRetryIdentity(previous, next as IngestTransactionRecord)
-      : sameLeaseRetryPayload(previous, next as DistillLeaseTransactionRecord));
+  const mayReprepare = next.state === "prepared" && mayReprepareTransaction(previous, next);
   if (!mayReprepare) {
     throw storageCorrupt(
       "An aborted transaction can only reprepare its permitted immutable request payload.",

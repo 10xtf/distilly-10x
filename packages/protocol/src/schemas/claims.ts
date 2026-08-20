@@ -7,6 +7,7 @@ import {
   quoteStringSchema,
   reasonStringSchema,
   safeNonNegativeIntegerSchema,
+  utf8ByteLength,
 } from "./common.js";
 import {
   briefMaterialRefSchema,
@@ -18,6 +19,8 @@ import {
   subjectIdSchema,
   versionIdSchema,
 } from "./ids.js";
+
+export const DISTILL_PATCH_MAXIMUM_BYTES = 65_536;
 
 export const coreFacetNameSchema = z.enum([
   "identity",
@@ -34,10 +37,27 @@ const evidenceLocatorSchema = z
     start: safeNonNegativeIntegerSchema,
     end: safeNonNegativeIntegerSchema,
   })
-  .refine((value) => value.end >= value.start, {
+  .refine((value) => value.end > value.start, {
     path: ["end"],
-    message: "end must be greater than or equal to start",
+    message: "end must be greater than start",
   });
+
+const refineDateRange = (
+  value: { readonly validFrom?: string | undefined; readonly validTo?: string | undefined },
+  context: z.core.$RefinementCtx,
+): void => {
+  if (
+    value.validFrom !== undefined &&
+    value.validTo !== undefined &&
+    value.validFrom > value.validTo
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["validTo"],
+      message: "validTo must not precede validFrom",
+    });
+  }
+};
 
 export const evidenceRefSchema = z.strictObject({
   materialId: materialIdSchema,
@@ -59,14 +79,16 @@ export const evidenceDraftSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export const claimDraftSchema = z.strictObject({
-  facet: facetPathSchema,
-  text: claimTextSchema,
-  evidence: z.array(evidenceDraftSchema).min(1).max(WIRE_LIMITS.evidencePerOperation),
-  observedIn: z.array(labelStringSchema).max(WIRE_LIMITS.smallArrayItems).optional(),
-  validFrom: isoDateTimeSchema.optional(),
-  validTo: isoDateTimeSchema.optional(),
-});
+export const claimDraftSchema = z
+  .strictObject({
+    facet: facetPathSchema,
+    text: claimTextSchema,
+    evidence: z.array(evidenceDraftSchema).min(1).max(WIRE_LIMITS.evidencePerOperation),
+    observedIn: z.array(labelStringSchema).max(WIRE_LIMITS.smallArrayItems).optional(),
+    validFrom: isoDateTimeSchema.optional(),
+    validTo: isoDateTimeSchema.optional(),
+  })
+  .superRefine(refineDateRange);
 
 export const claimOperationSchema = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("add"), claim: claimDraftSchema }),
@@ -120,19 +142,12 @@ export const relationOperationDraftSchema = z.discriminatedUnion("op", [
 export const distillPatchSchema = z
   .strictObject({
     operations: z.array(claimOperationSchema).max(WIRE_LIMITS.patchOperations),
-    relationOperations: z
-      .array(relationOperationDraftSchema)
-      .max(WIRE_LIMITS.patchOperations)
-      .optional(),
     reviewRequest: z.strictObject({ note: reasonStringSchema.optional() }).optional(),
     notes: reasonStringSchema.optional(),
   })
-  .refine(
-    (value) =>
-      value.operations.length + (value.relationOperations?.length ?? 0) <=
-      WIRE_LIMITS.patchOperations,
-    { message: `must contain at most ${WIRE_LIMITS.patchOperations} operations` },
-  );
+  .refine((value) => utf8ByteLength(JSON.stringify(value)) <= DISTILL_PATCH_MAXIMUM_BYTES, {
+    message: `canonical patch must encode to at most ${DISTILL_PATCH_MAXIMUM_BYTES} UTF-8 bytes`,
+  });
 
 export const claimStatusSchema = z.enum(["active", "contested", "superseded"]);
 
@@ -144,16 +159,18 @@ export const evidenceStrengthSchema = z.enum([
   "imported_unverified",
 ]);
 
-export const claimSchema = z.strictObject({
-  id: claimIdSchema,
-  facet: facetPathSchema,
-  text: claimTextSchema,
-  evidence: z.array(evidenceRefSchema).min(1).max(WIRE_LIMITS.smallArrayItems),
-  status: claimStatusSchema,
-  strength: evidenceStrengthSchema,
-  observedIn: z.array(labelStringSchema).max(WIRE_LIMITS.smallArrayItems),
-  validFrom: isoDateTimeSchema.optional(),
-  validTo: isoDateTimeSchema.optional(),
-  createdIn: versionIdSchema,
-  supersededBy: claimIdSchema.optional(),
-});
+export const claimSchema = z
+  .strictObject({
+    id: claimIdSchema,
+    facet: facetPathSchema,
+    text: claimTextSchema,
+    evidence: z.array(evidenceRefSchema).min(1).max(WIRE_LIMITS.smallArrayItems),
+    status: claimStatusSchema,
+    strength: evidenceStrengthSchema,
+    observedIn: z.array(labelStringSchema).max(WIRE_LIMITS.smallArrayItems),
+    validFrom: isoDateTimeSchema.optional(),
+    validTo: isoDateTimeSchema.optional(),
+    createdIn: versionIdSchema,
+    supersededBy: claimIdSchema.optional(),
+  })
+  .superRefine(refineDateRange);

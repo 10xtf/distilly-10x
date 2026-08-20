@@ -46,6 +46,7 @@ import {
   leaseConflict,
   leaseExpired,
   nothingPending,
+  reviewConflict,
   staleJob,
   storageCorrupt,
 } from "../internal-errors.js";
@@ -488,6 +489,9 @@ export class DistillLeaseService {
     previous: SubjectStateRecord,
     now: IsoDateTime,
   ): Promise<LockedOutcome> {
+    if (method === "brief" && previous.suspendedVersionId !== undefined) {
+      throw reviewConflict();
+    }
     const previousPending = previous.pending;
     if (previousPending === undefined || previousPending.jobId !== input.jobId) throw staleJob();
 

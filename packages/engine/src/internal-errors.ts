@@ -133,6 +133,38 @@ export const staleJob = (message = "The distillation job is no longer current.")
   });
 
 /**
+ * Returns the stable conflict for a subject that already has a review target.
+ *
+ * @param message - Safe explanation for the caller.
+ * @returns A non-retryable review-conflict error.
+ */
+export const reviewConflict = (
+  message = "The subject already has a suspended version awaiting review.",
+): DistillyError =>
+  new DistillyError({
+    code: "review_conflict",
+    message,
+    retryable: false,
+    remediation: "Promote, reject, or correct the suspended version before continuing.",
+  });
+
+/**
+ * Builds a stable error for a patch reference that is not supported by verified evidence.
+ *
+ * @param message - Safe explanation that does not include material content or local paths.
+ * @param fieldPath - Optional patch field that failed evidence resolution.
+ * @returns A non-retryable evidence-validation error.
+ */
+export const evidenceInvalid = (message: string, fieldPath?: string): DistillyError =>
+  new DistillyError({
+    code: "evidence_invalid",
+    message,
+    retryable: false,
+    ...(fieldPath === undefined ? {} : { fieldPath }),
+    remediation: "Use only evidence references and exact quotes from the current briefing.",
+  });
+
+/**
  * Builds the typed single-candidate duplicate response used by create ingest.
  *
  * @param subject - Existing subject selected by the deterministic duplicate rule.

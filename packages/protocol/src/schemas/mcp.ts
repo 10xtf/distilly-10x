@@ -16,7 +16,7 @@ import type {
 import { JSON_SCHEMA_DIALECT, WIRE_LIMITS } from "../json.js";
 import { WIRE_VERSION } from "../wire.js";
 import type { RuntimeSchema } from "../wire.js";
-import { distillPatchSchema } from "./claims.js";
+import { DISTILL_PATCH_MAXIMUM_BYTES, distillPatchSchema } from "./claims.js";
 import {
   claimTextSchema,
   correctionTextSchema,
@@ -148,7 +148,7 @@ const correctToolValueSchema = z.strictObject({
 
 const MAX_UTF8_BYTES_KEY = "x-distilly-maxUtf8Bytes";
 const MAX_CANONICAL_JSON_UTF8_BYTES_KEY = "x-distilly-maxCanonicalJsonUtf8Bytes";
-const MAX_COMBINED_ARRAY_ITEMS_KEY = "x-distilly-maxCombinedArrayItems";
+const PROPERTY_LESS_THAN_KEY = "x-distilly-propertyLessThan";
 const PROPERTY_LESS_THAN_OR_EQUAL_KEY = "x-distilly-propertyLessThanOrEqual";
 const PROPERTY_PATHS_EQUAL_KEY = "x-distilly-propertyPathsEqual";
 const HTTP_URI_PATTERN = "^[Hh][Tt][Tt][Pp][Ss]?://";
@@ -247,10 +247,7 @@ mcpJsonSchemaMetadata.add(ingestResultSchema, {
   ],
 });
 mcpJsonSchemaMetadata.add(distillPatchSchema, {
-  [MAX_COMBINED_ARRAY_ITEMS_KEY]: {
-    properties: ["operations", "relationOperations"],
-    maximum: WIRE_LIMITS.patchOperations,
-  },
+  [MAX_CANONICAL_JSON_UTF8_BYTES_KEY]: DISTILL_PATCH_MAXIMUM_BYTES,
 });
 mcpJsonSchemaMetadata.add(hostRelayedReasonsSchema, {
   contains: {
@@ -423,7 +420,18 @@ const toMcpJsonObjectSchema = (schema: z.ZodType): JsonSchemaObject => {
           "start" in properties &&
           "end" in properties
         ) {
-          jsonSchema[PROPERTY_LESS_THAN_OR_EQUAL_KEY] = { left: "start", right: "end" };
+          jsonSchema[PROPERTY_LESS_THAN_KEY] = { left: "start", right: "end" };
+        }
+        if (
+          typeof properties === "object" &&
+          properties !== null &&
+          "validFrom" in properties &&
+          "validTo" in properties
+        ) {
+          jsonSchema[PROPERTY_LESS_THAN_OR_EQUAL_KEY] = {
+            left: "validFrom",
+            right: "validTo",
+          };
         }
       },
       target: "draft-2020-12",

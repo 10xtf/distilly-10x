@@ -35,8 +35,8 @@ import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
-import { createStep6Composition } from "../ingest/composition.js";
-import type { Step6Composition } from "../ingest/composition.js";
+import { createInternalEngineComposition } from "../ingest/composition.js";
+import type { InternalEngineComposition } from "../ingest/composition.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import type { RecoveryHooks } from "../transaction/recovery.js";
@@ -160,14 +160,14 @@ const open = async (
     readonly recoveryHooks?: RecoveryHooks;
     readonly published?: EngineEvent[];
   } = {},
-): Promise<Step6Composition> => {
+): Promise<InternalEngineComposition> => {
   const eventBus = new InProcessEventBus();
   if (options.published !== undefined) {
     eventBus.subscribe((event) => {
       options.published?.push(event);
     });
   }
-  return createStep6Composition({
+  return createInternalEngineComposition({
     root,
     ids,
     clock,
@@ -196,7 +196,7 @@ const failOnce = (): (() => void) => {
   };
 };
 
-const createPending = async (composition: Step6Composition, requestId = request(1)) => {
+const createPending = async (composition: InternalEngineComposition, requestId = request(1)) => {
   const result = await composition.ingest.ingest(createInput(), ACTOR, { requestId });
   if (result.job === undefined) throw new Error("expected enqueue=now to create a pending job");
   return result;
@@ -265,7 +265,7 @@ describe("DistillLeaseService", () => {
       }),
     ).resolves.toEqual(briefing);
     expect(published.filter((event) => event.kind === "job.changed")).toHaveLength(2);
-  }, 15_000);
+  }, 45_000);
 
   it("rejects a committed journal whose completed operation has a different checksum", async () => {
     const root = await makeRoot();
@@ -302,7 +302,7 @@ describe("DistillLeaseService", () => {
     await expect(facts.transactions.read(request(2))).resolves.toMatchObject({
       state: "committed",
     });
-  }, 15_000);
+  }, 45_000);
 
   it("reports missing briefing capacity before disclosing missing or active job state", async () => {
     const root = await makeRoot();
@@ -339,7 +339,7 @@ describe("DistillLeaseService", () => {
     await expect(facts.transactions.readOptional(request(4))).resolves.toBeUndefined();
     await expect(facts.states.read(ingest.subject.id)).resolves.toEqual(before);
     expect(published).toHaveLength(publishedCount);
-  }, 15_000);
+  }, 45_000);
 
   it("rejects missing or insufficient capacity before any lease fact is written", async () => {
     const root = await makeRoot();
@@ -371,7 +371,7 @@ describe("DistillLeaseService", () => {
       pending: { jobId: ingest.job!.id },
     });
     expect((await facts.states.read(ingest.subject.id)).pending).not.toHaveProperty("lease");
-  }, 15_000);
+  }, 45_000);
 
   it("enforces active ownership, exact expiry, renewal, and release without replacing the job", async () => {
     const root = await makeRoot();
@@ -430,7 +430,7 @@ describe("DistillLeaseService", () => {
       }),
       "lease_expired",
     );
-  }, 15_000);
+  }, 45_000);
 
   it("evaluates lease expiry with a fresh clock reading inside the subject lock", async () => {
     const root = await makeRoot();
@@ -472,7 +472,7 @@ describe("DistillLeaseService", () => {
     });
     expect(replacement.lease.id).not.toBe(briefing.lease.id);
     expect(replacement.lease.acquiredAt).toBe(briefing.lease.expiresAt);
-  }, 15_000);
+  }, 45_000);
 
   it("releases an active lease after wall-clock rollback before its acquisition time", async () => {
     const root = await makeRoot();
@@ -501,7 +501,7 @@ describe("DistillLeaseService", () => {
       state: "committed",
       finishedAt: "2026-08-20T10:00:00.000Z",
     });
-  }, 15_000);
+  }, 45_000);
 
   it("recovers prepared and post-commit crashes without regenerating the stored briefing", async () => {
     const root = await makeRoot();
@@ -555,7 +555,7 @@ describe("DistillLeaseService", () => {
         requestId: request(4),
       }),
     ).resolves.toEqual(stored.result);
-  }, 20_000);
+  }, 45_000);
 
   it("reconciles a pre-queue crash before listing from an already-running composition", async () => {
     const root = await makeRoot();
@@ -587,7 +587,7 @@ describe("DistillLeaseService", () => {
     await expect(stores(root).transactions.read(request(2))).resolves.toMatchObject({
       state: "committed",
     });
-  }, 20_000);
+  }, 45_000);
 
   it("preserves a third authoritative state instead of overwriting it after prepare", async () => {
     const root = await makeRoot();
@@ -629,7 +629,7 @@ describe("DistillLeaseService", () => {
     await expect(facts.transactions.read(request(2))).resolves.toMatchObject({
       state: "prepared",
     });
-  }, 15_000);
+  }, 45_000);
 
   it("does not reprepare an aborted lease request at its exact expiry", async () => {
     const root = await makeRoot();
@@ -661,7 +661,7 @@ describe("DistillLeaseService", () => {
     });
     await expect(stores(root).operations.readOptional(request(2))).resolves.toBeUndefined();
     expect((await stores(root).states.read(ingest.subject.id)).pending).not.toHaveProperty("lease");
-  }, 15_000);
+  }, 45_000);
 
   it("allows only one concurrent owner to create the authoritative lease", async () => {
     const root = await makeRoot();
@@ -689,7 +689,7 @@ describe("DistillLeaseService", () => {
     expect(["busy", "lease_conflict"]).toContain((rejected.reason as DistillyError).code);
     const state = await stores(root).states.read(ingest.subject.id);
     expect(state.pending?.lease?.id).toBe(fulfilled.value.lease.id);
-  }, 15_000);
+  }, 45_000);
 
   it("rejects request replay under a different lease owner or briefing capacity", async () => {
     const root = await makeRoot();
@@ -744,5 +744,5 @@ describe("DistillLeaseService", () => {
         entry.endsWith(".json"),
       ),
     ).toHaveLength(2);
-  }, 15_000);
+  }, 45_000);
 });

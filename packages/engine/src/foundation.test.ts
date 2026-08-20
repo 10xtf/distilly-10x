@@ -87,6 +87,19 @@ describe("fact foundation defaults", () => {
       [layout.operationFile(requestId), join("operations", `${requestId}.json`)],
       [layout.requestLock(requestId), join("operations", ".locks", `${requestId}.lock`)],
       [layout.transactionFile(requestId), join("transactions", `${requestId}.json`)],
+      [layout.versionsDirectory(subjectId), join("subjects", subjectId, "versions")],
+      [
+        layout.versionStagingRootDirectory(subjectId),
+        join("subjects", subjectId, "versions", ".staging"),
+      ],
+      [
+        layout.versionStagingDirectory(requestId, subjectId, versionId),
+        join("subjects", subjectId, "versions", ".staging", `${requestId}.${versionId}`),
+      ],
+      [
+        layout.versionDeletingDirectory(requestId, subjectId, versionId),
+        join("subjects", subjectId, "versions", ".staging", `${requestId}.${versionId}.deleting`),
+      ],
       [
         layout.versionFile(subjectId, versionId),
         join("subjects", subjectId, "versions", versionId, "version.json"),
@@ -99,6 +112,40 @@ describe("fact foundation defaults", () => {
         layout.versionClaimsFile(subjectId, versionId),
         join("subjects", subjectId, "versions", versionId, "claims.json"),
       ],
+      [
+        layout.versionProfileFile(subjectId, versionId),
+        join("subjects", subjectId, "versions", versionId, "profile", "profile.md"),
+      ],
+      [
+        layout.versionCoreProfileFile(subjectId, versionId, "identity"),
+        join("subjects", subjectId, "versions", versionId, "profile", "identity.md"),
+      ],
+      [
+        layout.versionDomainProfileFile(subjectId, versionId, "career"),
+        join("subjects", subjectId, "versions", versionId, "profile", "domains", "career.md"),
+      ],
+      [
+        layout.versionPromptFile(subjectId, versionId),
+        join("subjects", subjectId, "versions", versionId, "prompt.md"),
+      ],
+      [layout.currentProfileFile(subjectId), join("subjects", subjectId, "profile", "profile.md")],
+      [
+        layout.currentCoreProfileFile(subjectId, "timeline"),
+        join("subjects", subjectId, "profile", "timeline.md"),
+      ],
+      [
+        layout.currentDomainProfileFile(subjectId, "career"),
+        join("subjects", subjectId, "profile", "domains", "career.md"),
+      ],
+      [layout.currentPromptFile(subjectId), join("subjects", subjectId, "profile", "prompt.md")],
+      [
+        layout.currentProfileStagingDirectory(requestId, subjectId, versionId),
+        join("subjects", subjectId, `.profile.staging.${requestId}.${versionId}`),
+      ],
+      [
+        layout.currentProfileBackupDirectory(requestId, subjectId, versionId),
+        join("subjects", subjectId, `.profile.previous.${requestId}.${versionId}`),
+      ],
       [layout.queueDatabaseFile(), join(".index", "queue.db")],
       [layout.queueDirtyFile(), join(".index", "queue.dirty")],
     ];
@@ -107,6 +154,8 @@ describe("fact foundation defaults", () => {
     }
 
     expect(() => layout.subjectFile("subject_../../escape" as SubjectId)).toThrow();
+    expect(() => layout.versionDomainProfileFile(subjectId, versionId, "a.b")).toThrow();
+    expect(() => layout.currentDomainProfileFile(subjectId, "../escape")).toThrow();
     expect(() => layout.assertInside(join(root, "..", "escape"))).toThrow(/escapes/u);
   });
 });

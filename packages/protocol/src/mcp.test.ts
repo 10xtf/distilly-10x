@@ -94,6 +94,7 @@ const secondSubject = {
 } as const;
 const profile = {
   subjectId: SUBJECT_ID,
+  displayName: "Ada Lovelace",
   versionId: VERSION_ID,
   claims: [],
   core: {
@@ -244,6 +245,7 @@ type RuntimeParser = { parse(value: unknown): unknown };
 const MAX_UTF8_BYTES_KEY = "x-distilly-maxUtf8Bytes";
 const MAX_CANONICAL_JSON_UTF8_BYTES_KEY = "x-distilly-maxCanonicalJsonUtf8Bytes";
 const MAX_COMBINED_ARRAY_ITEMS_KEY = "x-distilly-maxCombinedArrayItems";
+const PROPERTY_LESS_THAN_KEY = "x-distilly-propertyLessThan";
 const PROPERTY_LESS_THAN_OR_EQUAL_KEY = "x-distilly-propertyLessThanOrEqual";
 const PROPERTY_PATHS_EQUAL_KEY = "x-distilly-propertyPathsEqual";
 
@@ -470,7 +472,7 @@ const jsonSchemaExtensionsAccept = (
     }
   }
 
-  const propertyOrderConstraint = schema[PROPERTY_LESS_THAN_OR_EQUAL_KEY];
+  const propertyOrderConstraint = schema[PROPERTY_LESS_THAN_KEY];
   if (isJsonSchemaNode(propertyOrderConstraint) && isJsonSchemaNode(value)) {
     const left = propertyOrderConstraint.left;
     const right = propertyOrderConstraint.right;
@@ -479,9 +481,26 @@ const jsonSchemaExtensionsAccept = (
       typeof right === "string" &&
       typeof value[left] === "number" &&
       typeof value[right] === "number" &&
-      value[left] > value[right]
+      value[left] >= value[right]
     ) {
       return false;
+    }
+  }
+
+  const inclusivePropertyOrderConstraint = schema[PROPERTY_LESS_THAN_OR_EQUAL_KEY];
+  if (isJsonSchemaNode(inclusivePropertyOrderConstraint) && isJsonSchemaNode(value)) {
+    const left = inclusivePropertyOrderConstraint.left;
+    const right = inclusivePropertyOrderConstraint.right;
+    if (typeof left === "string" && typeof right === "string") {
+      const leftValue = value[left];
+      const rightValue = value[right];
+      if (
+        ((typeof leftValue === "number" && typeof rightValue === "number") ||
+          (typeof leftValue === "string" && typeof rightValue === "string")) &&
+        leftValue > rightValue
+      ) {
+        return false;
+      }
     }
   }
 
@@ -1611,14 +1630,7 @@ describe("MCP input schemas", () => {
         evidence: [evidence],
       },
     } as const;
-    const relationOperation = {
-      op: "add",
-      target: { rawName: "Charles Babbage" },
-      type: "collaborator",
-      evidence: [evidence],
-    } as const;
     const exactClaimText = "x".repeat(WIRE_LIMITS.claimTextBytes);
-    const exactQuote = "x".repeat(WIRE_LIMITS.quoteBytes);
     expectInput(
       commit,
       commitInput({
@@ -1628,7 +1640,6 @@ describe("MCP input schemas", () => {
             claim: {
               ...claimOperation.claim,
               text: exactClaimText,
-              evidence: [{ ...evidence, quote: exactQuote }],
             },
           },
         ],
@@ -1647,52 +1658,69 @@ describe("MCP input schemas", () => {
       }),
       false,
     );
-    expectInput(
-      commit,
-      commitInput({
-        operations: [
-          {
-            ...claimOperation,
-            claim: {
-              ...claimOperation.claim,
-              evidence: [{ ...evidence, quote: `${exactQuote}x` }],
-            },
+
+    const patchSizeBase = {
+      operations: [
+        {
+          ...claimOperation,
+          claim: {
+            ...claimOperation.claim,
+            evidence: [{ ...evidence, quote: "" }],
           },
-        ],
+        },
+      ],
+    } as const;
+    const patchBytesRemaining = 65_536 - JSON.stringify(patchSizeBase).length;
+    expect(patchBytesRemaining).toBeGreaterThan(0);
+    const exactPatch = {
+      operations: [
+        {
+          ...claimOperation,
+          claim: {
+            ...claimOperation.claim,
+            evidence: [{ ...evidence, quote: "x".repeat(patchBytesRemaining) }],
+          },
+        },
+      ],
+    } as const;
+    expect(JSON.stringify(exactPatch).length).toBe(65_536);
+    expectInput(commit, commitInput(exactPatch), true);
+    expectInput(
+      commit,
+      commitInput({
+        ...exactPatch,
+        operations: exactPatch.operations.map((operation) => ({
+          ...operation,
+          claim: {
+            ...operation.claim,
+            evidence: operation.claim.evidence.map((item) => ({
+              ...item,
+              quote: `${item.quote}x`,
+            })),
+          },
+        })),
       }),
       false,
     );
     expectInput(
       commit,
       commitInput({
-        operations: Array.from({ length: 128 }, () => claimOperation),
-        relationOperations: Array.from({ length: 128 }, () => relationOperation),
+        operations: Array.from({ length: WIRE_LIMITS.patchOperations }, () => claimOperation),
       }),
       true,
     );
     expectInput(
       commit,
       commitInput({
-        operations: Array.from({ length: 129 }, () => claimOperation),
-        relationOperations: Array.from({ length: 128 }, () => relationOperation),
+        operations: Array.from({ length: WIRE_LIMITS.patchOperations + 1 }, () => claimOperation),
       }),
       false,
     );
-    const roleRecord = (count: number) =>
-      Object.fromEntries(Array.from({ length: count }, (_, index) => [`label-${index}`, "value"]));
     expectInput(
       commit,
       commitInput({
-        relationOperations: [{ ...relationOperation, role: roleRecord(64) }],
         operations: [],
-      }),
-      true,
-    );
-    expectInput(
-      commit,
-      commitInput({
-        relationOperations: [{ ...relationOperation, role: roleRecord(65) }],
-        operations: [],
+        relationOperations: [],
       }),
       false,
     );
@@ -1711,12 +1739,43 @@ describe("MCP input schemas", () => {
       }),
       false,
     );
+    expectInput(
+      commit,
+      commitInput({
+        operations: [
+          {
+            ...claimOperation,
+            claim: {
+              ...claimOperation.claim,
+              evidence: [{ ...evidence, locator: { start: 2, end: 2 } }],
+            },
+          },
+        ],
+      }),
+      false,
+    );
+    expectInput(
+      commit,
+      commitInput({
+        operations: [
+          {
+            ...claimOperation,
+            claim: {
+              ...claimOperation.claim,
+              validFrom: "2026-08-21T00:00:00.000Z",
+              validTo: "2026-08-20T00:00:00.000Z",
+            },
+          },
+        ],
+      }),
+      false,
+    );
 
     const serializedSchemas = JSON.stringify(distillyMcpTools);
     for (const keyword of [
       MAX_UTF8_BYTES_KEY,
       MAX_CANONICAL_JSON_UTF8_BYTES_KEY,
-      MAX_COMBINED_ARRAY_ITEMS_KEY,
+      PROPERTY_LESS_THAN_KEY,
       PROPERTY_LESS_THAN_OR_EQUAL_KEY,
       PROPERTY_PATHS_EQUAL_KEY,
     ]) {

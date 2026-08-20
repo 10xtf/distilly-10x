@@ -44,6 +44,8 @@ export type {
   MutationContext,
 } from "./values.js";
 export type {
+  DistillCommitTransactionBase,
+  DistillCommitTransactionRecord,
   DistillLeaseTransactionMethod,
   DistillLeaseTransactionRecord,
   EventRecord,
@@ -284,6 +286,7 @@ export {
   mutationContextSchema,
 } from "./schemas/context.js";
 export {
+  distillCommitTransactionRecordSchema,
   distillLeaseTransactionMethodSchema,
   distillLeaseTransactionRecordSchema,
   eventRecordSchema,

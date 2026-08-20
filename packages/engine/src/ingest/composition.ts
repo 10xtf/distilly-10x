@@ -7,8 +7,11 @@ import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
 import type { DistillLeaseServiceHooks } from "../distill/lease-service.js";
 import { DistillLeaseService } from "../distill/lease-service.js";
+import type { CommitServiceHooks } from "../distill/commit-service.js";
+import { CommitService } from "../distill/commit-service.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
 import { FileEventStore } from "../facts/event-store.js";
+import { FileCurrentProfileProjection } from "../facts/current-profile-projection.js";
 import { FileMaterialStore } from "../facts/material-store.js";
 import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
@@ -30,11 +33,13 @@ import { FileRequestLock } from "../transaction/request-lock.js";
 import { FileSpaceCatalogLock } from "../transaction/space-catalog-lock.js";
 import { FileSpaceIdentityLock } from "../transaction/space-identity-lock.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
+import type { VersionStagingHooks } from "../transaction/version-staging.js";
+import { FileVersionStaging } from "../transaction/version-staging.js";
 import { IngestService } from "./service.js";
 import type { IngestServiceHooks } from "./service.js";
 
-/** Trusted seams used only by the package-internal Step 6 composition. */
-export interface Step6CompositionOptions {
+/** Trusted seams used only by the package-internal Engine composition. */
+export interface InternalEngineCompositionOptions {
   readonly root: string;
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
@@ -43,13 +48,16 @@ export interface Step6CompositionOptions {
   readonly recoveryHooks?: RecoveryHooks;
   readonly queueHooks?: SqliteQueueRepositoryHooks;
   readonly leaseHooks?: DistillLeaseServiceHooks;
+  readonly commitHooks?: CommitServiceHooks;
+  readonly versionStagingHooks?: VersionStagingHooks;
   readonly promptCatalog?: PromptCatalog;
 }
 
-/** Runnable internal ingest-and-brief slice without claiming the full EngineRuntime API. */
-export interface Step6Composition {
+/** Runnable internal V3 slices without claiming the full EngineRuntime API. */
+export interface InternalEngineComposition {
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
+  readonly commits: CommitService;
   readonly recovery: RecoveryService;
   readonly events: EventBus;
 }
@@ -73,7 +81,7 @@ const rebuildQueueSeeds = async function* (
 };
 
 /**
- * Opens the real Step 6 ingest/brief/lease composition and reconciles it before use.
+ * Opens the implemented internal Engine slices and reconciles them before use.
  *
  * This module is deliberately absent from the package root. It proves the vertical
  * slice without exposing a partial CoreEngineClient or createEngine contract.
@@ -81,9 +89,9 @@ const rebuildQueueSeeds = async function* (
  * @param options - Local root and optional deterministic test seams.
  * @returns The initialized internal ingest and recovery services.
  */
-export const createStep6Composition = async (
-  options: Step6CompositionOptions,
-): Promise<Step6Composition> => {
+export const createInternalEngineComposition = async (
+  options: InternalEngineCompositionOptions,
+): Promise<InternalEngineComposition> => {
   const layout = new Layout(options.root);
   const clock = options.clock ?? new SystemClock();
   const ids = options.ids ?? new CryptoIdGenerator();
@@ -94,6 +102,12 @@ export const createStep6Composition = async (
   const states = new FileStateStore(layout, subjects, materials);
   const versions = new FileVersionManifestStore(layout, materials);
   const completeVersions = new FileVersionStore(layout, materials);
+  const versionStaging = new FileVersionStaging(
+    layout,
+    completeVersions,
+    options.versionStagingHooks,
+  );
+  const currentProfiles = new FileCurrentProfileProjection(layout, completeVersions);
   const operations = new FileOperationStore(layout, subjects);
   const transactions = new FileTransactionStore(layout);
   const events = new FileEventStore(layout, subjects);
@@ -119,6 +133,9 @@ export const createStep6Composition = async (
     states,
     materials,
     events,
+    versions: completeVersions,
+    versionStaging,
+    currentProfiles,
     staging,
     requestLocks,
     spaceIdentityLocks,
@@ -155,6 +172,7 @@ export const createStep6Composition = async (
     eventBus,
     ...(options.ingestHooks === undefined ? {} : { hooks: options.ingestHooks }),
   });
+  const promptCatalog = options.promptCatalog ?? new PromptCatalog();
   const leases = new DistillLeaseService({
     spaces,
     subjects,
@@ -167,11 +185,29 @@ export const createStep6Composition = async (
     subjectLocks,
     queue,
     recovery,
-    promptCatalog: options.promptCatalog ?? new PromptCatalog(),
+    promptCatalog,
     ids,
     clock,
     eventBus,
     ...(options.leaseHooks === undefined ? {} : { hooks: options.leaseHooks }),
+  });
+  const commits = new CommitService({
+    subjects,
+    states,
+    materials,
+    versions: completeVersions,
+    versionStaging,
+    operations,
+    transactions,
+    requestLocks,
+    subjectLocks,
+    queue,
+    recovery,
+    promptCatalog,
+    ids,
+    clock,
+    eventBus,
+    ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
   });
 
   try {
@@ -182,5 +218,5 @@ export const createStep6Composition = async (
   }
   await recovery.reconcileAll();
   await queue.verifyAvailable();
-  return { ingest, leases, recovery, events: eventBus };
+  return { ingest, leases, commits, recovery, events: eventBus };
 };

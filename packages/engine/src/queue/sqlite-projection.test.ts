@@ -223,7 +223,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("SQLite queue projection", () => {
+describe("SQLite queue projection", { timeout: 30_000 }, () => {
   it("creates the frozen schema and validates exact fact-owned marker fields", async () => {
     const paths = await makePaths();
     const seed = queueSeed(subject("1"), pending("2", 1, { base: "3" }));

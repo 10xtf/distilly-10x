@@ -71,6 +71,7 @@ distilly/
 │   │       │   ├── space-identity-lock.ts
 │   │       │   ├── subject-lock.ts
 │   │       │   ├── transaction-store.ts
+│   │       │   ├── version-staging.ts
 │   │       │   └── recovery.ts
 │   │       ├── subject/
 │   │       │   ├── service.ts
@@ -276,6 +277,8 @@ Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局
 - ProjectionService、PanelServer、McpServer、SetupService。
 
 Service 有状态或编排多个 store；同类只有一个生产实现时直接 concrete，不先造 interface。
+
+Step 7 只在 `@distilly/engine` package 内组合 `distill.commit` 的 EvidenceContext、claim apply/quality/gate、literal renderer、version staging/journal/recovery 与 queue apply，并用 package-internal EngineMethodMap-compatible handler 做真实磁盘验收。它不导出 partial EngineRuntime/createEngine，不实现 review promote/reject、correction、relations、facade/MCP/CLI 或 public runtime；这些保持 §29 各自独立 feature boundary。
 
 ### 25.6 为什么没有 public abstract class
 

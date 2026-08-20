@@ -3,6 +3,7 @@ import { z } from "zod";
 import { WIRE_LIMITS } from "../json.js";
 import type { MutationMethodName } from "../methods.js";
 import type {
+  DistillCommitTransactionRecord,
   DistillLeaseTransactionRecord,
   EventRecord,
   FactEnvelope,
@@ -27,7 +28,7 @@ import {
 } from "./common.js";
 import type { MatchingSchema } from "./common.js";
 import { actorContextSchema } from "./context.js";
-import { claimSchema } from "./claims.js";
+import { claimSchema, distillPatchSchema } from "./claims.js";
 import { engineEventSchema } from "./events.js";
 import {
   bundleExportResultSchema,
@@ -58,11 +59,17 @@ import {
   subjectIdSchema,
   versionIdSchema,
 } from "./ids.js";
-import { qualitySummarySchema, rebuildResultSchema } from "./profiles.js";
+import {
+  profileSchema,
+  qualitySummarySchema,
+  rebuildResultSchema,
+  renderedPromptSchema,
+} from "./profiles.js";
 import { identityHintSchema, subjectLifecycleSchema, subjectSummarySchema } from "./subjects.js";
 import {
   commitResultSchema,
   createdDispositionSchema,
+  reviewReasonsSchema,
   versionCreationSchema,
   versionSummarySchema,
 } from "./versions.js";
@@ -317,22 +324,41 @@ export const eventRecordSchema = schemaFor<EventRecord>()(
 
 /** Runtime schema for immutable persisted version metadata. */
 export const versionRecordSchema = schemaFor<VersionRecord>()(
-  z.strictObject({
-    ...factEnvelopeV1Shape,
-    id: versionIdSchema,
-    subjectId: subjectIdSchema,
-    parentId: versionIdSchema.optional(),
-    derivedFromCandidateVersionId: versionIdSchema.optional(),
-    generation: safeNonNegativeIntegerSchema,
-    materialSetHash: materialSetHashSchema,
-    materialCount: safeNonNegativeIntegerSchema,
-    creation: versionCreationSchema,
-    createdDisposition: createdDispositionSchema,
-    actor: actorContextSchema,
-    quality: qualitySummarySchema,
-    rendererVersion: labelStringSchema,
-    createdAt: isoDateTimeSchema,
-  }),
+  z
+    .strictObject({
+      ...factEnvelopeV1Shape,
+      id: versionIdSchema,
+      subjectId: subjectIdSchema,
+      subjectDisplayName: labelStringSchema,
+      parentId: versionIdSchema.optional(),
+      derivedFromCandidateVersionId: versionIdSchema.optional(),
+      generation: safeNonNegativeIntegerSchema,
+      materialSetHash: materialSetHashSchema,
+      materialCount: safeNonNegativeIntegerSchema,
+      creation: versionCreationSchema,
+      createdDisposition: createdDispositionSchema,
+      reviewReasons: reviewReasonsSchema.optional(),
+      actor: actorContextSchema,
+      quality: qualitySummarySchema,
+      rendererVersion: labelStringSchema,
+      createdAt: isoDateTimeSchema,
+    })
+    .superRefine((version, context) => {
+      if (version.createdDisposition === "current" && version.reviewReasons !== undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["reviewReasons"],
+          message: "current versions must omit review reasons",
+        });
+      }
+      if (version.createdDisposition === "suspended" && version.reviewReasons === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["reviewReasons"],
+          message: "suspended versions require review reasons",
+        });
+      }
+    }),
 );
 
 /** Runtime schema for historical version material membership. */
@@ -1017,7 +1043,291 @@ export const distillLeaseTransactionRecordSchema = schemaFor<DistillLeaseTransac
   }),
 );
 
+const distillCommitTransactionBaseShape = {
+  ...factEnvelopeV1Shape,
+  transactionKind: z.literal("distill_commit"),
+  requestId: requestIdSchema,
+  subjectId: subjectIdSchema,
+  jobId: jobIdSchema,
+  leaseId: leaseIdSchema,
+  leaseOwner: leaseOwnerIdSchema,
+  previousStateChecksum: factChecksumSchema,
+  previousPending: pendingJobMarkerSchema,
+  targetState: subjectStateRecordSchema,
+  acceptedPatch: distillPatchSchema,
+  patchDigest: contentDigestSchema,
+  version: versionRecordSchema,
+  materialManifest: versionMaterialManifestSchema,
+  claims: versionClaimsSnapshotSchema,
+  profile: profileSchema,
+  prompt: renderedPromptSchema,
+  operation: operationRecordVariants["distill.commit"],
+  events: z.tuple([eventRecordSchema, eventRecordSchema]),
+  preparedAt: isoDateTimeSchema,
+} as const;
+
+const distillCommitTransactionUnionSchema = z.union([
+  z.strictObject({
+    ...distillCommitTransactionBaseShape,
+    state: z.literal("prepared"),
+  }),
+  z.strictObject({
+    ...distillCommitTransactionBaseShape,
+    state: z.literal("committed"),
+    finishedAt: isoDateTimeSchema,
+  }),
+  z.strictObject({
+    ...distillCommitTransactionBaseShape,
+    state: z.literal("aborted"),
+    finishedAt: isoDateTimeSchema,
+  }),
+]);
+
+type ParsedDistillCommitTransaction = z.infer<typeof distillCommitTransactionUnionSchema>;
+
+const factValuesEqual = (left: unknown, right: unknown): boolean =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+const versionSummaryMatchesRecord = (
+  summary: z.infer<typeof versionSummarySchema>,
+  version: z.infer<typeof versionRecordSchema>,
+  status: "current" | "suspended",
+): boolean =>
+  summary.id === version.id &&
+  summary.subjectId === version.subjectId &&
+  summary.parentId === version.parentId &&
+  summary.derivedFromCandidateVersionId === version.derivedFromCandidateVersionId &&
+  summary.generation === version.generation &&
+  summary.materialSetHash === version.materialSetHash &&
+  factValuesEqual(summary.creation, version.creation) &&
+  summary.status === status &&
+  actorsEqual(summary.actor, version.actor) &&
+  factValuesEqual(summary.quality, version.quality) &&
+  summary.createdAt === version.createdAt;
+
+const refineDistillCommitTransaction = (
+  transaction: ParsedDistillCommitTransaction,
+  context: z.core.$RefinementCtx,
+): void => {
+  const issue = (path: PropertyKey[], message: string): void => {
+    context.addIssue({ code: "custom", path, message });
+  };
+
+  if (transaction.state !== "prepared" && transaction.finishedAt < transaction.preparedAt) {
+    issue(["finishedAt"], "commit journal finish time cannot precede preparation");
+  }
+
+  const previousLease = transaction.previousPending.lease;
+  if (transaction.previousPending.jobId !== transaction.jobId) {
+    issue(["previousPending", "jobId"], "previous pending marker must match the journal job");
+  }
+  if (previousLease === undefined) {
+    issue(["previousPending", "lease"], "commit journals require the accepted active lease");
+  } else {
+    if (previousLease.id !== transaction.leaseId) {
+      issue(["leaseId"], "journal lease id must match the previous pending lease");
+    }
+    if (previousLease.owner !== transaction.leaseOwner) {
+      issue(["leaseOwner"], "journal lease owner must match the previous pending lease");
+    }
+  }
+
+  if (transaction.targetState.subjectId !== transaction.subjectId) {
+    issue(["targetState", "subjectId"], "target state must belong to the journal subject");
+  }
+  if (transaction.targetState.pending !== undefined) {
+    issue(["targetState", "pending"], "a successful commit target must remove pending work");
+  }
+  if (transaction.targetState.generation !== transaction.previousPending.generation) {
+    issue(["targetState", "generation"], "target generation must match the accepted pending job");
+  }
+  if (transaction.targetState.materialSetHash !== transaction.previousPending.materialSetHash) {
+    issue(
+      ["targetState", "materialSetHash"],
+      "target material-set hash must match the accepted pending job",
+    );
+  }
+  if (
+    transaction.targetState.materialManifest.length !==
+      transaction.previousPending.totalMaterialCount ||
+    !factValuesEqual(transaction.targetState.materialManifest, transaction.materialManifest.items)
+  ) {
+    issue(
+      ["targetState", "materialManifest"],
+      "target and version material manifests must match the accepted pending job",
+    );
+  }
+
+  const version = transaction.version;
+  if (version.subjectId !== transaction.subjectId) {
+    issue(["version", "subjectId"], "version must belong to the journal subject");
+  }
+  if (version.parentId !== transaction.previousPending.baseVersionId) {
+    issue(["version", "parentId"], "version parent must match the accepted base version");
+  }
+  if (version.generation !== transaction.previousPending.generation) {
+    issue(["version", "generation"], "version generation must match the accepted pending job");
+  }
+  if (version.materialSetHash !== transaction.previousPending.materialSetHash) {
+    issue(
+      ["version", "materialSetHash"],
+      "version material-set hash must match the accepted pending job",
+    );
+  }
+  if (version.materialCount !== transaction.materialManifest.items.length) {
+    issue(["version", "materialCount"], "version material count must match its manifest");
+  }
+  if (version.creation.kind !== "host_distill") {
+    issue(["version", "creation"], "distill commit versions require host_distill creation");
+  } else if (
+    previousLease !== undefined &&
+    (version.creation.briefContractDigest !== previousLease.contract.digest ||
+      version.creation.promptVersion !== previousLease.contract.promptVersion ||
+      version.creation.draftSchemaVersion !== previousLease.contract.draftSchemaVersion)
+  ) {
+    issue(["version", "creation"], "version creation must match the accepted lease contract");
+  }
+
+  if (version.createdDisposition === "current") {
+    if (
+      transaction.targetState.currentVersionId !== version.id ||
+      transaction.targetState.suspendedVersionId !== undefined
+    ) {
+      issue(
+        ["targetState"],
+        "current commits must point current at the new version and omit suspended",
+      );
+    }
+  } else if (
+    transaction.targetState.currentVersionId !== transaction.previousPending.baseVersionId ||
+    transaction.targetState.suspendedVersionId !== version.id
+  ) {
+    issue(
+      ["targetState"],
+      "suspended commits must preserve current and point suspended at the new version",
+    );
+  }
+
+  if (
+    transaction.claims.subjectId !== transaction.subjectId ||
+    transaction.claims.versionId !== version.id
+  ) {
+    issue(["claims"], "claims snapshot must identify the journal subject and version");
+  }
+  if (
+    transaction.profile.subjectId !== transaction.subjectId ||
+    transaction.profile.versionId !== version.id
+  ) {
+    issue(["profile"], "profile must identify the journal subject and version");
+  }
+  if (transaction.profile.displayName !== version.subjectDisplayName) {
+    issue(["profile", "displayName"], "profile and version display names must match");
+  }
+  if (!factValuesEqual(transaction.profile.claims, transaction.claims.claims)) {
+    issue(["profile", "claims"], "profile claims must match the version claims snapshot");
+  }
+  if (!factValuesEqual(transaction.profile.quality, version.quality)) {
+    issue(["profile", "quality"], "profile quality must match version quality");
+  }
+
+  const operation = transaction.operation;
+  if (operation.requestId !== transaction.requestId) {
+    issue(["operation", "requestId"], "operation request id must match the commit journal");
+  }
+  if (operation.scope.kind !== "subject" || operation.scope.subjectId !== transaction.subjectId) {
+    issue(["operation", "scope"], "operation scope must match the commit journal subject");
+  }
+  if (!actorsEqual(operation.actor, version.actor)) {
+    issue(["operation", "actor"], "operation actor must match the committed version actor");
+  }
+
+  const result = operation.result;
+  if (version.createdDisposition === "current") {
+    if (result.kind !== "current") {
+      issue(["operation", "result"], "current versions require a current commit result");
+    } else {
+      if (!versionSummaryMatchesRecord(result.version, version, "current")) {
+        issue(["operation", "result", "version"], "result version must match the journal version");
+      }
+      if (!factValuesEqual(result.profile, transaction.profile)) {
+        issue(["operation", "result", "profile"], "result profile must match the journal profile");
+      }
+    }
+  } else if (result.kind !== "suspended") {
+    issue(["operation", "result"], "suspended versions require a suspended commit result");
+  } else {
+    if (!versionSummaryMatchesRecord(result.candidate, version, "suspended")) {
+      issue(
+        ["operation", "result", "candidate"],
+        "result candidate must match the journal version",
+      );
+    }
+    if (result.currentVersionId !== transaction.previousPending.baseVersionId) {
+      issue(
+        ["operation", "result", "currentVersionId"],
+        "suspended result must preserve the accepted base version",
+      );
+    }
+    if (!factValuesEqual(result.reasons, version.reviewReasons)) {
+      issue(["operation", "result", "reasons"], "result reasons must match version review reasons");
+    }
+    if (
+      result.review.subjectId !== transaction.subjectId ||
+      result.review.candidateVersionId !== version.id
+    ) {
+      issue(["operation", "result", "review"], "review ref must identify the journal version");
+    }
+  }
+
+  const expectedVersionEventKind =
+    version.createdDisposition === "current" ? "version.current" : "version.suspended";
+  const [versionEvent, jobEvent] = transaction.events;
+  if (
+    versionEvent.event.kind !== expectedVersionEventKind ||
+    versionEvent.event.subjectId !== transaction.subjectId ||
+    versionEvent.event.versionId !== version.id
+  ) {
+    issue(["events", 0, "event"], "first event must identify the committed version disposition");
+  }
+  if (
+    jobEvent.event.kind !== "job.changed" ||
+    jobEvent.event.subjectId !== transaction.subjectId ||
+    jobEvent.event.versionId !== undefined
+  ) {
+    issue(["events", 1, "event"], "second event must be the subject job.changed event");
+  }
+  if (versionEvent.eventId === jobEvent.eventId) {
+    issue(["events", 1, "eventId"], "commit event ids must be unique");
+  }
+  for (const [index, event] of transaction.events.entries()) {
+    if (event.requestId !== transaction.requestId) {
+      issue(["events", index, "requestId"], "event request id must match the commit journal");
+    }
+    if (!actorsEqual(event.actor, operation.actor)) {
+      issue(["events", index, "actor"], "event actor must match the stored operation");
+    }
+    if (event.event.at !== transaction.preparedAt) {
+      issue(["events", index, "event", "at"], "event time must match journal preparation");
+    }
+  }
+  if (version.createdAt !== transaction.preparedAt) {
+    issue(["version", "createdAt"], "version creation time must match journal preparation");
+  }
+  if (operation.completedAt !== transaction.preparedAt) {
+    issue(["operation", "completedAt"], "operation completion must match journal preparation");
+  }
+};
+
+/** Runtime schema for a complete deterministic distillation commit journal. */
+export const distillCommitTransactionRecordSchema = schemaFor<DistillCommitTransactionRecord>()(
+  distillCommitTransactionUnionSchema.superRefine(refineDistillCommitTransaction),
+);
+
 /** Runtime schema for the root transaction fact union. */
 export const transactionRecordSchema = schemaFor<TransactionRecord>()(
-  z.union([ingestTransactionRecordSchema, distillLeaseTransactionRecordSchema]),
+  z.union([
+    ingestTransactionRecordSchema,
+    distillLeaseTransactionRecordSchema,
+    distillCommitTransactionRecordSchema,
+  ]),
 );

@@ -273,6 +273,7 @@ const makeVersion = (
       schemaVersion: 1,
       id,
       subjectId,
+      subjectDisplayName: "Ada",
       generation: 1,
       materialSetHash,
       materialCount: items.length,

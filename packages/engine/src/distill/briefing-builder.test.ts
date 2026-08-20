@@ -179,6 +179,7 @@ const storedVersion = (
     schemaVersion: 1,
     id: VERSION_ID,
     subjectId: SUBJECT_ID,
+    subjectDisplayName: "Ada",
     generation: 1,
     materialSetHash: hashMaterialSet(items),
     materialCount: items.length,

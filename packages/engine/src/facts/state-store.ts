@@ -7,7 +7,8 @@ import { digestBriefContract, hashMaterialSet } from "./digests.js";
 import { readMutableFactFile, replaceFactFile } from "./fact-file.js";
 import type { FileMaterialStore } from "./material-store.js";
 import type { FileSubjectStore } from "./subject-store.js";
-import { FileVersionManifestStore } from "./version-manifest-store.js";
+import type { StoredVersion } from "./version-store.js";
+import { FileVersionStore } from "./version-store.js";
 
 const stateFactSchema: RuntimeSchema<SubjectStateRecord> = {
   parse(value) {
@@ -64,7 +65,7 @@ const requireLeaseContract = (record: SubjectStateRecord): void => {
 };
 
 const requirePendingBaseline = async (
-  versions: FileVersionManifestStore,
+  versions: FileVersionStore,
   record: SubjectStateRecord,
 ): Promise<void> => {
   const pending = record.pending;
@@ -111,12 +112,53 @@ const requirePendingBaseline = async (
   }
 };
 
+const requireVersionManifestSubset = (record: SubjectStateRecord, stored: StoredVersion): void => {
+  if (stored.version.generation > record.generation) {
+    throw storageCorrupt("State version generation is newer than the authoritative state.");
+  }
+  const currentEntries = new Map(record.materialManifest.map((entry) => [entry.materialId, entry]));
+  for (const entry of stored.manifest.items) {
+    const current = currentEntries.get(entry.materialId);
+    if (
+      current === undefined ||
+      current.contentDigest !== entry.contentDigest ||
+      current.provenanceDigest !== entry.provenanceDigest
+    ) {
+      throw storageCorrupt(
+        "State version manifest is not an exact subset of the current manifest.",
+      );
+    }
+  }
+};
+
+const requireVersionPointers = async (
+  versions: FileVersionStore,
+  record: SubjectStateRecord,
+): Promise<void> => {
+  let current: StoredVersion | undefined;
+  if (record.currentVersionId !== undefined) {
+    current = await versions.read(record.subjectId, record.currentVersionId);
+    requireVersionManifestSubset(record, current);
+  }
+
+  if (record.suspendedVersionId !== undefined) {
+    const suspended = await versions.read(record.subjectId, record.suspendedVersionId);
+    requireVersionManifestSubset(record, suspended);
+    if (suspended.version.createdDisposition !== "suspended") {
+      throw storageCorrupt("Suspended pointer does not identify a suspended-created version.");
+    }
+    if (suspended.version.parentId !== record.currentVersionId) {
+      throw storageCorrupt("Suspended version parent does not match the current version pointer.");
+    }
+  }
+};
+
 /** Concrete local store for authoritative mutable subject state. */
 export class FileStateStore {
   readonly #layout: Layout;
   readonly #subjects: FileSubjectStore;
   readonly #materials: FileMaterialStore;
-  readonly #versions: FileVersionManifestStore;
+  readonly #versions: FileVersionStore;
 
   /**
    * Creates a state store with subject and material fact dependencies.
@@ -129,7 +171,7 @@ export class FileStateStore {
     this.#layout = layout;
     this.#subjects = subjects;
     this.#materials = materials;
-    this.#versions = new FileVersionManifestStore(layout, materials);
+    this.#versions = new FileVersionStore(layout, materials);
   }
 
   /**
@@ -148,6 +190,7 @@ export class FileStateStore {
     await requireSubject(this.#subjects, parsed.subjectId);
     await requireManifestFacts(this.#materials, parsed);
     await requirePendingBaseline(this.#versions, parsed);
+    await requireVersionPointers(this.#versions, parsed);
     requireLeaseContract(parsed);
     await replaceFactFile(
       this.#layout.root,
@@ -175,6 +218,7 @@ export class FileStateStore {
     }
     await requireManifestFacts(this.#materials, record);
     await requirePendingBaseline(this.#versions, record);
+    await requireVersionPointers(this.#versions, record);
     requireLeaseContract(record);
     return record;
   }

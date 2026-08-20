@@ -47,6 +47,7 @@ import {
   hashMaterialSet,
 } from "../facts/digests.js";
 import { FileEventStore } from "../facts/event-store.js";
+import { FileCurrentProfileProjection } from "../facts/current-profile-projection.js";
 import { replaceFactFile } from "../facts/fact-file.js";
 import { FileMaterialStore } from "../facts/material-store.js";
 import { FileOperationStore } from "../facts/operation-store.js";
@@ -54,6 +55,7 @@ import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
 import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
 import { createBriefContract } from "../distill/prompt-catalog.js";
@@ -62,6 +64,7 @@ import { RecoveryService, type RecoveryHooks } from "./recovery.js";
 import { FileRequestLock } from "./request-lock.js";
 import { FileSpaceIdentityLock } from "./space-identity-lock.js";
 import { FileSubjectLock } from "./subject-lock.js";
+import { FileVersionStaging } from "./version-staging.js";
 
 const SPACE_ID = spaceIdSchema.parse(`space_${"1".repeat(32)}`);
 const SUBJECT_ID = subjectIdSchema.parse(`subject_${"2".repeat(32)}`);
@@ -393,6 +396,9 @@ const createFixture = async (
   const spaces = new FileSpaceStore(layout);
   const subjects = new FileSubjectStore(layout, spaces);
   const materials = new FileMaterialStore(layout, subjects);
+  const versions = new FileVersionStore(layout, materials);
+  const versionStaging = new FileVersionStaging(layout, versions);
+  const currentProfiles = new FileCurrentProfileProjection(layout, versions);
   const states = new FileStateStore(layout, subjects, materials);
   const operations = new FileOperationStore(layout, subjects);
   const events = new FileEventStore(layout, subjects);
@@ -465,6 +471,9 @@ const createFixture = async (
       subjects,
       states,
       materials,
+      versions,
+      versionStaging,
+      currentProfiles,
       events,
       staging: new FileIngestStaging(layout, spaces),
       requestLocks: new FileRequestLock(layout, clock),

@@ -56,6 +56,7 @@ const profileDomainsSchema = z
 
 export const profileSchema = z.strictObject({
   subjectId: subjectIdSchema,
+  displayName: labelStringSchema,
   versionId: versionIdSchema,
   claims: z.array(claimSchema),
   core: profileCoreSchema,

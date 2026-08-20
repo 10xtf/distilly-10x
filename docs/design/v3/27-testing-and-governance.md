@@ -27,12 +27,13 @@
 - 同 URL/正文以相反顺序输入不同 provenance 得到同一最终 group / quality；同 proof key 的 public/private access 冲突为 ineligible 且返回 access_conflict caution；未引用或只被 superseded claim 引用的来源不提高 maturity；
 - MaterialSetHash 顺序无关；
 - parser draft 经 engine 绑定 RawId 后的 raw_extract type / round-trip；correction 的 direct-user 与 relayed provenance 产生可实现且不同的 digest；
-- claim patch add / revise / supersede / contest；
-- quote / locator、跨主体与跨 generation evidence 拒绝；
-- quality / maturity / renderer byte stability；
+- claim patch empty/add/revise/supersede/contest；每 base active/contested claim 最多一次且 superseded target 拒绝，resolved evidence exact-dedupe + MaterialId/locator/quote UTF-8 sort、observedIn dedupe/sort、validFrom<=validTo 与 ClaimId `claim-v1` golden preimage；revise 新 active + 旧 supersededBy、supersede 无 supersededBy、contest 保留 id/createdIn/text并合并 evidence；
+- quote / locator 的 Unicode scalar `start < end` 正反边界、跨主体与跨 generation evidence 拒绝；EvidenceContext 从 verified state/base/materials 按 pinned v1 重建与 m001 mapping，不读取 brief OperationRecord；
+- quality / maturity exact counts、first-version delta skip、canonical reason code/internal ordering与 renderer byte stability；
+- `profile-renderer-v1` 七 core 固定顺序、domain root/ClaimId UTF-8 顺序、active/contested/superseded exclusion、JSON-string Markdown/HTML/backtick/newline injection fixtures、empty arrays与每个 section/profile/prompt 单 LF golden；SubjectRecord 改名后历史 Profile.displayName/prompt bytes 不变；
 - OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result；distill.brief OperationRecord 可精确 round-trip 4 MiB 内完整 briefing；
 - BriefContract exact-three-field digest、raw prompt asset + NUL + evidenceRulesV1 promptVersion、source-groups-v1 与 draftSchemaVersion=1 有 byte-level golden fixtures；
-- VersionId fixture 删除全部 Claim.createdIn 后计算，再把新 claim createdIn 填成所得 id；改变 createdIn 不改变 preimage，改变其它 canonical claim 字段必须改变 id。
+- VersionId fixture 删除全部 Claim.createdIn 后计算，再把新 claim createdIn 填成所得 id；改变 createdIn 不改变 preimage，改变 version-time subjectDisplayName、reviewReasons 或其它 canonical claim 字段必须改变 id。Profile.displayName 必须等于 subjectDisplayName，current 无 reviewReasons，suspended reasons 非空且与 CommitResult/journal 相同。
 
 ### 27.3 Fact layer 与 crash
 
@@ -52,7 +53,9 @@
 - request / space catalog / space identity / subject lock 竞争和 stale lock recovery；两进程同时越过 preflight、旧 writer 留 prepared 后新 writer 的锁内二次检查必须释锁并 retryable busy，不反向取旧 request lock；create 对同 space prepared create 同样阻断；
 - ingest 在 prepared journal、新 material rename、state/subject-directory commit point、operation、event、queue projection 每一步崩溃；恢复必须 target-first，包括 previous==target，否则只能是完整 previous/absent 并只删 journal 命名的 material/staging，第三态必须 storage_corrupt；原 ingested retry 不退化成 unchanged；
 - aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
-- commit 在 journal、materials manifest / claims snapshot / version rename、state swap、event、projection 每一步崩溃；claims.json 是单一 VersionClaimsSnapshot，claims 按 ClaimId UTF-8 严格升序无重复；version/material manifest/material content/evidence quote/Unicode-scalar locator 任一 missing 或不一致必须 storage_corrupt，manifest 缺项、hash 或 materialCount 不符同样拒绝；
+- DistillCommitTransactionRecord runtime round-trip/cross-invariant 覆盖 acceptedPatch+patchDigest、lease owner、previous checksum/pending、完整 targetState、VersionRecord/materials/claims/Profile/prompt、correlated OperationRecord、固定 `[version.current|version.suspended, job.changed]` 与 lifecycle；任一 nested mismatch 拒绝；
+- commit 在 prepared journal、固定 `versions/.staging/<request>.<version>` 各文件、version rename、state swap、operation、两 event、current projection、queue 与 terminal journal 每一步崩溃；target finish、exact previous abort、第三态 corrupt；abort 只删同 journal 且逐字节匹配的 staging/未引用 published version，不能删被 state/lineage/其它 journal 引用的目录；published abort cleanup 在 atomic rename 到固定 `.deleting` path 前后及 recursive cleanup 中断后都可重入，published path 不得留下半目录；
+- claims.json 是单一 VersionClaimsSnapshot，claims 按 ClaimId UTF-8 严格升序无重复；version/material manifest/material content/evidence quote/Unicode-scalar locator/Profile/renderer/prompt 任一 missing 或不一致必须 storage_corrupt，manifest 缺项、hash 或 materialCount 不符同样拒绝；current/suspended reader 即使没有 prepared journal 也验证完整 version；
 - recovery 幂等且只有一个 current；
 - queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty v2 exact bytes、PRAGMA user_version=2、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified SubjectStateRecord v2 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 user_version=1 在 open 时判 index_unavailable 并自动 rebuild，不执行 ALTER/row migration；
 - queue rebuild 在 projection lock 内才调用 AsyncIterable seed supplier；并发 writer 在 snapshot 前、snapshot 中和 replace/clear-marker 后提交 state 的 fixtures 都证明其 apply 最终发生在 rebuild 后或被 snapshot 包含，不会留下 clean-but-stale；
@@ -73,6 +76,8 @@
 - 相同 RequestId 的 brief/renew/release 只在 method+params+actor+owner（brief 再加 canonical capacity）完全相同时精确重放；换 client owner 或 capacity 返回 idempotency_conflict；
 - brief 以完整 briefing 作为 OperationRecord.result；prepared journal、state swap、operation、唯一 job.changed event、queue apply 的每个 crash point都做 target-first recovery，previous abort、target finish、第三态 storage_corrupt；ingest 在同 subject lock 下先阻断/reconcile prepared lease journal；
 - capacity missing 返回 host_unsupported；完整 compact canonical JSON 的 fixed-point byte/token 估算在等于/超过 host token、host result bytes、4,194,304-byte internal cap、999 refs 各边界有 fixtures，任何失败都发生在 journal/state lease前，details 不含材料内容；maximumOutputBytes 固定 65,536；
+- accepted DistillPatch canonical bytes=65,536 通过、65,537 invalid_input；active suspended、stale job、lease missing/owner/expiry、pinned algorithm、patch/target/date/cycle、evidence/locator 与 corrupt storage 按 §7.6 exact precedence/code，所有 hard reject 证明 journal/version/state/operation/event/projection 零写且 pending/lease逐字节不变；
+- current success 证明 current=new、suspended absent、pending absent；suspended success 证明 current unchanged、suspended=new、pending absent；两者的 operation/result、reason tuple、两事件顺序与 terminal journal exact replay 不漂移；
 - stale worker finish 不覆盖新 generation；
 - requestId 重试不重复主体、材料或版本；
 - panel、MCP、CLI 三进程 writer 的锁顺序无死锁。

@@ -13,9 +13,7 @@ import {
   requestIdSchema,
   subjectStateRecordSchema,
   transactionRecordSchema,
-  versionMaterialManifestSchema,
   versionIdSchema,
-  versionRecordSchema,
   type ActorContext,
   type EngineEvent,
   type EventId,
@@ -26,11 +24,13 @@ import {
   type LeaseId,
   type LeaseOwnerId,
   type OperationRecord,
+  type Profile,
   type RequestId,
   type RuntimeSchema,
   type SpaceId,
   type SubjectId,
   type SubjectStateRecord,
+  type VersionClaimsSnapshot,
   type VersionMaterialManifest,
   type VersionRecord,
 } from "@distilly/protocol";
@@ -38,18 +38,23 @@ import {
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
 import { computeFactChecksum, sealFact } from "../facts/checksum.js";
-import { createFactFile, replaceFactFile } from "../facts/fact-file.js";
+import { replaceFactFile } from "../facts/fact-file.js";
 import { FileMaterialStore } from "../facts/material-store.js";
 import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
+import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
+import type { VersionIdentityPayload } from "../profile/version-id.js";
+import { deriveVersionId } from "../profile/version-id.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import type { RecoveryHooks } from "../transaction/recovery.js";
-import { createStep6Composition } from "./composition.js";
-import type { Step6Composition } from "./composition.js";
+import { FileVersionStaging } from "../transaction/version-staging.js";
+import { createInternalEngineComposition } from "./composition.js";
+import type { InternalEngineComposition } from "./composition.js";
 import type { IngestServiceHooks } from "./service.js";
 
 const AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
@@ -60,23 +65,21 @@ const QUALITY = {
   contestedClaimCount: 0,
   userAssertedClaimCount: 0,
   corroboratedClaimCount: 0,
-  sourceGroupCount: 1,
-  diversityEligibleSourceGroupCount: 1,
+  sourceGroupCount: 0,
+  diversityEligibleSourceGroupCount: 0,
   unknownSourceGroupCount: 0,
-  coveredCoreFacets: ["identity"],
-  uncoveredCoreFacets: ["voice", "psyche", "relations", "boundaries", "texture", "timeline"],
-  maturity: "forming",
+  coveredCoreFacets: [],
+  uncoveredCoreFacets: [
+    "identity",
+    "voice",
+    "psyche",
+    "relations",
+    "boundaries",
+    "texture",
+    "timeline",
+  ],
+  maturity: "sparse",
 } as const;
-const VERSION_SCHEMA: RuntimeSchema<VersionRecord> = {
-  parse(value) {
-    return versionRecordSchema.parse(value) as VersionRecord;
-  },
-};
-const VERSION_MANIFEST_SCHEMA: RuntimeSchema<VersionMaterialManifest> = {
-  parse(value) {
-    return versionMaterialManifestSchema.parse(value);
-  },
-};
 const STATE_SCHEMA: RuntimeSchema<SubjectStateRecord> = {
   parse(value) {
     return subjectStateRecordSchema.parse(value) as SubjectStateRecord;
@@ -196,14 +199,14 @@ const open = async (
   ids: SequenceIds,
   clock: FakeClock,
   options: OpenOptions = {},
-): Promise<Step6Composition> => {
+): Promise<InternalEngineComposition> => {
   const eventBus = new InProcessEventBus();
   if (options.published !== undefined) {
     eventBus.subscribe((event) => {
       options.published?.push(event);
     });
   }
-  return createStep6Composition({
+  return createInternalEngineComposition({
     root,
     ids,
     clock,
@@ -603,38 +606,63 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
     });
     const facts = stores(root);
     const state = await facts.states.read(created.subject.id);
-    const versionId = versionIdSchema.parse(`version_${"b".repeat(64)}`);
     if (state.materialSetHash === undefined) throw new Error("Expected a non-empty material set.");
-    const version = sealFact<VersionRecord>({
-      schemaVersion: 1,
-      id: versionId,
+    const identity: VersionIdentityPayload = {
       subjectId: created.subject.id,
+      subjectDisplayName: created.subject.displayName,
       generation: state.generation,
       materialSetHash: state.materialSetHash,
-      materialCount: state.materialManifest.length,
-      creation: { kind: "renderer_only", sourceVersionId: versionId },
+      creation: {
+        kind: "bundle_import",
+        bundleDigest: contentDigestSchema.parse(`sha256_${"b".repeat(64)}`),
+      },
       createdDisposition: "current",
       actor: { kind: "system", id: "step5-integration" },
       quality: QUALITY,
-      rendererVersion: "renderer-v1",
+      rendererVersion: PROFILE_RENDERER_VERSION,
+    };
+    const versionId = deriveVersionId(identity, []);
+    const version = sealFact<VersionRecord>({
+      schemaVersion: 1,
+      id: versionId,
+      ...identity,
+      materialCount: state.materialManifest.length,
       createdAt: AT,
     });
     const manifest = sealFact<VersionMaterialManifest>({
       schemaVersion: 1,
       items: state.materialManifest,
     });
-    await createFactFile(
-      root,
-      facts.layout.versionFile(created.subject.id, versionId),
-      version,
-      VERSION_SCHEMA,
+    const claims = sealFact<VersionClaimsSnapshot>({
+      schemaVersion: 1,
+      subjectId: created.subject.id,
+      versionId,
+      claims: [],
+    });
+    const rendering = renderProfile({
+      subjectId: created.subject.id,
+      displayName: created.subject.displayName,
+      versionId,
+      claims: [],
+      quality: QUALITY,
+    });
+    const profile: Profile = {
+      subjectId: created.subject.id,
+      displayName: created.subject.displayName,
+      versionId,
+      claims: [],
+      core: rendering.core,
+      domains: rendering.domains,
+      rendered: rendering.markdown,
+      quality: QUALITY,
+    };
+    const artifacts = { version, manifest, claims, profile, prompt: renderPrompt(profile) };
+    const versionStaging = new FileVersionStaging(
+      facts.layout,
+      new FileVersionStore(facts.layout, facts.materials),
     );
-    await createFactFile(
-      root,
-      facts.layout.versionMaterialManifestFile(created.subject.id, versionId),
-      manifest,
-      VERSION_MANIFEST_SCHEMA,
-    );
+    await versionStaging.prepare(request(99), artifacts);
+    await versionStaging.publish(request(99), artifacts);
     const committedState = sealFact<SubjectStateRecord>({
       schemaVersion: 2,
       subjectId: state.subjectId,
@@ -798,6 +826,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       "simulated process crash",
     );
     const prepared = await stores(root).transactions.read(request(2));
+    if (prepared.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
     const before = await stores(root).states.read(created.subject.id);
     expect(prepared.targetStateChecksum).toBe(before.checksum);
     expect(prepared).toMatchObject({ state: "prepared", previousStateChecksum: before.checksum });
@@ -981,6 +1010,7 @@ describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
       "simulated process crash",
     );
     const prepared = await facts.transactions.read(request(2));
+    if (prepared.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
 
     if (previous.materialSetHash === undefined) {
       throw new Error("Expected a non-empty previous material set.");

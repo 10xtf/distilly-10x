@@ -122,6 +122,7 @@ const bundleCandidate = {
 
 const profile = {
   subjectId,
+  displayName: "Ada",
   versionId,
   claims: [claim],
   core: {
@@ -987,38 +988,62 @@ describe("engine method runtime schemas", () => {
       }),
     ).toThrow();
 
-    const quoteAtLimit = "x".repeat(WIRE_LIMITS.quoteBytes);
-    const evidenceAtLimit = {
-      kind: "brief_material",
-      materialRef: "m001",
-      quote: quoteAtLimit,
+    const patchSizeBase = {
+      operations: [
+        {
+          op: "add",
+          claim: {
+            ...claimDraft,
+            evidence: [
+              {
+                kind: "brief_material",
+                materialRef: "m001",
+                quote: "",
+              },
+            ],
+          },
+        },
+      ],
     } as const;
+    const remainingPatchBytes = 65_536 - JSON.stringify(patchSizeBase).length;
+    const patchAtLimit = {
+      operations: [
+        {
+          ...patchSizeBase.operations[0],
+          claim: {
+            ...patchSizeBase.operations[0].claim,
+            evidence: [
+              {
+                ...patchSizeBase.operations[0].claim.evidence[0],
+                quote: "x".repeat(remainingPatchBytes),
+              },
+            ],
+          },
+        },
+      ],
+    } as const;
+    expect(JSON.stringify(patchAtLimit).length).toBe(65_536);
     expect(() =>
       engineMethodSchemas["distill.commit"].params.parse({
         ...commitParams,
-        patch: {
-          operations: [
-            {
-              op: "add",
-              claim: { ...claimDraft, evidence: [evidenceAtLimit] },
-            },
-          ],
-        },
+        patch: patchAtLimit,
       }),
     ).not.toThrow();
     expect(() =>
       engineMethodSchemas["distill.commit"].params.parse({
         ...commitParams,
         patch: {
-          operations: [
-            {
-              op: "add",
-              claim: {
-                ...claimDraft,
-                evidence: [{ ...evidenceAtLimit, quote: `${quoteAtLimit}x` }],
-              },
+          ...patchAtLimit,
+          operations: patchAtLimit.operations.map((operation) => ({
+            ...operation,
+            claim: {
+              ...operation.claim,
+              evidence: operation.claim.evidence.map((item) => ({
+                ...item,
+                quote: `${item.quote}x`,
+              })),
             },
-          ],
+          })),
         },
       }),
     ).toThrow();

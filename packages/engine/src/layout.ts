@@ -1,7 +1,9 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
+  coreFacetNameSchema,
   eventIdSchema,
+  facetPathSchema,
   materialIdSchema,
   requestIdSchema,
   spaceIdSchema,
@@ -9,6 +11,7 @@ import {
   versionIdSchema,
 } from "@distilly/protocol";
 import type {
+  CoreFacetName,
   EventId,
   MaterialId,
   RequestId,
@@ -349,6 +352,64 @@ export class Layout {
   }
 
   /**
+   * Directory containing one subject's immutable versions and fixed staging area.
+   *
+   * @param subjectId - Subject that owns the versions.
+   * @returns The confined absolute versions-directory path.
+   */
+  versionsDirectory(subjectId: SubjectId): string {
+    return this.inside("subjects", subjectIdSchema.parse(subjectId), "versions");
+  }
+
+  /**
+   * Root of one subject's journal-owned immutable-version staging directories.
+   *
+   * @param subjectId - Subject that owns the staged versions.
+   * @returns The confined absolute version-staging root.
+   */
+  versionStagingRootDirectory(subjectId: SubjectId): string {
+    return resolve(this.versionsDirectory(subjectId), ".staging");
+  }
+
+  /**
+   * Fixed immutable-version staging directory owned by one commit journal.
+   *
+   * @param requestId - Commit journal that owns the staging directory.
+   * @param subjectId - Subject that owns the staged version.
+   * @param versionId - Version being staged.
+   * @returns The confined absolute fixed staging path.
+   */
+  versionStagingDirectory(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    versionId: VersionId,
+  ): string {
+    return resolve(
+      this.versionStagingRootDirectory(subjectId),
+      `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}`,
+    );
+  }
+
+  /**
+   * Fixed journal-owned path used after the atomic published-version deletion commit point.
+   *
+   * @param requestId - Commit journal that owns the deleting directory.
+   * @param subjectId - Subject that owns the published version.
+   * @param versionId - Version being removed by aborted-commit recovery.
+   * @returns The confined absolute fixed deleting path.
+   */
+  versionDeletingDirectory(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    versionId: VersionId,
+  ): string {
+    return resolve(
+      this.versionStagingRootDirectory(subjectId),
+      `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}.deleting`,
+    );
+  }
+
+  /**
    * Path of immutable metadata for one profile version.
    *
    * @param subjectId - Subject that owns the version.
@@ -379,6 +440,183 @@ export class Layout {
    */
   versionClaimsFile(subjectId: SubjectId, versionId: VersionId): string {
     return resolve(this.versionDirectory(subjectId, versionId), "claims.json");
+  }
+
+  /**
+   * Profile-artifact directory inside one immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute immutable profile-artifact directory.
+   */
+  versionProfileDirectory(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionDirectory(subjectId, versionId), "profile");
+  }
+
+  /**
+   * Combined profile projection inside one immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute combined-profile path.
+   */
+  versionProfileFile(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionProfileDirectory(subjectId, versionId), "profile.md");
+  }
+
+  /**
+   * One canonical core-facet projection inside an immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @param facet - Canonical core facet whose projection is requested.
+   * @returns The absolute core-facet projection path.
+   */
+  versionCoreProfileFile(subjectId: SubjectId, versionId: VersionId, facet: CoreFacetName): string {
+    return resolve(
+      this.versionProfileDirectory(subjectId, versionId),
+      `${coreFacetNameSchema.parse(facet)}.md`,
+    );
+  }
+
+  /**
+   * Domain-projection directory inside one immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute immutable domain-projection directory.
+   */
+  versionDomainsDirectory(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionProfileDirectory(subjectId, versionId), "domains");
+  }
+
+  /**
+   * One safe-root domain projection inside an immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @param domainRoot - Valid single-segment FacetPath root.
+   * @returns The absolute immutable domain-projection path.
+   */
+  versionDomainProfileFile(subjectId: SubjectId, versionId: VersionId, domainRoot: string): string {
+    return resolve(
+      this.versionDomainsDirectory(subjectId, versionId),
+      `${this.safeFacetRoot(domainRoot)}.md`,
+    );
+  }
+
+  /**
+   * Complete prompt projection inside one immutable version.
+   *
+   * @param subjectId - Subject that owns the version.
+   * @param versionId - Immutable profile version identifier.
+   * @returns The absolute immutable prompt path.
+   */
+  versionPromptFile(subjectId: SubjectId, versionId: VersionId): string {
+    return resolve(this.versionDirectory(subjectId, versionId), "prompt.md");
+  }
+
+  /**
+   * Current-profile projection directory rebuilt from an immutable version.
+   *
+   * @param subjectId - Subject whose current projection is requested.
+   * @returns The absolute current-profile directory.
+   */
+  currentProfileDirectory(subjectId: SubjectId): string {
+    return resolve(this.subjectDirectory(subjectId), "profile");
+  }
+
+  /**
+   * Fixed sibling staging directory for one journal-owned current projection rebuild.
+   *
+   * @param requestId - Commit journal that owns the rebuild.
+   * @param subjectId - Subject whose projection is being rebuilt.
+   * @param versionId - Immutable source version.
+   * @returns The absolute sibling staging directory.
+   */
+  currentProfileStagingDirectory(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    versionId: VersionId,
+  ): string {
+    return resolve(
+      this.subjectDirectory(subjectId),
+      `.profile.staging.${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}`,
+    );
+  }
+
+  /**
+   * Fixed sibling backup used only while replacing one current projection.
+   *
+   * @param requestId - Commit journal that owns the rebuild.
+   * @param subjectId - Subject whose projection is being rebuilt.
+   * @param versionId - Immutable source version.
+   * @returns The absolute sibling backup directory.
+   */
+  currentProfileBackupDirectory(
+    requestId: RequestId,
+    subjectId: SubjectId,
+    versionId: VersionId,
+  ): string {
+    return resolve(
+      this.subjectDirectory(subjectId),
+      `.profile.previous.${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}`,
+    );
+  }
+
+  /**
+   * Combined current profile projection.
+   *
+   * @param subjectId - Subject whose projection is requested.
+   * @returns The absolute combined current-profile path.
+   */
+  currentProfileFile(subjectId: SubjectId): string {
+    return resolve(this.currentProfileDirectory(subjectId), "profile.md");
+  }
+
+  /**
+   * One canonical core-facet current projection.
+   *
+   * @param subjectId - Subject whose projection is requested.
+   * @param facet - Canonical core facet whose projection is requested.
+   * @returns The absolute current core-facet path.
+   */
+  currentCoreProfileFile(subjectId: SubjectId, facet: CoreFacetName): string {
+    return resolve(
+      this.currentProfileDirectory(subjectId),
+      `${coreFacetNameSchema.parse(facet)}.md`,
+    );
+  }
+
+  /**
+   * Directory containing current domain projections.
+   *
+   * @param subjectId - Subject whose domain projections are requested.
+   * @returns The absolute current domain-projection directory.
+   */
+  currentDomainsDirectory(subjectId: SubjectId): string {
+    return resolve(this.currentProfileDirectory(subjectId), "domains");
+  }
+
+  /**
+   * One safe-root current domain projection.
+   *
+   * @param subjectId - Subject whose projection is requested.
+   * @param domainRoot - Valid single-segment FacetPath root.
+   * @returns The absolute current domain-projection path.
+   */
+  currentDomainProfileFile(subjectId: SubjectId, domainRoot: string): string {
+    return resolve(this.currentDomainsDirectory(subjectId), `${this.safeFacetRoot(domainRoot)}.md`);
+  }
+
+  /**
+   * Current prompt projection.
+   *
+   * @param subjectId - Subject whose prompt projection is requested.
+   * @returns The absolute current prompt path.
+   */
+  currentPromptFile(subjectId: SubjectId): string {
+    return resolve(this.currentProfileDirectory(subjectId), "prompt.md");
   }
 
   /**
@@ -420,5 +658,13 @@ export class Layout {
     const path = resolve(this.root, ...segments);
     this.assertInside(path);
     return path;
+  }
+
+  private safeFacetRoot(value: string): string {
+    const parsed = facetPathSchema.parse(value);
+    if (parsed.includes(".")) {
+      throw invalidInput("Profile domain file name must be one facet root.");
+    }
+    return parsed;
   }
 }

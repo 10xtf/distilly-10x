@@ -227,7 +227,7 @@ export interface WireFailure {
 }
 ~~~
 
-所有写工具都要求 requestId。相同 requestId 与相同 trusted input checksum 重试返回相同结果；普通 mutation 的 preimage 是 method + canonical params + session actor，distill.brief/renew/release 还含 session LeaseOwnerId，brief 再含 canonical BriefCapacity。相同 requestId 配不同 method、input、actor、lease owner 或 brief capacity 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
+所有写工具都要求 requestId。相同 requestId 与相同 trusted input checksum 重试返回相同结果；普通 mutation 的 preimage 是 method + canonical params + session actor，distill.brief/renew/release/**commit** 还含 session LeaseOwnerId，brief 再含 canonical BriefCapacity。相同 requestId 配不同 method、input、actor、lease owner 或 brief capacity 返回 idempotency_conflict。RequestId 本身不进入 inputChecksum。SDK 可以由客户端 helper 生成 requestId，但引擎不接受空值。
 
 ### 7.4 Actor 由入口派生
 
@@ -329,5 +329,7 @@ not_found、ambiguous_subject 和 nothing_pending 在有对应判别结果的工
 | 插件 / bundle / adapter 输入 | manifest、bundle 签名、第三方产物 | host_unsupported / adapter_failed |
 
 同进程、类型已知的 service 调用不重复套 schema；纯函数依靠类型与 focused tests。所有外部字符串先校验再用于路径。
+
+distill.commit 的错误优先级先走唯一外部 wire/runtime schema：method envelope、id/enum、patch canonical bytes、结构、局部 date range 与 locator `start < end` 任一不合法都立即 `invalid_input`，不得为优先级另造一套宽松 pre-parser。边界合法后依次处理同 RequestId replay/conflict、active suspended=`review_conflict`、job/generation/base/material set/echoed digest=`stale_job`、matching job 下 lease 缺失或 id/owner 不符=`lease_conflict`、`now >= expiresAt`=`lease_expired`、pinned grouping/draft 实现不可用=`schema_unsupported`；再处理依赖 verified facts 的 patch target/cycle=`invalid_input` 与 evidence ref/membership/quote/locator=`evidence_invalid`，最后才是 fact schema/storage 错误。每个失败都返回这个最窄 code；不得把 stale、lease、unsupported 或 evidence 问题统一包装成 invalid_input。除 exact completed/terminal replay 外，这些失败都零写入并保留 pending/lease。
 
 ---

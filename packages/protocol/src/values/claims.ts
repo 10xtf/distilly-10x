@@ -6,7 +6,6 @@ import type {
   MaterialId,
   VersionId,
 } from "../ids.js";
-import type { RelationOperationDraft } from "./relations.js";
 
 export type CoreFacetName =
   "identity" | "voice" | "psyche" | "relations" | "boundaries" | "texture" | "timeline";
@@ -92,7 +91,6 @@ export type ClaimOperation =
 /** Claim-only host draft accepted by the deterministic commit engine. */
 export interface DistillPatch {
   readonly operations: readonly ClaimOperation[];
-  readonly relationOperations?: readonly RelationOperationDraft[];
   readonly reviewRequest?: { readonly note?: string };
   readonly notes?: string;
 }

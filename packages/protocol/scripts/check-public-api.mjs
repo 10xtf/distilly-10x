@@ -50,6 +50,8 @@ CorrectionProvenance
 CreateSubjectInput
 CreatedDisposition
 DiffInput
+DistillCommitTransactionBase
+DistillCommitTransactionRecord
 DistillLeaseTransactionMethod
 DistillLeaseTransactionRecord
 DistillPatch
@@ -275,6 +277,7 @@ createSubjectInputSchema
 createdDispositionSchema
 decodeEngineEvent
 diffInputSchema
+distillCommitTransactionRecordSchema
 distillLeaseTransactionMethodSchema
 distillLeaseTransactionRecordSchema
 distillPatchSchema

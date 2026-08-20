@@ -13,7 +13,7 @@ Commands live in root [AGENTS.md](../AGENTS.md). This file is what a green run m
 
 We do not have, and do not pretend to have: per-file 100% coverage, keyless snapshot transcripts, or real-API e2e. When a model-visible projection ships (`prompt()`, `SKILL.md`, host instructions), add a keyless fixture that diffs the rendered text.
 
-The tiers that arrive with the TypeScript packages — Vitest, model-visible snapshots, and the publish-face checks that catch a package which passes every source test yet cannot be imported — are specified in [design §24](design/v2/24-governance-toolchain.md). They are designed, not available; do not cite them as evidence. Coverage there is reported, not gated per file, for the same reason it is absent here.
+The tiers that arrive with the TypeScript packages — Vitest, model-visible snapshots, and the publish-face checks that catch a package which passes every source test yet cannot be imported — are specified in [design §27](design/v3/27-testing-and-governance.md). They are designed, not available; do not cite them as evidence. Coverage there is reported, not gated per file, for the same reason it is absent here.
 
 ## Rules
 
@@ -22,5 +22,5 @@ The tiers that arrive with the TypeScript packages — Vitest, model-visible sna
 - Assert the world: files under a temporary root, version pointers, claim lines, refusal errors. Do not trust an agent's own summary.
 - Do not hit live APIs in CI.
 - A test of an installer or CLI boots that entry, not an internal helper that skips argument parsing.
-- Distill objectivity: same material-set hash skips; a second distill of the same set must keep structured claim fields stable once that path exists.
+- Distill correctness: the same material-set hash skips automatically; accepted patches render byte-stably, while an explicitly requested external-model redistill may propose a different evidence-bounded patch and must be diffed/versioned rather than called deterministic.
 - A test command that discovers zero tests is not evidence. Required test directories and entry points fail closed.

@@ -8,15 +8,15 @@ Status: proposed
 
 ## Proposal
 
-Ship distilly as an independent product path on this repository (later a rename). Full contract: [docs/design/system-v2.md](../../../../docs/design/system-v2.md). Live-tree map: [docs/architecture.md](../../../../docs/architecture.md).
+Ship distilly as an independent product path on this repository (later a rename). Current full contract: [docs/design/system-v3.md](../../../../docs/design/system-v3.md). Live-tree map: [docs/architecture.md](../../../../docs/architecture.md).
 
-The product rules below still hold. The implementation language, package cut, async API, and error model in this note's original Python form do not: they are superseded by [2026-08-19-typescript-product-line.md](2026-08-19-typescript-product-line.md), and [system-v1.md](../../../../docs/design/system-v1.md) is deprecated history.
+The product rules below still hold as refined by [the V3 supersession note](2026-08-20-design-v3.md). The implementation language, package cut, async API, and error model in this note's original Python form do not: TypeScript first replaced them in V2, while V3 is now the in-force productized contract. [system-v2.md](../../../../docs/design/system-v2.md) and [system-v1.md](../../../../docs/design/system-v1.md) are deprecated history.
 
 Locked product rules (do not re-open in implementation PRs without a new note):
 
 - Subjects include colleagues, relations, celebrities, fictional characters, and `self` on one model. `self` is a normal id.
-- Distill is objective. Material-set hash unchanged → skip. Output drift is a bug. Corrections are facts in `corrections/`, immediately versioned, and reused. Lower overall confidence suspends the new version (`promote` / `reject`).
-- Default zero API key. Host `pending` + `commit`. Optional LLM key for daemon distill. No required multimodal or embedding key. Unparsed media is not distill input.
+- Distill is evidence-bounded. Material-set hash unchanged → skip. External model proposals may vary; engine hashing, evidence resolution, patch application, rendering, and transactions are deterministic. Corrections are facts in `corrections/`. Explainable mechanical risks suspend the candidate (`promote` / `reject`).
+- Default zero extra API key. Host `ingest` → `pending(brief)` → claim-only `commit`. Optional LLM key for daemon distill. No required multimodal or embedding key. Unparsed media is not distill input.
 - Markdown / jsonl are facts. SQLite, if added, is a disposable index and queue.
 - Client: `Distilly` + `Person`. Capability groups stay internal. MCP exposes `get`, `ingest`, `pending`, `commit`, `correct` only.
 - Two adapter kinds: `SourceAdapter` (collection; v1 main path is host `ingest`) and `HostInjector` (v1 required).
@@ -24,9 +24,9 @@ Locked product rules (do not re-open in implementation PRs without a new note):
 - Profile = closed core + open domains + evidenced claims. Domain packs replace colleague/celebrity as types. Default create kind is `person`.
 - Graph v1 is relations only. Insert node O(1), attach relations O(k), no O(n²) rebuild. Pending mentions are not auto-linked.
 - Bot is a binding that pins one subject and version. It must not invent its own persona files.
-- The plugin ships manifests and skills over a local engine. No hosted MCP server and no OAuth login. Acceptance: distill a public figure and `get` without login.
+- The plugin ships manifests and skills over a versioned local runtime, with a local evidence/review Panel in the first usable release. No hosted MCP server and no OAuth login. Acceptance: distill a public figure and `get` without login.
 
-Target home disk and package layout are in design chapters [08](../../../../docs/design/v2/08-home-tree.md) and [07](../../../../docs/design/v2/07-package-cut.md). Existing `PRIMARY_ARTIFACTS` migrate into core and domains; do not keep work/persona as the top split.
+Target home disk and package layout are in V3 chapters [06](../../../../docs/design/v3/06-fact-layer-and-recovery.md) and [25](../../../../docs/design/v3/25-package-and-source-tree.md). Existing `PRIMARY_ARTIFACTS` migrate into core and domains; do not keep work/persona as the top split.
 
 ## Alternatives considered
 
@@ -41,9 +41,9 @@ Target home disk and package layout are in design chapters [08](../../../../docs
 
 ## Acceptance criteria
 
-- A host agent can `ingest` text or files, `pending`, `commit`, `get` / `prompt`, and `correct` without an LLM key.
+- A host agent can `ingest` text or files, acquire a complete `pending(brief)`, submit a claim-only `commit`, `get` / `prompt`, and `correct` without an extra LLM key.
 - `prompt()` text can be placed in a Claude Task or Codex child instructions without writing repository instruction files.
-- Confidence drop on `commit` does not replace `current` until `promote`.
+- A mechanically risky candidate does not replace `current` until `promote`.
 - A new `SourceAdapter` can register without changing `Person` methods.
 - Relation `link` + `neighbors` work without scanning the whole graph on commit.
 - Governance checks in the [governance note](../../implemented/process/2026-08-19-agent-governance.md) stay green.
@@ -54,5 +54,5 @@ Target home disk and package layout are in design chapters [08](../../../../docs
 - Full-profile inject will hit context limits; v1 fails visibly rather than inventing a silent trimmer.
 - Collection adapters will rot on host UIs. That rot stays in delegated plans or community packages, not in `Person`.
 - Renaming the GitHub repository and telemetry env vars is still open and will touch every install doc.
-- The capability inventory and the public class spec showed different `create` and `commit` signatures. Design §5.3 froze one form each and made provenance engine-derived, so a caller cannot fabricate lineage. No overloads preserve both drafts.
-- `correct` and `neighbors` were open. Design §5.3 froze `correct` as a deterministic engine path that calls no model, and `neighbors` as a rebuildable SQLite projection over the append-only relations log.
+- Earlier capability and public-class drafts showed different `create` and `commit` signatures. V3 §8 and §18 freeze one atomic ingest/create path and one claim-only commit shape, with actor, ids, quality, and Markdown engine-owned.
+- V3 keeps direct correction as a deterministic engine path that calls no model; MCP-relayed correction suspends for user confirmation. Relations remain a typed additive post-core slice with a rebuildable projection rather than a pretend first-release method.

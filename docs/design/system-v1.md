@@ -1,12 +1,12 @@
 # distilly 系统设计 v1.1（对话还原，已废弃）
 
-> **合同状态：DEPRECATED。** 本文件只作历史记录，不再是权威。生效合同是 [system-v2.md](system-v2.md)；语言无关的产品结论已在那里重述，不要再从本文引用。
+> **合同状态：DEPRECATED。** 本文件只作历史记录，不再是权威。V1 当时因 TypeScript 产品线由 [system-v2.md](system-v2.md) 直接取代；当前唯一生效合同是 [system-v3.md](system-v3.md)。不要再从本文引用当前要求。
 > **为什么废弃：** 产品面没变，实现语言变了。本文把产品写成 Python——同步签名、`models.py` 放在客户端包里——与 TypeScript 宿主和异步 MCP 服务不匹配。理由与被打败的方案见 [TypeScript 产品线 Agent Note](../../.agents/notes/proposed/architecture/2026-08-19-typescript-product-line.md)。
 > **怎么用它：** 只在想知道某条结论当初打败了什么时读这里。不要为了「保持一致」修改本文。
 > **实现状态：** Distilly 产品尚未发布；当前代码事实只看 [architecture.md](../architecture.md)、源码和测试。
 > 分层目录：[docs/README.md](../README.md)。按章：[design/README.md](README.md)。
 > 决策摘要：[distilly product Agent Note](../../.agents/notes/proposed/architecture/2026-08-19-distilly-product.md)。本文件把产品设计讨论中拍板的机制完整写回仓库。
-> 创建：2026-08-19；补全：同日；废弃：2026-08-19
+> 创建：2026-08-19；补全：同日；废弃：2026-08-19；当前导航更新：2026-08-20
 
 ---
 

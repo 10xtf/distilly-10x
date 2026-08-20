@@ -8,7 +8,7 @@ The first governance PR compressed the product conversation into an 80-line arch
 
 ## Decision
 
-The uncut target design lives in a `docs/design/system-v*.md` parent. [scripts/sync_design_chapters.py](../../../../scripts/sync_design_chapters.py) generates its sections into a sibling `v*/` folder for topic loading and rewrites relocated relative links; each parent is a `Corpus` entry in that script. Chapters are not hand-edited; the docs gate rejects drift. This landed with the v1.1 parent. The in-force parent is [system-v2.md](../../../../docs/design/system-v2.md); superseding a design adds the next parent and leaves the previous one deprecated in place.
+The uncut target design lives in a `docs/design/system-v*.md` parent. [scripts/sync_design_chapters.py](../../../../scripts/sync_design_chapters.py) generates its sections into a sibling `v*/` folder for topic loading and rewrites relocated relative links; each parent is a `Corpus` entry in that script. Chapters are not hand-edited; the docs gate rejects drift. This landed with the v1.1 parent. The in-force parent is now [system-v3.md](../../../../docs/design/system-v3.md); superseding a design adds the next parent and leaves V2/V1 deprecated in place. The registry validates unique version/parent/chapter/output paths and exactly one in-force corpus before writing.
 
 `docs/` is now graded by job: `design/` (contract), `architecture.md` (live tree), `cookbook/` (steps), `process/` (review), `testing.md` (what green means).
 

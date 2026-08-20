@@ -1,4 +1,4 @@
-> 本章由 [system-v1.md](../system-v1.md) 生成。**v1 已 deprecated**，只作历史记录；生效合同是 [system-v2.md](../system-v2.md)。请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。
+> 本章由 [system-v1.md](../system-v1.md) 生成。**v1 已 deprecated**，直接继任者是 [system-v2.md](../system-v2.md)；当前生效合同是 [system-v3.md](../system-v3.md)。请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。
 
 ## 23. 仓库治理（先立形状，不上全套门禁）
 

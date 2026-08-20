@@ -2,7 +2,7 @@
 
 > English first, 中文在下方。
 
-Agents: read [AGENTS.md](AGENTS.md) first. Product work reads [docs/design/system-v2.md](docs/design/system-v2.md); product code is TypeScript. Review follows [docs/process/code-review.md](docs/process/code-review.md).
+Agents: read [AGENTS.md](AGENTS.md) first. Product work reads [docs/design/system-v3.md](docs/design/system-v3.md); product code is TypeScript. Review follows [docs/process/code-review.md](docs/process/code-review.md).
 
 The published default branch is `dot-skill`. Product work lands on `distilly`.
 
@@ -108,7 +108,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 
 ## Docs / 文档
 
-- Product contract changes → edit `docs/design/system-v2.md`, then run `python3 scripts/sync_design_chapters.py`; generated chapters are never hand-edited, and the deprecated v1 parent is not edited at all
+- Product contract changes → edit `docs/design/system-v3.md`, then run `python3 scripts/sync_design_chapters.py`; generated chapters are never hand-edited, and deprecated V2/V1 bodies are not rewritten
 - User-facing skill behavior → update `README.md`, `SKILL.md`, and `INSTALL.md`
 - If you add a language translation of the README, also update the language nav strip in every other `docs/lang/README_*.md`
 - Prefer English for code comments; docs can be bilingual

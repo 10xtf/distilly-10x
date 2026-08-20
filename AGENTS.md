@@ -14,19 +14,20 @@ Do not create per-file, per-function, per-test, subagent, checkpoint, fixup, or 
 
 ## Standing orders
 
-- Before product code on `distilly`, read [docs/design/README.md](docs/design/README.md) and the chapter that owns the change. [docs/design/system-v2.md](docs/design/system-v2.md) is the in-force contract; [docs/design/system-v1.md](docs/design/system-v1.md) is deprecated history; [docs/architecture.md](docs/architecture.md) is the shipped-state map. Do not apply target APIs as current behavior on `dot-skill`.
-- Product code is TypeScript. `tools/` and `prompts/` are frozen Python serving the published skill: defects only, no new behavior. Retirement conditions are in [design §25](docs/design/v2/25-python-migration.md).
+- Before product code on `distilly`, read [docs/design/README.md](docs/design/README.md) and the chapter that owns the change. [docs/design/system-v3.md](docs/design/system-v3.md) is the in-force contract; V2 and V1 are deprecated history; [docs/architecture.md](docs/architecture.md) is the shipped-state map. Do not apply target APIs as current behavior on `dot-skill`.
+- Product code is TypeScript. `tools/` and `prompts/` are frozen Python serving the published skill: defects only, no new behavior. Retirement conditions are in [design §28](docs/design/v3/28-migration-and-compatibility.md).
 - Every governed change adds or updates an [Agent Note](.agents/notes/README.md) in the same PR. The diff gate defines governed paths; tests, translations, assets, and local-only edits are exempt unless they change a shared decision.
 - Document current state in standing docs. Put rationale in Agent Notes; put procedures in [docs/cookbook/](docs/cookbook/).
 - Target implementation invariant (not shipped): Markdown and jsonl under `~/.distilly/` are the fact layer; indexes are disposable.
-- Target implementation invariant (not shipped): distillation is objective; unchanged material-set hash skips; drift is a defect; corrections land in `corrections/`.
-- Target implementation invariant (not shipped): the default is zero API key, `pending` then `commit`, with no required embedding or multimodal key.
+- Target implementation invariant (not shipped): the host LLM may vary semantically, but the engine's hashing, evidence resolution, patch application, rendering, and transaction are deterministic; unchanged material-set hash skips; corrections land in `corrections/`.
+- Target implementation invariant (not shipped): the default is zero extra API key and exactly five MCP tools; `ingest` → `pending(brief)` → claim-only `commit`, with no required embedding or multimodal key.
 - Target implementation invariant (not shipped): the public client is `Distilly` + `Person`; seven capability groups stay internal.
 - Target implementation invariant (not shipped): temporary personas enter only that sub-run via `get` / `prompt`, never global `AGENTS.md`, `CLAUDE.md`, or `agent.md`.
 - Target implementation invariant (not shipped): first-version recall injects the full profile and fails visibly if it does not fit.
-- Target implementation invariant (not shipped): `SourceAdapter` and `HostInjector` are separate seams; graph v1 is relations only; commit is not O(n²).
-- Target implementation invariant (not shipped): every public method is async, ids are branded, the error `code` union is the wire contract, and runtime validation happens only at the boundaries listed in [design §11.5](docs/design/v2/11-public-api.md).
-- Target implementation invariant (not shipped): the `~/.distilly/` format is language-neutral and unchanged from v1; `node:sqlite` backs only the disposable queue and graph projection, never retrieval.
+- Target implementation invariant (not shipped): `SourceAdapter` and `HostInjector` are separate seams; relations are an additive post-core slice; commit is not O(n²).
+- Target implementation invariant (not shipped): every public I/O operation is async, ids are branded, the error `code` union is the wire contract, and runtime validation happens only at the boundaries listed in [design §7.6](docs/design/v3/07-protocol-types.md).
+- Target implementation invariant (not shipped): the `~/.distilly/` format is language-neutral; immutable versions plus `state.json` are facts, while `node:sqlite` backs only disposable queue and graph projections, never retrieval.
+- Target implementation invariant (not shipped): claims are the semantic truth; the host cannot submit ids, actor, quality, version, or Markdown, and risky valid candidates suspend without replacing current.
 - When reviewing a PR or an outgoing product diff, follow [docs/process/code-review.md](docs/process/code-review.md) and [distilly-code-review](.agents/skills/distilly-code-review/SKILL.md).
 - Tests describe behavior. Run the narrowest check the diff can break.
 - Local commits need no permission; publishing does. When a push is requested, follow [distilly-pre-push-checks](.agents/skills/distilly-pre-push-checks/SKILL.md); the hook must verify the outgoing local `HEAD`, not a stale remote PR head.
@@ -59,6 +60,6 @@ python3 -B scripts/run_tests.py
 
 Run the narrowest set that can fail for the change. CI runs on `dot-skill`, `distilly`, and `main`; branch protection determines whether a red result merely detects or actually blocks the change.
 
-These are the gates that exist today. The TypeScript suite lands with the first packages; its stages, commands, and the machine/semantic split are in [design §24](docs/design/v2/24-governance-toolchain.md).
+These are the gates that exist today. The TypeScript suite lands with the first packages; its stages, commands, and the machine/semantic split are in [design §27](docs/design/v3/27-testing-and-governance.md).
 
 Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a symlink).

@@ -1,10 +1,10 @@
 # distilly 系统设计 v2（TypeScript）
 
-> **这是唯一需要读的产品与架构合同。** 它自足：不需要读过其他项目、其他仓库，也不需要读过上一版设计。每个术语在 §0 定义，每个类型在 §10 定义。
+> **合同状态：DEPRECATED。** 本文件只作历史记录，不再是权威；当前唯一生效合同是 [system-v3.md](system-v3.md)。V3 把宿主 LLM 调研/蒸馏、完整 briefing、claim-only commit、本地审核 Panel 与可安装 runtime 收成可执行产品闭环。原因、保留项与被拒方案见 [Design V3 Agent Note](../../.agents/notes/proposed/architecture/2026-08-20-design-v3.md)。不要为了“保持一致”修改本文正文。
 > **实现状态：** 尚无 TypeScript 产品代码。当前树实际发布什么只看 [architecture.md](../architecture.md)、源码和测试。设计文本不是「已实现」的证据（§20）。
 > 按章加载：[design/README.md](README.md)。分层目录：[docs/README.md](../README.md)。
 > 决策记录：[TypeScript 产品线](../../.agents/notes/proposed/architecture/2026-08-19-typescript-product-line.md)、[TypeScript 治理周期](../../.agents/notes/proposed/process/2026-08-19-typescript-governance-lifecycle.md)。
-> 与上一版的关系见 §26.3。创建：2026-08-19
+> 与上一版的关系见 §26.3。创建：2026-08-19；废弃：2026-08-20
 
 ---
 

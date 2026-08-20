@@ -28,6 +28,9 @@ class Corpus:
     Chapter names are positional: index `n` receives design section `## n.`.
     """
 
+    version: int
+    status: str
+    successor: Optional[int]
     parent: Path
     chapter_dir: Path
     names: Tuple[str, ...]
@@ -35,6 +38,9 @@ class Corpus:
 
 
 V1 = Corpus(
+    version=1,
+    status="deprecated",
+    successor=2,
     parent=Path("docs/design/system-v1.md"),
     chapter_dir=Path("docs/design/v1"),
     names=(
@@ -65,11 +71,15 @@ V1 = Corpus(
     ),
     preamble=(
         "> 本章由 [system-v1.md](../system-v1.md) 生成。**v1 已 deprecated**，"
-        "只作历史记录；生效合同是 [system-v2.md](../system-v2.md)。"
+        "直接继任者是 [system-v2.md](../system-v2.md)；当前生效合同是 "
+        "[system-v3.md](../system-v3.md)。"
         "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
     ),
 )
 V2 = Corpus(
+    version=2,
+    status="deprecated",
+    successor=3,
     parent=Path("docs/design/system-v2.md"),
     chapter_dir=Path("docs/design/v2"),
     names=(
@@ -102,16 +112,144 @@ V2 = Corpus(
         "26-landing-and-evolution.md",
     ),
     preamble=(
-        "> 本章由 [system-v2.md](../system-v2.md) 生成，属于生效的目标合同；"
+        "> 本章由 [system-v2.md](../system-v2.md) 生成。**v2 已 deprecated**，"
+        "只作历史记录；当前生效合同是 [system-v3.md](../system-v3.md)。"
+        "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
+    ),
+)
+V3 = Corpus(
+    version=3,
+    status="in_force",
+    successor=None,
+    parent=Path("docs/design/system-v3.md"),
+    chapter_dir=Path("docs/design/v3"),
+    names=(
+        "00-how-to-read.md",
+        "01-product.md",
+        "02-user-journeys.md",
+        "03-locked-and-superseded.md",
+        "04-trust-and-principles.md",
+        "05-architecture-and-state.md",
+        "06-fact-layer-and-recovery.md",
+        "07-protocol-types.md",
+        "08-mcp-tools.md",
+        "09-subject-identity.md",
+        "10-research-provenance.md",
+        "11-ingest-and-queue.md",
+        "12-briefing-and-lease.md",
+        "13-profile-and-claims.md",
+        "14-commit-and-quality.md",
+        "15-local-panel.md",
+        "16-recall-and-injection.md",
+        "17-host-bindings.md",
+        "18-public-sdk.md",
+        "19-cli-and-plugins.md",
+        "20-corrections-and-evolution.md",
+        "21-background-executor.md",
+        "22-relations.md",
+        "23-index-and-search.md",
+        "24-profile-catalog.md",
+        "25-package-and-source-tree.md",
+        "26-security-config-telemetry.md",
+        "27-testing-and-governance.md",
+        "28-migration-and-compatibility.md",
+        "29-landing-and-evolution.md",
+    ),
+    preamble=(
+        "> 本章由 [system-v3.md](../system-v3.md) 生成，属于当前生效的目标合同；"
         "当前已发布行为以 [architecture.md](../../architecture.md) 为准。"
         "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
     ),
 )
-CORPORA: Tuple[Corpus, ...] = (V1, V2)
+CORPORA: Tuple[Corpus, ...] = (V1, V2, V3)
 
 
 class DesignSyncError(ValueError):
     """The canonical design cannot be mapped one-to-one to its chapters."""
+
+
+def validate_corpora(corpora: Sequence[Corpus]) -> None:
+    """Fail before generation when the corpus registry is ambiguous."""
+    if not corpora:
+        raise DesignSyncError("design corpus registry must not be empty")
+
+    parents: Dict[Path, int] = {}
+    chapter_dirs: Dict[Path, int] = {}
+    outputs: Dict[Path, int] = {}
+    versions: Dict[int, Corpus] = {}
+    in_force = 0
+
+    for corpus in corpora:
+        if corpus.status not in {"deprecated", "in_force"}:
+            raise DesignSyncError(
+                f"design v{corpus.version}: unknown status {corpus.status!r}"
+            )
+        if corpus.status == "in_force":
+            in_force += 1
+            if corpus.successor is not None:
+                raise DesignSyncError(
+                    f"design v{corpus.version}: in-force corpus cannot have a successor"
+                )
+        elif corpus.successor is None or corpus.successor <= corpus.version:
+            raise DesignSyncError(
+                f"design v{corpus.version}: deprecated corpus needs a later successor"
+            )
+
+        expected_parent = Path(f"docs/design/system-v{corpus.version}.md")
+        expected_dir = Path(f"docs/design/v{corpus.version}")
+        if corpus.parent != expected_parent or corpus.chapter_dir != expected_dir:
+            raise DesignSyncError(
+                f"design v{corpus.version}: expected {expected_parent.as_posix()} "
+                f"and {expected_dir.as_posix()}"
+            )
+
+        if corpus.version in versions:
+            raise DesignSyncError(f"design v{corpus.version}: duplicate version")
+        versions[corpus.version] = corpus
+
+        if corpus.parent in parents:
+            raise DesignSyncError(
+                f"{corpus.parent.as_posix()}: shared by design v"
+                f"{parents[corpus.parent]} and v{corpus.version}"
+            )
+        parents[corpus.parent] = corpus.version
+
+        if corpus.chapter_dir in chapter_dirs:
+            raise DesignSyncError(
+                f"{corpus.chapter_dir.as_posix()}: shared by design v"
+                f"{chapter_dirs[corpus.chapter_dir]} and v{corpus.version}"
+            )
+        chapter_dirs[corpus.chapter_dir] = corpus.version
+
+        if len(set(corpus.names)) != len(corpus.names):
+            raise DesignSyncError(
+                f"design v{corpus.version}: chapter names must be unique"
+            )
+        for number, name in enumerate(corpus.names):
+            match = re.match(r"^(\d{2})-", name)
+            if match is None or int(match.group(1)) != number:
+                raise DesignSyncError(
+                    f"design v{corpus.version}: chapter {number} must start "
+                    f"with {number:02d}-"
+                )
+            output = corpus.chapter_dir / name
+            if output in outputs:
+                raise DesignSyncError(
+                    f"{output.as_posix()}: produced by design v"
+                    f"{outputs[output]} and v{corpus.version}"
+                )
+            outputs[output] = corpus.version
+
+    if in_force != 1:
+        raise DesignSyncError(
+            f"design corpus registry must have exactly one in-force corpus; found {in_force}"
+        )
+
+    for corpus in corpora:
+        if corpus.successor is not None and corpus.successor not in versions:
+            raise DesignSyncError(
+                f"design v{corpus.version}: successor v{corpus.successor} is not registered"
+            )
 
 
 def _opening_fence(line: str) -> Optional[Tuple[str, int]]:
@@ -433,9 +571,14 @@ def expected_chapters(
     root: Path = ROOT, corpora: Sequence[Corpus] = CORPORA
 ) -> Dict[Path, str]:
     """Return every chapter projection across the given canonical designs."""
+    validate_corpora(corpora)
     expected: Dict[Path, str] = {}
     for corpus in corpora:
-        expected.update(chapters_for(root, corpus))
+        for path, content in chapters_for(root, corpus).items():
+            if path in expected:
+                rel = path.relative_to(root).as_posix()
+                raise DesignSyncError(f"{rel}: duplicate generated output")
+            expected[path] = content
     return expected
 
 
@@ -474,6 +617,10 @@ def _verify_corpus(root: Path, corpus: Corpus) -> List[str]:
 
 def verify(root: Path = ROOT, corpora: Sequence[Corpus] = CORPORA) -> List[str]:
     """Report missing, extra, or stale generated chapters in every corpus."""
+    try:
+        validate_corpora(corpora)
+    except DesignSyncError as exc:
+        return [str(exc)]
     errors: List[str] = []
     for corpus in corpora:
         errors.extend(_verify_corpus(root, corpus))

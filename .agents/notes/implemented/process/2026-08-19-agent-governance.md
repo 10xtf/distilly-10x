@@ -12,7 +12,7 @@ The `distilly` branch carries a governance layer sized to what this repo can enf
 
 - Root [AGENTS.md](../../../../AGENTS.md) holds standing product and process orders. `CLAUDE.md` is a symlink to that file.
 - [docs/AGENTS.md](../../../../docs/AGENTS.md) defines documentation tiers and one-home-per-fact placement.
-- [docs/architecture.md](../../../../docs/architecture.md) is the live-tree map. The product contract is the in-force design parent, now [docs/design/system-v2.md](../../../../docs/design/system-v2.md). Cookbooks hold steps. Agent Notes hold rationale.
+- [docs/architecture.md](../../../../docs/architecture.md) is the live-tree map. The product contract is the in-force design parent, now [docs/design/system-v3.md](../../../../docs/design/system-v3.md). Cookbooks hold steps. Agent Notes hold rationale.
 - Agent Notes live under `.agents/notes/{lifecycle}/{class}/` with real dates, unique status and section structure, non-empty required sections, and cross-lifecycle ownership checked by [scripts/verify_agent_notes.py](../../../../scripts/verify_agent_notes.py). A verified-base diff also requires a changed Note for governed paths.
 - Skills under `.agents/skills/` describe workflows (doc placement, pre-push evidence, PR review). Contracts stay in docs so an agent that skips a skill still sees the rule.
 - [scripts/verify_docs.py](../../../../scripts/verify_docs.py) owns portable Markdown links and endings. [scripts/sync_design_chapters.py](../../../../scripts/sync_design_chapters.py) generates the topic chapters from each canonical design parent, one chapter per numbered section.

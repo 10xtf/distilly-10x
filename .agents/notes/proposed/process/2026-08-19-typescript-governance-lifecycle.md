@@ -10,21 +10,21 @@ There is also a sequencing trap. If TypeScript gates arrive only after the produ
 
 ## Proposal
 
-Land the gate suite before the product code, and define the whole lifecycle rather than a pile of commands. Design §24 of [system-v2.md](../../../../docs/design/system-v2.md) owns the stage table; this note owns why the shape is that way and what was rejected.
+Land the gate suite with the TypeScript foundation, before later product slices, and define the whole lifecycle rather than a pile of commands. V2 first specified the lifecycle; [V3 §27](../../../../docs/design/v3/27-testing-and-governance.md) is now the in-force contract for the evidence classes and gates. This note owns why the shape is that way and what was rejected.
 
 Sixteen stages from bootstrap to monthly audit, each with an owner and a verdict. The ones that carry the design weight:
 
 - **`pnpm run gates` is the single aggregator.** It runs the fast checks, typecheck, tests, model-visible snapshots, documentation, notes, build, and hygiene in that order, printing each exact command so a report can quote it instead of paraphrasing. Existing practice already forbids writing only "tests pass".
 - **Fast and full are separate entry points.** `gates:fast` is what a task agent runs against the surface it changed; `gates` is the CI equivalent. Defaulting to the full suite locally teaches agents to skip checks.
 - **The release face has its own gates.** `publint` and a type-resolution check plus an import smoke over the built entry, because the common TypeScript failure is a package that passes every source test and still cannot be imported.
-- **`knip` enforces the dependency direction** declared in design §7. A cycle or an upward import shows up as an unused or undeclared dependency rather than as a review opinion.
+- **`knip` enforces unused and undeclared dependency hygiene, not V3 §25 package direction.** A dedicated import-boundary and cycle gate lands with the second package, when a real cross-package edge exists; Knip alone cannot prove that an otherwise declared and used import points in the allowed direction.
 - **Coverage is reported, not gated per file.** Per-file totals are a resource commitment this tree cannot honor yet, and a covered line is not an assertion.
 - **Model-visible output is snapshot-tested without any key.** `prompt()`, `SKILL.md`, and host instructions are the product's real output; a changed snapshot must be explained in the PR, never bulk-accepted.
-- **The Python verifiers hand over rather than coexist.** When `@distilly/governance` implements a check, the Python version is deleted in the same PR. The `legacy-python` CI job exists only while `tools/` does, and is deleted rather than disabled.
+- **Repository governance has one implementation per check.** V3 does not reserve an empty `@distilly/governance` package. Existing Python doc/Note verifiers remain until a real TypeScript replacement lands with accepted/rejected parity, at which point the Python implementation is deleted in the same PR. The legacy product CI job exists only while `tools/` does and is deleted rather than disabled.
 - **The local hook stays cheap.** It runs the deterministic subset and verifies the outgoing local `HEAD`; the remote CI is the only merge authority, because Git cannot force a contributor to install a hook.
-- **Gates never score prose.** Design §24.4 draws the line explicitly: structure, links, exit codes, and export maps are mechanical; whether a rationale is true, whether an assertion would catch the intended defect, and whether every non-trivial change wrote a Note remain semantic review under [code-review.md](../../../../docs/process/code-review.md).
+- **Gates never score prose.** V3 §27.9 draws the line explicitly: structure, links, exit codes, and export maps are mechanical; whether a rationale is true, whether an assertion would catch the intended defect, and whether every non-trivial change wrote a Note remain semantic review under [code-review.md](../../../../docs/process/code-review.md).
 
-Growth is signal-driven. Design §24.5 lists which observed failure justifies which new gate, so the suite does not acquire twenty verifiers on day one. A checker with no corresponding failure is pure cost: it slows every change and gets whitelisted after its first false positive.
+Growth is signal-driven. V3 §27 keeps target gates tied to a behavior or release face, so the suite does not acquire twenty verifiers on day one. A checker with no corresponding failure is pure cost: it slows every change and gets whitelisted after its first false positive.
 
 ## Alternatives considered
 
@@ -45,11 +45,11 @@ Growth is signal-driven. Design §24.5 lists which observed failure justifies wh
 - CI reports governance once, and reports tests across Node 22 and 24 on Linux and macOS.
 - The pre-push hook verifies the local outgoing `HEAD`, not a stale remote head.
 - Deleting the last Python product file removes the `legacy-python` job and its documentation in the same change.
-- A cold-start agent reads root `AGENTS.md`, the documentation map, and design v2, then names what it may change, where each fact lives, which command to run, and whether a Note is required.
+- A cold-start agent reads root `AGENTS.md`, the documentation map, and design V3, then names what it may change, where each fact lives, which command to run, and whether a Note is required.
 
 ## Risks
 
-- The stage table is longer than the current tree needs. The mitigation is that stages 14 and 15 are documented but not wired, and design §24.5 requires an observed failure before adding a gate.
+- The stage table is longer than the current tree needs. The mitigation is that unimplemented commands stay labeled as design targets, and V3 §27 requires real entry-path evidence before a gate is claimed as available.
 - A dual-language window means one PR can pass the TypeScript gates and break the Python ones. CI runs both, so the failure is visible; the risk is agents reading only the job they expected to matter.
 - `pnpm run gates` becomes a place to hide slow checks. Keeping the fast subset a strict subset, and printing each command, is what keeps that honest.
 - Snapshot tests invite bulk acceptance. Review treats an unexplained snapshot update as a blocker.

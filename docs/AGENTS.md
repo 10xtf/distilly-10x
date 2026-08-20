@@ -6,7 +6,7 @@ Use [distilly-doc-standards](../.agents/skills/distilly-doc-standards/SKILL.md) 
 
 A document owns full detail about its own subject. Direct children are summarized by purpose and high-level behavior, then linked. Classify each human-facing standing doc as a tutorial (ordered path to an outcome) or a reference (lookup, no teaching sequence).
 
-The [design corpus](design/system-v2.md) is the product contract. It is allowed to stay long. Do not compress it back into architecture.md. Its deprecated predecessor stays in place unedited; superseding a design means writing the next one, not rewriting history.
+The [design corpus](design/system-v3.md) is the product contract. It is allowed to stay long. Do not compress it back into architecture.md. Deprecated predecessors stay in place with only status/navigation maintenance; superseding a design means writing the next one, not rewriting history.
 
 Agent Notes sit outside this structural contract. They have their own [format](../.agents/notes/README.md).
 
@@ -18,9 +18,9 @@ Agent Notes sit outside this structural contract. They have their own [format](.
 | This file | Doc rules for `docs/` | Repo-wide coding conventions already in the root file |
 | [docs/README.md](README.md) | Folder map | Spec text |
 | [architecture.md](architecture.md) | Live tree: what the published code does *now* | Locked design, SDK signatures, rejected alternatives |
-| [design/system-v2.md](design/system-v2.md) | In-force contract: TypeScript product and gate lifecycle | Live-tree status, cookbook steps |
-| [design/v2/](design/v2/) | Generated topic projections of the parent | Hand edits or a second wording |
-| [design/system-v1.md](design/system-v1.md), [design/v1/](design/v1/) | Deprecated history: which alternative lost, and why | Anything an implementer should follow today |
+| [design/system-v3.md](design/system-v3.md) | In-force productized host-LLM contract | Live-tree status, cookbook steps |
+| [design/v3/](design/v3/) | Generated topic projections of the parent | Hand edits or a second wording |
+| [design/system-v2.md](design/system-v2.md), [design/v2/](design/v2/), [design/system-v1.md](design/system-v1.md), [design/v1/](design/v1/) | Deprecated history: which alternative lost, and why | Anything an implementer should follow today |
 | [development.md](development.md) | Setup and which checks to run | Runtime design |
 | [testing.md](testing.md) | What a green test must prove | Product verbs |
 | [cookbook/](cookbook/README.md) | Shipped, executable how-tos with verify steps | Target-only APIs or design rationale |

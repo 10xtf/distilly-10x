@@ -17,7 +17,7 @@ git rev-parse <base-repository-remote>/<baseRefName> refs/remotes/<base-reposito
 
 1. Confirm the base repository/remote, base ref plus metadata/fetched SHA, and metadata/fetched head SHA. Read the PR body for the design owner, Agent Note, verification, unverified work, risks, and handoff.
 2. Open [docs/process/code-review.md](../../../docs/process/code-review.md) and apply every blocking requirement, including the distilly-specific list.
-3. Read the chapter that owns the change in [docs/design/v2/](../../../docs/design/README.md). Do not review product behavior against `architecture.md` alone, and do not accept a v1 chapter as the requirement.
+3. Read the chapter that owns the change in [docs/design/v3/](../../../docs/design/README.md). Do not review product behavior against `architecture.md` alone, and do not accept a V2/V1 chapter as the requirement.
 4. For async, credentials, adapters, or queues, apply [defensive-patterns.md](../../../docs/process/defensive-patterns.md).
 5. For tests, apply [docs/testing.md](../../../docs/testing.md). Confirm the author ran the [narrowest checks](../../../docs/development.md).
 6. Semantically review every new prose passage. Format gates do not do this.

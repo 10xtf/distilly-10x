@@ -12,7 +12,7 @@ python3 -m pip install -r requirements-dev.txt
 
 Product implementation reads [design/README.md](design/README.md) before code. The design is the target contract; [architecture.md](architecture.md) records what is shipped.
 
-Python 3.9+ is required for the tooling that exists today. Product code is TypeScript on Node `^22.19 || >=24`; that toolchain and its `pnpm` workspace land with the first packages, so there is nothing to install for it yet ([design §24](design/v2/24-governance-toolchain.md)).
+Python 3.9+ is required for the tooling that exists today. The TypeScript product targets Node `^22.19 || ^24`; its workspace and toolchain are not shipped in this design-only state, and [design §27](design/v3/27-testing-and-governance.md) owns the future gate contract.
 
 Optional local hooks run only cheap deterministic checks. Enable the tracked hook for this clone with `git config core.hooksPath .githooks`. On a feature branch, resolve the PR base from the base repository and record its exact metadata SHA with `git config branch.<branch>.distillyBase <baseRefOid>`; a fork's `origin` is not automatically the base repository. The hook requires a clean, checked-out local head and rejects multi-branch pushes, persistent-branch deletion, and non-fast-forward updates; push another branch separately from its own clean checkout. CI remains authoritative because Git cannot force contributors to install a hook.
 
@@ -119,6 +119,6 @@ A successful handoff lets the next agent recover the exact repo, base, objective
 
 ## Layout for new work
 
-Product code goes in the `packages/` workspaces named in [design §7](design/v2/07-package-cut.md): `@distilly/protocol`, `@distilly/engine`, `@distilly/adapters`, `@distilly/bindings`, `@distilly/cli`, `@distilly/tui`, `@distilly/panel`, `@distilly/governance`, and the `distilly` facade. The dependency direction is one-way; a shared type belongs in `@distilly/protocol`, not in whichever package needed it first. The two interface packages are leaves: they consume the facade and must not import `@distilly/engine` ([design §16](design/v2/16-interactive-faces.md)).
+Product code goes in the `packages/` workspaces named in [design §25](design/v3/25-package-and-source-tree.md): `@distilly/protocol`, `@distilly/engine`, `@distilly/runtime`, `@distilly/adapters`, `@distilly/bindings`, `@distilly/mcp`, `@distilly/panel`, `@distilly/cli`, and the `distilly` facade. The dependency direction is one-way: engine, bindings, adapters, facade, MCP, and Panel web depend on protocol; Panel server additionally depends on MCP's narrow ReviewPresenter type; runtime composes engine + bindings + adapters; CLI composes runtime + MCP + Panel. A shared wire type belongs in protocol, not whichever package needed it first.
 
-None of those exist yet, and the first change to create one lands the workspace and its gates together (design §26.1 step 1). Until then, `tools/` and `prompts/` take defect fixes for the published skill only — no new behavior, and no third tree invented to avoid the package cut.
+None of those packages exist yet, and the first change to create one lands the workspace and its gates together ([design §29.1 step 2](design/v3/29-landing-and-evolution.md)). Until then, `tools/` and `prompts/` take defect fixes for the published skill only — no new behavior and no third tree invented to avoid the package cut.

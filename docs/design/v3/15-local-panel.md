@@ -168,9 +168,11 @@ export declare function startPanelServer(
 ): Promise<PanelHandle>;
 ~~~
 
-PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。
+PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。startPanelServer 借用而不拥有传入的 client；PanelHandle.close 只停止 HTTP/SSE transport 并清理自己的订阅，创建 client 的 composition 在 handle 关闭后再关闭 client。
 
-URL 形如 http://127.0.0.1:PORT/#TOKEN。Fragment 不发给服务器；前端读出后立刻从地址栏移除，并在 fetch Authorization header 中使用。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
+production token 是 32 个 crypto-random bytes 的 64 位小写十六进制；tokenFactory 是测试 seam，返回值在监听前按同一 grammar 校验。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+
+Fragment 不发给服务器；前端读出 token 与可选 review route 后，立刻只从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，并在 fetch Authorization header 中使用内存 token。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
 
 ### 15.5 安全不变量
 
@@ -204,6 +206,8 @@ export declare class PanelLauncher implements ReviewPresenter {
 ~~~
 
 distilly panel 在前台运行并打印 URL。MCP / CLI presenter 得到 suspended CommitResult 时，通过注入的 ReviewPresenter 启动或复用本次会话的 PanelServer，再把 ReviewLaunch 作为工具 structured value 返回；CommitService / CommitResult 只知道 ReviewRef，不知道 HTTP 或 URL。ReviewPresenter 接口由 mcp 导出，PanelLauncher 由 panel/server 实现，所以 mcp 不静态依赖 panel。
+
+PanelLauncher 对首次 start 做 single-flight；并发 present 共享同一个成功 handle，随后只为各自 ReviewRef 构造精确 route。present 返回的 launch.ref 必须逐字段等于输入 ref，URL route 也必须编码同一 ref。close 幂等；一旦 close 开始，新的 present 明确失败而不重启另一个 server。PanelLauncher 拥有并在 close 中关闭它启动的唯一 PanelHandle，但借用该 handle 使用的 user client；外层 composition 关闭 PanelLauncher 后再关闭 user client，最后关闭共享 LocalRuntime。直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。
 
 宿主能打开本机链接就展示；不能时让用户复制到系统浏览器。模型职责到“提供地址与说明”结束，不点击 DOM，也不把 Panel 操作当工具执行。
 

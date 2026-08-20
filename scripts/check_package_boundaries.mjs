@@ -27,6 +27,8 @@ const SOURCE_EXTENSIONS = new Set([
 const ALLOWED_INTERNAL_DEPENDENCIES = new Map([
   ["@distilly/protocol", new Set()],
   ["@distilly/engine", new Set(["@distilly/protocol"])],
+  ["distilly", new Set(["@distilly/protocol"])],
+  ["@distilly/mcp", new Set(["@distilly/protocol"])],
 ]);
 
 function compareText(left, right) {

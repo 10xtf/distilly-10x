@@ -79,7 +79,7 @@ const suspendedVersion = {
 
 const review = {
   ref: { subjectId: SUBJECT_ID, candidateVersionId: VERSION_ID },
-  url: "http://127.0.0.1:43123/reviews/candidate",
+  url: `http://127.0.0.1:43123/#${"c".repeat(64)}/review/${SUBJECT_ID}/${VERSION_ID}`,
 } as const;
 
 const currentVersion = { ...suspendedVersion, status: "current" } as const;

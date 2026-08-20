@@ -276,7 +276,8 @@ export type DistillyErrorCode =
   | "index_unavailable"
   | "host_unsupported"
   | "adapter_failed"
-  | "permission_denied";
+  | "permission_denied"
+  | "internal_error";
 
 interface DistillyWireErrorBase {
   readonly message: string;
@@ -301,10 +302,19 @@ export type DistillyWireError =
         readonly candidates: AmbiguousSubjectCandidates;
       };
     })
+  | {
+      readonly code: "internal_error";
+      readonly message: string;
+      readonly retryable: false;
+      readonly fieldPath?: never;
+      readonly remediation?: never;
+      readonly details?: never;
+      readonly subjectResolution?: never;
+    }
   | (DistillyWireErrorBase & {
       readonly code: Exclude<
         DistillyErrorCode,
-        "already_exists" | "ambiguous_subject"
+        "already_exists" | "ambiguous_subject" | "internal_error"
       >;
       readonly subjectResolution?: never;
     });
@@ -312,7 +322,7 @@ export type DistillyWireError =
 
 not_found、ambiguous_subject 和 nothing_pending 在有对应判别结果的工具 action 里不是 transport error；同一状态在 SDK 的直接方法里可以成为 DistillyError。但 ingest(create) 的唯一 identity 冲突是 already_exists WireFailure，必须带一个 found subject；同空间多候选是 ambiguous_subject WireFailure，必须带至少两个 candidates。MCP handler 不把这些预期业务分支伪装成服务器崩溃，也不把 candidate 藏在无类型 details。
 
-错误 message 给人读，code 给程序分支。code 在 wire major 3 内只加不改；details 只能是 JsonObject，不能包含材料正文、secret 或绝对内部路径。
+错误 message 给人读，code 给程序分支。code 在 wire major 3 内只加不改；details 只能是 JsonObject，不能包含材料正文、secret 或绝对内部路径。`internal_error` 只供 transport / presenter 把真正未分类的实现异常归一成最后一道、脱敏的 WireFailure：固定 retryable=false，details/fieldPath/remediation/subjectResolution 均缺失，也不带原异常 message、stack、路径或输入内容。已知的 schema、domain、storage、host 和 adapter 失败必须保留更窄 code，不能为了少写分支统一降成 internal_error。
 
 ### 7.6 八道运行时校验边界
 

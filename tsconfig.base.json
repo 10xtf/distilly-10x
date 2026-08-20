@@ -7,7 +7,10 @@
     "moduleResolution": "nodenext",
     "types": [],
     "paths": {
-      "@distilly/protocol": ["./packages/protocol/src/index.ts"]
+      "@distilly/mcp": ["./packages/mcp/src/index.ts"],
+      "@distilly/mcp/stdio": ["./packages/mcp/src/stdio.ts"],
+      "@distilly/protocol": ["./packages/protocol/src/index.ts"],
+      "distilly": ["./packages/distilly/src/index.ts"]
     },
 
     "strict": true,

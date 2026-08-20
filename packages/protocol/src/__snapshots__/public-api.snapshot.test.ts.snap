@@ -1049,6 +1049,28 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "additionalProperties": false,
                   "properties": {
                     "code": {
+                      "const": "internal_error",
+                      "type": "string",
+                    },
+                    "message": {
+                      "$ref": "#/$defs/__schema22",
+                    },
+                    "retryable": {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
                       "enum": [
                         "invalid_input",
                         "not_found",
@@ -1921,6 +1943,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                     "host_unsupported",
                     "adapter_failed",
                     "permission_denied",
+                    "internal_error",
                   ],
                   "type": "string",
                 },
@@ -2468,6 +2491,28 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "additionalProperties": false,
                   "properties": {
                     "code": {
+                      "const": "internal_error",
+                      "type": "string",
+                    },
+                    "message": {
+                      "$ref": "#/$defs/__schema16",
+                    },
+                    "retryable": {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
                       "enum": [
                         "invalid_input",
                         "not_found",
@@ -2789,6 +2834,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                     "host_unsupported",
                     "adapter_failed",
                     "permission_denied",
+                    "internal_error",
                   ],
                   "type": "string",
                 },
@@ -4149,6 +4195,28 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "additionalProperties": false,
                   "properties": {
                     "code": {
+                      "const": "internal_error",
+                      "type": "string",
+                    },
+                    "message": {
+                      "$ref": "#/$defs/__schema11",
+                    },
+                    "retryable": {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
                       "enum": [
                         "invalid_input",
                         "not_found",
@@ -5005,39 +5073,51 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "x-distilly-maxUtf8Bytes": 8192,
         },
         "__schema27": {
-          "format": "uri",
-          "maxLength": 8192,
-          "minLength": 1,
-          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
-          "type": "string",
-          "x-distilly-maxUtf8Bytes": 8192,
+          "additionalProperties": false,
+          "properties": {
+            "candidateVersionId": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema1",
+            },
+          },
+          "required": [
+            "subjectId",
+            "candidateVersionId",
+          ],
+          "type": "object",
         },
         "__schema28": {
-          "type": "boolean",
+          "pattern": "^http:\\/\\/127\\.0\\.0\\.1:([1-9][0-9]{0,4})\\/#([0-9a-f]{64})\\/review\\/(subject_[0-9a-f]{32})\\/(version_[0-9a-f]{64})$",
+          "type": "string",
         },
         "__schema29": {
-          "$ref": "#/$defs/__schema7",
+          "type": "boolean",
         },
         "__schema3": {
           "$ref": "#/$defs/__schema0",
         },
         "__schema30": {
-          "$ref": "#/$defs/__schema26",
+          "$ref": "#/$defs/__schema7",
         },
         "__schema31": {
+          "$ref": "#/$defs/__schema26",
+        },
+        "__schema32": {
           "additionalProperties": {
-            "$ref": "#/$defs/__schema33",
+            "$ref": "#/$defs/__schema34",
           },
           "maxProperties": 64,
           "propertyNames": {
-            "$ref": "#/$defs/__schema32",
+            "$ref": "#/$defs/__schema33",
           },
           "type": "object",
         },
-        "__schema32": {
+        "__schema33": {
           "type": "string",
         },
-        "__schema33": {
+        "__schema34": {
           "anyOf": [
             {
               "type": "string",
@@ -5053,27 +5133,27 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             {
               "items": {
-                "$ref": "#/$defs/__schema33",
+                "$ref": "#/$defs/__schema34",
               },
               "maxItems": 64,
               "type": "array",
             },
             {
               "additionalProperties": {
-                "$ref": "#/$defs/__schema33",
+                "$ref": "#/$defs/__schema34",
               },
               "maxProperties": 64,
               "propertyNames": {
-                "$ref": "#/$defs/__schema34",
+                "$ref": "#/$defs/__schema35",
               },
               "type": "object",
             },
           ],
         },
-        "__schema34": {
+        "__schema35": {
           "type": "string",
         },
-        "__schema35": {
+        "__schema36": {
           "additionalProperties": false,
           "properties": {
             "aliases": {
@@ -5094,7 +5174,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             "identityHints": {
               "items": {
-                "$ref": "#/$defs/__schema36",
+                "$ref": "#/$defs/__schema37",
               },
               "maxItems": 64,
               "type": "array",
@@ -5143,7 +5223,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema36": {
+        "__schema37": {
           "oneOf": [
             {
               "additionalProperties": false,
@@ -5153,7 +5233,12 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "value": {
-                  "$ref": "#/$defs/__schema27",
+                  "format": "uri",
+                  "maxLength": 8192,
+                  "minLength": 1,
+                  "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+                  "type": "string",
+                  "x-distilly-maxUtf8Bytes": 8192,
                 },
               },
               "required": [
@@ -5666,23 +5751,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "additionalProperties": false,
                       "properties": {
                         "ref": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "candidateVersionId": {
-                              "$ref": "#/$defs/__schema0",
-                            },
-                            "subjectId": {
-                              "$ref": "#/$defs/__schema1",
-                            },
-                          },
-                          "required": [
-                            "subjectId",
-                            "candidateVersionId",
-                          ],
-                          "type": "object",
+                          "$ref": "#/$defs/__schema27",
                         },
                         "url": {
-                          "$ref": "#/$defs/__schema27",
+                          "$ref": "#/$defs/__schema28",
                         },
                       },
                       "required": [
@@ -5727,19 +5799,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema31",
+                      "$ref": "#/$defs/__schema32",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema29",
+                      "$ref": "#/$defs/__schema30",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema26",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema30",
+                      "$ref": "#/$defs/__schema31",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema29",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
@@ -5749,7 +5821,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                           "type": "string",
                         },
                         "subject": {
-                          "$ref": "#/$defs/__schema35",
+                          "$ref": "#/$defs/__schema36",
                         },
                       },
                       "required": [
@@ -5775,33 +5847,33 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema31",
+                      "$ref": "#/$defs/__schema32",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema29",
+                      "$ref": "#/$defs/__schema30",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema26",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema30",
+                      "$ref": "#/$defs/__schema31",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema29",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
                       "properties": {
                         "candidates": {
                           "items": {
-                            "$ref": "#/$defs/__schema35",
+                            "$ref": "#/$defs/__schema36",
                           },
                           "prefixItems": [
                             {
-                              "$ref": "#/$defs/__schema35",
+                              "$ref": "#/$defs/__schema36",
                             },
                             {
-                              "$ref": "#/$defs/__schema35",
+                              "$ref": "#/$defs/__schema36",
                             },
                           ],
                           "type": "array",
@@ -5823,6 +5895,28 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                     "retryable",
                     "code",
                     "subjectResolution",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "const": "internal_error",
+                      "type": "string",
+                    },
+                    "message": {
+                      "$ref": "#/$defs/__schema26",
+                    },
+                    "retryable": {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable",
                   ],
                   "type": "object",
                 },
@@ -5853,19 +5947,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema31",
+                      "$ref": "#/$defs/__schema32",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema29",
+                      "$ref": "#/$defs/__schema30",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema26",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema30",
+                      "$ref": "#/$defs/__schema31",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema28",
+                      "$ref": "#/$defs/__schema29",
                     },
                   },
                   "required": [
@@ -5995,36 +6089,48 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "type": "string",
         },
         "__schema10": {
-          "format": "uri",
-          "maxLength": 8192,
-          "minLength": 1,
-          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
-          "type": "string",
-          "x-distilly-maxUtf8Bytes": 8192,
+          "additionalProperties": false,
+          "properties": {
+            "candidateVersionId": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "subjectId": {
+              "$ref": "#/$defs/__schema1",
+            },
+          },
+          "required": [
+            "subjectId",
+            "candidateVersionId",
+          ],
+          "type": "object",
         },
         "__schema11": {
-          "type": "boolean",
+          "pattern": "^http:\\/\\/127\\.0\\.0\\.1:([1-9][0-9]{0,4})\\/#([0-9a-f]{64})\\/review\\/(subject_[0-9a-f]{32})\\/(version_[0-9a-f]{64})$",
+          "type": "string",
         },
         "__schema12": {
-          "$ref": "#/$defs/__schema4",
+          "type": "boolean",
         },
         "__schema13": {
-          "$ref": "#/$defs/__schema9",
+          "$ref": "#/$defs/__schema4",
         },
         "__schema14": {
+          "$ref": "#/$defs/__schema9",
+        },
+        "__schema15": {
           "additionalProperties": {
-            "$ref": "#/$defs/__schema16",
+            "$ref": "#/$defs/__schema17",
           },
           "maxProperties": 64,
           "propertyNames": {
-            "$ref": "#/$defs/__schema15",
+            "$ref": "#/$defs/__schema16",
           },
           "type": "object",
         },
-        "__schema15": {
+        "__schema16": {
           "type": "string",
         },
-        "__schema16": {
+        "__schema17": {
           "anyOf": [
             {
               "type": "string",
@@ -6040,27 +6146,27 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             {
               "items": {
-                "$ref": "#/$defs/__schema16",
+                "$ref": "#/$defs/__schema17",
               },
               "maxItems": 64,
               "type": "array",
             },
             {
               "additionalProperties": {
-                "$ref": "#/$defs/__schema16",
+                "$ref": "#/$defs/__schema17",
               },
               "maxProperties": 64,
               "propertyNames": {
-                "$ref": "#/$defs/__schema17",
+                "$ref": "#/$defs/__schema18",
               },
               "type": "object",
             },
           ],
         },
-        "__schema17": {
+        "__schema18": {
           "type": "string",
         },
-        "__schema18": {
+        "__schema19": {
           "additionalProperties": false,
           "properties": {
             "aliases": {
@@ -6081,7 +6187,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
             },
             "identityHints": {
               "items": {
-                "$ref": "#/$defs/__schema19",
+                "$ref": "#/$defs/__schema20",
               },
               "maxItems": 64,
               "type": "array",
@@ -6130,7 +6236,12 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           ],
           "type": "object",
         },
-        "__schema19": {
+        "__schema2": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "__schema20": {
           "oneOf": [
             {
               "additionalProperties": false,
@@ -6140,7 +6251,12 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "type": "string",
                 },
                 "value": {
-                  "$ref": "#/$defs/__schema10",
+                  "format": "uri",
+                  "maxLength": 8192,
+                  "minLength": 1,
+                  "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+                  "type": "string",
+                  "x-distilly-maxUtf8Bytes": 8192,
                 },
               },
               "required": [
@@ -6211,11 +6327,6 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
               "type": "object",
             },
           ],
-        },
-        "__schema2": {
-          "maximum": 9007199254740991,
-          "minimum": 0,
-          "type": "integer",
         },
         "__schema3": {
           "pattern": "^mat_[0-9a-f]{64}$",
@@ -6648,23 +6759,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                   "additionalProperties": false,
                   "properties": {
                     "ref": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "candidateVersionId": {
-                          "$ref": "#/$defs/__schema0",
-                        },
-                        "subjectId": {
-                          "$ref": "#/$defs/__schema1",
-                        },
-                      },
-                      "required": [
-                        "subjectId",
-                        "candidateVersionId",
-                      ],
-                      "type": "object",
+                      "$ref": "#/$defs/__schema10",
                     },
                     "url": {
-                      "$ref": "#/$defs/__schema10",
+                      "$ref": "#/$defs/__schema11",
                     },
                   },
                   "required": [
@@ -6707,19 +6805,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema15",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema12",
+                      "$ref": "#/$defs/__schema13",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema9",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema14",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema12",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
@@ -6729,7 +6827,7 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                           "type": "string",
                         },
                         "subject": {
-                          "$ref": "#/$defs/__schema18",
+                          "$ref": "#/$defs/__schema19",
                         },
                       },
                       "required": [
@@ -6755,33 +6853,33 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema15",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema12",
+                      "$ref": "#/$defs/__schema13",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema9",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema14",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema12",
                     },
                     "subjectResolution": {
                       "additionalProperties": false,
                       "properties": {
                         "candidates": {
                           "items": {
-                            "$ref": "#/$defs/__schema18",
+                            "$ref": "#/$defs/__schema19",
                           },
                           "prefixItems": [
                             {
-                              "$ref": "#/$defs/__schema18",
+                              "$ref": "#/$defs/__schema19",
                             },
                             {
-                              "$ref": "#/$defs/__schema18",
+                              "$ref": "#/$defs/__schema19",
                             },
                           ],
                           "type": "array",
@@ -6803,6 +6901,28 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                     "retryable",
                     "code",
                     "subjectResolution",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "const": "internal_error",
+                      "type": "string",
+                    },
+                    "message": {
+                      "$ref": "#/$defs/__schema9",
+                    },
+                    "retryable": {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable",
                   ],
                   "type": "object",
                 },
@@ -6833,19 +6953,19 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
                       "type": "string",
                     },
                     "details": {
-                      "$ref": "#/$defs/__schema14",
+                      "$ref": "#/$defs/__schema15",
                     },
                     "fieldPath": {
-                      "$ref": "#/$defs/__schema12",
+                      "$ref": "#/$defs/__schema13",
                     },
                     "message": {
                       "$ref": "#/$defs/__schema9",
                     },
                     "remediation": {
-                      "$ref": "#/$defs/__schema13",
+                      "$ref": "#/$defs/__schema14",
                     },
                     "retryable": {
-                      "$ref": "#/$defs/__schema11",
+                      "$ref": "#/$defs/__schema12",
                     },
                   },
                   "required": [

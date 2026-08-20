@@ -189,6 +189,7 @@ describe("complete V3 protocol public contract", () => {
           "host_unsupported",
           "adapter_failed",
           "permission_denied",
+          "internal_error",
         ],
         "factLimits": {
           "sourceIdentityBytes": 8208,

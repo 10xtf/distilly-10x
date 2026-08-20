@@ -3,7 +3,6 @@ import { z } from "zod";
 import { WIRE_LIMITS } from "../json.js";
 import {
   labelStringSchema,
-  httpUrlSchema,
   listLimitSchema,
   reasonStringSchema,
   safeNonNegativeIntegerSchema,
@@ -125,10 +124,36 @@ export const reviewRefSchema = z.strictObject({
   candidateVersionId: versionIdSchema,
 });
 
-export const reviewLaunchSchema = z.strictObject({
-  ref: reviewRefSchema,
-  url: httpUrlSchema,
-});
+const REVIEW_LAUNCH_URL_PATTERN =
+  /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/#([0-9a-f]{64})\/review\/(subject_[0-9a-f]{32})\/(version_[0-9a-f]{64})$/;
+
+const reviewLaunchUrlSchema = z
+  .string()
+  .regex(REVIEW_LAUNCH_URL_PATTERN)
+  .refine((url) => {
+    const match = REVIEW_LAUNCH_URL_PATTERN.exec(url);
+    return match !== null && Number(match[1]) <= 65_535;
+  }, "must use a valid explicit TCP port");
+
+export const reviewLaunchSchema = z
+  .strictObject({
+    ref: reviewRefSchema,
+    url: reviewLaunchUrlSchema,
+  })
+  .superRefine((launch, context) => {
+    const match = REVIEW_LAUNCH_URL_PATTERN.exec(launch.url);
+    if (
+      match === null ||
+      match[3] !== launch.ref.subjectId ||
+      match[4] !== launch.ref.candidateVersionId
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["url"],
+        message: "review route must match ref",
+      });
+    }
+  });
 
 export const commitInputSchema = z.strictObject({
   jobId: jobIdSchema,

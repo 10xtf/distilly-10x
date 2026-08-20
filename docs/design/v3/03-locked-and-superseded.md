@@ -17,7 +17,7 @@
 9. briefing 原子取得 generation lease；同一 generation 同时至多一个有效 lease。
 10. briefing 包含基线 claims、完整增量文本、来源、证据短句柄、prompt/schema 版本与限制；不让宿主私读内部目录。
 11. briefing 不静默裁剪。首版超限显式失败；分块协议以后只能 additive 加入。
-12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 13 以 additive contract 单独加入。
+12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 14 以 additive contract 单独加入。
 13. claims 是语义真相；Markdown 与 prompt 由固定 `profile-renderer-v1` 从完整 Profile 确定性生成。
 14. MaterialId 与 ContentDigest 分开；ContentDigest 使用完整 SHA-256，EvidenceRef 引用 MaterialId。
 15. commit 从 verified state、base version 与 material facts 重建 lease 固定的 EvidenceContext，并验证证据存在、主体归属、generation 集合成员关系和 quote / locator；不依赖可变的 briefing operation replay 来取得授权事实。

@@ -280,6 +280,8 @@ Service 有状态或编排多个 store；同类只有一个生产实现时直接
 
 Step 7 只在 `@distilly/engine` package 内组合 `distill.commit` 的 EvidenceContext、claim apply/quality/gate、literal renderer、version staging/journal/recovery 与 queue apply，并用 package-internal EngineMethodMap-compatible handler 做真实磁盘验收。它不导出 partial EngineRuntime/createEngine，不实现 review promote/reject、correction、relations、facade/MCP/CLI 或 public runtime；这些保持 §29 各自独立 feature boundary。
 
+Step 8 的 Distilly、Person 与 McpServer 同样是 injected-client adapters，不是新的 service/composition root。facade tests 注入 full fake EngineClient；MCP stdio child 注入 full fake EngineClient + ReviewPresenter。`@distilly/cli` executable、`distilly/node`、createEngine、createLocalRuntime 和任何能打开真实 DISTILLY_ROOT 的入口都不在该 slice；不得为了让 built smoke 启动而新增一个改名的 workflow runtime、unsupported handler 或 test backend 的 production export。
+
 ### 25.6 为什么没有 public abstract class
 
 TypeScript 的扩展方需要结构契约，不需要继承我们的状态、构造器与 protected helper。V3 第一版导出 **零个 abstract class**：
@@ -432,6 +434,8 @@ createEngine({root}) 的最终合同是可实例化的 production factory：缺�
 
 Step 6 同样只在 package 内组合与 EngineMethodMap 精确对齐的 distill.pending / brief / renew / release handlers、BriefingService/LeaseService 与 QueueRepository reads。它不因四个方法可调用就导出 partial EngineRuntime/createEngine；测试从内部 composition 驱动真实 state/journal/queue 路径。
 
+Step 8 也不例外。一个 TypeScript object 即使只被 McpServer 的五个 handler 调用，只要以 EngineClient/CoreEngineClient 身份交给 production entry，就承诺了完整 MethodMap；对其它 method throw host_unsupported / unsupported、延迟到第一次调用失败或用 generic call cast 隐藏缺口都属于 partial runtime。真实 stdio transport conformance 可以注入 test-only full fake，因为它只证明 transport；production `distilly mcp`、CLI 数据命令与 distilly/node 必须等待 §29 的 Core closure + production composition feature。
+
 LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
 
 connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。composition 每创建一个 EngineClient 都调用 IdGenerator.leaseOwnerId() 构造完整 ClientSessionContext，外部 options、模型 input 与 callerLabel 都没有覆写入口。actor 与 lease owner 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client，并且两个同 actor client 仍有不同 owner。
@@ -441,5 +445,7 @@ registerPrivateUiCapture 使用同一个 HostContext 创建 Controller 和 host 
 audit 的 materialCount 由一次成功 IngestResult 中 engine 接受的 private transcript items 推导；boundaryRefusalCount 和异常 stop reason 来自 liveness port；data policy / retention refs 来自 authorization。complete 无参数且只在成功 ingest 后可调用。process crash 由 recovery 写 process_terminated；没有 caller-supplied string/count 的审计入口。该 session 只复用固定 enqueue=now 的 PrivateUiCaptureIngestInput、IngestResult 与 IngestService，不开放 pending、commit 或新的第六工具。
 
 openInProcess 使用上述 production defaults，并独占它创建的 LocalRuntime；测试显式传 fake clock / ids，但使用真实 temp fact stores。createEngine / createLocalRuntime 先 recover 再接收 client；构造器不做隐式网络、secret 或插件安装。CoreEngineClient / EngineClient 的 close 只解绑 session，EngineRuntime / LocalRuntime 的 close 才由 composition owner 关闭共享 queue、event bus 与 stores。
+
+production composition feature 开始时先用 `satisfies Record<CoreMethodName, ...>` 与逐 key integration fixture 证明全部 CoreMethodName 都有真实 handler，再允许同一 feature 的最后阶段增加 engine/runtime/node/CLI exports；顺序上的“先证明再 export”不把中间 worktree 状态变成可发布 partial API。该 feature 还组合已经落地的 HostBinding、PanelLauncher 与 CorrectionService，给 MCP 创建 host client、给 direct CLI/Panel 创建彼此独立的 user client，并把 setup/fresh-install 放在这些真实入口之后。
 
 ---

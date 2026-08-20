@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
 import { DistillyError } from "./errors.js";
+import type { DistillyWireError } from "./errors.js";
 import { WIRE_LIMITS } from "./json.js";
 import {
   distillyWireErrorSchema,
@@ -69,6 +70,33 @@ describe("wire boundary", () => {
       fieldPath: "patch.operations.0.claim.evidence.0.quote",
       cause,
     });
+  });
+
+  it("accepts the transport-safe internal error code", () => {
+    type InternalWireError = Extract<DistillyWireError, { code: "internal_error" }>;
+    const value = {
+      code: "internal_error",
+      message: "An internal error occurred.",
+      retryable: false,
+    } as const;
+
+    expectTypeOf<InternalWireError["retryable"]>().toEqualTypeOf<false>();
+    expectTypeOf<InternalWireError["details"]>().toEqualTypeOf<undefined>();
+    expect(distillyWireErrorSchema.parse(value)).toEqual(value);
+    expect(new DistillyError(value)).toMatchObject({
+      name: "DistillyError",
+      code: "internal_error",
+      retryable: false,
+    });
+    expect(() => distillyWireErrorSchema.parse({ ...value, retryable: true })).toThrow();
+    for (const diagnostic of [
+      { fieldPath: "adapter.output" },
+      { remediation: "Retry with raw exception details." },
+      { details: { stack: "secret stack" } },
+      { subjectResolution: { kind: "found", subject } },
+    ]) {
+      expect(() => distillyWireErrorSchema.parse({ ...value, ...diagnostic })).toThrow();
+    }
   });
 
   it("requires typed subject resolution for identity collisions", () => {

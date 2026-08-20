@@ -153,7 +153,7 @@ interface ResolvedPatch {
 }
 ~~~
 
-DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在 §29 Step 13 以 additive 类型/方法加入，Step 7 不留 feature flag placeholder。ResolvedPatch 不从 protocol 根导出，MCP / SDK 也不能构造。CorrectionService 写入 correction material 后，用 MaterialId + 已验证 quote 构造 ResolvedPatch；host patch 则由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造。两条路径随后进入同一个 apply → quality → transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
+DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在 §29 Step 14 以 additive 类型/方法加入，Step 7 不留 feature flag placeholder。ResolvedPatch 不从 protocol 根导出，MCP / SDK 也不能构造。CorrectionService 写入 correction material 后，用 MaterialId + 已验证 quote 构造 ResolvedPatch；host patch 则由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造。两条路径随后进入同一个 apply → quality → transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
 
 resolved draft 的 canonical form 固定包含 `facet`、`text`、canonical evidence 与 canonical `observedIn`（输入缺失时为 `[]`），并只在输入存在时包含 validFrom/validTo。EvidenceRef 先按完整 canonical JSON exact 去重，再按 UTF-8 tuple `(materialId, locatorKey, quote)` 排序，其中 locatorKey 在缺失时是空串、存在时是 canonical ASCII `${start}:${end}`；observedIn 按 exact string 去重并按 UTF-8 bytes 排序。validFrom 与 validTo 同时存在时必须 `validFrom <= validTo`。同一 DistillPatch 中每个 base active/contested ClaimId 至多被 revise/supersede/contest 一次；重复 target、target 不在 base、target 已 superseded、或由 revise/supersede 形成的 cycle 都 invalid_input。
 

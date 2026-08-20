@@ -20,6 +20,7 @@ const errorBaseShape = {
 const genericErrorCodeSchema = distillyErrorCodeSchema.exclude([
   "already_exists",
   "ambiguous_subject",
+  "internal_error",
 ]);
 
 /** Runtime schema for a transport-safe, code-correlated Distilly error. */
@@ -39,6 +40,11 @@ export const distillyWireErrorSchema = z.union([
       kind: z.literal("ambiguous"),
       candidates: ambiguousSubjectCandidatesSchema,
     }),
+  }),
+  z.strictObject({
+    code: z.literal("internal_error"),
+    message: reasonStringSchema,
+    retryable: z.literal(false),
   }),
   z.strictObject({ ...errorBaseShape, code: genericErrorCodeSchema }),
 ]);

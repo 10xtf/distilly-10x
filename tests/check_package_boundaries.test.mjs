@@ -18,6 +18,7 @@ async function workspace(
     engineSource,
     protocolDependencies = {},
     engineDependencies = {},
+    additionalPackages = [],
   },
 ) {
   const root = await mkdtemp(join(tmpdir(), "distilly-package-boundaries-"));
@@ -30,6 +31,7 @@ async function workspace(
       protocolDependencies,
     ],
     ["engine", "@distilly/engine", engineSource, engineDependencies],
+    ...additionalPackages,
   ];
   for (const [directory, name, source, dependencies] of fixtures) {
     const packageDirectory = resolve(root, "packages", directory);
@@ -68,6 +70,72 @@ test("accepts engine to protocol", async (testContext) => {
   assert.equal(result.stdout, "package boundaries: ok\n");
   assert.equal(result.stderr, "");
 });
+
+test("accepts the facade and MCP packages depending only on protocol", async (testContext) => {
+  const root = await workspace(testContext, {
+    protocolSource: "export interface EngineClient {}\n",
+    engineSource: "export interface EngineRuntime {}\n",
+    additionalPackages: [
+      [
+        "distilly",
+        "distilly",
+        'export type { EngineClient } from "@distilly/protocol";\n',
+        { "@distilly/protocol": "workspace:*" },
+      ],
+      [
+        "mcp",
+        "@distilly/mcp",
+        'export type { EngineClient } from "@distilly/protocol";\n',
+        { "@distilly/protocol": "workspace:*" },
+      ],
+    ],
+  });
+
+  const result = run(root);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "package boundaries: ok\n");
+  assert.equal(result.stderr, "");
+});
+
+for (const [directory, name, forbiddenTarget] of [
+  ["distilly", "distilly", "@distilly/engine"],
+  ["distilly", "distilly", "@distilly/mcp"],
+  ["mcp", "@distilly/mcp", "@distilly/engine"],
+  ["mcp", "@distilly/mcp", "distilly"],
+]) {
+  test(`rejects ${name} depending on ${forbiddenTarget}`, async (testContext) => {
+    const root = await workspace(testContext, {
+      protocolSource: "export interface EngineClient {}\n",
+      engineSource: "export interface EngineRuntime {}\n",
+      additionalPackages: [
+        [
+          "distilly",
+          "distilly",
+          directory === "distilly"
+            ? `export type { Forbidden } from "${forbiddenTarget}";\n`
+            : "export interface Facade {}\n",
+          directory === "distilly" ? { [forbiddenTarget]: "workspace:*" } : {},
+        ],
+        [
+          "mcp",
+          "@distilly/mcp",
+          directory === "mcp"
+            ? `export type { Forbidden } from "${forbiddenTarget}";\n`
+            : "export interface Presenter {}\n",
+          directory === "mcp" ? { [forbiddenTarget]: "workspace:*" } : {},
+        ],
+      ],
+    });
+
+    const result = run(root);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /\[forbidden-internal-dependency]/);
+    assert.match(result.stderr, /\[forbidden-internal-import]/);
+    assert.match(result.stderr, new RegExp(`${name} may not depend on ${forbiddenTarget}`));
+  });
+}
 
 test("accepts allowed internal npm and workspace aliases", async (testContext) => {
   const root = await workspace(testContext, {

@@ -201,7 +201,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 9. briefing 原子取得 generation lease；同一 generation 同时至多一个有效 lease。
 10. briefing 包含基线 claims、完整增量文本、来源、证据短句柄、prompt/schema 版本与限制；不让宿主私读内部目录。
 11. briefing 不静默裁剪。首版超限显式失败；分块协议以后只能 additive 加入。
-12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 13 以 additive contract 单独加入。
+12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 14 以 additive contract 单独加入。
 13. claims 是语义真相；Markdown 与 prompt 由固定 `profile-renderer-v1` 从完整 Profile 确定性生成。
 14. MaterialId 与 ContentDigest 分开；ContentDigest 使用完整 SHA-256，EvidenceRef 引用 MaterialId。
 15. commit 从 verified state、base version 与 material facts 重建 lease 固定的 EvidenceContext，并验证证据存在、主体归属、generation 集合成员关系和 quote / locator；不依赖可变的 briefing operation replay 来取得授权事实。
@@ -1099,7 +1099,8 @@ export type DistillyErrorCode =
   | "index_unavailable"
   | "host_unsupported"
   | "adapter_failed"
-  | "permission_denied";
+  | "permission_denied"
+  | "internal_error";
 
 interface DistillyWireErrorBase {
   readonly message: string;
@@ -1124,10 +1125,19 @@ export type DistillyWireError =
         readonly candidates: AmbiguousSubjectCandidates;
       };
     })
+  | {
+      readonly code: "internal_error";
+      readonly message: string;
+      readonly retryable: false;
+      readonly fieldPath?: never;
+      readonly remediation?: never;
+      readonly details?: never;
+      readonly subjectResolution?: never;
+    }
   | (DistillyWireErrorBase & {
       readonly code: Exclude<
         DistillyErrorCode,
-        "already_exists" | "ambiguous_subject"
+        "already_exists" | "ambiguous_subject" | "internal_error"
       >;
       readonly subjectResolution?: never;
     });
@@ -1135,7 +1145,7 @@ export type DistillyWireError =
 
 not_found、ambiguous_subject 和 nothing_pending 在有对应判别结果的工具 action 里不是 transport error；同一状态在 SDK 的直接方法里可以成为 DistillyError。但 ingest(create) 的唯一 identity 冲突是 already_exists WireFailure，必须带一个 found subject；同空间多候选是 ambiguous_subject WireFailure，必须带至少两个 candidates。MCP handler 不把这些预期业务分支伪装成服务器崩溃，也不把 candidate 藏在无类型 details。
 
-错误 message 给人读，code 给程序分支。code 在 wire major 3 内只加不改；details 只能是 JsonObject，不能包含材料正文、secret 或绝对内部路径。
+错误 message 给人读，code 给程序分支。code 在 wire major 3 内只加不改；details 只能是 JsonObject，不能包含材料正文、secret 或绝对内部路径。`internal_error` 只供 transport / presenter 把真正未分类的实现异常归一成最后一道、脱敏的 WireFailure：固定 retryable=false，details/fieldPath/remediation/subjectResolution 均缺失，也不带原异常 message、stack、路径或输入内容。已知的 schema、domain、storage、host 和 adapter 失败必须保留更窄 code，不能为了少写分支统一降成 internal_error。
 
 ### 7.6 八道运行时校验边界
 
@@ -2486,7 +2496,7 @@ interface ResolvedPatch {
 }
 ~~~
 
-DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在 §29 Step 13 以 additive 类型/方法加入，Step 7 不留 feature flag placeholder。ResolvedPatch 不从 protocol 根导出，MCP / SDK 也不能构造。CorrectionService 写入 correction material 后，用 MaterialId + 已验证 quote 构造 ResolvedPatch；host patch 则由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造。两条路径随后进入同一个 apply → quality → transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
+DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在 §29 Step 14 以 additive 类型/方法加入，Step 7 不留 feature flag placeholder。ResolvedPatch 不从 protocol 根导出，MCP / SDK 也不能构造。CorrectionService 写入 correction material 后，用 MaterialId + 已验证 quote 构造 ResolvedPatch；host patch 则由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造。两条路径随后进入同一个 apply → quality → transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
 
 resolved draft 的 canonical form 固定包含 `facet`、`text`、canonical evidence 与 canonical `observedIn`（输入缺失时为 `[]`），并只在输入存在时包含 validFrom/validTo。EvidenceRef 先按完整 canonical JSON exact 去重，再按 UTF-8 tuple `(materialId, locatorKey, quote)` 排序，其中 locatorKey 在缺失时是空串、存在时是 canonical ASCII `${start}:${end}`；observedIn 按 exact string 去重并按 UTF-8 bytes 排序。validFrom 与 validTo 同时存在时必须 `validFrom <= validTo`。同一 DistillPatch 中每个 base active/contested ClaimId 至多被 revise/supersede/contest 一次；重复 target、target 不在 base、target 已 superseded、或由 revise/supersede 形成的 cycle 都 invalid_input。
 
@@ -2988,9 +2998,11 @@ export declare function startPanelServer(
 ): Promise<PanelHandle>;
 ~~~
 
-PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。
+PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。startPanelServer 借用而不拥有传入的 client；PanelHandle.close 只停止 HTTP/SSE transport 并清理自己的订阅，创建 client 的 composition 在 handle 关闭后再关闭 client。
 
-URL 形如 http://127.0.0.1:PORT/#TOKEN。Fragment 不发给服务器；前端读出后立刻从地址栏移除，并在 fetch Authorization header 中使用。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
+production token 是 32 个 crypto-random bytes 的 64 位小写十六进制；tokenFactory 是测试 seam，返回值在监听前按同一 grammar 校验。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+
+Fragment 不发给服务器；前端读出 token 与可选 review route 后，立刻只从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，并在 fetch Authorization header 中使用内存 token。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
 
 ### 15.5 安全不变量
 
@@ -3024,6 +3036,8 @@ export declare class PanelLauncher implements ReviewPresenter {
 ~~~
 
 distilly panel 在前台运行并打印 URL。MCP / CLI presenter 得到 suspended CommitResult 时，通过注入的 ReviewPresenter 启动或复用本次会话的 PanelServer，再把 ReviewLaunch 作为工具 structured value 返回；CommitService / CommitResult 只知道 ReviewRef，不知道 HTTP 或 URL。ReviewPresenter 接口由 mcp 导出，PanelLauncher 由 panel/server 实现，所以 mcp 不静态依赖 panel。
+
+PanelLauncher 对首次 start 做 single-flight；并发 present 共享同一个成功 handle，随后只为各自 ReviewRef 构造精确 route。present 返回的 launch.ref 必须逐字段等于输入 ref，URL route 也必须编码同一 ref。close 幂等；一旦 close 开始，新的 present 明确失败而不重启另一个 server。PanelLauncher 拥有并在 close 中关闭它启动的唯一 PanelHandle，但借用该 handle 使用的 user client；外层 composition 关闭 PanelLauncher 后再关闭 user client，最后关闭共享 LocalRuntime。直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。
 
 宿主能打开本机链接就展示；不能时让用户复制到系统浏览器。模型职责到“提供地址与说明”结束，不点击 DOM，也不把 Panel 操作当工具执行。
 
@@ -3810,7 +3824,7 @@ export declare class DistillyError extends Error {
 }
 ~~~
 
-EngineClient.close() 只取消该 client 的 watch 与 session 绑定，不关闭 SQLite、事实 store 或同一 runtime 的其它 client，也不暗中 release durable lease；caller 需在 close 前显式 distill.release，否则 lease 按 expiresAt 自然失效。EngineRuntime / LocalRuntime.close() 才关闭共享资源，只能由创建它的 composition owner 在停止接收调用后执行；它会先关闭仍连接的 child clients，并且幂等。MCP server 与 Panel handle 关闭各自 transport/client，不拥有传入的共享 runtime。openInProcess 是例外：它创建私有 runtime，所以返回的 Distilly.close() 先关 sdk client、再关该私有 runtime。直接 new Distilly({client}) 时，close 仍只委托 client.close()。
+EngineClient.close() 只取消该 client 的 watch 与 session 绑定，不关闭 SQLite、事实 store 或同一 runtime 的其它 client，也不暗中 release durable lease；caller 需在 close 前显式 distill.release，否则 lease 按 expiresAt 自然失效。EngineRuntime / LocalRuntime.close() 才关闭共享资源，只能由创建它的 composition owner 在停止接收调用后执行；它会先关闭仍连接的 child clients，并且幂等。MCP server、PanelLauncher 与 Panel handle 都借用注入的 EngineClient：各自 close 只关闭自己拥有的 transport、server、handle 与订阅，外层 composition 再关闭 client，最后关闭共享 runtime；纯 ReviewPresenter 接口本身没有 close 合同。openInProcess 是例外：它创建私有 runtime，所以返回的 Distilly.close() 先关 sdk client、再关该私有 runtime。直接 new Distilly({client}) 时，close 仍只委托 client.close()。
 
 不用 call<T>(method: string)：它允许拼错 method、错配 params / result 而编译照过。mutation overload 在类型层强制 requestId；MCP presenter 透传 WireRequest.requestId，facade 为一次顶层调用生成并在底层重试中复用。相同业务动作在调用者主动发起的新顶层调用里可以拿新 requestId，内容寻址的 VersionId 与 stale checks 仍防止重复事实。以后的 HTTP / daemon transport 只能实现这张表，不能改 facade。
 
@@ -3842,16 +3856,21 @@ export declare class Distilly {
   reviews(query?: ReviewQuery): Promise<readonly ReviewItem[]>;
   promote(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   reject(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
+  purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<void>;
 
   close(): Promise<void>;
 }
 ~~~
+
+Distilly 是纯 injected-client facade：构造器不读 HOME、不探测环境、不创建 runtime，也不重复 engine boundary schema。每个 query 恰好转发一次同名 EngineMethodMap read；每个 mutation 在进入 call 前选择一次 `mutation.requestId ?? cryptoRequestId()`，并把同一个 MutationContext 交给该顶层调用内的所有 transport retry。browser-safe cryptoRequestId 只用 globalThis.crypto.getRandomValues 取得 16 bytes 并编码成 `req_` + 32 lowercase hex，不 import node:crypto、不用 Math.random；环境缺少 Web Crypto 时在 client call 前返回 host_unsupported。release / purge 等 facade `Promise<void>` 只在 method 成功返回协议 EmptyResult=null 后丢弃 null。Distilly 不新增 watch shortcut；需要订阅的调用者直接使用注入的 EngineClient。
 
 ### 18.4 Person
 
 ~~~ts
 export declare class Person {
   readonly id: SubjectId;
+
+  constructor(client: EngineClient, subjectId: SubjectId);
 
   get(options?: { readonly versionId?: VersionId }): Promise<Profile>;
   prompt(options?: { readonly versionId?: VersionId }): Promise<string>;
@@ -3899,7 +3918,11 @@ export declare class Person {
 }
 ~~~
 
-purge 不放 Person 第一屏；它留在 Distilly 管理 API / Panel / CLI 的显式危险入口。关系方法可以在关系 slice 后 additive 加到 Person，不阻塞首发。
+Person 的 public constructor 与 `distilly.person(subjectId)` 语义相同：只绑定一个已经带可信 session 的 EngineClient 和 SubjectId，不读取主体、不创建 actor/lease owner/capacity，也不拥有 client；Person 没有 close。公开 class 在 TypeScript 中若不声明 private/protected constructor 就可被构造，因此合同不伪装一个语言上不存在的 package-private constructor。常规发现路径仍是 Distilly.person。
+
+purge 不放 Person 第一屏；它是 Distilly.purge / Panel / CLI 的显式危险入口。关系方法可以在关系 slice 后 additive 加到 Person，不阻塞首发。
+
+browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewActionInput`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
 
 ### 18.5 Composition root
 
@@ -3921,11 +3944,13 @@ export declare function openInProcess(
 
 distilly/node 依赖 @distilly/runtime；runtime 再组合 engine、内置 parsers 与 bindings。openInProcess 固定创建 kind=sdk 的 client，callerLabel 只是审计 label，不能选择 user / host actor。需要 host、Panel 或 CLI actor 的入口由各自 composition 调用 runtime.connectTrusted；该函数不从 distilly 根或 node convenience API 导出。根 index.ts 不 import / re-export node.ts。Distilly 构造器不偷偷创建引擎或读 HOME；只有名字明确的 openInProcess 做本机 I/O。
 
+§29 Step 8 只落 browser-safe 根与 injected-client tests，不创建 `distilly/node` subpath，也不声称任一 facade method 有本机 backend。openInProcess 与该 subpath 只能和完整 production LocalRuntime 同一 feature 落地；在那之前，Distilly / Person 的全部方法由 full fake EngineClient contract fixture 验证 method、params、MutationContext、null-to-void 与 close 转发。
+
 ### 18.6 API 稳定性
 
 - 所有跨 EngineClient 或执行 I/O 的公开操作返回 Promise；纯 handle 构造 person() 同步。
 - wire major 3 内，方法名与字段含义不改；新可选字段 / 新判别分支必须让旧消费者 fail visibly 或安全 default。
-- 根包只导出 Distilly、Person、EngineClient、errors 与常用 protocol types。
+- 根包只导出 §18.4 明列的三个 runtime values 与 type-only allowlist；不 wildcard 转导 protocol。
 - adapter、host、queue repository、engine services 从各自包导出，不从 facade 根“方便地”全部 re-export。
 - 不把 unimplemented Catalog 方法预先放入 MethodMap。
 
@@ -3947,10 +3972,11 @@ distilly panel [--port <n>]
 distilly create --name <name> [--space <space>]
 distilly ingest <subject> <path...> [--enqueue auto|now]
 distilly pending [--subject <id>]
-distilly pending --brief <job>
-distilly commit <job> --draft <file> --lease <lease>
+distilly distill <job> --draft <file>
 distilly get <subject> [--format profile|prompt|status]
 distilly correct <subject> --text <text> [--facet <facet>]
+distilly archive <subject>
+distilly purge <subject> --confirm <exact-display-name>
 
 distilly review [--version <id>]
 distilly promote <version>
@@ -3962,13 +3988,19 @@ distilly export <subject> --host <host> --dest <path>
 distilly migrate --from <legacy-skill-dir>
 ~~~
 
-CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。
+CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
 
-distilly pending --brief 把完整 lease snapshot 写到仅当前用户可读的临时 draft envelope；distilly commit --draft 读取其中的 generation、briefContractDigest、materialSetHash 与 baseVersionId，并与 --lease / 当前 job 重新匹配后构造 CommitInput。CLI 不因 flags 较少而跳过 MCP 路径拥有的 stale 校验；用户手写的裸 DistillPatch 文件若没有对应 envelope 会被拒绝。
+setup/doctor/upgrade/uninstall 是安装 composition 命令；mcp 创建 kind=host 且由 binding capacity 绑定的 client；panel 与其余数据命令各创建一个 kind=user client。每次 connect 都由 engine 生成新的 LeaseOwnerId，flag、环境变量和模型输入都没有 owner override。direct CLI user client 固定使用下述 sdk_explicit capacity；每个 mutation 顶层动作生成一个新的 RequestId，并只在该动作的 transport retry 内复用，绝不把一个 RequestId 跨 method 复用。`purge --confirm` 必须逐字等于 resolve 后 SubjectRecord 的 exact displayName，再作为 PurgeSubjectInput.confirmation 传入；ambiguous selector 在显示候选后退出，不能自行选中。`uninstall --host` 只移除 host plugin/bootstrap，不等于 Person.uninstall 的某个 profile projection；首版 CLI 不为后者另设隐含重载。
+
+`distilly distill` 是一个前台、单进程、单 EngineClient session 的 brief→编辑→commit 命令。它取得 lease 后以 create-exclusive 创建仅当前用户可读的 draft envelope（POSIX mode 0600；Windows 用 current-user-only ACL），保持同一 client 与 engine-owned LeaseOwnerId 存活，把文件路径和明确的“编辑完成后确认/取消”提示交给用户，并在确认前按该 session 的 lease 做 renew。确认后它重新读取同一文件，验证 snapshot 未改、解析 DistillPatch，再用内存中的同一 lease owner 和一次生成后复用的 commit RequestId 调 distill.commit。成功后删除 envelope；用户取消、schema 失败或正常 shutdown 时先 best-effort release 再删除；process crash 只依靠 expiresAt，不伪造 release。它不启动后台 daemon，也不允许编辑器进程脱离后让 distilly 命令退出。
+
+CLI-owned draft envelope schemaVersion=1，包含 `briefing`（HostDistillBriefing 去掉唯一字段 `lease.owner`）、一个初始空 `patch` 槽和 content-free `snapshotDigest`；digest 覆盖去 owner 后的完整 briefing，所以 jobId、generation、leaseId、briefContractDigest、materialSetHash、baseVersionId、材料、短 evidence refs、prompt、限制和 expiry 任一改动都被拒绝。LeaseOwnerId 只留在当前 EngineClient session 内，绝不写入 envelope、flag、环境变量或重连 token。用户手写的裸 DistillPatch、已有文件、非 regular file、symlink、owner/mode 不安全的 envelope 与 snapshotDigest 不匹配都在 commit 前拒绝。CLI direct session 的 BriefCapacity 固定为 source=`sdk_explicit`，maximumInputTokens=4,194,304、maximumToolResultBytes=4,194,304；这只是本地文件上限，不声称外部模型拥有同样 context。
+
+禁止把 brief 与 commit 拆成两个短进程后把 `--lease` 当作恢复权限：每次 connect 都必须生成新 LeaseOwnerId，第二个进程即使知道 LeaseId 也只能得到 lease_conflict。以后若要非交互分离流程，必须设计 engine-issued、可撤销的 delegation capability；不得把 owner 放进文件来绕过 §7.4。
 
 ### 19.2 Setup 不能依赖 PATH 运气
 
-npx distilly@VERSION setup 是 bootstrap 入口。setup：
+npx distilly@VERSION setup 是 bootstrap 入口，但只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。setup：
 
 1. 检查 Node、平台、目标宿主与写权限；
 2. 把精确版本 runtime 安装到 ~/.distilly/runtime/<version>/；
@@ -4007,7 +4039,9 @@ export interface McpServer {
 export declare function createMcpServer(options: McpServerOptions): McpServer;
 ~~~
 
-McpServerOptions 故意没有 capture client/token：普通 handler 不能提权。受支持 binding 在同一 host session 旁路注册 §17.2 的 user-gesture private capture action；action 由 runtime coordinator 持有 engine core capture session，完成后只把 PrivateUiCaptureActionResult 送回当前 task。它不改变 MCP initialize、tools/list 或五个 handler，普通 distilly_ingest 也不会根据模型字段“升级”为 capture session。
+McpServerOptions.client 在进入 mcp 包前已经由外层 composition 绑定 host actor、engine-owned LeaseOwnerId 与 BriefCapacity；MCP handler 不接收或推测这些值。McpServerOptions 故意没有 capture client/token：普通 handler 不能提权。受支持 binding 在同一 host session 旁路注册 §17.2 的 user-gesture private capture action；action 由 runtime coordinator 持有 engine core capture session，完成后只把 PrivateUiCaptureActionResult 送回当前 task。它不改变 MCP initialize、tools/list 或五个 handler，普通 distilly_ingest 也不会根据模型字段“升级”为 capture session。
+
+McpServer 借用而不拥有 options.client 与 reviewPresenter。close 幂等，只拒绝新 call、在同一 5,000 ms grace period 内等待已进入的 handler、取消 server 自己建立的订阅并关闭 MCP SDK server；外层 transport adapter 拥有其 transport，server close 只要求 SDK 的 transitive transport close 可重复。它不调用 EngineClient.close、PanelLauncher.close 或 LocalRuntime.close。production composition 的 teardown 顺序是 stop accepting → transport/McpServer.close → ReviewPresenter.close（若具体 presenter 拥有该方法）→ EngineClient.close → LocalRuntime.close。
 
 @distilly/mcp 根只定义 transport-neutral server；Node stdio 只从 @distilly/mcp/stdio 导出：
 
@@ -4015,7 +4049,17 @@ McpServerOptions 故意没有 capture client/token：普通 handler 不能提权
 export declare function runStdio(server: McpServer): Promise<void>;
 ~~~
 
-handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；SDK facade 自己生成 requestId 时，在同一次网络重试中复用。commit handler 还必须把 CommitToolInput.briefContractDigest 原样放进 CommitInput，不能丢弃或以 server 当前默认合同替代。commit 得到 suspended CommitResult 后调用 reviewPresenter；correct 的 engine result 按 actor 合同必为 suspended。presenter 对两者都只把 ReviewRef 变成 ReviewLaunch 并放进 ToolValue，不设置 reason、不改变 current / suspended。没有 presenter 的 development server 不得声称完成首发插件闭环。
+runStdio 为传入 server 创建并拥有唯一 stdio transport，不创建 client/runtime。stdin EOF、transport close、SIGINT/SIGTERM 的 graceful path 与显式 close 都汇合到同一个 idempotent teardown；transport onerror 必须立即触发同一有界 teardown，不能只记录后继续等待 stdin EOF。runStdio 的 finally 总是先幂等关闭 transport、再调用 McpServer.close；它不关闭 process-owned stdin/stdout，也不替 composition 关闭 injected EngineClient、reviewPresenter 或 runtime。正常 close 完成后 runStdio resolve；启动、协议或 transport error reject，但也先完成同一 bounded teardown。grace period 固定 5,000 ms，从 stop-accepting 时开始；到期后不再等待 in-flight handler，完成 transport/server 自有资源关闭并让 runStdio settle。原始 startup/protocol/transport error 优先于 teardown error；无原始 error 时，close error 或 timeout 使 runStdio reject。该常量由 mcp stdio 实现拥有并用 fake clock 固定测试，不能由模型输入控制。
+
+MCP initialize 的 serverInfo.name 固定为 `distilly`，serverInfo.version 来自 `@distilly/mcp` 构建时写入并由 package.json 与发布 manifest 同源的精确 semver；不从 cwd、全局 CLI、latest tag、clientInfo 或 wire major 猜版本。tools/list 逐对象使用 protocol 的 distillyMcpTools，不复制 title/schema/annotations。
+
+handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；SDK facade 自己生成 requestId 时，在同一次网络重试中复用。commit handler 还必须把 CommitToolInput.briefContractDigest 原样放进 CommitInput，不能丢弃或以 server 当前默认合同替代。commit 得到 suspended CommitResult 后调用 reviewPresenter；correct 的 engine result 按 actor 合同必为 suspended。presenter 对两者都只把 ReviewRef 变成 ReviewLaunch 并放进 ToolValue，不设置 reason、不改变 current / suspended。presenter 返回的 launch.ref 必须逐字段 exact 等于传入 ReviewRef，ReviewLaunch URL route 也必须编码同一 ref；任一 mismatch 按 internal_error fail closed，不能把另一个 candidate URL 放进成功结果。没有 presenter 的 development server 不得声称完成首发插件闭环。
+
+每个 tools/call 使用同一封闭流水线：先用 descriptor.input 解析 unknown arguments；再把 action 映射到 §8.7 的 EngineMethodMap；将 expected domain error、输入错误、presenter/adapter failure与真正 unexpected exception 分别归一为最窄 DistillyWireError（unknown 仅用脱敏 internal_error）；构造 WireSuccess 或 WireFailure 后，最后用该 descriptor.output 解析整个 ToolOutput。若成功候选没有通过 output parser，丢弃它并改成脱敏 internal_error WireFailure，再对该 failure 做最后一次 output parse；不能把 Zod/MCP SDK exception、stack 或第三种 JSON 泄漏给模型。MCP 自己生成的 internal_error 精确为 `{ code: "internal_error", message: "The Distilly MCP adapter encountered an unexpected internal error.", retryable: false }`，没有其它字段；presenter ref/route mismatch、correct 意外返回 current、unclassified exception 和 invalid success output 都走这一形状。可校验的 DistillyError 保留原最窄 wire error；invalid arguments 则生成 retryable=false 的 invalid_input，而不是 internal_error。
+
+解析后的 ToolOutput 是唯一结果值。MCP CallToolResult 精确使用 `structuredContent: parsedOutput` 与 `content: [{ type: "text", text: JSON.stringify(parsedOutput) }]`；content text 解码后必须与 structuredContent 深相等。domain、invalid_input、presenter failure 与 unexpected 都作为正常的这份 structured WireFailure 返回，不依赖 MCP SDK generic `isError` / JSON-RPC error 承载产品错误。只有 transport 在连一份合法 WireFailure 都无法序列化时才允许协议级失败。
+
+§29 Step 8 的真实 stdio smoke 由 test-only child entry 注入一个覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，经 initialize → tools/list → 每个 tools/call → EOF/close 走真实字节 transport。它证明 descriptor、handler、envelope 与 stdio 生命周期，不接触 DISTILLY_ROOT、不构造 LocalRuntime、也不是可操作的 `distilly mcp` 用户入口；production stdio 只能在完整 composition slice 落地。
 
 ~~~text
 plugins/
@@ -4248,7 +4292,7 @@ type 使用开放点分路径，如 work.founded、family.parent、canon.rival�
 
 ### 22.3 RelationOperationDraft
 
-首发 Step 7 的 DistillPatch **没有** relationOperations，closed-object schema 对该 unknown key 返回 invalid_input。下列 RelationOperationDraft 只属于 §29 Step 13 的 additive relation slice；该 slice 必须新增明确 method/patch discriminant、事实 transaction 与 gate 后才可启用，不能用 Step 7 feature flag 偷偷接受或静默丢弃：
+首发 Step 7 的 DistillPatch **没有** relationOperations，closed-object schema 对该 unknown key 返回 invalid_input。下列 RelationOperationDraft 只属于 §29 Step 14 的 additive relation slice；该 slice 必须新增明确 method/patch discriminant、事实 transaction 与 gate 后才可启用，不能用 Step 7 feature flag 偷偷接受或静默丢弃：
 
 ~~~ts
 export type RelationOperationDraft =
@@ -4793,6 +4837,8 @@ Service 有状态或编排多个 store；同类只有一个生产实现时直接
 
 Step 7 只在 `@distilly/engine` package 内组合 `distill.commit` 的 EvidenceContext、claim apply/quality/gate、literal renderer、version staging/journal/recovery 与 queue apply，并用 package-internal EngineMethodMap-compatible handler 做真实磁盘验收。它不导出 partial EngineRuntime/createEngine，不实现 review promote/reject、correction、relations、facade/MCP/CLI 或 public runtime；这些保持 §29 各自独立 feature boundary。
 
+Step 8 的 Distilly、Person 与 McpServer 同样是 injected-client adapters，不是新的 service/composition root。facade tests 注入 full fake EngineClient；MCP stdio child 注入 full fake EngineClient + ReviewPresenter。`@distilly/cli` executable、`distilly/node`、createEngine、createLocalRuntime 和任何能打开真实 DISTILLY_ROOT 的入口都不在该 slice；不得为了让 built smoke 启动而新增一个改名的 workflow runtime、unsupported handler 或 test backend 的 production export。
+
 ### 25.6 为什么没有 public abstract class
 
 TypeScript 的扩展方需要结构契约，不需要继承我们的状态、构造器与 protected helper。V3 第一版导出 **零个 abstract class**：
@@ -4945,6 +4991,8 @@ createEngine({root}) 的最终合同是可实例化的 production factory：缺�
 
 Step 6 同样只在 package 内组合与 EngineMethodMap 精确对齐的 distill.pending / brief / renew / release handlers、BriefingService/LeaseService 与 QueueRepository reads。它不因四个方法可调用就导出 partial EngineRuntime/createEngine；测试从内部 composition 驱动真实 state/journal/queue 路径。
 
+Step 8 也不例外。一个 TypeScript object 即使只被 McpServer 的五个 handler 调用，只要以 EngineClient/CoreEngineClient 身份交给 production entry，就承诺了完整 MethodMap；对其它 method throw host_unsupported / unsupported、延迟到第一次调用失败或用 generic call cast 隐藏缺口都属于 partial runtime。真实 stdio transport conformance 可以注入 test-only full fake，因为它只证明 transport；production `distilly mcp`、CLI 数据命令与 distilly/node 必须等待 §29 的 Core closure + production composition feature。
+
 LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包。
 
 connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。composition 每创建一个 EngineClient 都调用 IdGenerator.leaseOwnerId() 构造完整 ClientSessionContext，外部 options、模型 input 与 callerLabel 都没有覆写入口。actor 与 lease owner 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client，并且两个同 actor client 仍有不同 owner。
@@ -4954,6 +5002,8 @@ registerPrivateUiCapture 使用同一个 HostContext 创建 Controller 和 host 
 audit 的 materialCount 由一次成功 IngestResult 中 engine 接受的 private transcript items 推导；boundaryRefusalCount 和异常 stop reason 来自 liveness port；data policy / retention refs 来自 authorization。complete 无参数且只在成功 ingest 后可调用。process crash 由 recovery 写 process_terminated；没有 caller-supplied string/count 的审计入口。该 session 只复用固定 enqueue=now 的 PrivateUiCaptureIngestInput、IngestResult 与 IngestService，不开放 pending、commit 或新的第六工具。
 
 openInProcess 使用上述 production defaults，并独占它创建的 LocalRuntime；测试显式传 fake clock / ids，但使用真实 temp fact stores。createEngine / createLocalRuntime 先 recover 再接收 client；构造器不做隐式网络、secret 或插件安装。CoreEngineClient / EngineClient 的 close 只解绑 session，EngineRuntime / LocalRuntime 的 close 才由 composition owner 关闭共享 queue、event bus 与 stores。
+
+production composition feature 开始时先用 `satisfies Record<CoreMethodName, ...>` 与逐 key integration fixture 证明全部 CoreMethodName 都有真实 handler，再允许同一 feature 的最后阶段增加 engine/runtime/node/CLI exports；顺序上的“先证明再 export”不把中间 worktree 状态变成可发布 partial API。该 feature 还组合已经落地的 HostBinding、PanelLauncher 与 CorrectionService，给 MCP 创建 host client、给 direct CLI/Panel 创建彼此独立的 user client，并把 setup/fresh-install 放在这些真实入口之后。
 
 ---
 
@@ -5072,7 +5122,7 @@ private transcript 默认 sensitivity=private，export / publish 不自动包含
 - IsoDateTime 只接受有效 UTC 毫秒 form，HostName / FacetPath / m001..m999 的边界和 grammar 都有接受/拒绝 fixture；
 - 五工具真实 names、titles、descriptions、draft-2020-12 inputSchema/outputSchema 与四个 annotation hints 的完整 tools/list snapshot；runtime schema 与 JSON Schema 用相同 accepted/rejected fixtures；
 - get / pending 的 action→success-kind 映射、分支专属 key 和 handler→EngineMethodMap 映射；
-- Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；
+- Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；internal_error 固定 retryable=false 且不带 details/cause/stack，expected errors 不得被它吞掉；
 - 全部 public object 拒绝 unknown keys；WIRE_LIMITS 每个边界值与总 toolInputBytes、safe/nonnegative integer、positive bounded limit 都有正反 fixture；
 - EngineMethodMap 精确 35 keys 与 mutation/query 分区，无 payload 结果字节稳定为 null，不出现 void/undefined；
 - EngineEvent decoder 遇到未知 kind 返回 schema_unsupported、不调 handler 并触发全量重读；其它 unknown discriminant 在边界失败；
@@ -5089,6 +5139,8 @@ private transcript 默认 sensitivity=private，export / publish 不自动包含
 - OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result；distill.brief OperationRecord 可精确 round-trip 4 MiB 内完整 briefing；
 - BriefContract exact-three-field digest、raw prompt asset + NUL + evidenceRulesV1 promptVersion、source-groups-v1 与 draftSchemaVersion=1 有 byte-level golden fixtures；
 - VersionId fixture 删除全部 Claim.createdIn 后计算，再把新 claim createdIn 填成所得 id；改变 createdIn 不改变 preimage，改变 version-time subjectDisplayName、reviewReasons 或其它 canonical claim 字段必须改变 id。Profile.displayName 必须等于 subjectDisplayName，current 无 reviewReasons，suspended reasons 非空且与 CommitResult/journal 相同。
+
+Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开方法映射到 exact EngineMethodMap key/params/result，mutation 缺省 RequestId 只生成一次、显式 RequestId 原样复用、EmptyResult 只在 facade 外层变 void、close ownership 不漂移且 facade 不新增 watch；browser-safe bundle/runtime/type-only export allowlist 不含 Node builtin。MCP 使用 protocol descriptor 注册 exact 五工具，input-first/output-last，get/pending action 封闭映射，commit digest 原样透传，correct current 分支拒绝，presenter ref/route mismatch fail closed；每个 success/failure 的 JSON text content 与 structuredContent 深相等。真实 child-process stdio fixture 覆盖 initialize server name/version、tools/list、五 call、invalid/domain/unexpected WireFailure、EOF/signal/explicit close 幂等，以及 transport onerror 立即触发 teardown、in-flight handler 在 4,999 ms 内正常等待和 5,000 ms 到期 settle；该 fixture 注入 full fake client/presenter，必须断言没有关闭 borrowed client/presenter、没有创建 DISTILLY_ROOT 或导入 runtime，不能作为 production MCP 证据。
 
 ### 27.3 Fact layer 与 crash
 
@@ -5135,13 +5187,16 @@ private transcript 默认 sensitivity=private，export / publish 不自动包含
 - current success 证明 current=new、suspended absent、pending absent；suspended success 证明 current unchanged、suspended=new、pending absent；两者的 operation/result、reason tuple、两事件顺序与 terminal journal exact replay 不漂移；
 - stale worker finish 不覆盖新 generation；
 - requestId 重试不重复主体、材料或版本；
-- panel、MCP、CLI 三进程 writer 的锁顺序无死锁。
+- panel、MCP、CLI 三进程 writer 的锁顺序无死锁；
+- CLI distill 的真实 binary fixture 在一个 process/client/LeaseOwnerId 中完成 brief→current-user-only envelope→renew→commit；另一个 process 即使读到 envelope/LeaseId 也 lease_conflict，文件从不包含 owner；confirm 前 snapshot 被改、symlink/unsafe permission、cancel、SIGINT、expiry 与 commit crash 各自验证 release/expiry、清理和最终事实。
 
 ### 27.5 Keyless host workflow
 
-FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 fixture：
+完整 production FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 fixture：
 
 clean root → get not_found → ingest(create) → research fixture materials → enqueue now → pending brief → fixed claim patch → commit → get / prompt → correct → review。
+
+这条 clean-root 流程不属于 Step 8 injected-client stdio smoke。correct→review 只有在真实 CorrectionService、PanelLauncher/ReviewPresenter、全部 Core handlers 与 production composition 落地后才进入 FakeHost；更早的 fake correct/suspended result 只证明 handler shape，不能写成 correction、Panel 或 keyless product 已实现。
 
 还要覆盖：
 
@@ -5171,7 +5226,7 @@ private UI capture conformance 还必须覆盖：第一帧前原生 consent；ex
 
 ### 27.7 Fresh install
 
-从构建后的发布包而不是 source：
+从 Core closure + production composition 之后构建的发布包而不是 source；此前的 injected-client stdio child 不满足本节：
 
 - npx setup 写 versioned runtime 与绝对 launcher；
 - 两宿主 manifest schema；
@@ -5342,16 +5397,17 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 4. **Fact foundation**：Layout、FactEnvelope/checksum、atomic write、space/subject/material/state/event/operation stores、full SHA-256、space identity / subject lock。
 5. **Create + ingest + queue**：root request lock / operation / transaction、current material manifest、ingest journal/recovery、built-in people / inline space 串行化、保守重复创建、material-text/source-identity v1、request idempotency、auto-v1 与窄 queue projection，以及空 store 到 enqueue now 的真实磁盘路径与 generation。该切片只用 package-internal composition，不落 subjects.create 空主体、public pending/lease service、root EngineRuntime/createEngine 或占位 handlers。
 6. **Briefing + lease**：一次不可拆的内部纵向切片交付 SubjectStateRecord v2/PendingLeaseMarker、LeaseOwnerId session 绑定、PendingJob 判别联合、verified state→queue user_version=2 read/list/rebuild、source-groups-v1、incremental baseline、raw-byte-versioned prompt asset、exact BriefContract、容量 fixed point，以及 brief/renew/release 的 DistillLeaseTransactionRecord/OperationRecord/EventRecord 崩溃恢复。验收必须从真实 Step 5 pending state 经 package-internal EngineMethodMap-compatible handlers 完成 list→brief→renew/release、并发 owner 冲突、expiry、idempotent replay、queue 删除/v1 rebuild、prepared journal 每个 crash point与超限前零写入；该切片不导出 partial EngineRuntime/createEngine，也不包含 claim commit。
-7. **Claim patch + commit（不可拆 feature）**：在 package-internal composition 中一次交付从 verified state/base/materials 重建的 pinned EvidenceContext、claim-only DistillPatch validator、canonical resolved draft/ClaimId、apply/strength/quality/QualityGate、`profile-renderer-v1`、VersionRecord/material/claims/Profile/prompt 全套事实、DistillCommitTransactionRecord、固定 version staging path、state commit point、target-first recovery、completed operation、固定两事件、current projection与 queue apply。验收矩阵必须同时覆盖 empty/add/revise/supersede/contest、65,536/+1 bytes、locator/date/target/evidence、first-version与 delta gates、current/suspended state、active-review conflict、owner-bound idempotency、每个 crash point及历史 displayName/prompt重放。该 feature 不含 promote/reject、correction、relations、facade/MCP/CLI、root EngineRuntime/createEngine 或任何 public runtime；前述能力分别留给 Steps 8、10、11、13。
-8. **Facade + MCP + CLI**：Distilly / Person、五 handlers、真实 stdio 与 built-entry smoke；root EngineRuntime/createEngine 仍要等全部 CoreEngineClient handlers 可用才导出，不因五工具 presenter 先完成就暴露 partial runtime。
-9. **Host bindings + setup**：Codex / Claude Code capability、canonical skill、runtime bootstrap、doctor。
-10. **必备 Panel + review**：四页最小 UI、HTTP EngineClient、安全拒绝、promote/reject。
-11. **Correction + Recall / install**：立即版本、prompt、subrun inject、install/export。
-12. **Legacy migration**：真实 fixtures 与升级指南。
-13. **关系、Bot、TUI、后台 executor**：按真实需求分别落地。
-14. **Profile Catalog**：只在 §24.6 条件全部满足后立项。
+7. **Claim patch + commit（不可拆 feature）**：在 package-internal composition 中一次交付从 verified state/base/materials 重建的 pinned EvidenceContext、claim-only DistillPatch validator、canonical resolved draft/ClaimId、apply/strength/quality/QualityGate、`profile-renderer-v1`、VersionRecord/material/claims/Profile/prompt 全套事实、DistillCommitTransactionRecord、固定 version staging path、state commit point、target-first recovery、completed operation、固定两事件、current projection与 queue apply。验收矩阵必须同时覆盖 empty/add/revise/supersede/contest、65,536/+1 bytes、locator/date/target/evidence、first-version与 delta gates、current/suspended state、active-review conflict、owner-bound idempotency、每个 crash point及历史 displayName/prompt重放。该 feature 不含 promote/reject、correction、relations、facade/MCP/CLI、root EngineRuntime/createEngine 或任何 public runtime；injected facade/MCP adapters、review、correction、production runtime/CLI 和 relations 分别留给 Steps 8、10、11、12、14。
+8. **Injected-client Facade + MCP adapters**：browser-safe `distilly` 根一次交付 Distilly / Person 的完整转发面、精确 runtime/type export allowlist 与 full fake EngineClient contract fixtures；`@distilly/mcp` 一次交付五 handlers、ReviewPresenter seam、统一 WireFailure、structuredContent/text 同值、server identity、真实 stdio child-process conformance 与 built-entry smoke。child 只注入 test-only full fake EngineClient / ReviewPresenter 并证明 transport；本步没有 `distilly/node`、`@distilly/runtime`、`@distilly/cli` executable、production `distilly mcp`、DISTILLY_ROOT backend 或用户可操作产品，不能用 fake smoke 声称主路径成立。
+9. **Host bindings + canonical skill**：Codex / Claude Code capability/preflight、binding contracts、canonical skill 与 manifest/release assembly fixtures；不做 runtime bootstrap、setup 或 production launcher。
+10. **必备 Panel + review**：ReviewService、Panel 所需完整 read models、promote/reject/rollback、PanelLauncher/ReviewPresenter、四页最小 UI、injected user EngineClient HTTP/SSE 与安全拒绝；不复用 fake host client，也还不发布 production CLI/runtime。
+11. **Correction + Recall / install**：CorrectionService 立即版本、prompt、subrun inject、install/export 与对应真实 core/runtime-owned handlers；host/sdk relayed 与 user actor 分流闭合后，correct→review 才能进入 product conformance。
+12. **Core closure + production composition + CLI/setup（不可拆 production feature）**：先补齐并逐 key integration 证明全部 CoreMethodName 真 handler；同 feature 的后半才导出 createEngine、createLocalRuntime、distilly/node openInProcess 与 actor-bound clients，并交付 production `distilly mcp`、完整数据 CLI、单进程 `distilly distill` lease/edit/commit、runtime bootstrap、doctor、setup/upgrade/uninstall 与 built-artifact fresh install。任何缺 handler、Panel presenter、CorrectionService、host capacity 或 teardown owner 都在 export 前 startup/build fail；不发布 placeholder command 或改名 partial runtime。
+13. **Legacy migration**：真实 fixtures 与升级指南。
+14. **关系、Bot、TUI、后台 executor**：按真实需求分别落地。
+15. **Profile Catalog**：只在 §24.6 条件全部满足后立项。
 
-首个公开产品版本不能停在第 8 步；第 10 步通过才有可审的产品。关系、Bot、TUI 与 Catalog 不能反过来阻塞主路径。
+首个公开产品版本不能停在第 8 步；第 12 步 production composition 与 fresh-install 通过后，前面已落的 Panel/review/correction 才共同构成可审产品。关系、Bot、TUI 与 Catalog 不能反过来阻塞主路径。
 
 ### 29.2 Chat 主路径验收
 

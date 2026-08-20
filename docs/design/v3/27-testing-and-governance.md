@@ -17,7 +17,7 @@
 - IsoDateTime 只接受有效 UTC 毫秒 form，HostName / FacetPath / m001..m999 的边界和 grammar 都有接受/拒绝 fixture；
 - 五工具真实 names、titles、descriptions、draft-2020-12 inputSchema/outputSchema 与四个 annotation hints 的完整 tools/list snapshot；runtime schema 与 JSON Schema 用相同 accepted/rejected fixtures；
 - get / pending 的 action→success-kind 映射、分支专属 key 和 handler→EngineMethodMap 映射；
-- Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；
+- Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；internal_error 固定 retryable=false 且不带 details/cause/stack，expected errors 不得被它吞掉；
 - 全部 public object 拒绝 unknown keys；WIRE_LIMITS 每个边界值与总 toolInputBytes、safe/nonnegative integer、positive bounded limit 都有正反 fixture；
 - EngineMethodMap 精确 35 keys 与 mutation/query 分区，无 payload 结果字节稳定为 null，不出现 void/undefined；
 - EngineEvent decoder 遇到未知 kind 返回 schema_unsupported、不调 handler 并触发全量重读；其它 unknown discriminant 在边界失败；
@@ -34,6 +34,8 @@
 - OperationFact 的 completed/tombstone discriminant、OperationScope 与每个 completed mutation method 的唯一 result schema 做类型 fixture 和 round-trip，不能交叉存储另一 method 的 result，tombstone 不能带 actor/result；distill.brief OperationRecord 可精确 round-trip 4 MiB 内完整 briefing；
 - BriefContract exact-three-field digest、raw prompt asset + NUL + evidenceRulesV1 promptVersion、source-groups-v1 与 draftSchemaVersion=1 有 byte-level golden fixtures；
 - VersionId fixture 删除全部 Claim.createdIn 后计算，再把新 claim createdIn 填成所得 id；改变 createdIn 不改变 preimage，改变 version-time subjectDisplayName、reviewReasons 或其它 canonical claim 字段必须改变 id。Profile.displayName 必须等于 subjectDisplayName，current 无 reviewReasons，suspended reasons 非空且与 CommitResult/journal 相同。
+
+Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开方法映射到 exact EngineMethodMap key/params/result，mutation 缺省 RequestId 只生成一次、显式 RequestId 原样复用、EmptyResult 只在 facade 外层变 void、close ownership 不漂移且 facade 不新增 watch；browser-safe bundle/runtime/type-only export allowlist 不含 Node builtin。MCP 使用 protocol descriptor 注册 exact 五工具，input-first/output-last，get/pending action 封闭映射，commit digest 原样透传，correct current 分支拒绝，presenter ref/route mismatch fail closed；每个 success/failure 的 JSON text content 与 structuredContent 深相等。真实 child-process stdio fixture 覆盖 initialize server name/version、tools/list、五 call、invalid/domain/unexpected WireFailure、EOF/signal/explicit close 幂等，以及 transport onerror 立即触发 teardown、in-flight handler 在 4,999 ms 内正常等待和 5,000 ms 到期 settle；该 fixture 注入 full fake client/presenter，必须断言没有关闭 borrowed client/presenter、没有创建 DISTILLY_ROOT 或导入 runtime，不能作为 production MCP 证据。
 
 ### 27.3 Fact layer 与 crash
 
@@ -80,13 +82,16 @@
 - current success 证明 current=new、suspended absent、pending absent；suspended success 证明 current unchanged、suspended=new、pending absent；两者的 operation/result、reason tuple、两事件顺序与 terminal journal exact replay 不漂移；
 - stale worker finish 不覆盖新 generation；
 - requestId 重试不重复主体、材料或版本；
-- panel、MCP、CLI 三进程 writer 的锁顺序无死锁。
+- panel、MCP、CLI 三进程 writer 的锁顺序无死锁；
+- CLI distill 的真实 binary fixture 在一个 process/client/LeaseOwnerId 中完成 brief→current-user-only envelope→renew→commit；另一个 process 即使读到 envelope/LeaseId 也 lease_conflict，文件从不包含 owner；confirm 前 snapshot 被改、symlink/unsafe permission、cancel、SIGINT、expiry 与 commit crash 各自验证 release/expiry、清理和最终事实。
 
 ### 27.5 Keyless host workflow
 
-FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 fixture：
+完整 production FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 fixture：
 
 clean root → get not_found → ingest(create) → research fixture materials → enqueue now → pending brief → fixed claim patch → commit → get / prompt → correct → review。
+
+这条 clean-root 流程不属于 Step 8 injected-client stdio smoke。correct→review 只有在真实 CorrectionService、PanelLauncher/ReviewPresenter、全部 Core handlers 与 production composition 落地后才进入 FakeHost；更早的 fake correct/suspended result 只证明 handler shape，不能写成 correction、Panel 或 keyless product 已实现。
 
 还要覆盖：
 
@@ -116,7 +121,7 @@ private UI capture conformance 还必须覆盖：第一帧前原生 consent；ex
 
 ### 27.7 Fresh install
 
-从构建后的发布包而不是 source：
+从 Core closure + production composition 之后构建的发布包而不是 source；此前的 injected-client stdio child 不满足本节：
 
 - npx setup 写 versioned runtime 与绝对 launcher；
 - 两宿主 manifest schema；

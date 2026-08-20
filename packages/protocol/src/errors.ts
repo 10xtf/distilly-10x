@@ -23,6 +23,7 @@ export const DISTILLY_ERROR_CODES = [
   "host_unsupported",
   "adapter_failed",
   "permission_denied",
+  "internal_error",
 ] as const;
 
 export type DistillyErrorCode = (typeof DISTILLY_ERROR_CODES)[number];
@@ -51,8 +52,20 @@ export type DistillyWireError =
         readonly candidates: AmbiguousSubjectCandidates;
       };
     })
+  | {
+      readonly code: "internal_error";
+      readonly message: string;
+      readonly retryable: false;
+      readonly fieldPath?: never;
+      readonly remediation?: never;
+      readonly details?: never;
+      readonly subjectResolution?: never;
+    }
   | (DistillyWireErrorBase & {
-      readonly code: Exclude<DistillyErrorCode, "already_exists" | "ambiguous_subject">;
+      readonly code: Exclude<
+        DistillyErrorCode,
+        "already_exists" | "ambiguous_subject" | "internal_error"
+      >;
       readonly subjectResolution?: never;
     });
 

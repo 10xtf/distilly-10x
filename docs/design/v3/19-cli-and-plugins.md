@@ -16,10 +16,11 @@ distilly panel [--port <n>]
 distilly create --name <name> [--space <space>]
 distilly ingest <subject> <path...> [--enqueue auto|now]
 distilly pending [--subject <id>]
-distilly pending --brief <job>
-distilly commit <job> --draft <file> --lease <lease>
+distilly distill <job> --draft <file>
 distilly get <subject> [--format profile|prompt|status]
 distilly correct <subject> --text <text> [--facet <facet>]
+distilly archive <subject>
+distilly purge <subject> --confirm <exact-display-name>
 
 distilly review [--version <id>]
 distilly promote <version>
@@ -31,13 +32,19 @@ distilly export <subject> --host <host> --dest <path>
 distilly migrate --from <legacy-skill-dir>
 ~~~
 
-CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。
+CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
 
-distilly pending --brief 把完整 lease snapshot 写到仅当前用户可读的临时 draft envelope；distilly commit --draft 读取其中的 generation、briefContractDigest、materialSetHash 与 baseVersionId，并与 --lease / 当前 job 重新匹配后构造 CommitInput。CLI 不因 flags 较少而跳过 MCP 路径拥有的 stale 校验；用户手写的裸 DistillPatch 文件若没有对应 envelope 会被拒绝。
+setup/doctor/upgrade/uninstall 是安装 composition 命令；mcp 创建 kind=host 且由 binding capacity 绑定的 client；panel 与其余数据命令各创建一个 kind=user client。每次 connect 都由 engine 生成新的 LeaseOwnerId，flag、环境变量和模型输入都没有 owner override。direct CLI user client 固定使用下述 sdk_explicit capacity；每个 mutation 顶层动作生成一个新的 RequestId，并只在该动作的 transport retry 内复用，绝不把一个 RequestId 跨 method 复用。`purge --confirm` 必须逐字等于 resolve 后 SubjectRecord 的 exact displayName，再作为 PurgeSubjectInput.confirmation 传入；ambiguous selector 在显示候选后退出，不能自行选中。`uninstall --host` 只移除 host plugin/bootstrap，不等于 Person.uninstall 的某个 profile projection；首版 CLI 不为后者另设隐含重载。
+
+`distilly distill` 是一个前台、单进程、单 EngineClient session 的 brief→编辑→commit 命令。它取得 lease 后以 create-exclusive 创建仅当前用户可读的 draft envelope（POSIX mode 0600；Windows 用 current-user-only ACL），保持同一 client 与 engine-owned LeaseOwnerId 存活，把文件路径和明确的“编辑完成后确认/取消”提示交给用户，并在确认前按该 session 的 lease 做 renew。确认后它重新读取同一文件，验证 snapshot 未改、解析 DistillPatch，再用内存中的同一 lease owner 和一次生成后复用的 commit RequestId 调 distill.commit。成功后删除 envelope；用户取消、schema 失败或正常 shutdown 时先 best-effort release 再删除；process crash 只依靠 expiresAt，不伪造 release。它不启动后台 daemon，也不允许编辑器进程脱离后让 distilly 命令退出。
+
+CLI-owned draft envelope schemaVersion=1，包含 `briefing`（HostDistillBriefing 去掉唯一字段 `lease.owner`）、一个初始空 `patch` 槽和 content-free `snapshotDigest`；digest 覆盖去 owner 后的完整 briefing，所以 jobId、generation、leaseId、briefContractDigest、materialSetHash、baseVersionId、材料、短 evidence refs、prompt、限制和 expiry 任一改动都被拒绝。LeaseOwnerId 只留在当前 EngineClient session 内，绝不写入 envelope、flag、环境变量或重连 token。用户手写的裸 DistillPatch、已有文件、非 regular file、symlink、owner/mode 不安全的 envelope 与 snapshotDigest 不匹配都在 commit 前拒绝。CLI direct session 的 BriefCapacity 固定为 source=`sdk_explicit`，maximumInputTokens=4,194,304、maximumToolResultBytes=4,194,304；这只是本地文件上限，不声称外部模型拥有同样 context。
+
+禁止把 brief 与 commit 拆成两个短进程后把 `--lease` 当作恢复权限：每次 connect 都必须生成新 LeaseOwnerId，第二个进程即使知道 LeaseId 也只能得到 lease_conflict。以后若要非交互分离流程，必须设计 engine-issued、可撤销的 delegation capability；不得把 owner 放进文件来绕过 §7.4。
 
 ### 19.2 Setup 不能依赖 PATH 运气
 
-npx distilly@VERSION setup 是 bootstrap 入口。setup：
+npx distilly@VERSION setup 是 bootstrap 入口，但只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。setup：
 
 1. 检查 Node、平台、目标宿主与写权限；
 2. 把精确版本 runtime 安装到 ~/.distilly/runtime/<version>/；
@@ -76,7 +83,9 @@ export interface McpServer {
 export declare function createMcpServer(options: McpServerOptions): McpServer;
 ~~~
 
-McpServerOptions 故意没有 capture client/token：普通 handler 不能提权。受支持 binding 在同一 host session 旁路注册 §17.2 的 user-gesture private capture action；action 由 runtime coordinator 持有 engine core capture session，完成后只把 PrivateUiCaptureActionResult 送回当前 task。它不改变 MCP initialize、tools/list 或五个 handler，普通 distilly_ingest 也不会根据模型字段“升级”为 capture session。
+McpServerOptions.client 在进入 mcp 包前已经由外层 composition 绑定 host actor、engine-owned LeaseOwnerId 与 BriefCapacity；MCP handler 不接收或推测这些值。McpServerOptions 故意没有 capture client/token：普通 handler 不能提权。受支持 binding 在同一 host session 旁路注册 §17.2 的 user-gesture private capture action；action 由 runtime coordinator 持有 engine core capture session，完成后只把 PrivateUiCaptureActionResult 送回当前 task。它不改变 MCP initialize、tools/list 或五个 handler，普通 distilly_ingest 也不会根据模型字段“升级”为 capture session。
+
+McpServer 借用而不拥有 options.client 与 reviewPresenter。close 幂等，只拒绝新 call、在同一 5,000 ms grace period 内等待已进入的 handler、取消 server 自己建立的订阅并关闭 MCP SDK server；外层 transport adapter 拥有其 transport，server close 只要求 SDK 的 transitive transport close 可重复。它不调用 EngineClient.close、PanelLauncher.close 或 LocalRuntime.close。production composition 的 teardown 顺序是 stop accepting → transport/McpServer.close → ReviewPresenter.close（若具体 presenter 拥有该方法）→ EngineClient.close → LocalRuntime.close。
 
 @distilly/mcp 根只定义 transport-neutral server；Node stdio 只从 @distilly/mcp/stdio 导出：
 
@@ -84,7 +93,17 @@ McpServerOptions 故意没有 capture client/token：普通 handler 不能提权
 export declare function runStdio(server: McpServer): Promise<void>;
 ~~~
 
-handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；SDK facade 自己生成 requestId 时，在同一次网络重试中复用。commit handler 还必须把 CommitToolInput.briefContractDigest 原样放进 CommitInput，不能丢弃或以 server 当前默认合同替代。commit 得到 suspended CommitResult 后调用 reviewPresenter；correct 的 engine result 按 actor 合同必为 suspended。presenter 对两者都只把 ReviewRef 变成 ReviewLaunch 并放进 ToolValue，不设置 reason、不改变 current / suspended。没有 presenter 的 development server 不得声称完成首发插件闭环。
+runStdio 为传入 server 创建并拥有唯一 stdio transport，不创建 client/runtime。stdin EOF、transport close、SIGINT/SIGTERM 的 graceful path 与显式 close 都汇合到同一个 idempotent teardown；transport onerror 必须立即触发同一有界 teardown，不能只记录后继续等待 stdin EOF。runStdio 的 finally 总是先幂等关闭 transport、再调用 McpServer.close；它不关闭 process-owned stdin/stdout，也不替 composition 关闭 injected EngineClient、reviewPresenter 或 runtime。正常 close 完成后 runStdio resolve；启动、协议或 transport error reject，但也先完成同一 bounded teardown。grace period 固定 5,000 ms，从 stop-accepting 时开始；到期后不再等待 in-flight handler，完成 transport/server 自有资源关闭并让 runStdio settle。原始 startup/protocol/transport error 优先于 teardown error；无原始 error 时，close error 或 timeout 使 runStdio reject。该常量由 mcp stdio 实现拥有并用 fake clock 固定测试，不能由模型输入控制。
+
+MCP initialize 的 serverInfo.name 固定为 `distilly`，serverInfo.version 来自 `@distilly/mcp` 构建时写入并由 package.json 与发布 manifest 同源的精确 semver；不从 cwd、全局 CLI、latest tag、clientInfo 或 wire major 猜版本。tools/list 逐对象使用 protocol 的 distillyMcpTools，不复制 title/schema/annotations。
+
+handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；SDK facade 自己生成 requestId 时，在同一次网络重试中复用。commit handler 还必须把 CommitToolInput.briefContractDigest 原样放进 CommitInput，不能丢弃或以 server 当前默认合同替代。commit 得到 suspended CommitResult 后调用 reviewPresenter；correct 的 engine result 按 actor 合同必为 suspended。presenter 对两者都只把 ReviewRef 变成 ReviewLaunch 并放进 ToolValue，不设置 reason、不改变 current / suspended。presenter 返回的 launch.ref 必须逐字段 exact 等于传入 ReviewRef，ReviewLaunch URL route 也必须编码同一 ref；任一 mismatch 按 internal_error fail closed，不能把另一个 candidate URL 放进成功结果。没有 presenter 的 development server 不得声称完成首发插件闭环。
+
+每个 tools/call 使用同一封闭流水线：先用 descriptor.input 解析 unknown arguments；再把 action 映射到 §8.7 的 EngineMethodMap；将 expected domain error、输入错误、presenter/adapter failure与真正 unexpected exception 分别归一为最窄 DistillyWireError（unknown 仅用脱敏 internal_error）；构造 WireSuccess 或 WireFailure 后，最后用该 descriptor.output 解析整个 ToolOutput。若成功候选没有通过 output parser，丢弃它并改成脱敏 internal_error WireFailure，再对该 failure 做最后一次 output parse；不能把 Zod/MCP SDK exception、stack 或第三种 JSON 泄漏给模型。MCP 自己生成的 internal_error 精确为 `{ code: "internal_error", message: "The Distilly MCP adapter encountered an unexpected internal error.", retryable: false }`，没有其它字段；presenter ref/route mismatch、correct 意外返回 current、unclassified exception 和 invalid success output 都走这一形状。可校验的 DistillyError 保留原最窄 wire error；invalid arguments 则生成 retryable=false 的 invalid_input，而不是 internal_error。
+
+解析后的 ToolOutput 是唯一结果值。MCP CallToolResult 精确使用 `structuredContent: parsedOutput` 与 `content: [{ type: "text", text: JSON.stringify(parsedOutput) }]`；content text 解码后必须与 structuredContent 深相等。domain、invalid_input、presenter failure 与 unexpected 都作为正常的这份 structured WireFailure 返回，不依赖 MCP SDK generic `isError` / JSON-RPC error 承载产品错误。只有 transport 在连一份合法 WireFailure 都无法序列化时才允许协议级失败。
+
+§29 Step 8 的真实 stdio smoke 由 test-only child entry 注入一个覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，经 initialize → tools/list → 每个 tools/call → EOF/close 走真实字节 transport。它证明 descriptor、handler、envelope 与 stdio 生命周期，不接触 DISTILLY_ROOT、不构造 LocalRuntime、也不是可操作的 `distilly mcp` 用户入口；production stdio 只能在完整 composition slice 落地。
 
 ~~~text
 plugins/

@@ -334,6 +334,20 @@ def _is_governed(path: str) -> bool:
     )
 
 
+def _is_note_lifecycle_rename(change: Change) -> bool:
+    if change.status != "R" or change.old_path is None:
+        return False
+    if not _is_note(change.old_path) or not _is_note(change.path):
+        return False
+    old_parts = Path(change.old_path).parts
+    new_parts = Path(change.path).parts
+    return (
+        (old_parts[2], new_parts[2])
+        in {("proposed", "implemented"), ("proposed", "rejected")}
+        and old_parts[3:] == new_parts[3:]
+    )
+
+
 def verify_diff(changes: Sequence[Change]) -> List[str]:
     governed = sorted(
         {
@@ -345,13 +359,17 @@ def verify_diff(changes: Sequence[Change]) -> List[str]:
     )
     if not governed:
         return []
-    note_changed = any(
-        change.status != "D" and _is_note(change.path) for change in changes
+    feature_note_owned = any(
+        (change.status == "A" and _is_note(change.path))
+        or _is_note_lifecycle_rename(change)
+        for change in changes
     )
-    if note_changed:
+    if feature_note_owned:
         return []
     return [
-        "governed diff requires an added, modified, or renamed Agent Note; "
+        "governed feature diff requires an added dedicated Agent Note or a "
+        "proposed-to-implemented/rejected lifecycle rename of the same Note; "
+        "modifying an existing Note is not sufficient; "
         "changed: " + ", ".join(governed)
     ]
 

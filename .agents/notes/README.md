@@ -20,13 +20,15 @@ There is no `INDEX.md`. Browse the folders.
 
 ## When to write one
 
-Every governed change adds or updates at least one note in the same PR. The diff gate deliberately uses paths instead of guessing prose semantics. Governed paths are `packages/`, `src/`, `tools/`, `scripts/`, `prompts/`, `plugins/`, `.githooks/`, `.agents/skills/`, `.github/`, `docs/cookbook/`, `docs/design/`, `docs/process/`, the live architecture/development/testing docs, every local `AGENTS.md`/`CLAUDE.md`, and root instruction, skill, dependency, package-manager, TypeScript, ESLint, Vitest, Knip, and Prettier configuration files.
+Every reviewable feature, bug fix, simplification, testing change, or governance change gets one concise dedicated Note in the same feature commit. “One home” means that the slice has an explicit owner; it does not mean appending unrelated decisions to a long-running aggregate Note. Aggregate Notes retain overall direction and status and link to feature Notes instead of repeating their rationale.
+
+For a governed feature range, the diff gate requires either a newly added dedicated Note or the lifecycle rename of the proposal that already belongs to that feature. Merely modifying an existing Note does not satisfy ownership. The gate deliberately uses paths instead of pretending it can infer feature semantics; the feature-commit rule and semantic review still reject a range that combines independent slices behind one Note. Governed paths are `packages/`, `src/`, `tools/`, `scripts/`, `prompts/`, `plugins/`, `.githooks/`, `.agents/skills/`, `.github/`, `docs/cookbook/`, `docs/design/`, `docs/process/`, the live architecture/development/testing docs, every local `AGENTS.md`/`CLAUDE.md`, and root instruction, skill, dependency, package-manager, TypeScript, ESLint, Vitest, Knip, and Prettier configuration files.
 
 Tests-only changes — including co-located `*.test.ts` / `*.spec.ts` files and their `__snapshots__/` output — translations, assets, and local-only work do not trigger the diff gate. A semantic reviewer still requires a Note if an exempt path changes behavior, architecture, a shared contract, process, testing strategy, or an on-disk / wire / config format.
 
-Update the note that already owns the decision. A new decision gets a new note and a cross-link. Do not rewrite an implemented note into the opposite conclusion.
+While a feature is still being assembled, update its dedicated Note. A later independently reviewable change gets a new Note and cross-links any earlier owner it supersedes or extends. Do not rewrite an implemented Note into the opposite conclusion.
 
-Search the tree for supersession before adding a note.
+Search the tree for supersession before adding a Note, but do not use that search as a reason to turn an aggregate Note into a development log. Agent Notes record feature boundary, decisions and reasons, rejected alternatives, risks and invariants, verification, and unverified scope. They do not copy the canonical specification or narrate task progress.
 
 ## File format
 

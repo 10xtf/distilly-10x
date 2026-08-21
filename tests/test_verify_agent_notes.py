@@ -209,7 +209,7 @@ The choice may change.
         )
         self.assertTrue(any("requires" in error for error in errors), errors)
 
-    def test_governed_diff_accepts_changed_note(self) -> None:
+    def test_governed_diff_rejects_modified_only_note(self) -> None:
         errors = verify_diff(
             [
                 Change("M", "scripts/example.py"),
@@ -219,7 +219,50 @@ The choice may change.
                 ),
             ]
         )
+        self.assertTrue(
+            any("modifying an existing Note is not sufficient" in e for e in errors),
+            errors,
+        )
+
+    def test_governed_diff_accepts_added_dedicated_note(self) -> None:
+        errors = verify_diff(
+            [
+                Change("M", "scripts/example.py"),
+                Change(
+                    "A",
+                    ".agents/notes/implemented/process/2026-08-19-example.md",
+                ),
+            ]
+        )
         self.assertEqual(errors, [])
+
+    def test_governed_diff_accepts_note_lifecycle_rename(self) -> None:
+        for lifecycle in ("implemented", "rejected"):
+            with self.subTest(lifecycle=lifecycle):
+                errors = verify_diff(
+                    [
+                        Change("M", "scripts/example.py"),
+                        Change(
+                            "R",
+                            f".agents/notes/{lifecycle}/process/2026-08-19-example.md",
+                            ".agents/notes/proposed/process/2026-08-19-example.md",
+                        ),
+                    ]
+                )
+                self.assertEqual(errors, [])
+
+    def test_governed_diff_rejects_note_rename_without_lifecycle_change(self) -> None:
+        errors = verify_diff(
+            [
+                Change("M", "scripts/example.py"),
+                Change(
+                    "R",
+                    ".agents/notes/implemented/process/2026-08-19-renamed.md",
+                    ".agents/notes/implemented/process/2026-08-19-example.md",
+                ),
+            ]
+        )
+        self.assertTrue(any("lifecycle rename" in e for e in errors), errors)
 
     def test_typescript_workspace_and_root_configs_require_note(self) -> None:
         governed_paths = (
@@ -249,7 +292,7 @@ The choice may change.
                 self.assertEqual(len(errors), 1, errors)
                 self.assertIn(path, errors[0])
 
-    def test_typescript_workspace_and_root_configs_accept_changed_note(self) -> None:
+    def test_typescript_workspace_and_root_configs_accept_added_note(self) -> None:
         changes = [
             Change("M", "packages/protocol/src/index.ts"),
             Change("M", "plugins/codex/.codex-plugin/plugin.json"),
@@ -262,7 +305,7 @@ The choice may change.
             Change("M", "knip.config.ts"),
             Change("M", "prettier.config.cjs"),
             Change(
-                "M",
+                "A",
                 ".agents/notes/implemented/process/2026-08-19-example.md",
             ),
         ]

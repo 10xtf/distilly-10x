@@ -26,7 +26,7 @@ Match the check to the change. Do not default to the full suite.
 |---|---|
 | Markdown or generated design chapters | `python3 -B scripts/verify_docs.py` |
 | Agent Notes | `python3 -B scripts/verify_agent_notes.py` |
-| Governed feature / PR diff | `python3 -B scripts/verify_agent_notes.py --base <resolved-base-sha> --head <exact-head-sha> --range-mode merge-base` |
+| Governed feature / PR diff | `python3 -B scripts/verify_agent_notes.py --base <resolved-base-sha> --head <exact-head-sha> --range-mode merge-base` (requires a newly added or lifecycle-renamed feature Note) |
 | Python tools or governance scripts | `python3 -m compileall -q tools scripts tests`, `ruff check tools scripts tests`, and the owning `tests/test_*.py` |
 | Behavior of a collector or writer | the unittest that would fail if that behavior regressed |
 | TypeScript formatting or lint | `pnpm run gates:fast` |
@@ -50,10 +50,10 @@ Before push, follow [.agents/skills/distilly-pre-push-checks/SKILL.md](../.agent
 
 ## Feature commit boundary
 
-1. Name one reviewable feature or bug fix and its acceptance checks before coding. If it cannot fit one independently understandable commit, split the feature boundary now rather than later by file.
-2. Finish that feature's implementation, tests, generated artifacts, current-state documentation, and required Agent Note changes. Subagents leave their contributions in the shared worktree for the coordinating/root agent; they do not create partial commits.
+1. Name one reviewable feature or bug fix and its acceptance checks before coding. Give it one concise dedicated Agent Note; aggregate Notes may link to that owner but do not absorb its detailed decisions. If the slice cannot fit one independently understandable commit, split the feature boundary now rather than later by file.
+2. Finish that feature's implementation, tests, generated artifacts, current-state documentation, and dedicated Agent Note. Subagents leave their contributions in the shared worktree for the coordinating/root agent; they do not create partial commits.
 3. Collect and integrate every contribution for the feature, including problems found before the next independent feature begins.
-4. Run the checks that can fail for the complete feature.
+4. Run the checks that can fail for the complete feature, then move its Note to `implemented` when the feature is complete.
 5. Stage only that feature, review `git diff --cached --stat`, `git diff --cached`, and `git diff --cached --check`, then create one local feature commit. Do not create checkpoint, WIP, fixup, or contribution-by-contribution history.
 6. Begin another independent feature only after the previous feature commit exists. Local commits need no additional permission; push, PR, and publication remain opt-in.
 
@@ -75,10 +75,10 @@ The governed-diff Note gate covers product and governance paths listed in [.agen
 
 ## Docs-first
 
-1. Search `.agents/notes/` for an owner. Update it instead of writing a second note.
-2. Unbuilt product work starts in `proposed/`.
-3. A shipped decision moves to `implemented/` in the same PR as the code, present tense.
-4. Standing docs state what is true now. History stays in the note or the PR.
+1. Search `.agents/notes/` for decisions the feature extends or supersedes, then give the new reviewable feature its own Note and cross-link the earlier owner when useful.
+2. Unbuilt or incomplete work starts in `proposed/`; do not append its implementation details to an aggregate Note.
+3. After the feature and its gates are complete, move its Note to `implemented/` in the same feature commit and use present tense.
+4. Standing docs state what is true now. Rationale stays in the dedicated Note; task progress stays out of Notes.
 
 ## Agent Handoff
 

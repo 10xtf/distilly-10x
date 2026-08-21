@@ -1,6 +1,6 @@
 > 本章由 [system-v3.md](../system-v3.md) 生成，属于当前生效的目标合同；当前已发布行为以 [architecture.md](../../architecture.md) 为准。请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。
 
-## 28. Python、V2、磁盘与协议迁移
+## 28. Python、legacy import、存储与协议演进
 
 ### 28.1 当前 Python 遗产
 
@@ -60,29 +60,31 @@ export declare class LegacySkillMigrator implements LegacyMigrator {
 }
 ~~~
 
-迁移两阶段：
+import 两阶段：
 
-1. plan：读取真实 fixture，列主体、来源、目标 facets、未知字段与将写文件；
-2. apply：用户确认后走 SubjectService / IngestService / CommitService，不私写目标格式。
+1. plan：读取真实 fixture，列主体、来源、目标 facets、未知字段以及将创建的 blob 与 product records；
+2. apply：用户确认后把整份 plan 作为一个顶层 mutation / RequestId；先 put 需要的 blobs，再用一个 SQLite transaction 原子创建该 plan 的全部 subjects、versions、operations 与 events。任一 subject 失败则整份 apply 不可见，不做隐含部分成功，也不直接写 projection。
 
 只支持 fixture 覆盖的 schema；没有 schema 或未知版本按明确 migration profile 处理或拒绝，不猜。work.md 职责进入 vocation domain，persona voice / texture / psyche 拆成有“legacy import”证据的 claims；无法恢复逐句来源时 strength 标 imported_unverified 并 suspended。
 
-### 28.3 V2 设计不是磁盘迁移输入
+### 28.3 未发布的 V2/V3 存储不是兼容目标
 
-V2 TypeScript 产品和 ~/.distilly V2 格式从未发布，因此 V3 不背一个虚构的 V2 runtime compatibility layer。若工作区实验代码产生本地 fixture，只有在测试明确纳入后才增加 migrator。
+V2 TypeScript 产品、文件事实版 V3 与 `~/.distilly/` 产品格式都从未发布；没有真实用户事实、公开版本或 remote ref 依赖它们。因此首个 SQLite storage schema 从 v1 开始，不为工作区实验代码建迁移器、dual-write 或兼容读取器。旧代码只作为删除与语义对照，不作为磁盘输入。
 
-V2 文档保留用于理解哪些替代曾经成立，不再作为实现要求。
+V1/V2 文档和旧 V3 commit 保留用于理解哪些替代曾经成立，不再作为实现要求。唯一真实 legacy 输入是已发布 dot-skill 的 `work.md` / `persona.md` / `SKILL.md`；它通过 §28.2 的用户确认 import，而不是 storage migration。
 
-### 28.4 四种独立版本
+### 28.4 独立版本维度
 
 | 版本 | 控制什么 | 兼容策略 |
 |---|---|---|
 | wireVersion | MCP / RPC 字段与判别语义 | major 不兼容直接拒绝 |
-| schemaVersion | 每类磁盘事实 | 显式 migrator，未知拒绝 |
+| storageSchemaVersion | SQLite schema 与约束 | 发布后才需要显式、备份后的 migration；未知拒绝 |
+| blobLayoutVersion | digest preimage 与 content-addressed layout | immutable；新增版本不原地改旧 blob |
+| projectionVersion | Library/search/graph/profile export shape | 可丢弃并从 authority 重建 |
 | promptVersion | host distill instructions | 历史记录；变更 snapshot |
 | bundleSchemaVersion | import / export / Catalog | 验签前先校验；独立升级 |
 
-engineVersion、pluginVersion 是发布版本，不能替代上面四个兼容维度。
+engineVersion、pluginVersion 是发布版本，不能替代这些兼容维度。
 
 ### 28.5 Additive 与 breaking
 
@@ -101,7 +103,7 @@ wire major 3 内允许：
 - 改 EvidenceRef 引用对象；
 - 允许调用方传 actor / id 等 engine-owned 字段。
 
-Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就地升级。升级前保留备份与恢复说明。
+产品发布后的 storage migration 只前向、显式、可 dry-run：先创建完整 backup，再在 SQLite transaction 中迁移 metadata，或在 sibling root 构造并全量验证后切换；不逐文件原地猜测升级。projection version 变化不迁移 authority，只重建。首发前的内部 schema 直接随实现替换，不积累假兼容层。
 
 ### 28.6 Python 退役条件
 

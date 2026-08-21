@@ -29,7 +29,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 
 ### 2.5 用户纠正
 
-用户说“这条不对，他从来不用这个称呼”。插件调用 distilly_correct。引擎保存带 relayed provenance 的 correction 材料，生成 user_asserted claim 或 supersede 操作并产出 suspended 版本；Panel / CLI 的直接用户动作可在同一审核里确认或修正。这样模型不能仅靠误调用工具把自己的猜测记成 actor=user。
+用户说“这条不对，他从来不用这个称呼”。插件调用 distilly_correct。引擎保存带 relayed provenance 的 correction 材料，生成一条 user_asserted replacement claim，并把显式 targets 指向该 replacement 后产出 suspended 版本；Panel / CLI 的直接用户动作可在同一审核里确认或修正。这样模型不能仅靠误调用工具把自己的猜测记成 actor=user。
 
 ### 2.6 审核挂起版本
 

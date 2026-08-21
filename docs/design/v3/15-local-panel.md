@@ -40,7 +40,7 @@ Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生�
 - adapter / parser / optional executor preflight；
 - telemetry 明确 off / on，不显示虚假使用量。
 
-这是完整产品的页面信息架构，不授权 Step 10 伪造尚未落地的 handler。Step 10 UI 只启用注入 client 已真实实现并经双向 schema 验证的 read methods，以及 promote/reject/rollback；correct、install、archive 与 production doctor 可以显示 disabled 的未来说明或只读文案，但不能返回假成功、写 fixture facts 或调用占位 handler。测试注入的 full EngineClient 若真实实现 system.doctor，可渲染其 DoctorSnapshot；production system.doctor handler 与 capability/full binding 结论仍属于 Step 12。Step 10 不创建 LocalRuntime、不提供 CLI executable 或用户可运行的 `distilly panel` command。
+这是完整产品的页面信息架构，不授权 injected Panel slice 伪造尚未落地的 handler。当前 UI 只启用注入 client 已真实实现并经双向 schema 验证的 read methods，以及 promote/reject/rollback；correct、install、archive 与 production doctor 可以显示 disabled 的未来说明或只读文案，但不能返回假成功、写 fixture authority 或调用占位 handler。测试注入的 full EngineClient 若真实实现 system.doctor，可渲染其 DoctorSnapshot；production system.doctor handler 与 full binding 结论属于 production runtime feature。injected Panel 不创建 runtime、不提供 CLI executable 或用户可运行的 `distilly panel` command。
 
 Discover 不出现在首版导航。Profile Catalog 没达到 §24 进入条件前，空 tab 只会制造“是不是要登录”的误解。
 
@@ -142,6 +142,7 @@ export interface DoctorSnapshot {
     readonly writable: boolean;
     readonly schemaSupported: boolean;
     readonly projectionsDirty: boolean;
+    readonly pendingBlobGcCount: number;
   };
   readonly panel: {
     readonly loopbackOnly: boolean;
@@ -151,13 +152,15 @@ export interface DoctorSnapshot {
 }
 ~~~
 
-LibraryEntry、ReviewItem、ReviewPage、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。每个 LibraryEntry 从同一次 verified SubjectRecord/SubjectStateRecord 与其引用的 immutable versions 聚合：privacy 对 authoritative current-generation materialManifest 计算，空集合为 none、全 private 为 private、全 shareable 为 shareable、混合为 mixed；currentQuality / suspendedQuality 当且仅当相应 pointer 存在；pendingJobs 与 suspendedVersions 分别是相应 state marker/pointer 的 0 或 1；newMaterialCount=`state.pending?.addedMaterialCount ?? 0`，显式 redistill 因而可为 0。searchTerms 是 exact-dedupe 后按 UTF-8 bytes 升序的有界 label tuple：SubjectRecord.domainPack（若存在）、current Profile.domains 的每个 root、subject lifecycle、privacy、current maturity（若存在），以及 pendingJobs=1 时的 literal `pending`、suspendedVersions=1 时的 literal `suspended`；最多 `WIRE_LIMITS.openRecordEntries + 6` 项。lastChangedAt 是该 subject 已验证 EventRecord 的最大 event.at，subject.created 是非空基线；它不是文件 mtime、projection 更新时间或 Panel 当前时间。
+`PurgeResult` 的 runtime schema 是 strict 判别联合：`complete` 分支禁止 `pendingBlobCount`，`pending` 分支要求 `pendingBlobCount` 为 safe positive integer。`DoctorSnapshot.storage.pendingBlobGcCount` 是读取时的 live、safe non-negative integer；它可以在原 mutation 的稳定 `PurgeResult` 仍为 `pending` 时降为 0，因为 RequestId replay 不改写历史结果快照。
+
+LibraryEntry、ReviewItem、ReviewPage、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。每个 LibraryEntry 从同一个 SQLite read snapshot 的 subject、state、version、material membership 与 event rows 聚合：privacy 对 current generation 的 authoritative material membership 计算，空集合为 none、全 private 为 private、全 shareable 为 shareable、混合为 mixed；currentQuality / suspendedQuality 当且仅当相应 pointer 存在；pendingJobs 与 suspendedVersions 分别是相应 row/pointer 的 0 或 1；newMaterialCount 是 pending job 的 addedMaterialCount，显式 redistill 因而可为 0。searchTerms 是 exact-dedupe 后按 UTF-8 bytes 升序的有界 label tuple：subject domainPack（若存在）、current Profile.domains 的每个 root、subject lifecycle、privacy、current maturity（若存在），以及 pendingJobs=1 时的 literal `pending`、suspendedVersions=1 时的 literal `suspended`；最多 `WIRE_LIMITS.openRecordEntries + 6` 项。lastChangedAt 是该 subject event rows 的最大 event.at，subject.created 是非空基线；它不是文件 mtime、projection 更新时间或 Panel 当前时间。
 
 ProfileDiff 的 added/removed 是 before/after ClaimId 集差，changed 是同一 ClaimId 但 canonical Claim bytes 不同的 `{before, after}`，三组分别按相关 ClaimId canonical UTF-8 bytes 升序；changedFacets 是三组所涉及 facet 的去重 canonical 升序。普通 versions.diff 的 beforeQuality/afterQuality 都存在。subject 的首个 suspended version 没有 current baseline 时，ReviewItem.current 与 diff.beforeQuality 都缺失，不伪造零质量；diff.added 是全部 candidate claims，removed/changed 为空，changedFacets 是 candidate facets。ReviewItem 的 reasons 必须逐字段等于 candidate version 的 reviewReasons。
 
-MaterialQuery / GetMaterialInput 未给 atVersionId 时按当前 generation 派生分组；给定 atVersionId 时，引擎从该 version 的 materials.json manifest 取得精确集合，并按 VersionRecord.quality.sourceGroupingVersion 重建当时的 group。不存在于该 manifest 的 MaterialId 返回 not_found，binary 已不支持该历史 grouping version 时返回 schema_unsupported。Panel 只展示返回的 SourceGroupingContext，不拿当前材料目录或当前算法猜历史结果。
+MaterialQuery / GetMaterialInput 未给 atVersionId 时按当前 generation 派生分组；给定 atVersionId 时，引擎从 authoritative version-material membership rows 取得精确集合，并按该 version 记录的 sourceGroupingVersion 重建当时的 group。不存在于该 membership 的 MaterialId 返回 not_found，binary 已不支持该历史 grouping version 时返回 schema_unsupported。Panel 只展示返回的 SourceGroupingContext，不拿当前材料目录、投影 manifest 或当前算法猜历史结果。
 
-contentScalarCount 按 Unicode scalar value 计数，精确等于 `Array.from(content).length`，与 quote locator 的计量单位一致而不是 UTF-16 code units 或 grapheme clusters。inCurrentGeneration 始终对读取时 verified state.materialManifest 判定；历史 atVersionId 查询也必须和当前 manifest 比较。rawAvailable 当且仅当该 MaterialRecord 的 supported derivation 引用了一份当前存在且验证通过的 raw fact；没有 raw 引用或受支持策略未保留 raw 时为 false，引用存在但 raw 丢失/损坏仍返回 storage_corrupt，不能降级成 false。Step 10 的真实 material read service 只支持 native_text / host_extract，因此两者固定 rawAvailable=false；遇到 raw_extract 必须因尚无 verified RawStore reader 返回 schema_unsupported，不能猜 false/true。raw_extract 正例随 Step 11/12 的 raw ingestion/read slice 落地。MaterialPage items 按 MaterialId canonical UTF-8 bytes 升序。
+contentScalarCount 按 Unicode scalar value 计数，精确等于 `Array.from(content).length`，与 quote locator 的计量单位一致而不是 UTF-16 code units 或 grapheme clusters。inCurrentGeneration 始终对读取时 authoritative material membership 判定；历史 atVersionId 查询也必须和当前 membership 比较。rawAvailable 当且仅当该 MaterialRecord 的 supported derivation 引用了一份当前存在且 digest 验证通过的 raw blob；没有 raw 引用或受支持策略未保留 raw 时为 false，引用存在但 blob 丢失/损坏仍返回 storage_corrupt，不能降级成 false。当前 injected read slice 只支持 native_text / host_extract，因此两者固定 rawAvailable=false；遇到尚未接通的 raw_extract 返回 schema_unsupported，不能猜 false/true。MaterialPage items 按 MaterialId canonical UTF-8 bytes 升序。
 
 suspendedVersions 在 V3 首版只能是 0 或 1。历史上曾 suspended 后被 reject / promote 的版本通过 versions.list 查看，不计入该数。
 
@@ -239,9 +242,9 @@ export declare function startPanelServer(
 ): Promise<PanelHandle>;
 ~~~
 
-`/rpc` 覆盖 exact、完整的 EngineMethodMap，不能只注册当前 UI 用到的子集。query object 严格禁止 requestId/actionNonce；mutation object 必须同时带 requestId/actionNonce。handler 先按 method 对 unknown params 做 `engineMethodSchemas[M].params.parse`，再调用 query 或 mutation overload；mutation 只把 requestId 放入 MutationContext，绝不把 actionNonce 传给 engine 或纳入 OperationRecord/inputChecksum。成功结果在序列化前再经 `engineMethodSchemas[M].result.parse`；成功与 domain/validation failure 最后都解析成 strict `WireSuccess | WireFailure`，wireVersion 固定为 `"3"`，没有第三种 JSON 或未校验 passthrough。
+`/rpc` 覆盖 exact、完整的 EngineMethodMap，不能只注册当前 UI 用到的子集。query object 严格禁止 requestId/actionNonce；mutation object 必须同时带 requestId/actionNonce。handler 先按 method 对 unknown params 做 `engineMethodSchemas[M].params.parse`，再调用 query 或 mutation overload；mutation 只把 requestId 放入 MutationContext，绝不把 actionNonce 传给 engine 或纳入 operations authority row 的 trusted preimage digest。成功结果在序列化前再经 `engineMethodSchemas[M].result.parse`；成功与 domain/validation failure 最后都解析成 strict `WireSuccess | WireFailure`，wireVersion 固定为 `"3"`，没有第三种 JSON 或未校验 passthrough。
 
-Step 10 的 PanelServer 只借用注入的完整 EngineClient，不创建 LocalRuntime、不读取 DISTILLY_ROOT，也不拥有 client。Step 12 production composition 才为本次 Panel 会话创建单独、kind=user 的 client；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭该 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
+PanelServer 只借用注入的完整 EngineClient，不创建 runtime、不读取 DISTILLY_ROOT，也不拥有 client。production composition 为本次 Panel 会话创建单独、kind=user 的 client；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭该 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
 
 `GET /health` 的成功 value 是 exact、closed `{ "status": "ready", "panelVersion": "<@distilly/panel package semver>", "wireVersion": "3" }`；HTTP 200 body bytes 固定为 canonical key ordering 的 `{"panelVersion":"<semver>","status":"ready","wireVersion":"3"}\n`，`Content-Type: application/json; charset=utf-8`。panelVersion 只来自该 package 的 build version source。它不调用 EngineClient，也不包含 root/path/token/nonce、主体、projection 计数或环境字段。
 
@@ -288,7 +291,7 @@ PanelLauncher 的状态机精确为 new → starting → running → closing →
 
 present 的 linearization point 是：start 已成功、handle URL 已验证、launcher 仍为 running，且 exact launch value 已构造完成。close 在该点之后才开始时，present 可返回该 launch；close 已把状态改成 closing 而 present 尚未越过该点时，present 必须失败，不能返回一个正在被关闭的首次 URL。start rejection 永远原样交给其 waiters；若 close 同时等待该 rejection，close 随后正常进入 closed。
 
-close 是 single-flight 且幂等：closing/closed 以后所有新 present 都在调用 start 或复用 handle 前明确失败，不能重启。close 与 starting 竞争时先等待该 start settle；若它成功，PanelHandle.close 恰好调用一次，所有尚未成功返回的 present 失败；若它失败，不调用不存在的 handle。running handle 也只关闭一次。即使 handle.close 报错，所有 close caller 收到同一结果，launcher 仍终止在 closed、不可重启且保留已尝试关闭的 handle reference 只作 ownership 证明。PanelLauncher 只拥有它启动的 PanelHandle，借用 handle 所使用的 client；Step 12 外层 composition 才按 PanelLauncher → user client → LocalRuntime 关闭，直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。Step 10 fixture 不创建或关闭 LocalRuntime。
+close 是 single-flight 且幂等：closing/closed 以后所有新 present 都在调用 start 或复用 handle 前明确失败，不能重启。close 与 starting 竞争时先等待该 start settle；若它成功，PanelHandle.close 恰好调用一次，所有尚未成功返回的 present 失败；若它失败，不调用不存在的 handle。running handle 也只关闭一次。即使 handle.close 报错，所有 close caller 收到同一结果，launcher 仍终止在 closed、不可重启且保留已尝试关闭的 handle reference 只作 ownership 证明。PanelLauncher 只拥有它启动的 PanelHandle，借用 handle 所使用的 client；production composition 按 PanelLauncher → user client 顺序关闭，root service owner 独立决定 Engine shutdown。直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。injected fixture 不创建或关闭 Engine service。
 
 review route 不需要 `reviews.get`。UI 用 route.subjectId 调 `reviews.list({ subjectId, ... })`，必要时逐页读取并只接受 candidate.id 精确等于 route.candidateVersionId 的 ReviewItem；找不到、同 subject 出现不一致 active candidate、或 route/ref mismatch 都作为 stale review 显示并触发全量重读，不选择“最新 candidate”替代。promote/reject 的 mutation CAS 仍是最终权威，route 与 read 之后发生竞争时返回 review_conflict。
 

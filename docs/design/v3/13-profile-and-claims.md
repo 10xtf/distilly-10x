@@ -151,13 +151,23 @@ interface ResolvedPatch {
   readonly operations: readonly ResolvedClaimOperation[];
   readonly reviewRequest?: { readonly note?: string };
 }
+
+interface ResolvedCorrectionReplacement {
+  readonly facet: FacetPath;
+  readonly text: string;
+  readonly evidence: readonly [EvidenceRef];
+  readonly observedIn: readonly [];
+  readonly supersedes: readonly ClaimId[];
+}
 ~~~
 
-DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在 §29 Step 14 以 additive 类型/方法加入，Step 7 不留 feature flag placeholder。ResolvedPatch 不从 protocol 根导出，MCP / SDK 也不能构造。CorrectionService 写入 correction material 后，用 MaterialId + 已验证 quote 构造 ResolvedPatch；host patch 则由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造。两条路径随后进入同一个 apply → quality → transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
+DistillPatch 首版没有 relationOperations，unknown-key schema 会直接拒绝该字段；§22 的关系草案只在后续独立 feature 以 additive 类型/方法加入，不留 feature flag placeholder。ResolvedPatch 与 ResolvedCorrectionReplacement 都不从 protocol 根导出，MCP / SDK 也不能构造。host patch 由 EvidenceResolver 从 §12.3 重建的 EvidenceContext 构造；CorrectionService 则在 correction content blob 已写入、且即将由同一 SQLite transaction 建立引用时构造窄 replacement algebra。两条路径随后进入同一个 claim canonicalization → quality → version transaction core，不伪造 BriefMaterialRef，也不存在 trusted commit 捷径。
+
+ResolvedCorrectionReplacement 的 text/facet 分别逐字段等于 AcceptedCorrection；唯一 EvidenceRef 的 materialId 是 correctionMaterial.id，quote 是完整 normalized text，locator 必须是 Unicode scalar `{ start: 0, end: Array.from(text).length }`，observedIn 固定为空。它按普通 canonical resolved draft 计算一个新的 ClaimId，并且只新增一条 status=active、strength=user_asserted 的 claim。supersedes 逐字段等于 accepted 的 unique UTF-8-sorted tuple；每个 target 必须存在于选定内容基线且尚未 superseded，随后全部变为 status=superseded、supersededBy=同一 replacement id，其他字段保持。replacement id 重复、target missing/already superseded/duplicate、target 包含 replacement 或形成任何 cycle 都是 invalid_input。correction replacement 没有 caller/engine 发明的 reason string，也不能扩成多个 add/revise/contest 操作。
 
 resolved draft 的 canonical form 固定包含 `facet`、`text`、canonical evidence 与 canonical `observedIn`（输入缺失时为 `[]`），并只在输入存在时包含 validFrom/validTo。EvidenceRef 先按完整 canonical JSON exact 去重，再按 UTF-8 tuple `(materialId, locatorKey, quote)` 排序，其中 locatorKey 在缺失时是空串、存在时是 canonical ASCII `${start}:${end}`；observedIn 按 exact string 去重并按 UTF-8 bytes 排序。validFrom 与 validTo 同时存在时必须 `validFrom <= validTo`。同一 DistillPatch 中每个 base active/contested ClaimId 至多被 revise/supersede/contest 一次；重复 target、target 不在 base、target 已 superseded、或由 revise/supersede 形成的 cycle 都 invalid_input。
 
-ClaimId 固定为 `claim_ + SHA-256("claim-v1\0" + canonicalJson({ subjectId, draft: canonicalResolvedDraft }))`。add/revise 产生 status=active 的新 id；revise 同时把旧 claim 变为 superseded 并设置 `supersededBy=<new id>`；supersede 把旧 claim 变为 superseded 且不得有 supersededBy；contest 保留旧 id、createdIn、facet/text/validity，合并旧 evidence 与本操作 resolved evidence后重新 canonicalize，令 status/strength=contested。未触及 claim 原样保留，empty operations 是合法 no-op candidate。terminal commit journal 持久化 exact accepted wire patch、patchDigest 与 canonical review reasons，因此恢复和 idempotent replay不依赖重新解释宿主 draft。
+ClaimId 固定为 `claim_ + SHA-256("claim-v1\0" + canonicalJson({ subjectId, draft: canonicalResolvedDraft }))`。add/revise 产生 status=active 的新 id；revise 同时把旧 claim 变为 superseded 并设置 `supersededBy=<new id>`；supersede 把旧 claim 变为 superseded 且不得有 supersededBy；contest 保留旧 id、createdIn、facet/text/validity，合并旧 evidence 与本操作 resolved evidence后重新 canonicalize，令 status/strength=contested。未触及 claim 原样保留，empty operations 是合法 no-op candidate。operation/version rows 保存 accepted patch digest、canonical review reasons 与 stable result，因此 idempotent replay 不依赖重新解释宿主 draft。
 
 ### 13.4 Engine-owned 纯函数
 
@@ -248,7 +258,7 @@ export declare function renderPrompt(profile: Profile): string;
 export declare function diffProfiles(before: Profile, after: Profile): ProfileDiff;
 ~~~
 
-这些函数不读文件、不调用模型、不持有 clock。MaterialEvidenceIndex 必须从同一个 SourceGroupingSnapshot 构建，summarizeQuality 把 index.sourceGroupingVersion 原样写入结果；缺少版本或 group snapshot / index 版本不等时 hard reject，不能使用进程当前默认值。相同输入必须字节稳定；排序键、换行与标题固定。DraftValidator、MaterialHasher、ProfileRenderer 不做无状态 class。
+这些函数不读存储、不调用模型、不持有 clock。MaterialEvidenceIndex 必须从同一个 SourceGroupingSnapshot 构建，summarizeQuality 把 index.sourceGroupingVersion 原样写入结果；缺少版本或 group snapshot / index 版本不等时 hard reject，不能使用进程当前默认值。相同输入必须字节稳定；排序键、换行与标题固定。DraftValidator、MaterialHasher、ProfileRenderer 不做无状态 class。
 
 首版 renderer version 固定为 literal `profile-renderer-v1`。facet 的第一个 segment 若属于七个 core 就归入该 core，否则归入 domain root；FacetPath grammar 使 domain root 可直接作为 `domains/<root>.md` 的 safe filename。七个 core 的唯一顺序是 identity、voice、psyche、relations、boundaries、texture、timeline，domain root 与每组 ClaimId 都按 UTF-8 bytes 升序。superseded 不渲染；active 与 contested 分开且不可混排。
 
@@ -283,7 +293,7 @@ prompt 固定为下列拼接；subject metadata 是 exact key set `displayName,m
 - Preserve recorded boundaries and explicitly acknowledge contested claims.
 ~~~
 
-prompt.md 尾部也恰好一个 LF。version 目录持久化 profile/profile.md、七个 core、每个非空 domain 的 `domains/<safe-root>.md` 与 prompt.md；Profile.core/domains/rendered 与 `renderPrompt(Profile)` 必须分别逐字节等于这些文件。current version 成功后才以 sibling staging + directory rename 原子重建同一套 current 投影，历史文件永不从 mutable current subject displayName 重渲染。
+prompt.md 尾部也恰好一个 LF。Profile.core/domains/rendered 与 `renderPrompt(Profile)` 是 deterministic version outputs；数据库保存它们的版本化语义或 digest，export/projection 可生成 profile/profile.md、七个 core、排序 domain 与 prompt.md。投影用 source LSN 原子发布完整一代；历史 export 永不从 mutable current subject displayName 重渲染。
 
 ### 13.5 Profile 与单真相
 

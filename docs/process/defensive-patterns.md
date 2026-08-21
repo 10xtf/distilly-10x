@@ -12,18 +12,20 @@ Python-sized bug classes for this repository, drawn from what has actually broke
 ## Adapters and I/O
 
 - `SourceAdapter` constructors do no network and no credential I/O.
-- Adapters do not write the fact layer. Yield `Material`; the engine hashes, dedupes, and records lineage.
+- Adapters do not write SQLite, blobs, or projections. Yield `Material`; the Engine normalizes, hashes, dedupes, and records lineage.
 - `DirectAdapter.collect` is a generator: yield partial success before raising.
 - Parse failure on delegated artifacts is `AdapterUnavailable` and not retryable.
 
 ## Subprocess and teardown
 
-- Own every process, temp directory, and open database you start. Close on success, failure, and timeout.
+- Own every process, temp directory, database connection, and Engine service you start. Close on success, failure, and timeout; closing one client must not stop a root service still borrowed by another client.
 - An empty `except` names what it swallows and why nothing else can reach it. Keep the `try` to one statement.
-- Queue claim uses `WHERE status='pending'` and treats `rowcount==0` as lost to another worker. Finish uses `WHERE status='processing'`.
+- A business mutation uses one short SQLite write transaction and rechecks generation, lease, current/candidate revision, and RequestId inside it. Do not hold that transaction across host research, model work, user editing, or network I/O.
+- Blob bytes are durably put before a database reference. An abort may leave an unreferenced blob; generic GC owns that cleanup instead of the mutation path.
 
 ## Publication
 
-- Do not publish a profile version until `commit` accepts the draft. A host briefing is not a version.
-- Confidence drop writes `vN-awaiting`. It does not move `current`.
-- Graph neighbors use a partial index. Do not scan `relations.jsonl` on the hot path.
+- Do not make a profile version visible until `commit` accepts the draft and its one SQLite transaction commits. A host briefing and an unreferenced blob are not versions.
+- A risky candidate becomes `suspended` in the same transaction without moving `current`.
+- Projection builders consume a consistent authority snapshot, publish a source generation/LSN, and never decide whether a mutation committed. Missing or stale projection output is rebuilt or reported unavailable.
+- Ordinary reads validate only the rows and blobs they return. Exhaustive lineage, evidence, renderer, and reachability checks belong to doctor, restore, and import.

@@ -103,12 +103,12 @@ class SyncDesignChaptersTests(unittest.TestCase):
             path.write_text(content, encoding="utf-8")
         stale = root / "docs/design/v3/05-architecture-and-state.md"
         stale.write_text("stale\n", encoding="utf-8")
-        (root / "docs/design/v3/06-fact-layer-and-recovery.md").unlink()
+        (root / "docs/design/v3/06-storage-authority-and-transactions.md").unlink()
         extra = root / "docs/design/v3/30-extra.md"
         extra.write_text("extra\n", encoding="utf-8")
         errors = verify(root, CORPORA)
         self.assertTrue(any("05-architecture" in error for error in errors), errors)
-        self.assertTrue(any("06-fact-layer" in error for error in errors), errors)
+        self.assertTrue(any("06-storage-authority" in error for error in errors), errors)
         self.assertTrue(any("30-extra" in error for error in errors), errors)
 
     def test_verify_rejects_v3_section_count_mismatch(self) -> None:

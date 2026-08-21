@@ -6,7 +6,7 @@
 
 首发只有宿主 LLM。后台 executor 只有用户明确配置 provider 与 secret reference 后才启动；没有配置时不提示、不轮询、不创建网络请求。
 
-DistillExecutor 只能处理已经进入事实层的 MaterialRecord。它永远不能请求 private UI grant、调用 Computer Use、重开消息 app 或在 background / locked session 采集屏幕；即使宿主平台本身支持这些模式，Distilly 的产品合同也更窄。
+DistillExecutor 只能处理已经由 Engine 提交的 material。它永远不能请求 private UI grant、调用 Computer Use、重开消息 app 或在 background / locked session 采集屏幕；即使宿主平台本身支持这些模式，Distilly 的产品合同也更窄。
 
 ### 21.2 DraftProducer
 
@@ -44,7 +44,7 @@ pending list → brief lease → producer.produce → commit。
 - retryable backoff 上限；
 - prompt / model metadata；
 - 日志脱敏；
-- 与 Panel / MCP 并发的 subject lock 行为。
+- 与 Panel / MCP 并发时由同一 Engine writer 排队和 revision check 的行为。
 
 认证、非法 schema、briefing_too_large 是人工修复；限流和瞬时网络失败可重试。重试不换 generation 或偷偷降模型。
 

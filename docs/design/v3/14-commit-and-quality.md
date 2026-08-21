@@ -4,19 +4,15 @@
 
 ### 14.1 CommitService 顺序
 
-1. 校验 wire schema、canonical patch bytes 与 trusted input checksum；先返回 exact completed/terminal replay，checksum 不同返回 idempotency_conflict。
-2. 从 active queue row 解析 job 的 subject；若成功 commit 已清除 row，则保留的 distill-commit journal 只作为该 job 的 durable subject locator，以便读取 active suspended 并返回 review_conflict，或在没有 suspended 时返回 stale_job。相同 JobId 若在 retained journals 指向多个 subject 是 storage_corrupt；不能把 SQLite 或目录扫描升级为替代事实。随后按 request → subject 取锁，读取 verified subject/state；active suspended 先返回 review_conflict。
-3. 依 §7.6 precedence 校验 job/generation/base/material set、active lease id/session owner/expiry 与 echoed/pinned BriefContract。
-4. 从 verified state/base/material facts 按 pinned algorithms 重建 EvidenceContext，不查询 brief OperationRecord。
-5. 校验每个 operation target 唯一、date range、patch shape 与 evidence ref，读取真实 content 验证 quote 及 `0 <= start < end <= scalarLength` locator。
-6. canonicalize accepted patch/resolved drafts，applyClaimPatch 并派生 ClaimId/strength/quality。
-7. QualityGate 产生 canonical ReviewReason tuple；据其为空/非空决定 current/suspended，构造 version-time displayName、literal renderer Profile 与 prompt。
-8. 构造完整 DistillCommitTransactionRecord；prepared 之前再次验证其 targetState/version/profile/operation/two-event 交叉关系。
-9. 依 §6.4 发布不可变 version 与 target state commit point，幂等物化 operation/events/current projection/queue。
-10. journal terminal、释放锁、按 tuple 顺序 publish 两事件并返回 journal 内 exact CommitResult。
+1. 在 wire 边界校验 schema、canonical patch bytes 与 RequestId preimage；先返回 exact operation replay，preimage 不同返回 idempotency_conflict。
+2. 从 authoritative job/lease rows 解析 subject、generation、base 与 pinned BriefContract；active suspended 先返回 review_conflict。
+3. 在一致 read snapshot 中读取 base version claims/material membership、current subject membership 和引用的 material metadata/blob，重建 EvidenceContext。
+4. 依 §7.6 precedence 校验 job/generation/base/material set、lease id/session owner/expiry 与 echoed contract，再校验 operation targets、date range、evidence membership、quote 与 Unicode-scalar locator。
+5. canonicalize accepted patch/resolved drafts，applyClaimPatch 并派生 ClaimId、strength、quality、ReviewReason、current/suspended disposition、VersionId、Profile 与 prompt bytes。
+6. 打开唯一 SQLite write transaction，重新检查 RequestId、job/lease/generation/current/suspended revision均未变化；插入 immutable version metadata、claim/evidence/version membership与render metadata，更新 pointer/status，删除 pending/lease，并写 operation stable result和固定 events。
+7. commit 后发布 watch invalidation；profile/prompt/Library projections按 transaction LSN 幂等追赶。
 
-前七步任何失败以及第八步的 journal 自校验失败都不能写 journal/version/state/operation/event/projection，pending/lease 原样保留。suspended 是合法成功，不是 error；两种成功都原子删除 pending/lease。
-
+前五步任何失败都不写权威状态；第六步 precondition 变化使 transaction rollback并返回最窄 stale/lease/review error。suspended 是合法成功，不是 error；current 与 suspended 都在一个 transaction 中得到完整 immutable version并原子清除 pending/lease。没有 DistillCommitTransactionRecord、version staging、state.json swap 或 post-commit semantic recovery。
 ### 14.2 Hard reject
 
 以下情况 hard reject：
@@ -31,11 +27,11 @@
 - validFrom 晚于 validTo，patch 产生重复 active ClaimId、supersede 环或无证据 active claim；
 - accepted patch canonical UTF-8 bytes 大于 65,536，或出现首版 schema 没有的 relationOperations；
 - 同 requestId 换了输入；
-- storage checksum 或 schema 损坏。
+- 直接读取的 database row、foreign key 或 blob digest/schema 损坏。
 
 回显 digest 不匹配按 stale_job 处理；digest 匹配但当前 binary 已不能执行 lease 固定的 source-grouping 或 draft schema 时按 schema_unsupported 处理。两种情况都不能尝试用当前默认算法提交。
 
-模型可以根据 fieldPath 修正 invalid_input / evidence_invalid 后用新 requestId 重试；stale_job 必须重新 brief。所有 hard reject 都零写入并保留 pending/lease；不能以“释放锁方便重试”为由改 state。
+模型可以根据 fieldPath 修正 invalid_input / evidence_invalid 后用新 requestId 重试；stale_job 必须重新 brief。所有 hard reject 都使 write transaction 不发生或 rollback，并保留 pending/lease；不能以“方便重试”为由改 authoritative state。
 
 ### 14.3 QualitySummary
 
@@ -92,7 +88,7 @@ candidate 在没有任何 ReviewReason 时自动 current。第一版 QualityGate
 
 host commit 有 base 时，identity_changed 是 before 中 first segment=identity 的 active ClaimId 在 after 不再 active；coverage_decreased 是 before.coveredCoreFacets 减 after；voice_examples_removed 是 before 中 first segment=voice 的 active ClaimId 在 after 不再 active；new_contested_claims 是 after contested ClaimId 减 before contested；source_diversity_decreased 当且仅当 after.diversityEligibleSourceGroupCount < before。suspicious_source 是 after active/contested 新引用、而 before active/contested 未引用且 MaterialRecord.flags 含 suspicious_source 的 MaterialId。manual_review_requested 当且仅当 accepted patch 带 reviewRequest，并保留其 canonical note。首个版本没有 base，跳过上述 identity/coverage/voice/contested/source-diversity delta reasons，但仍计算 suspicious_source 与 manual_review_requested；因此首版并非自动 clean。
 
-correction_conflict 只对 CorrectionService 的显式 supersedes 与现有 claim/evidence 结构冲突触发；imported_profile 只由 BundleImporter 设置；relayed_correction 只由 CorrectionService 根据可信 session actor 设置。它们不是 Step 7 host commit 的推断项，确定性代码不假装理解自由文本的语义冲突。current VersionRecord 不得有 reviewReasons；suspended VersionRecord 必须有与 CommitResult.reasons 逐字段相同的非空 tuple。该 tuple 进入 VersionId preimage，也由 terminal journal原样恢复。
+CorrectionService 对 accepted supersedes 非空固定产生恰好一条 correction_conflict，其 claimIds 是 accepted exact unique UTF-8-sorted targets；空 supersedes 禁止该 reason，不从自由文本猜语义冲突。actor.kind=user 固定 direct_user provenance 且禁止 relayed_correction；其它 actor 固定 matching relayed provenance，并产生恰好一条 `relayed_correction(actorKind=actor.kind)`。correction 的 after 是选定 current/candidate 内容基线应用 §13.3 replacement 后的完整 claims，但所有 identity/coverage/voice/contested/source-diversity/suspicious delta gate 的 before 始终是 transaction-time previous current；没有 previous current 时用上段 first-version 规则，active suspended 不能成为已接受的风险基线。剩余机械 reasons 按同一固定顺序重新计算；不继承 candidate 的旧 reason tuple，也不能由 correction 降低或删除算出的 reason。imported_profile 仍只由 BundleImporter 设置；这些 reasons 不是 host commit 的推断项。current VersionRecord 不得有 reviewReasons；suspended VersionRecord 必须有与 CommitResult.reasons 逐字段相同的非空 tuple。该 tuple 进入 VersionId preimage，并由 operation stable result 精确重放。
 
 出现 reason 时 candidate suspended，旧 current 保持。用户可以 promote 接受风险、reject 保留历史但不使用、correct 后产生新候选。Panel 与 CLI 都调用同一 ReviewService。
 
@@ -124,7 +120,7 @@ export type VersionCreation =
   | { readonly kind: "bundle_import"; readonly bundleDigest: ContentDigest }
   | { readonly kind: "renderer_only"; readonly sourceVersionId: VersionId };
 
-export interface VersionRecord extends FactEnvelope<1> {
+interface VersionRecord {
   readonly id: VersionId;
   readonly subjectId: SubjectId;
   readonly subjectDisplayName: string;
@@ -165,24 +161,16 @@ export interface ReviewLaunch {
   readonly ref: ReviewRef;
   readonly url: string;
 }
-
-export interface VersionMaterialManifest extends FactEnvelope<1> {
-  readonly items: readonly VersionMaterialEntry[];
-}
-
-export interface VersionClaimsSnapshot extends FactEnvelope<1> {
-  readonly subjectId: SubjectId;
-  readonly versionId: VersionId;
-  readonly claims: readonly Claim[];
-}
 ~~~
 
-VersionId 由引擎生成，调用方不可指定。VersionCreation 是互斥来源合同：只有 distill.commit 产生 host_distill 并必须带 lease 固定的 digest / prompt / draft schema；correction、rollback、bundle import 与 renderer-only 记录各自真实来源，不能伪造 sentinel briefing。parentId 始终是创建时的 current / CAS 基线；derivedFromCandidateVersionId 只在 correction 替代 suspended candidate 时存在，说明 claims 的内容派生边，不改变 promote 的 parent 校验。promote 把原 current 变 historical，candidate 变 current；reject 不删除 version。rollback 创建新的 current version / event 指向选定历史内容，不把历史指针静默倒回。
+VersionId 由引擎根据 version-time subject displayName、parent/content lineage、generation、material membership、canonical claims/quality、creation、actor、renderer 与 review reasons 的版本化 preimage 确定；调用方不可指定。VersionCreation 是互斥来源合同：host_distill 固定 lease contract，correction、rollback、bundle import 与 renderer-only 记录各自真实来源，不能伪造 sentinel briefing。
 
-version.json 保存不可变 VersionRecord，只记录创建时的 createdDisposition，不随 promote / reject 改写。subjectDisplayName 是 version-time SubjectRecord.displayName；它必须等于同 version Profile.displayName 并进入 VersionId，历史 Profile/prompt 不读取以后可变的 SubjectRecord。reviewReasons 当且仅当 createdDisposition=suspended 时存在且非空，current 时必须缺失。VersionSummary.status 是读取 state.json 与 review events 后得到的派生状态；current、suspended、historical、rejected 的转移只写 state/event。这样“不可变版本”与“可审核状态”不是两个互相冲突的真相。
+SQLite transaction 一次插入 immutable version row、排序 material membership、canonical claim/evidence membership 与 creation lineage。version row 后续不 update；promote/reject 只改变独立 status/pointer rows并追加 event。parentId 是创建时 current/CAS 基线；derivedFromCandidateVersionId 只在 correction 替代 suspended candidate 时存在。rollback 创建新 immutable descendant，不把 current pointer倒回旧 row。
 
-每个 version 同事务写 VersionMaterialManifest 到 materials.json，items 按 MaterialId canonical UTF-8 bytes 严格升序且不得重复；按 hashMaterialSet 规则重算必须等于 VersionRecord.materialSetHash，items.length 必须等于 materialCount，每项摘要还必须与对应不可变 MaterialRecord 一致。它是历史 material membership 的事实 manifest，不复制正文。Panel 的 atVersionId、历史 source grouping、bundle evidence 与恢复都从该 manifest 取集合，不能试图从不可逆 hash 或当前目录猜历史 generation。
+subjectDisplayName 是 version-time snapshot并进入 VersionId；历史 Profile/prompt 不读取以后可变的 subject displayName。reviewReasons 当且仅当 createdDisposition=suspended 时存在且非空，current 时缺失。material membership 必须按 MaterialId canonical order、无重复，并与 materialSetHash/materialCount一致；claim evidence 只能引用该 membership。
 
-同事务还把**一个**完整 VersionClaimsSnapshot 写到 `versions/<version-id>/claims.json`；不是 jsonl，不允许每 claim 一个 envelope，也不允许“文件存在但尾部被截断”仍被当成部分版本。snapshot.subjectId/versionId 必须分别等于 VersionRecord.subjectId/id，claims 按 ClaimId canonical UTF-8 bytes 严格升序且不得重复。verified version reader 必须一起读取并验证 version.json、materials.json、claims.json、profile/profile.md、七个 core、全部排序 domain、prompt.md、manifest 引用的每个 MaterialRecord 与 content.txt：文件存在、FactEnvelope/path/id、material content digest、manifest 摘要、claim evidence membership、精确 quote/Unicode-scalar locator、rendererVersion、subjectDisplayName/Profile.displayName、rendered/prompt bytes 都成立后才返回。上述必需文件任一缺失、claim 引用 manifest 外 material、正文或 quote/locator 不匹配、重复、乱序或 renderer/prompt mismatch 都返回 storage_corrupt，不返回 partial profile；未知 schemaVersion 或 pinned grouping/renderer implementation 不可用按 schema_unsupported。privacy purge 可按 §20.5 删除受影响历史、manifest 与 snapshot，并留下无内容 tombstone。
+Profile、prompt 和 human-readable version JSON/Markdown 是由 immutable version snapshot和 pinned renderer重建的 export/projection，不是 version commit 的第二套权威文件。普通 version/profile/material read 在一个 SQLite read transaction中读取直接需要的 row与blob并验证对应 digest/foreign keys；不为每次查询重放所有 history/event/render output。doctor、restore 和 bundle import负责完整 lineage、deterministic id、evidence quote与renderer audit。
+
+privacy purge 可以删除受影响的 authoritative rows/references并保留content-free tombstone；零引用 blob由通用GC处理。archive与reject不删除immutable history。
 
 ---

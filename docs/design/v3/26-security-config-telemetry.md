@@ -9,7 +9,7 @@ V3 至少防：
 - 恶意网页 prompt injection；
 - 模型伪造 evidence、actor、hash、version 或路径；
 - 本机恶意网页访问回环 Panel；
-- 多进程并发导致 lost update；
+- 第二个 Engine writer、绕过 Engine 的直接存储写入或 stale client precondition 导致 lost update；
 - symlink / ../ 路径越界；
 - 插件 runtime / manifest 被替换；
 - bundle zip slip、恶意脚本与签名伪造；
@@ -77,7 +77,7 @@ adapters.toml 只保存 adapter 配置与 secret reference。任何以 token、s
 
 每类网络能力有独立 preflight / consent，不能共用“允许联网”总开关。
 
-private UI capture 还必须在第一帧前披露宿主如何处理屏幕内容。Distilly 不把 screenshot 写入自己的事实层，并不代表 screenshot 没有经过宿主服务；不能用“local-first”掩盖这条处理路径。HostBinding 无法提供可展示的数据政策时，captureDataPolicy=unknown，该 lane fail closed。
+private UI capture 还必须在第一帧前披露宿主如何处理屏幕内容。Distilly 不把 screenshot 写入自己的 SQLite authority 或 blob store，并不代表 screenshot 没有经过宿主服务；不能用“local-first”掩盖这条处理路径。HostBinding 无法提供可展示的数据政策时，captureDataPolicy=unknown，该 lane fail closed。
 
 ### 26.6 遥测
 

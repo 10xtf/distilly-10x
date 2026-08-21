@@ -39,8 +39,10 @@
 | **review reason** | 引擎可机械给出的挂起原因，如身份变化、覆盖下降、 correction 冲突或新增 contested claim |
 | **quality summary** | 引擎从证据、来源、覆盖和冲突复算的计数与成熟度；不是模型自评分数 |
 | **correction** | 用户明确提供的高优先级材料；立即形成版本，并参与下一次增量蒸馏 |
-| **事实层 fact layer** | 不可由索引重建的本地材料、不可变版本、主体状态、事件和 correction |
-| **投影 projection** | 可从事实层重建的 current profile 目录、SKILL、宿主身份文件与 .index |
+| **事务权威 transactional authority** | SQLite/WAL 中决定主体、材料引用、claim、版本、指针、作业、事件与 RequestId 结果是否存在的结构化状态 |
+| **内容 blob** | 由完整内容摘要寻址的不可变正文或 raw bytes；SQLite 中的引用决定其产品可见性 |
+| **投影 projection** | 可从事务权威与 blob 重建的 Markdown、prompt、Library、queue/search/graph、SKILL 与宿主文件 |
+| **投影水位 projection watermark** | 投影已经消费的数据库 generation / LSN；低于权威水位的投影只能重建，不能冒充最新事实 |
 | **宿主 host** | 真正运行 LLM、浏览网页或读取文件的程序，如 Codex、Claude Code 或以后别的 agent |
 | **绑定 binding** | 把中性 Distilly 工作流翻译到一个宿主真实能力和生命周期的薄层 |
 | **EngineClient** | 所有门面到引擎的唯一类型化方法缝；进程内、MCP、面板 HTTP 共用同一方法表 |
@@ -50,6 +52,6 @@
 
 ### 0.3 一句话架构
 
-用户在宿主聊天里发起调研；宿主 LLM 浏览、理解并产出有证据的 claim patch；本机引擎以材料快照、lease、校验、确定性渲染和版本事务把它变成可审核画像；本地面板展示证据与风险；所有私人资料默认只留在用户机器。
+用户在宿主聊天里发起调研；宿主 LLM 浏览、理解并产出有证据的 claim patch；每个本地根只有一个 Engine writer，用一个 SQLite 事务提交结构化变化并引用不可变内容 blob，再异步重建人类可读投影；本地面板展示证据与风险；所有私人资料默认只留在用户机器。
 
 ---

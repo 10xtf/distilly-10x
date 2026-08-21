@@ -177,7 +177,7 @@ export type IngestResult =
 export type IngestToolValue = IngestResult;
 ~~~
 
-materials 至少一项。create 与第一批 ingest 按 §9.4 在同一个 space identity + subject 临界区完成；任何材料校验失败时不留下空主体。web 必须有绝对 http(s) URI；默认 sensitivity = private。
+materials 至少一项。create 与第一批 ingest 按 §9.4 在同一个 SQLite transaction 中完成；identity unique constraint 与 transaction-time conflict check 防止重复主体，任何材料校验失败时不留下空主体。web 必须有绝对 http(s) URI；默认 sensitivity = private。
 
 enqueue = now 在整批 dedup 后按**完整集合**判断：如果集合相对 current 或最后 committed generation 有变化，就返回已存在或新建的 job，即使本批 items 全是 duplicate；这是领取尚未蒸馏集合，不是空作业。只有集合已经 committed 且没有 pending 时，才返回不带 job 的 unchanged。
 
@@ -268,7 +268,7 @@ export interface CorrectToolValue {
 }
 ~~~
 
-skill 只能在用户明确纠正人物事实时调用，不把模型自己的猜测包装成 correction。text 原文完整落盘；facet 缺省 corrections.unassigned。MCP actor 始终是 host，因此 CorrectionService 必须让该工具只返回 suspended，并带 relayed_correction；presenter 只把 ReviewRef 变成 ReviewLaunch，不能改变提交结果。用户在 Panel / CLI 确认或直接 correction 后才有 user actor。baseCandidateVersionId 只用于修正当前 active suspended target。
+skill 只能在用户明确纠正人物事实时调用，不把模型自己的猜测包装成 correction。text 经 material-text-v1 后以完整规范化正文落盘；facet 缺省 corrections.unassigned。MCP actor 始终是 host，因此 CorrectionService 必须让该工具只返回 suspended，并带 relayed_correction；presenter 只把 ReviewRef 变成 ReviewLaunch，不能改变提交结果。用户在 Panel / CLI 确认或直接 correction 后才有 user actor。baseCandidateVersionId 只用于修正当前 active suspended target。
 
 ### 8.7 工具 annotations 与展示
 

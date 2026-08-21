@@ -4,7 +4,7 @@
 
 ### 22.1 第一版优先级
 
-关系不阻塞公开人物单主体首发；协议与事实格式先定，核心闭环和 Panel 通过后落地。相似 affinity 仍然后置。
+关系不阻塞公开人物单主体首发；公开语义与 SQLite authority contract 先定，核心闭环和 Panel 通过后落地。相似 affinity 仍然后置。
 
 ### 22.2 Relation
 
@@ -31,12 +31,12 @@ type 使用开放点分路径，如 work.founded、family.parent、canon.rival�
 | | Relation | Affinity |
 |---|---|---|
 | 来源 | 材料明确写出或用户确认 | 多主体 claims 的派生相似 |
-| 存储 | graph/relations.jsonl 事实 | .index 可重建 |
+| 存储 | SQLite authoritative relation rows/events | 可重建 affinity/search projection |
 | 首版 | 核心后落地 | 不做 |
 
 ### 22.3 RelationOperationDraft
 
-首发 Step 7 的 DistillPatch **没有** relationOperations，closed-object schema 对该 unknown key 返回 invalid_input。下列 RelationOperationDraft 只属于 §29 Step 14 的 additive relation slice；该 slice 必须新增明确 method/patch discriminant、事实 transaction 与 gate 后才可启用，不能用 Step 7 feature flag 偷偷接受或静默丢弃：
+首发 DistillPatch **没有** relationOperations，closed-object schema 对该 unknown key 返回 invalid_input。下列 RelationOperationDraft 只属于后续 additive relation slice；该 slice 必须新增明确 method/patch discriminant、SQLite transaction 与 gate 后才可启用，不能用 feature flag 偷偷接受或静默丢弃：
 
 ~~~ts
 export type RelationOperationDraft =
@@ -106,6 +106,6 @@ RelationMethodExtension 是关系 slice 落地时整体加入 EngineMethodMap �
 
 ### 22.5 事实与投影
 
-relations.jsonl 只追加 add / invalidate event；当前 Relation 是重放结果。graph.db 可删重建。索引损坏时 neighbor 返回 index_unavailable / remediation，不悄悄全文件扫描。
+relation rows 与 add/invalidate events 在同一个 SQLite transaction 中提交；当前 Relation 可由 status row直接读取，完整审计仍能重放events。graph/search是带LSN的可删投影；损坏时 neighbor返回index_unavailable/remediation，不悄悄扫描blob或export。
 
 ---

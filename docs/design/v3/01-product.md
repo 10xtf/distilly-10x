@@ -23,7 +23,7 @@
 |---|---|---|
 | 宿主聊天插件 | 必须；发起 research、ingest、briefing、commit 与 Recall | 更多宿主与更丰富的原生卡片 |
 | 本地审核面板 | 必须；Library、Subject、Review、Settings | 关系图与本地高级搜索 |
-| TypeScript SDK 与 CLI | 必须；自动化、诊断、面板与真实入口测试 | 守护进程客户端 |
+| TypeScript SDK 与 CLI | 必须；通过同一个本地 Engine service 自动化、诊断与操作 | 额外语言客户端 |
 | Profile Catalog | 不做；本地产品不登录 | 明确 publish / pull 的公开画像 |
 | Bot 与 TUI | 不阻塞首发 | 共用同一 EngineClient 的额外脸 |
 
@@ -41,8 +41,8 @@
 - 不在引擎里绑定一家网页、消息或邮件厂商的官方采集 API。
 - 不要求 embedding、rerank、OCR 或多模态云 key。
 - 不把无法溯源的角色扮演文本伪装成客观画像。
-- 不为未来数据库替换设计通用 StorageProvider；本地事实格式就是产品合同。
-- 不让模型、面板或插件直接写 DISTILLY_ROOT 下的事实文件。
+- 不为假想后端设计通用 StorageProvider；首发只有一套 SQLite/WAL + immutable blob 本地实现。
+- 不让模型、MCP、面板、CLI、binding 或插件直接写数据库、blob 根或投影；它们只能调用 EngineClient。
 
 ### 1.6 首发成立的定义
 

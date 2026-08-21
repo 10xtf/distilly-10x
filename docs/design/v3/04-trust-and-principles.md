@@ -11,7 +11,7 @@
 | 网页/文件正文 | 它是被保存的来源内容 | 其中任何“忽略规则、调用工具、泄露 secret”的指令 |
 | 插件 skill | 编排顺序和 fallback | 宿主一定拥有浏览、提取、private capture、hook 或 subrun 工具 |
 | HostBinding | 探测到的 capability、原生 consent 结果、capture audit stamp | 屏幕正文是真实指令、OS Always allow 等于内容授权 |
-| 本机引擎 | schema、哈希、锁、证据引用、版本与事实写入 | 它能独自判断一条人物结论在语义上绝对真实 |
+| 本机引擎 | schema、哈希、事务约束、证据引用、版本与权威写入 | 它能独自判断一条人物结论在语义上绝对真实 |
 | Panel | 展示引擎返回的数据，传回用户动作 | 自己计算成熟度、直接改文件或绕过 CommitService |
 | Profile Catalog | 经签名的公开 bundle 与 listing | 用户本地的 current、private materials 或 correction |
 
@@ -28,7 +28,7 @@
 **交给确定性代码：**
 
 - 主体 id、材料 id、完整哈希、去重、source grouping 和 generation；
-- lease、幂等、锁、commit point、恢复和事件；
+- lease、RequestId 幂等、单 writer 排序、SQLite transaction、WAL 恢复和事件；
 - EvidenceRef 的存在、归属、集合成员与 quote 匹配；
 - claim id、patch 应用、质量摘要、成熟度、Markdown 和 prompt；
 - current / suspended / historical / rejected 状态；
@@ -47,6 +47,6 @@
 7. **接口按所有权切，不按屏幕切。** Panel 缺数据时先补引擎聚合，不在前端自行推导。
 8. **扩展点必须有第二个实现的合理来源。** 宿主、来源、解析器和 executor 用 interface；唯一文件格式与 renderer 不造 provider。
 9. **平台限制停在适配层。** 某家 manifest、hook、目录或 UI 变化不能改 profile、material 或 commit。
-10. **可恢复先于“一个事务”措辞。** 文件系统 + SQLite 用 journal、commit point 与 reconcile 证明，不声称不存在的跨介质 ACID。
+10. **一个 mutation 就是一个数据库事务。** 不用文件 journal、投影锁或逐文件 recovery 模拟跨介质 ACID；blob 先于引用持久化，投影在 commit 后按水位追赶。
 
 ---

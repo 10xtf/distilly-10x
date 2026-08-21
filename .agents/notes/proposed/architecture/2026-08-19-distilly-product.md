@@ -10,14 +10,13 @@ Status: proposed
 
 Ship distilly as an independent product path on this repository (later a rename). Current full contract: [docs/design/system-v3.md](../../../../docs/design/system-v3.md). Live-tree map: [docs/architecture.md](../../../../docs/architecture.md).
 
-The product rules below still hold as refined by [the V3 supersession note](2026-08-20-design-v3.md). The implementation language, package cut, async API, and error model in this note's original Python form do not: TypeScript first replaced them in V2, while V3 is now the in-force productized contract. [system-v2.md](../../../../docs/design/system-v2.md) and [system-v1.md](../../../../docs/design/system-v1.md) are deprecated history.
+The product rules below still hold as refined by [the V3 supersession note](2026-08-20-design-v3.md). The implementation language, package cut, async API, and error model in this note's original Python form do not: TypeScript first replaced them in V2, while V3 is now the in-force productized contract. [system-v2.md](../../../../docs/design/system-v2.md) and [system-v1.md](../../../../docs/design/system-v1.md) are deprecated history. Storage authority has one separate owner: [single-writer SQLite storage authority](../../implemented/simplification/2026-08-21-single-writer-sqlite-storage-authority.md).
 
 Locked product rules (do not re-open in implementation PRs without a new note):
 
 - Subjects include colleagues, relations, celebrities, fictional characters, and `self` on one model. `self` is a normal id.
-- Distill is evidence-bounded. Material-set hash unchanged → skip. External model proposals may vary; engine hashing, evidence resolution, patch application, rendering, and transactions are deterministic. Corrections are facts in `corrections/`. Explainable mechanical risks suspend the candidate (`promote` / `reject`).
-- Default zero extra API key. Host `ingest` → `pending(brief)` → claim-only `commit`. Optional LLM key for daemon distill. No required multimodal or embedding key. Unparsed media is not distill input.
-- Markdown / jsonl are facts. SQLite, if added, is a disposable index and queue.
+- Distill is evidence-bounded. Material-set hash unchanged → skip. External model proposals may vary; engine hashing, evidence resolution, patch application, rendering, and transaction semantics are deterministic. Explainable mechanical risks suspend the candidate (`promote` / `reject`).
+- Default zero extra API key. Host `ingest` → `pending(brief)` → claim-only `commit`. No required multimodal or embedding key. Unparsed media is not distill input.
 - Client: `Distilly` + `Person`. Capability groups stay internal. MCP exposes `get`, `ingest`, `pending`, `commit`, `correct` only.
 - Two adapter kinds: `SourceAdapter` (collection; v1 main path is host `ingest`) and `HostInjector` (v1 required).
 - Three load paths: `prompt`/`get` (this spawn, full text), `install` (host skills), `export` (one identity file). Temporary personas never write global instruction files.
@@ -26,13 +25,13 @@ Locked product rules (do not re-open in implementation PRs without a new note):
 - Bot is a binding that pins one subject and version. It must not invent its own persona files.
 - The plugin ships manifests and skills over a versioned local runtime, with a local evidence/review Panel in the first usable release. No hosted MCP server and no OAuth login. Acceptance: distill a public figure and `get` without login.
 
-Target home disk and package layout are in V3 chapters [06](../../../../docs/design/v3/06-fact-layer-and-recovery.md) and [25](../../../../docs/design/v3/25-package-and-source-tree.md). Existing `PRIMARY_ARTIFACTS` migrate into core and domains; do not keep work/persona as the top split.
+Target storage authority and package layout are in V3 chapters [06](../../../../docs/design/v3/06-storage-authority-and-transactions.md) and [25](../../../../docs/design/v3/25-package-and-source-tree.md). Existing `PRIMARY_ARTIFACTS` migrate into core and domains; do not keep work/persona as the top split.
 
 ## Alternatives considered
 
 - **Remain a Claude skill only** — rejected: bots, Codex, LangGraph, and a marketplace cannot share a skill directory as the source of truth.
 - **Requiring four API keys for model, embedding, multimodal, and rerank** — rejected: the default path must run on the host model the user already pays for.
-- **Episode or vector memory as the fact layer** — rejected for v1: the user edits portraits in Markdown, and a persona fits a full inject.
+- **Episode or vector memory as the product model** — rejected for v1: evidenced claims and immutable versions are the semantic truth, while retrieval indexes remain derived.
 - **Flat seven-group Client** — rejected: a small entry object survives capability growth; the groups remain internal modules.
 - **Global AGENTS.md as the load mechanism for ten temporary agents** — rejected: one process-wide file cannot isolate personas and pollutes the repo.
 - **Salience truncation in v1** — rejected: first version injects the full profile; adapters may fail closed if the host truncates.
@@ -50,7 +49,7 @@ Target home disk and package layout are in V3 chapters [06](../../../../docs/des
 
 ## Risks
 
-- The live tree still emits work/persona artifacts. Implementation must migrate or dual-write briefly; standing docs already forbid extending that split.
+- The live tree still emits work/persona artifacts. The later legacy-import feature must preserve real published inputs without extending that split into the new product.
 - Full-profile inject will hit context limits; v1 fails visibly rather than inventing a silent trimmer.
 - Collection adapters will rot on host UIs. That rot stays in delegated plans or community packages, not in `Person`.
 - Renaming the GitHub repository and telemetry env vars is still open and will touch every install doc.

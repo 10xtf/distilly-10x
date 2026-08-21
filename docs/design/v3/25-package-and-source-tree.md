@@ -5,185 +5,31 @@
 ### 25.1 Workspace
 
 ~~~text
-distilly/
-├── package.json
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-├── eslint.config.js
-├── vitest.config.ts
-├── knip.json
-├── packages/
-│   ├── protocol/
-│   │   └── src/
-│   │       ├── ids.ts
-│   │       ├── values/
-│   │       │   ├── subjects.ts
-│   │       │   ├── materials.ts
-│   │       │   ├── claims.ts
-│   │       │   ├── profiles.ts
-│   │       │   ├── jobs.ts
-│   │       │   ├── versions.ts
-│   │       │   ├── hosts.ts
-│   │       │   └── relations.ts
-│   │       ├── methods.ts
-│   │       ├── engine-client.ts
-│   │       ├── events.ts
-│   │       ├── errors.ts
-│   │       ├── schemas/
-│   │       ├── mcp.ts
-│   │       └── index.ts
-│   ├── engine/
-│   │   ├── prompts/
-│   │   │   └── host-distill-v1.md
-│   │   └── src/
-│   │       ├── create-engine.ts
-│   │       ├── engine.ts
-│   │       ├── layout.ts
-│   │       ├── context.ts
-│   │       ├── ports/
-│   │       │   ├── clock.ts
-│   │       │   ├── id-generator.ts
-│   │       │   ├── audit-key-port.ts
-│   │       │   ├── material-parser-port.ts
-│   │       │   └── event-bus.ts
-│   │       ├── defaults/
-│   │       │   ├── system-clock.ts
-│   │       │   ├── crypto-id-generator.ts
-│   │       │   ├── local-audit-key.ts
-│   │       │   ├── text-parser-port.ts
-│   │       │   └── in-process-event-bus.ts
-│   │       ├── facts/
-│   │       │   ├── atomic-write.ts
-│   │       │   ├── space-store.ts
-│   │       │   ├── subject-store.ts
-│   │       │   ├── material-store.ts
-│   │       │   ├── raw-store.ts
-│   │       │   ├── capture-audit-store.ts
-│   │       │   ├── version-manifest-store.ts
-│   │       │   ├── version-store.ts
-│   │       │   ├── state-store.ts
-│   │       │   ├── event-store.ts
-│   │       │   └── operation-store.ts
-│   │       ├── transaction/
-│   │       │   ├── request-lock.ts
-│   │       │   ├── space-catalog-lock.ts
-│   │       │   ├── space-identity-lock.ts
-│   │       │   ├── subject-lock.ts
-│   │       │   ├── transaction-store.ts
-│   │       │   ├── version-staging.ts
-│   │       │   └── recovery.ts
-│   │       ├── subject/
-│   │       │   ├── service.ts
-│   │       │   └── identity.ts
-│   │       ├── ingest/
-│   │       │   ├── composition.ts
-│   │       │   ├── service.ts
-│   │       │   ├── file-service.ts
-│   │       │   ├── normalize.ts
-│   │       │   ├── source-groups.ts
-│   │       │   └── hash.ts
-│   │       ├── capture/session-service.ts
-│   │       ├── queue/
-│   │       │   ├── repository.ts
-│   │       │   ├── sqlite-repository.ts
-│   │       │   └── service.ts
-│   │       ├── distill/
-│   │       │   ├── briefing-service.ts
-│   │       │   ├── lease-service.ts
-│   │       │   ├── prompt-catalog.ts
-│   │       │   ├── validate-patch.ts
-│   │       │   ├── resolve-evidence.ts
-│   │       │   └── commit-service.ts
-│   │       ├── profile/
-│   │       │   ├── apply-patch.ts
-│   │       │   ├── claim-id.ts
-│   │       │   ├── quality.ts
-│   │       │   ├── render.ts
-│   │       │   └── diff.ts
-│   │       ├── correction/service.ts
-│   │       ├── review/service.ts
-│   │       ├── version/service.ts
-│   │       ├── relation/
-│   │       ├── bundle/
-│   │       │   ├── importer.ts
-│   │       │   ├── exporter.ts
-│   │       │   └── canonicalize.ts
-│   │       ├── projection/
-│   │       │   ├── library-projection.ts
-│   │       │   ├── json-library-projection.ts
-│   │       │   ├── projection-service.ts
-│   │       │   ├── graph-projection.ts
-│   │       │   └── skill-projector.ts
-│   │       └── client/in-process-client.ts
-│   ├── runtime/
-│   │   └── src/
-│   │       ├── create-local-runtime.ts
-│   │       ├── dispatcher.ts
-│   │       ├── trusted-clients.ts
-│   │       ├── private-ui-capture.ts
-│   │       ├── extension-status.ts
-│   │       └── parser-port-adapter.ts
-│   ├── distilly/
-│   │   └── src/
-│   │       ├── index.ts
-│   │       ├── distilly.ts
-│   │       ├── person.ts
-│   │       └── node.ts
-│   ├── mcp/
-│   │   └── src/
-│   │       ├── create-server.ts
-│   │       ├── stdio.ts
-│   │       ├── presenter.ts
-│   │       ├── review-presenter.ts
-│   │       └── handlers/
-│   │           ├── get.ts
-│   │           ├── ingest.ts
-│   │           ├── pending.ts
-│   │           ├── commit.ts
-│   │           └── correct.ts
-│   ├── bindings/
-│   │   └── src/
-│   │       ├── protocol.ts
-│   │       ├── registry.ts
-│   │       ├── capability-fixture.ts
-│   │       ├── codex/capability.ts
-│   │       └── claude-code/capability.ts
-│   ├── adapters/
-│   │   └── src/
-│   │       ├── protocol.ts
-│   │       ├── registry.ts
-│   │       └── delegated/
-│   ├── panel/
-│   │   ├── server/
-│   │   │   ├── server.ts
-│   │   │   ├── auth.ts
-│   │   │   ├── origin.ts
-│   │   │   └── rpc.ts
-│   │   └── web/
-│   │       ├── client/
-│   │       │   ├── http-engine-client.ts
-│   │       │   └── event-stream.ts
-│   │       └── app/
-│   ├── cli/
-│   │   └── src/
-│   │       ├── bin.ts
-│   │       ├── composition.ts
-│   │       ├── io.ts
-│   │       ├── commands/
-│   │       └── setup/
-├── plugins/
-│   ├── shared/
-│   ├── codex/
-│   ├── claude-code/
-│   └── fixtures/
-├── examples/
-├── docs/
-├── .agents/
-└── tools/ prompts/ skills/ tests/       # 冻结 Python 遗产，见 §28
+packages/
+├── protocol/                 # public values, MethodMap, EngineClient, wire schemas
+├── engine/
+│   ├── prompts/
+│   └── src/
+│       ├── core/             # normalize, evidence, claims, quality, ids, renderer
+│       ├── services/         # subject, ingest, lease, commit, review, correction
+│       ├── storage/
+│       │   ├── sqlite/       # one private schema, transactions, queries
+│       │   └── blobs/        # immutable content-addressed bytes + GC
+│       ├── projections/      # profile, prompt, Library/search/graph builders
+│       ├── doctor/           # exhaustive audit
+│       ├── backup/           # snapshot / restore
+│       └── engine.ts
+├── runtime/                  # one Engine instance per root, local transport, composition
+├── bindings/                 # host capabilities, injector, installer, forms
+├── adapters/                 # source / parser adapters
+├── distilly/                 # browser-safe Distilly + Person facade
+├── mcp/                      # exactly five tools over injected EngineClient
+├── panel/                    # local HTTP/SSE server + browser UI
+└── cli/                      # local client and setup commands
+plugins/                      # source manifests + canonical skill
 ~~~
 
-远程 Catalog 没进入实现前不创建 registry package。TUI、Bot 同理：目标没有真实 slice 就不留空 package。
+Engine storage code has one home. There is no `facts/`, per-mutation `transaction/`, recovery union, mutation-specific staging directory, business file-lock hierarchy, queue database or Library intent protocol in the target tree. SQL migrations, rows and blob GC remain package-private.
 
 ### 25.2 依赖方向
 
@@ -192,181 +38,75 @@ protocol
 ├── engine
 ├── bindings
 ├── adapters
-├── distilly (browser-safe root)
+├── distilly
 ├── mcp
 └── panel/web
 
 runtime → protocol + engine + bindings + adapters
-distilly/node → runtime
-panel/server → protocol + mcp（只服务 panel/web 的构建产物，不 import panel/web TypeScript）
-cli → runtime + distilly/node + mcp + panel/server
-plugins → CLI launcher（进程边界，不是 TS import）
+panel/server → protocol + mcp
+cli → runtime + distilly + mcp + panel/server
+plugins → CLI launcher (process boundary)
 ~~~
 
-精确规则：
+- protocol 零内部依赖，也不导出 SQL rows、journal或projection formats；
+- engine 只依赖protocol与明确runtime libraries，不依赖facade/MCP/Panel/CLI/binding；
+- runtime是唯一production composition owner和每root single-writer owner；
+- MCP、Panel、CLI、bindings、adapters只持EngineClient或输入port，不import engine storage；
+- distilly browser root不触达Node/storage；Node entry通过runtime attach；
+- Panel web只通过HTTP EngineClient；Panel server不成为writer；
+- package boundaries、browser bundles、未声明依赖和循环由静态gate拒绝。
 
-- protocol 零内部依赖；
-- engine 只依赖 protocol 与明确运行时库，不依赖 facade、MCP、Panel、CLI 或具体 binding；
-- bindings 与 adapters 只依赖 protocol，不能反向 import distilly facade；
-- runtime 是唯一库级 composition root：core methods（包括 ingestFiles）委托 engine，hosts / doctor 等叶子 methods 委托对应扩展；
-- distilly 根只依赖 protocol；distilly/node subpath 依赖 runtime，但根 barrel 不触达 node.ts；
-- mcp 只依赖 protocol；panel/web 只依赖 protocol / browser-safe facade；panel/server 额外依赖 mcp 的窄 ReviewPresenter type，但不 import engine internals；
-- cli 组合 runtime、MCP 与 Panel，但不能拥有业务规则；
-- adapters 不 import engine store；SourceAdapter 在 runtime 外产出 MaterialInput，ParserRegistry 由 runtime 适配成 engine 的 MaterialParserPort。engine 的 file ingest 负责读文件、写 raw 与按 §9.4/§11 的 lock 顺序提交派生材料；parser 只返回 ParsedMaterial；
-- bindings 的 PrivateUiCaptureController / GrantHandle 只负责原生授权、frame gate 与 transcript；runtime coordinator 编排 action，engine 独占 capture audit、短命 ingest session 与 MaterialRecord stamp，任何 binding/runtime 都不直写 fact files；
-- Panel web runtime 只通过 HTTP EngineClient；
-- package exports、未声明依赖和循环由 build / knip 门禁。
-
-公开入口固定如下：
-
-| 入口 | 公开内容 | 环境 |
-|---|---|---|
-| distilly | Distilly、Person、EngineClient、DistillyError、常用 protocol types | browser-safe |
-| distilly/node | openInProcess | Node only |
-| @distilly/protocol | ids、values、MethodMap、runtime schemas、五工具 draft-2020-12 descriptor registry | universal |
-| @distilly/engine | createEngine、EngineCoreOptions、EngineRuntime | Node only |
-| @distilly/engine/ports | QueueRepository、LibraryProjection、Clock、IdGenerator、EngineEventBus、MaterialParserPort、AuditKeyPort、CaptureLivenessPort | Node only |
-| @distilly/runtime | createLocalRuntime、extension registries；不从 distilly 根转导 | Node only |
-| @distilly/mcp | createMcpServer、ReviewPresenter | universal server API |
-| @distilly/mcp/stdio | stdio runner | Node only |
-| @distilly/panel/server | startPanelServer、PanelLauncher | Node only |
-| @distilly/panel/web | HttpEngineClient 与 UI bootstrap | browser only |
-| @distilly/bindings | interfaces、registry、Step 9 capability factories；full factories 到 production composition 才导出 | Node only |
-| @distilly/adapters | adapter / parser contracts 与 registry | Node only |
-| @distilly/cli | 只有 executable，不承诺 library barrel | Node only |
-
-panel/server 与 panel/web 使用独立 tsconfig / exports，不提供把两边一起打进 bundle 的总 barrel。mcp 根不 re-export stdio。构建矩阵对每个入口单独 bundle，浏览器入口出现 node:fs、node:sqlite 或 runtime 依赖就失败。
+SourceAdapter产出MaterialInput，MaterialParser产出ParsedMaterial；它们不能写blob或database。Host private capture只产生受信authorization/transcript；Engine完成audit与ingest transaction。任何surface出现`node:sqlite`、Engine storage import或DISTILLY_ROOT写入都是blocking defect。
 
 ### 25.3 哪些是 interface
 
 | Interface | 为什么有真实多实现 |
 |---|---|
-| EngineClient | in-process、Panel HTTP、以后 daemon |
-| QueueRepository | SQLite 与测试 fake 对 verified state seeds 的 disposable projection/read |
+| EngineClient | in-process owner client、本地RPC client、Panel HTTP client |
 | SourceAdapter | 多来源与社区包 |
 | MaterialParser | OCR、转写、文档解析 |
-| HostCapabilityBinding / HostBinding / HostInjector / HostFormRenderer / PrivateUiCaptureController | 每个宿主的能力、授权 UI、frame gate 与隔离机制真实不同 |
-| DraftProducer | 宿主模型、可选后台 provider |
-| LibraryProjection | JSON/SQLite、测试 fake、以后本地全文 |
-| Clock / IdGenerator / EngineEventBus | 生产与确定性测试边界 |
+| HostCapabilityBinding / HostBinding / HostInjector / HostFormRenderer / PrivateUiCaptureController | 宿主能力与UI不同 |
+| DraftProducer | 宿主模型与可选后台provider |
+| Clock / IdGenerator / EngineEventBus | production与deterministic tests |
+| ProjectionBuilder | profile/Library/graph/search是多个不同builder |
 
-Fact stores 不定义通用 StorageProvider。Markdown/text/JSON 的本地布局是 locked 产品格式，不需要“以后换 Postgres”抽象。
+不定义通用StorageProvider、FactStore、QueueRepository或Library transaction port。首发SQLite schema和BlobStore各只有一个production implementation；测试使用real temporary database/blob root，只有clock/id等非持久化边界可替换。
 
 ### 25.4 哪些是纯函数
 
-- label-v1、material-text-v1、material normalize、source identity、source grouping、SHA-256 与集合 hash；
-- id / claim id 派生；
-- facet path parse；
-- EvidenceRef resolve 与 quote / locator 校验；
-- claim patch apply、strength、quality、maturity；
-- Markdown / prompt render；
-- profile diff；
-- relation event reduce；
-- bundle canonicalization / digest；
-- path segment validation；
-- wire schema parse。
+- label-v1、material-text-v1、material/provenance normalization、source identity/grouping；
+- SHA-256、MaterialId/ClaimId/VersionId与material-set hash；
+- facet parse、evidence resolve与quote/locator；
+- claim/correction patch apply、strength、quality、maturity与ReviewReason；
+- Markdown/prompt render与profile diff；
+- relation reduce、bundle canonicalization与digest；
+- public wire parse。
 
-纯函数文件不导出 class，不依赖 clock / fs / network。
+纯函数不读database/blob/projection，不调用模型，不持有clock。
 
 ### 25.5 哪些是 concrete service
 
-- SubjectService、IngestService、BriefingService、LeaseService、CommitService；
-- CorrectionService、ReviewService、VersionService；
-- FileRequestLock、FileSpaceCatalogLock、FileSpaceIdentityLock、FileSubjectLock、FileTransactionStore、RecoveryService；
-- FileSpaceStore、FileSubjectStore、FileMaterialStore、FileVersionManifestStore（Step 5 read-only）、FileVersionStore、FileStateStore、FileEventStore、FileOperationStore；
-- SqliteQueueRepository；
-- ProjectionService、PanelServer、McpServer、SetupService。
+- SubjectService、IngestService、DistillLeaseService、CommitService；
+- CorrectionService、ReviewService、VersionService、LibraryService；
+- SqliteEngineStore、ContentAddressedBlobStore、ProjectionCoordinator；
+- DoctorService、BackupService、GarbageCollector；
+- Engine、LocalRuntime、PanelServer、McpServer、SetupService。
 
-Service 有状态或编排多个 store；同类只有一个生产实现时直接 concrete，不先造 interface。
-
-Step 7 只在 `@distilly/engine` package 内组合 `distill.commit` 的 EvidenceContext、claim apply/quality/gate、literal renderer、version staging/journal/recovery 与 queue apply，并用 package-internal EngineMethodMap-compatible handler 做真实磁盘验收。它不导出 partial EngineRuntime/createEngine，不实现 review promote/reject、correction、relations、facade/MCP/CLI 或 public runtime；这些保持 §29 各自独立 feature boundary。
-
-Step 8 的 Distilly、Person 与 McpServer 同样是 injected-client adapters，不是新的 service/composition root。facade tests 注入 full fake EngineClient；MCP stdio child 注入 full fake EngineClient + ReviewPresenter。`@distilly/cli` executable、`distilly/node`、createEngine、createLocalRuntime 和任何能打开真实 DISTILLY_ROOT 的入口都不在该 slice；不得为了让 built smoke 启动而新增一个改名的 workflow runtime、unsupported handler 或 test backend 的 production export。
-
-Step 9 的 `@distilly/bindings` 也不是 composition root。它只导出 HostCapabilityBinding/full HostBinding interfaces、判别 registry、净 capacity fixture validator 与 Codex / Claude Code capability factories；两个 builtin 都 kind=capability 且 privateUiCapture=unavailable。该 slice 不导出 concrete HostInjector、HostFormRenderer、PrivateUiCaptureController、plugin installer、doctor、setup 或 production host client。canonical skill assembler 是 repo build tooling，不从 bindings barrel 变成 runtime API。
+Service编排SQL transaction或外部port；同类只有一个production实现时直接concrete，不先造interface。业务服务可以共享一个小TransactionContext/Store API，但不按mutation复制journal/recovery class。
 
 ### 25.6 为什么没有 public abstract class
 
-TypeScript 的扩展方需要结构契约，不需要继承我们的状态、构造器与 protected helper。V3 第一版导出 **零个 abstract class**：
+TypeScript扩展方需要结构合同，不需要继承内部状态。V3第一版导出零个abstract class：
 
-- SourceAdapter / HostCapabilityBinding / HostBinding 用 interface；
-- Distilly / Person / DistillyError 是 concrete public classes；
-- Store / service 是 package-internal concrete；
-- 两个实现真正共享算法时提取纯函数；
-- 只有出现无法用组合表达的真实共享状态机，并有至少两个实现后，才允许 package-private base class；不得成为 wire 或根导出。
-
-这让未来扩展通过注册与组合发生，不把一次实现细节冻结成继承 ABI。
+- adapter/binding/producer用interface；
+- Distilly、Person、DistillyError是concrete public classes；
+- storage/service是package-private concrete；
+- 共享算法提取纯函数；
+- 只有出现至少两个真实实现且组合无法表达的共享状态后，才考虑package-private base class。
 
 ### 25.7 Composition
 
 ~~~ts
-export interface Clock {
-  now(): IsoDateTime;
-}
-
-export interface IdGenerator {
-  subjectId(): SubjectId;
-  spaceId(): SpaceId;
-  jobId(): JobId;
-  leaseId(): LeaseId;
-  leaseOwnerId(): LeaseOwnerId;
-  requestId(): RequestId;
-  eventId(): EventId;
-  captureAuditRef(): CaptureAuditRef;
-}
-
-export interface EngineEventBus {
-  publish(event: EngineEvent): Promise<void>;
-  subscribe(handler: (event: EngineEvent) => void): Unsubscribe;
-}
-
-export interface MaterialParserPort {
-  parse(input: RawMaterial, context: ParseContext): Promise<ParsedMaterial>;
-}
-
-export interface AuditKeyPort {
-  loadOrCreate(): Promise<Uint8Array>;
-}
-
-export interface CaptureLivenessPort {
-  status(): Promise<PrivateUiCaptureGrantStatus>;
-  watch(
-    listener: (status: PrivateUiCaptureGrantStatus) => void,
-  ): Unsubscribe;
-}
-
-export type RuntimeOwnedMethodName =
-  | "hosts.install" | "hosts.uninstall" | "hosts.export"
-  | "system.doctor";
-
-export type CoreMethodName =
-  Exclude<keyof EngineMethodMap, RuntimeOwnedMethodName>;
-
-export interface CoreEngineClient {
-  call<M extends Extract<CoreMethodName, QueryMethodName>>(
-    method: M,
-    params: EngineMethodMap[M]["params"],
-  ): Promise<EngineMethodMap[M]["result"]>;
-  call<M extends Extract<CoreMethodName, MutationMethodName>>(
-    method: M,
-    params: EngineMethodMap[M]["params"],
-    context: MutationContext,
-  ): Promise<EngineMethodMap[M]["result"]>;
-  watch(handler: (event: EngineEvent) => void): Promise<Unsubscribe>;
-  close(): Promise<void>;
-}
-
-export interface EngineCoreOptions {
-  readonly root: string;
-  readonly clock?: Clock;
-  readonly ids?: IdGenerator;
-  readonly queue?: QueueRepository;
-  readonly library?: LibraryProjection;
-  readonly events?: EngineEventBus;
-  readonly parser?: MaterialParserPort;
-  readonly auditKey?: AuditKeyPort;
-}
-
 export interface EngineRuntime {
   connect(session: ClientSessionContext): CoreEngineClient;
   openPrivateUiCapture(input: {
@@ -375,16 +115,26 @@ export interface EngineRuntime {
     readonly authorization: PrivateUiCaptureAuthorization;
     readonly liveness: CaptureLivenessPort;
   }): Promise<CorePrivateUiCaptureSession>;
-  recover(): Promise<void>;
+  doctor(): Promise<DoctorSnapshot>;
   close(): Promise<void>;
 }
 
-export declare function createEngine(
-  options: EngineCoreOptions,
+export interface EngineOptions {
+  readonly root: string;
+  readonly clock?: Clock;
+  readonly ids?: IdGenerator;
+  readonly events?: EngineEventBus;
+  readonly parser?: MaterialParserPort;
+  readonly auditKey?: AuditKeyPort;
+}
+
+export declare function openEngine(
+  options: EngineOptions,
 ): Promise<EngineRuntime>;
 
 export interface LocalRuntime {
   connectTrusted(session: ClientSessionContext): EngineClient;
+  administration(): EngineAdministrationClient;
   registerPrivateUiCapture(input: {
     readonly host: HostName;
     readonly hostContext: HostContext;
@@ -394,61 +144,16 @@ export interface LocalRuntime {
   >;
   close(): Promise<void>;
 }
-
-interface PrivateUiCaptureIngestInput
-  extends Omit<IngestInput, "enqueue"> {
-  readonly enqueue: "now";
-}
-
-export interface CorePrivateUiCaptureSession {
-  readonly auditRef: CaptureAuditRef;
-  ingest(
-    input: PrivateUiCaptureIngestInput,
-    context: MutationContext,
-  ): Promise<IngestResult>;
-  complete(): Promise<void>;
-  abort(): Promise<PrivateUiCaptureActionAbortReason>;
-}
-
-export interface ExtensionStatusProvider {
-  inspect(): Promise<readonly ExtensionStatus[]>;
-}
-
-export interface LocalRuntimeOptions {
-  readonly root: string;
-  readonly clock?: Clock;
-  readonly ids?: IdGenerator;
-  readonly hosts?: HostRegistry;
-  readonly adapters?: AdapterRegistry;
-  readonly parsers?: ParserRegistry;
-  readonly extensionStatus?: ExtensionStatusProvider;
-}
-
-export declare function createLocalRuntime(
-  options: LocalRuntimeOptions,
-): Promise<LocalRuntime>;
 ~~~
 
-engine 不知道 AdapterRegistry、HostRegistry、Panel 或具体 parser registry，但拥有文件摄取事务和窄 MaterialParserPort。materials.ingestFiles 是 core method：engine 校验路径、读取 bytes、先把原始输入写 RawStore，再调用 port；无 parser、解析失败或没有 material 时返回 unparsed RawId，只有解析出的 MaterialInput 才按 §9.4/§11 的同一 create-or-existing transaction 进入 material / generation / queue 流程。parser 永远不能写 store 或伪造 rawStored。
+`openEngine`取得该root的唯一instance ownership，配置SQLite/WAL和BlobStore，检查storage schema并启动projection/outbox/GC workers。第二个owner只能attach到现有local service或fail closed；不会退回多层文件锁。SQLite自身处理WAL recovery，Engine startup不遍历mutation journals。
 
-createEngine({root}) 的最终合同是可实例化的 production factory：缺省使用 SystemClock、CryptoIdGenerator、LocalAuditKeyPort、SqliteQueueRepository、JsonLibraryProjection、InProcessEngineEventBus 与只支持纯文本 / Markdown 的 TextMaterialParserPort。LocalAuditKeyPort 按 §6.3 做 keychain/file 原子初始化；可选 port 只用于确定性测试或真实替代实现。factory 在返回前完成 recovery，不要求调用者从内部目录 new concrete class。Step 9 的 capability-only factories 不能作为 LocalRuntime 的 production defaults；Step 12 只能在 injector/form renderer 与 install/doctor 全部真实可用后构造新的 Codex / Claude Code kind=full registry。
+每个EngineClient session有可信ActorContext和engine-owned LeaseOwnerId；MCP=host，direct Panel/CLI=user，ordinary SDK=sdk，worker=executor。client close只解绑session，runtime close才停止accept、drain calls、checkpoint/close database并释放instance ownership。
 
-这不允许纵向切片对外暴露 partial runtime：Step 5 只用 package-internal composition 驱动 create + ingest + queue 集成测试，不导出 root EngineRuntime/createEngine，也不为缺失 method 安装占位 handler。只有全部 CoreEngineClient methods 都有真实 handler 后，才能同时落地上述 root factory 与 exports；届时任何 method 缺 handler 仍 startup fail。
+`LocalRuntime.administration()` 是 CLI/setup 取得 `EngineAdministrationClient` 的唯一 production seam。它返回同一 root owner 的借用 client；调用方不能自行打开 SQLite/blob，MCP、Panel、binding 与普通 `distilly` facade 也不接收该 client。runtime close 使它终止，restore 成功时 runtime 在返回前把它重新绑定到已验证的新 authority。
 
-Step 6 同样只在 package 内组合与 EngineMethodMap 精确对齐的 distill.pending / brief / renew / release handlers、BriefingService/LeaseService 与 QueueRepository reads。它不因四个方法可调用就导出 partial EngineRuntime/createEngine；测试从内部 composition 驱动真实 state/journal/queue 路径。
+LocalRuntime组合完整core methods、host/runtime-owned methods、Panel presenter和bindings。任何MethodMap key缺少真实handler都在production export前失败；不发布partial runtime或placeholder。storage migration期间，每个feature把一条真实method path切到SQLite并同时删除该path的旧file journal/lock/recovery；不能dual-write或长期保留两套authority。
 
-Step 8 也不例外。一个 TypeScript object 即使只被 McpServer 的五个 handler 调用，只要以 EngineClient/CoreEngineClient 身份交给 production entry，就承诺了完整 MethodMap；对其它 method throw host_unsupported / unsupported、延迟到第一次调用失败或用 generic call cast 隐藏缺口都属于 partial runtime。真实 stdio transport conformance 可以注入 test-only full fake，因为它只证明 transport；production `distilly mcp`、CLI 数据命令与 distilly/node 必须等待 §29 的 Core closure + production composition feature。
-
-LocalRuntimeOptions 属于 @distilly/runtime。createLocalRuntime({root}) 缺省构造带 Codex / Claude Code kind=full builtins 的 HostRegistry、空 AdapterRegistry、带 text / Markdown builtins 的 ParserRegistry，以及聚合这些 registry 与 runtime 状态的 ExtensionStatusProvider；传入的 registry 是整个替换，不做隐式 merge。runtime 用 ParserRegistryPortAdapter 实现 engine 的 MaterialParserPort，dispatcher 只接管 RuntimeOwnedMethodName 的 host / doctor handlers；任何 method 缺 handler 都在 startup fail，不到运行时返回“暂不支持”。这些 concrete registry 永远不进入 engine 包；capability-only entry 出现在 production registry 时 startup fail，而不是等 hosts.install 才报缺方法。
-
-connectTrusted 与 registerPrivateUiCapture 只供 CLI/MCP/Panel/Binding composition 使用，不从 distilly 或 distilly/node 转导；普通 SDK 只能走 openInProcess 的固定 sdk actor。composition 每创建一个 EngineClient 都调用 IdGenerator.leaseOwnerId() 构造完整 ClientSessionContext，外部 options、模型 input 与 callerLabel 都没有覆写入口。actor 与 lease owner 绑定在 client session，不绑定整个 engine，因此同一 runtime 可同时给 MCP host client 与 Panel user client，并且两个同 actor client 仍有不同 owner。
-
-registerPrivateUiCapture 使用同一个 HostContext 创建 Controller 和 host action，并在 runtime 内构造实现 PrivateUiCaptureActionPort 的 coordinator。每次 action invocation 执行 authorize → grant.bindOnce → EngineRuntime.openPrivateUiCapture → Controller.capture → session.ingest → session.complete；open 后、ingest 前异常必须先调用无参数 session.abort，并把它返回的 guard reason 或 coordinator_aborted 放进 action result，ingest 自身拒绝则已由 engine 关闭 session并返回 failed。任一步拒绝/撤销都返回 typed result并释放 grant。invocationId 在该 host session 内稳定映射 RequestId，重试只命中同一幂等 ingest。CaptureLivenessPort 是 runtime 对 GrantHandle 的窄 adapter；engine 订阅 revoke 并在同一 session mutex 下于 ingest commit 前重新 status，拒绝 revoked/expired/consumed。CorePrivateUiCaptureSession 与 PrivateUiCaptureContext 不从 engine root exports、protocol、facade 或 MCP 暴露；低层 engine composition 也不能经普通 connect 获得它。
-
-audit 的 materialCount 由一次成功 IngestResult 中 engine 接受的 private transcript items 推导；boundaryRefusalCount 和异常 stop reason 来自 liveness port；data policy / retention refs 来自 authorization。complete 无参数且只在成功 ingest 后可调用。process crash 由 recovery 写 process_terminated；没有 caller-supplied string/count 的审计入口。该 session 只复用固定 enqueue=now 的 PrivateUiCaptureIngestInput、IngestResult 与 IngestService，不开放 pending、commit 或新的第六工具。
-
-openInProcess 使用上述 production defaults，并独占它创建的 LocalRuntime；测试显式传 fake clock / ids，但使用真实 temp fact stores。createEngine / createLocalRuntime 先 recover 再接收 client；构造器不做隐式网络、secret 或插件安装。CoreEngineClient / EngineClient 的 close 只解绑 session，EngineRuntime / LocalRuntime 的 close 才由 composition owner 关闭共享 queue、event bus 与 stores。
-
-production composition feature 开始时先用 `satisfies Record<CoreMethodName, ...>` 与逐 key integration fixture 证明全部 CoreMethodName 都有真实 handler，再允许同一 feature 的最后阶段增加 engine/runtime/node/CLI exports；顺序上的“先证明再 export”不把中间 worktree 状态变成可发布 partial API。该 feature 把 Step 9 capability binding、Step 11 injector/form renderer、Step 12 installer/doctor 组合成新的 kind=full HostBinding factories，再与 PanelLauncher、CorrectionService 合成 runtime，给 MCP 创建 host client、给 direct CLI/Panel 创建彼此独立的 user client，并把 setup/fresh-install 放在这些真实入口之后。
+tests对storage使用realtemp root、realSQLite/WAL和realblob files，注入clock/id/failure boundaries。transport/facade可以继续用完整fake EngineClient证明映射，但不能当backend证据。
 
 ---

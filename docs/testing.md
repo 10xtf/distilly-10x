@@ -28,7 +28,7 @@ Commands live in root [AGENTS.md](../AGENTS.md). This file is what a green run m
 
 We do not have, and do not pretend to have: a complete public Engine service, production MCP/CLI/setup/Panel composition, a `DISTILLY_ROOT` backend, correction/evolution services, a full host binding or injector/form renderer, an installed/launchable plugin, a public host workflow or fresh-install test, per-file 100% coverage, a constructible public local client, or a real local-backend e2e.
 
-The remaining TypeScript tiers — a complete public client over the package-internal profile/review handlers, correction and evolution, production runtime/MCP/CLI/Panel composition, host workflows, installation, and fresh-install acceptance — are specified in [design §27](design/v3/27-testing-and-governance.md). They are designed, not available, and cannot be cited as current evidence.
+The remaining TypeScript tiers — the SQLite/WAL authority migration, correction and later evolution, a complete public client, production runtime/MCP/CLI/Panel composition, host workflows, installation, and fresh-install acceptance — are specified in [design §27](design/v3/27-testing-and-governance.md). They are designed, not available, and cannot be cited as current evidence. Future storage tests use real temporary SQLite/WAL and blob files, kill only at blob/transaction/projection/backup boundaries, and separate ordinary targeted-read checks from full doctor/restore audits; they do not preserve the old per-file crash matrix as a target.
 
 ## Rules
 

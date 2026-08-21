@@ -4,23 +4,24 @@
 
 ### 29.1 纵向切片
 
-1. **Design V3 与治理安全**：新父合同、Agent Note、corpus registry fail-closed、V2 deprecated、入口导航。
-2. **TypeScript foundation**：workspace、protocol build、lint/type/test/build/hygiene 的真实最小门禁。
-3. **Protocol**：完整 ids / value grammars、WIRE_LIMITS、JSON-safe errors / EmptyResult、EngineMethodMap、五工具 runtime + draft-2020-12 descriptor registry 与 snapshots。
-4. **Fact foundation**：Layout、FactEnvelope/checksum、atomic write、space/subject/material/state/event/operation stores、full SHA-256、space identity / subject lock。
-5. **Create + ingest + queue**：root request lock / operation / transaction、current material manifest、ingest journal/recovery、built-in people / inline space 串行化、保守重复创建、material-text/source-identity v1、request idempotency、auto-v1 与窄 queue projection，以及空 store 到 enqueue now 的真实磁盘路径与 generation。该切片只用 package-internal composition，不落 subjects.create 空主体、public pending/lease service、root EngineRuntime/createEngine 或占位 handlers。
-6. **Briefing + lease**：一次不可拆的内部纵向切片交付 SubjectStateRecord v2/PendingLeaseMarker、LeaseOwnerId session 绑定、PendingJob 判别联合、verified state→queue user_version=2 read/list/rebuild、source-groups-v1、incremental baseline、raw-byte-versioned prompt asset、exact BriefContract、容量 fixed point，以及 brief/renew/release 的 DistillLeaseTransactionRecord/OperationRecord/EventRecord 崩溃恢复。验收必须从真实 Step 5 pending state 经 package-internal EngineMethodMap-compatible handlers 完成 list→brief→renew/release、并发 owner 冲突、expiry、idempotent replay、queue 删除/v1 rebuild、prepared journal 每个 crash point与超限前零写入；该切片不导出 partial EngineRuntime/createEngine，也不包含 claim commit。
-7. **Claim patch + commit（不可拆 feature）**：在 package-internal composition 中一次交付从 verified state/base/materials 重建的 pinned EvidenceContext、claim-only DistillPatch validator、canonical resolved draft/ClaimId、apply/strength/quality/QualityGate、`profile-renderer-v1`、VersionRecord/material/claims/Profile/prompt 全套事实、DistillCommitTransactionRecord、固定 version staging path、state commit point、target-first recovery、completed operation、固定两事件、current projection与 queue apply。验收矩阵必须同时覆盖 empty/add/revise/supersede/contest、65,536/+1 bytes、locator/date/target/evidence、first-version与 delta gates、current/suspended state、active-review conflict、owner-bound idempotency、每个 crash point及历史 displayName/prompt重放。该 feature 不含 promote/reject、correction、relations、facade/MCP/CLI、root EngineRuntime/createEngine 或任何 public runtime；injected facade/MCP adapters、review、correction、production runtime/CLI 和 relations 分别留给 Steps 8、10、11、12、14。
-8. **Injected-client Facade + MCP adapters**：browser-safe `distilly` 根一次交付 Distilly / Person 的完整转发面、精确 runtime/type export allowlist 与 full fake EngineClient contract fixtures；`@distilly/mcp` 一次交付五 handlers、ReviewPresenter seam、统一 WireFailure、structuredContent/text 同值、server identity、真实 stdio child-process conformance 与 built-entry smoke。child 只注入 test-only full fake EngineClient / ReviewPresenter 并证明 transport；本步没有 `distilly/node`、`@distilly/runtime`、`@distilly/cli` executable、production `distilly mcp`、DISTILLY_ROOT backend 或用户可操作产品，不能用 fake smoke 声称主路径成立。
-9. **Host capability bindings + canonical skill**：先更新 Protocol HostPreflight 判别联合，再交付 `@distilly/bindings` 的 HostCapabilityBinding/full HostBinding contracts、HostRegistry 与 injected HostPreflightProvider factory seam；Codex / Claude Code concrete 仅为 kind=capability，preflight 只接受可信直接净 handshake 或 exact host/version/environment/release/wire/skill tuple 的真实截断 fixture，不能从 gross limit 推算，两者 privateUiCapture 固定 unavailable。同步交付唯一 recursive canonical skill tree、两个 exact-mirror copy、platform manifest fixtures、schemaVersion=1 release manifest 与 check-mode assembler。该 slice 不读用户 HOME/宿主 executable，不创建 host client，不实现 concrete injector/form renderer/private capture controller/full HostBinding/plugin lifecycle/doctor/runtime bootstrap/setup/production launcher；`.mcp.json.template` 不可安装。
-10. **必备 Panel + review（不可与 production landing 混合）**：在 `@distilly/engine` package 内交付 §6 ReviewDecisionTransactionRecord/RollbackTransactionRecord、ReviewService 与 JsonLibraryProjection/read services；Protocol 同步交付完整 read models/pages/schemas。`@distilly/panel` 交付四页最小 UI、PanelLauncher/ReviewPresenter、借用 injected full user EngineClient 的完整 EngineMethodMap HTTP transport、`POST /events` fetch SSE、all-mutation nonce 与 §15/§27 安全拒绝。UI 只启用真实 reads 与 promote/reject/rollback；correct/install/archive/production doctor 只能 disabled/future-only，唯有测试注入的 full client 可显示真实只读 DoctorSnapshot。native_text/host_extract material reads 固定 rawAvailable=false；raw_extract 因没有 verified RawStore reader返回 schema_unsupported。本步不复用 fake host client、不创建/导出 LocalRuntime，不添加 CLI executable、production `distilly panel`/MCP handler、setup 或任何假成功。其验收用真实 temp facts + package-internal review/read composition 和 independently injected full transport fixture，不能声称用户入口已落地。
-11. **Correction + Recall / install**：CorrectionService 立即版本、prompt、subrun inject、HostInjector/HostFormRenderer concrete implementations、profile install/export 与对应真实 core/runtime-owned handlers，并开始 raw ingestion/verified RawStore reader slice，使 raw_extract read model 正例可实现；host/sdk relayed 与 user actor 分流闭合后，correct→review 才能进入 product conformance。本步仍不伪造需要 plugin lifecycle/doctor 的 kind=full HostBinding。
-12. **Core closure + production composition + CLI/setup（不可拆 production feature）**：先补齐并逐 key integration 证明全部 CoreMethodName 真 handler，包括未在 Step 11 完成的 raw ingestion/read closure；同 feature 的后半把 Step 9 capability preflight、Step 11 injector/form renderer 与本步真实 plugin lifecycle/doctor 组合成 Codex / Claude Code kind=full factories，才导出 createEngine、createLocalRuntime、distilly/node openInProcess 与 actor-bound clients，并交付 production `distilly mcp`、完整数据 CLI、单进程 `distilly distill` lease/edit/commit、runtime bootstrap、doctor、setup/upgrade/uninstall、template→actual `.mcp.json` 渲染与 built-artifact fresh install。任何缺 handler、Panel presenter、CorrectionService、verified net host capacity、full binding method 或 teardown owner 都在 export 前 startup/build fail；不发布 placeholder command 或改名 partial runtime。
-13. **Legacy migration**：真实 fixtures 与升级指南。
-14. **关系、Bot、TUI、后台 executor**：按真实需求分别落地。
-15. **Profile Catalog**：只在 §24.6 条件全部满足后立项。
+已经落地的 Protocol、deterministic core、injected Facade/MCP、capability bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
 
-首个公开产品版本不能停在第 8 步；第 12 步 production composition 与 fresh-install 通过后，前面已落的 Panel/review/correction 才共同构成可审产品。关系、Bot、TUI 与 Catalog 不能反过来阻塞主路径。
+1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
+2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest` 实际需要的 storage schema、transaction runner、operations/events rows 与 BlobStore，并迁移这两条真实方法；同 commit 删除 create/ingest 的 file stores、request/space/identity locks、journal/recovery 与 queue dirty 路径。没有当前消费者的 outbox、projection、doctor、backup abstraction 不提前出现。
+3. **Brief + lease migration**：pending/job/lease 成为 authoritative rows，brief/renew/release 各一个 transaction；删除 lease journal、queue sibling database 与相关 recovery。
+4. **Commit migration**：保留 evidence/claim/quality/rendering 纯逻辑，把 immutable version、claims、memberships、pointers、operation/events 在一个 transaction 中提交；删除 version staging、state file swap 与 commit recovery。
+5. **Review migration**：promote/reject 进入普通 SQLite transaction，rollback 创建新 immutable version；删除 review/rollback journal、staging 与 recovery。
+6. **Correction migration**：保留 normalization/provenance/replacement/reason 纯逻辑，correction body 进 blob、metadata/version transition 进一个 transaction；不采用暂停的 Step 11a CorrectionTransactionRecord、staging 或 recovery。
+7. **Projection generation/rebuild**：在第一个真实 projection 消费者出现时加入统一 outbox/source LSN/watermark builder；profile/prompt/Library/search/graph/export 共用它，并删除 Library intent/dirty/reservation 与 queue transaction simulation。
+8. **Verified read 与 doctor 分离**：普通 read 只验证所用 rows/blobs；此时才加入有真实调用者的 doctor 全 lineage/evidence/blob/renderer 审计，并删除每次公开读取的全历史扫描。
+9. **Blob GC + backup/restore**：通用 unreferenced-blob GC、backup pin、SQLite snapshot + reachable blobs、sibling-root restore与真实 admin methods/CLI；不为 mutation 做 abort cleanup。
+10. **旧 authority 删除与 Protocol 收口**：删除剩余 file journals/locks/recovery/checksum envelopes，持久化结构退出公共 Protocol；证明没有 dual-write 或旧 reader。
+11. **剩余产品方法 closure**：按 subject lifecycle、raw/file ingest、redistill、bundle、host install/export 等真实用户路径继续拆独立 feature；不把无关 methods 塞进 runtime。
+12. **Single-writer production runtime**：全部方法已有真 handler后，交付 root-scoped connect-or-start/attach service、actor-bound clients、production MCP/Panel/CLI/setup 与 teardown ownership；第二 writer fail closed。
+13. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 host reopen。
+14. **关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径。
+
+前一 feature 未完成本地 commit、专属 Note、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
 
 ### 29.2 Chat 主路径验收
 
@@ -44,7 +45,7 @@
 - commit presenter 返回可打开的 review URL；
 - Panel 显示 diff、reason、quote、URI 与原始材料；
 - 首个 suspended 没有 current/beforeQuality 时不造 baseline；同 ClaimId 内容变化进入 changed before/after，review route 只接受 subject-filtered page 中的 exact candidate；
-- promote/reject/rollback 各自跨 state atomic-replace 后可恢复且 RequestId 精确重放；reject pending 原样，promote/rollback pending rebase 使用新 JobId、mutation-time queuedAt、无 lease并重算 delta；
+- promote/reject/rollback 各自在一个 SQLite transaction 中原子提交且 RequestId 精确重放；reject pending 原样，promote/rollback pending rebase 使用新 JobId、mutation-time queuedAt、无 lease并重算 delta；
 - Panel / CLI promote、reject、correct、rollback 结果一致；
 - events 与 versions 保留完整历史。
 
@@ -55,17 +56,17 @@
 - 不存在、跨主体、跨 generation evidence 和错误 quote hard reject；
 - 相同 requestId 不重复建主体、材料或版本；
 - 同 generation 两个 brief 只有一个 lease；
-- lease owner 绑定 client session，renew / expiry / release 由 state.pending.lease 与 distill-lease journal 可恢复；
+- lease owner 绑定 client session，renew / expiry / release 由 authoritative job/lease rows 与 transaction preconditions 保证；
 - lease 后新材料使旧 commit stale，新 generation pending；
-- briefing 使用 source-groups-v1、raw asset prompt version、exact BriefContract 与 fixed-point capacity；超限在 journal/state 前失败且不返回半份；
+- briefing 使用 source-groups-v1、raw asset prompt version、exact BriefContract 与 fixed-point capacity；超限在 write transaction 前失败且不返回半份；
 - commit 从 verified state/base/materials 而非 brief operation 重建 m001/EvidenceContext；accepted patch 65,536 bytes 通过、+1 zero-write invalid_input，locator start<end、date range、target唯一与 pinned algorithm dispatch 都有正反验收；
 - claim add/revise/supersede/contest、canonical ClaimId/evidence/observedIn、exact quality/reason order、首版 delta skip 与 suspicious/manual gate可字节复算；
-- commit transaction 每个 crash point只有 target finish、exact previous abort或 storage_corrupt；abort只清 journal匹配且未引用的 staging/published version，恢复后只有一个 current且成功 state 无 pending/lease；
-- review-decision 与 rollback transaction 每个 crash point同样只有 target-first finish、exact previous abort或 storage_corrupt；rollback staging/published abort复用固定 `.deleting` cleanup，active suspended/lease 与非法 target 在零写入下返回 exact conflict/input error；
+- process 在 SQLite commit 前终止时只见 previous state，commit 后终止时只见完整 target state；WAL reopen 不运行 mutation-specific recovery；
+- review/correction/rollback 与 commit 共享同一 transaction、RequestId、constraint 与 stale-precondition 语义，不各造 recovery state machine；
 - current 成功 current=new/suspended absent，suspended 成功 current unchanged/suspended=new，已有 active suspended 的 ordinary commit 在任何写入前 review_conflict；
-- 删除 .index 或打开 queue user_version=1 不丢人物事实；v2 rebuild 在 projection lock 内读取 verified state，保留 active lease并把 expired marker显示 pending；
-- version 的 claims.json 单一快照与 materials/version/content/evidence/profile/prompt 交叉可验证，createdIn 不与 VersionId preimage 循环；`profile-renderer-v1` 七 core/domain/active/contested/JSON escaping 与单 LF 字节稳定，历史 displayName/prompt 不受以后 SubjectRecord 改名影响；
-- correction 真实进入 corrections，privacy purge 精确删除。
+- 删除 projection 后可按 source LSN 重建且不丢权威 job/profile/history；stale projection 不伪装 fresh；
+- immutable version rows、claims、material/evidence memberships 可由 doctor 完整交叉审计，createdIn 不与 VersionId preimage 循环；`profile-renderer-v1` 七 core/domain/active/contested/JSON escaping 与单 LF 字节稳定，历史 displayName/prompt 不受以后改名影响；
+- AcceptedCorrection/source/provenance/replacement/reasons 可字节复算，generation+1/full material membership/fresh pending 与固定 events 一致；correction body 使用 immutable blob，失败后未引用 blob 由通用 GC 清理，privacy purge 精确删除引用并等待 GC。
 
 ### 29.5 宿主与安全验收
 
@@ -99,7 +100,7 @@ V3 完成表示实现者现在能找到：
 - 用户闭环与失败语义；
 - 每个 wire 字段与 engine-owned 字段；
 - 包、文件、interface、纯函数与 concrete service；
-- 事实格式、commit point、并发和恢复；
+- authority schema、transaction boundary、single-writer 并发和 WAL 恢复；
 - Panel、插件 bootstrap 与安全边界；
 - 未来 executor、关系、索引和 Catalog 的进入缝；
 - 可观察的首发验收。

@@ -16,6 +16,7 @@ This section describes the current product tree. Workspace experiments outside t
 - The package-internal Step 10 read slice implements `library.list`, `materials.list/get`, `profiles.get/prompt/status`, `versions.list/diff/lineage`, and `reviews.list` over verified facts. Subject reads reconcile prepared journals, hold the subject lock through one complete fact snapshot, require every physical immutable version and lineage reference to have one consistent durable lifecycle, bind cursors to method and normalized filters, and fail closed for orphaned or contradictory versions; `raw_extract` remains unsupported without a verified raw reader.
 - The package-internal Step 10 write slice implements promote, reject, and immutable-copy rollback with globally idempotent RequestIds, subject CAS, typed journals, `state.json` as the commit point, target-first recovery, exact-previous abort, third-state corruption, event publication only after durable facts, and pending-job rebase after a new current version. All three refresh the Library projection; promote and rollback replace the current profile, while reject leaves the current profile and pending marker unchanged.
 - The Engine's `node:sqlite` queue v2 remains disposable: a fixed dirty marker brackets projection writes, verified `state.json` markers own pending and lease facts, reads derive active versus expired lease state, and the internal composition rebuilds a missing, dirty, or structurally invalid database from those facts. Step 10 adds a separate checksummed canonical JSON Library projection with its own lock plus durable dirty and writer-intent markers. A clean mutation clears its exact intent only after its journal is terminal; recovery clears abandoned intent only after proving no prepared journal remains. Clean reads use an O(1) intent probe instead of scanning terminal history and repeat that probe after subject-lock acquisition before trusting a fact snapshot. Library entries are rebuilt from facts and carry engine-owned quality, privacy, status, counts, and bounded sorted search terms. The package root intentionally exports no partial Engine API.
+- This file-based authority is current implementation evidence only. The in-force target now replaces it, feature by feature, with one root-scoped Engine writer, SQLite/WAL structured authority, immutable content-addressed blobs, and LSN-tracked projections. No SQLite business-method path or production Engine service is shipped yet; each migration commit must remove the old path it replaces rather than dual-write.
 - `packages/distilly/` is the browser-safe Step 8 facade. Its root exports `Distilly`, `Person`, `DistillyError`, and the reviewed Protocol type surface; it accepts a caller-supplied complete `EngineClient`, maps every public query and mutation without filesystem or Node imports, keeps each `Person` bound to its subject, and delegates `close()` only to that injected client. It has no `openInProcess`, `distilly/node`, or local runtime constructor.
 - `packages/mcp/` is the Step 8 MCP adapter. Its transport-neutral root exports `createMcpServer` plus the narrow server and `ReviewPresenter` types, registers exactly the five Protocol descriptors, maps them to a caller-supplied complete `EngineClient`, normalizes every product outcome to a Protocol-parsed output, and presents only suspended review references. The Node-only `@distilly/mcp/stdio` subpath owns bounded stdio teardown; neither entry owns the injected client or presenter.
 - `packages/bindings/` is the Step 9 host-capability leaf. It exports the capability/full binding contracts, discriminated `HostRegistry`, and injected-provider Codex and Claude Code capability factories. Both concrete factories validate trusted net-capacity evidence against the exact host/environment/release/wire/skill tuple, force private UI capture unavailable, and perform no HOME, executable, network, install, injector, form-renderer, doctor, or runtime work.
@@ -40,7 +41,7 @@ The contract is the uncut design. Entry points:
 | A locked rule or superseded V2 decision | [design/v3/03-locked-and-superseded.md](design/v3/03-locked-and-superseded.md) |
 | LLM versus engine trust boundary | [design/v3/04-trust-and-principles.md](design/v3/04-trust-and-principles.md) |
 | Layers, processes, and state machines | [design/v3/05-architecture-and-state.md](design/v3/05-architecture-and-state.md) |
-| On-disk facts, transactions, and recovery | [design/v3/06-fact-layer-and-recovery.md](design/v3/06-fact-layer-and-recovery.md) |
+| Target storage authority, transactions, and audit | [design/v3/06-storage-authority-and-transactions.md](design/v3/06-storage-authority-and-transactions.md) |
 | A field name that reaches disk or the wire | [design/v3/07-protocol-types.md](design/v3/07-protocol-types.md) |
 | The exact five MCP tools | [design/v3/08-mcp-tools.md](design/v3/08-mcp-tools.md) |
 | Research, adapters, and provenance | [design/v3/10-research-provenance.md](design/v3/10-research-provenance.md) |
@@ -76,16 +77,15 @@ stdio fixture:      real MCP child        → full test fake only; no local fact
 ## Target data flow (design)
 
 ```
-host LLM     research / files → five MCP tools → claim patch
-                                      │
-runtime      host binding + parser → typed EngineClient, actor per client
-                                      │
-engine       ingest → queue → brief/lease → validate/apply/render → current|suspended
-                                      │
-store        ~/.distilly/        immutable facts + state.json commit point
-             .index/             disposable queue, graph, and Library projections
-                                      │
-surfaces     Distilly + Person | local Panel | CLI/plugin projections
+host LLM      research / files → five MCP tools → claim patch
+surfaces      Distilly + Person | local Panel | CLI/plugin
+                                       │ EngineClient only
+runtime       host binding + parser → actor-bound client
+                                       │
+engine        ingest → pending → brief/lease → validate/apply/render → current|suspended
+                  │                                      │
+                  ▼                                      ▼
+authority     SQLite/WAL metadata + immutable blobs   LSN projections / exports / host files
 ```
 
 Signatures, field lists, and host pitfalls stay in the design chapters. This page only orients.

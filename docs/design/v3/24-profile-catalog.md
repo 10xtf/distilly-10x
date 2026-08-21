@@ -14,7 +14,7 @@
 
 ### 24.2 首版只做本地 bundle import / export
 
-为了备份、手工分享和将来 Catalog，先定义 bundle：
+为了单主体手工分享和将来 Catalog，先定义 profile bundle；它不是完整 store backup：
 
 ~~~text
 <name>.distilly-profile/
@@ -45,7 +45,7 @@ manifest 包含 bundleSchemaVersion、profileSchemaVersion、subject display met
 
 1. 校验结构、checksum、schema、签名（若有）与路径穿越；
 2. 展示将创建的主体、claims、许可和来源缺口；
-3. 把每个 excerpt 作为 kind=derived_text、sensitivity=shareable 的本地 imported material 落盘，重新派生 MaterialId，并原子重写全部 EvidenceRef；quote 必须仍是 excerpt 的精确子串；
+3. 把每个 excerpt 作为 kind=derived_text、sensitivity=shareable 的 imported material blob，重新派生 MaterialId，并在同一 SQLite import transaction重写全部 EvidenceRef；quote 必须仍是 excerpt 的精确子串；
 4. 新建或 fork 到本地 SubjectId，不复用外部目录 id；
 5. 首次版本状态为 suspended，ReviewReason = imported_profile；
 6. 用户在本地 Panel 审核后 promote；
@@ -126,5 +126,18 @@ RegistryClient 不实现本地 import / commit，不 import engine stores。Pane
 - moderation 与 abuse reporting 有 owner；
 - 本地产品完全不登录仍可用；
 - pull 后默认 suspended 的端到端测试通过。
+
+### 24.7 完整 backup / restore
+
+完整本地 backup 是 Engine administration 能力，与 subject-scoped bundle 分开。backup 产物至少包含：
+
+- 一致的 SQLite snapshot；
+- snapshot 可达的全部 blob；
+- storage/blob/backup schema versions、instance metadata 与每个文件digest的manifest；
+- 可选的人类可读 inventory，但不依赖它恢复。
+
+backup 创建期间取得 blob maintenance lease，用数据库 pin 固定 snapshot 可达 blobs，完成或失败后释放；GC 不能删除被 active backup 引用的 blob。restore 只在 maintenance mode 运行：先把数据库和 blob 构造到 sibling root，执行 database integrity、foreign keys、所有 referenced blob digest 和完整 lineage audit，全部通过后才切换 live root 并保留旧 root 作为明确恢复点。损坏或不兼容 backup 绝不部分覆盖 live store。
+
+首个公开 runtime 必须实现 §18.1 的 `EngineAdministrationClient` 及四个 strict schemas，并提供 §19.1 两条 CLI 命令。`backup` 成功只返回已经原子发布的 backup 目录、manifest digest 和创建时间；目标冲突是 `already_exists`，路径/confirmation 错误是 `invalid_input`，权限错误是 `permission_denied`，snapshot/blob/manifest 不一致是 `storage_corrupt`。`restore` 的 confirmation 必须等于被校验 manifest 的 digest；成功只在 sibling root 已切换、SQLite authority 已重新打开后返回，结果同时给出 retained previous root path。owner 正在处理 mutation、backup、restore 或无法进入 maintenance 时返回 retryable `busy`。这两个 maintenance method 不进入五个 MCP 工具、Panel `/rpc`、普通 EngineMethodMap 或业务 operations 表，也不冒充 bundles.import/export。
 
 ---

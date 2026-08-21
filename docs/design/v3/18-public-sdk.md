@@ -148,8 +148,8 @@ export interface LineagePage {
   readonly nextCursor?: string;
 }
 
-// LineageEvent is a read model projected from EventRecord plus immutable
-// VersionRecord; it is not a second on-disk event shape.
+// LineageEvent is a public read model aggregated from Engine-private event
+// and immutable version rows; it is not a persistence schema.
 
 export interface InstallOptions {
   readonly versionId?: VersionId;
@@ -247,12 +247,39 @@ export interface BundleExportResult {
   readonly contentDigest: ContentDigest;
 }
 
+export interface SystemBackupInput {
+  readonly destination: string;
+  readonly overwrite?: boolean;
+}
+
+export interface SystemBackupResult {
+  readonly path: string;
+  readonly manifestDigest: ContentDigest;
+  readonly createdAt: IsoDateTime;
+}
+
+export interface SystemRestoreInput {
+  readonly source: string;
+  readonly confirmation: ContentDigest;
+}
+
+export interface SystemRestoreResult {
+  readonly manifestDigest: ContentDigest;
+  readonly restoredAt: IsoDateTime;
+  readonly previousRootPath: string;
+}
+
+export interface EngineAdministrationClient {
+  backup(input: SystemBackupInput): Promise<SystemBackupResult>;
+  restore(input: SystemRestoreInput): Promise<SystemRestoreResult>;
+}
+
 export type EngineMethodMap = Readonly<{
   readonly "subjects.create": Method<CreateSubjectInput, SubjectSummary>;
   readonly "subjects.list": Method<SubjectQuery, SubjectPage>;
   readonly "subjects.resolve": Method<ResolveSubjectInput, ResolveSubjectResult>;
   readonly "subjects.archive": Method<SubjectRef, EmptyResult>;
-  readonly "subjects.purge": Method<PurgeSubjectInput, EmptyResult>;
+  readonly "subjects.purge": Method<PurgeSubjectInput, PurgeResult>;
 
   readonly "materials.ingest": Method<IngestInput, IngestResult>;
   readonly "materials.ingestFiles": Method<IngestFilesInput, IngestFilesResult>;
@@ -318,11 +345,18 @@ export type MethodSchemas<M extends Method<unknown, unknown>> = {
 export declare const engineMethodSchemas: {
   readonly [M in keyof EngineMethodMap]: MethodSchemas<EngineMethodMap[M]>;
 };
+
+export declare const engineAdministrationSchemas: {
+  readonly backup: MethodSchemas<Method<SystemBackupInput, SystemBackupResult>>;
+  readonly restore: MethodSchemas<Method<SystemRestoreInput, SystemRestoreResult>>;
+};
 ~~~
 
 MCP 五工具是这个更大方法表的受限 presenter，不是一对一等同于五个 engine methods。materials.ingest 本身接收 IngestSubjectTarget，所以 create + first ingest 是一个 IngestService 事务；handler 禁止先 subjects.create 再 materials.ingest。
 
-关系 slice 未进入首发 MethodMap；§22 固定其未来 additive 类型与复杂度，但在实现落地前不发布永远 unsupported 的 wire 方法。engineMethodSchemas 用 satisfies / mapped type 锁定完整 key 集；CI 的 protocol contract fixture import 五个 ToolOutput、实例化每个 MethodMap params/result，并对每个 key 做 schema round-trip，防止 types.ts 与 schemas/ 漂移。EngineMethodMap 作为 JSON/RPC 合同不使用 undefined/void；无 payload 的成功结果统一为 EmptyResult=null，facade 若承诺 Promise<void> 可在最外层丢弃 null，但 transport、schema 与 OperationRecord 不可各造一种空值。
+关系 slice 未进入首发 MethodMap；§22 固定其未来 additive 类型与复杂度，但在实现落地前不发布永远 unsupported 的 wire 方法。engineMethodSchemas 用 satisfies / mapped type 锁定完整 key 集；CI 的 protocol contract fixture import 五个 ToolOutput、实例化每个 MethodMap params/result，并对每个 key 做 schema round-trip，防止 types.ts 与 schemas/ 漂移。EngineMethodMap 作为 JSON/RPC 合同不使用 undefined/void；无 payload 的成功结果统一为 EmptyResult=null，facade 若承诺 Promise<void> 可在最外层丢弃 null，但 transport、schema 与 operations authority row 不可各造一种空值。
+
+`EngineAdministrationClient` 是同一 root owner 暴露给本机 CLI/runtime 的窄 maintenance contract，不是第二个存储 writer。backup/restore 会冻结或切换整个 authority，不能假装成一条普通 subject business mutation，也不进入 EngineMethodMap、Panel `/rpc` 或五个 MCP 工具。它的四个 input/result object 仍由 Protocol 提供 strict runtime schemas；CLI 只能经已认证的 root owner 调用，不能直接复制 SQLite/WAL 或 blob 目录。
 
 ### 18.2 强类型 EngineClient
 
@@ -357,9 +391,9 @@ export declare class DistillyError extends Error {
 }
 ~~~
 
-EngineClient.close() 只取消该 client 的 watch 与 session 绑定，不关闭 SQLite、事实 store 或同一 runtime 的其它 client，也不暗中 release durable lease；caller 需在 close 前显式 distill.release，否则 lease 按 expiresAt 自然失效。EngineRuntime / LocalRuntime.close() 才关闭共享资源，只能由创建它的 composition owner 在停止接收调用后执行；它会先关闭仍连接的 child clients，并且幂等。MCP server、PanelLauncher 与 Panel handle 都借用注入的 EngineClient：各自 close 只关闭自己拥有的 transport、server、handle 与订阅，外层 composition 再关闭 client，最后关闭共享 runtime；纯 ReviewPresenter 接口本身没有 close 合同。openInProcess 是例外：它创建私有 runtime，所以返回的 Distilly.close() 先关 sdk client、再关该私有 runtime。直接 new Distilly({client}) 时，close 仍只委托 client.close()。
+EngineClient.close() 只取消该 client 的 watch 与 session 绑定，不关闭 SQLite、Engine service 或同一 root 的其它 client，也不暗中 release durable lease；caller 需在 close 前显式 distill.release，否则 lease 按 expiresAt 自然失效。只有 root service owner 的 shutdown path 才关闭共享资源，并且必须先停止接收调用、关闭连接，再关闭 SQLite。MCP server、PanelLauncher 与 Panel handle 都借用注入的 EngineClient：各自 close 只关闭自己拥有的 transport、server、handle 与订阅。`openInProcess` 也遵守同一规则：它是 connect-or-start convenience seam，返回的 Distilly.close() 只关闭 sdk client，不因自己碰巧启动了 owner 就终止仍被其它 client 使用的 service。
 
-不用 call<T>(method: string)：它允许拼错 method、错配 params / result 而编译照过。mutation overload 在类型层强制 requestId；MCP presenter 透传 WireRequest.requestId，facade 为一次顶层调用生成并在底层重试中复用。相同业务动作在调用者主动发起的新顶层调用里可以拿新 requestId，内容寻址的 VersionId 与 stale checks 仍防止重复事实。以后的 HTTP / daemon transport 只能实现这张表，不能改 facade。
+不用 call<T>(method: string)：它允许拼错 method、错配 params / result 而编译照过。mutation overload 在类型层强制 requestId；MCP presenter 透传 WireRequest.requestId，facade 为一次顶层调用生成并在底层重试中复用。相同业务动作在调用者主动发起的新顶层调用里可以拿新 requestId，内容寻址的 VersionId 与 stale checks 仍防止重复事实。本地 attach transport 只能实现这张表，不能改 facade。
 
 ### 18.3 Distilly
 
@@ -389,13 +423,13 @@ export declare class Distilly {
   reviews(query?: ReviewQuery): Promise<ReviewPage>;
   promote(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   reject(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
-  purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<void>;
+  purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<PurgeResult>;
 
   close(): Promise<void>;
 }
 ~~~
 
-Distilly 是纯 injected-client facade：构造器不读 HOME、不探测环境、不创建 runtime，也不重复 engine boundary schema。每个 query 恰好转发一次同名 EngineMethodMap read；每个 mutation 在进入 call 前选择一次 `mutation.requestId ?? cryptoRequestId()`，并把同一个 MutationContext 交给该顶层调用内的所有 transport retry。browser-safe cryptoRequestId 只用 globalThis.crypto.getRandomValues 取得 16 bytes 并编码成 `req_` + 32 lowercase hex，不 import node:crypto、不用 Math.random；环境缺少 Web Crypto 时在 client call 前返回 host_unsupported。release / purge 等 facade `Promise<void>` 只在 method 成功返回协议 EmptyResult=null 后丢弃 null。Distilly 不新增 watch shortcut；需要订阅的调用者直接使用注入的 EngineClient。
+Distilly 是纯 injected-client facade：构造器不读 HOME、不探测环境、不创建 runtime，也不重复 engine boundary schema。每个 query 恰好转发一次同名 EngineMethodMap read；每个 mutation 在进入 call 前选择一次 `mutation.requestId ?? cryptoRequestId()`，并把同一个 MutationContext 交给该顶层调用内的所有 transport retry。browser-safe cryptoRequestId 只用 globalThis.crypto.getRandomValues 取得 16 bytes 并编码成 `req_` + 32 lowercase hex，不 import node:crypto、不用 Math.random；环境缺少 Web Crypto 时在 client call 前返回 host_unsupported。release 等 facade `Promise<void>` 只在 method 成功返回协议 EmptyResult=null 后丢弃 null；purge 保留完整 `PurgeResult`。Distilly 不新增 watch shortcut；需要订阅的调用者直接使用注入的 EngineClient。
 
 ### 18.4 Person
 
@@ -457,7 +491,7 @@ Person 的 public constructor 与 `distilly.person(subjectId)` 语义相同：�
 
 purge 不放 Person 第一屏；它是 Distilly.purge / Panel / CLI 的显式危险入口。关系方法可以在关系 slice 后 additive 加到 Person，不阻塞首发。
 
-browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewPage`、`ReviewActionInput`、`VersionQuery`、`VersionPage`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`LineagePage`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
+browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PurgeResult`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewPage`、`ReviewActionInput`、`VersionQuery`、`VersionPage`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`LineagePage`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
 
 ### 18.5 Composition root
 
@@ -477,9 +511,9 @@ export declare function openInProcess(
 ): Promise<Distilly>;
 ~~~
 
-distilly/node 依赖 @distilly/runtime；runtime 再组合 engine、内置 parsers 与 bindings。openInProcess 固定创建 kind=sdk 的 client，callerLabel 只是审计 label，不能选择 user / host actor。需要 host、Panel 或 CLI actor 的入口由各自 composition 调用 runtime.connectTrusted；该函数不从 distilly 根或 node convenience API 导出。根 index.ts 不 import / re-export node.ts。Distilly 构造器不偷偷创建引擎或读 HOME；只有名字明确的 openInProcess 做本机 I/O。
+distilly/node 依赖 @distilly/runtime；runtime 再组合 engine、内置 parsers 与 bindings。所有 production 入口共用一个 root-scoped `connectOrStartEngine` seam：若该 root 没有 owner，它取得 instance ownership、启动本机 service 并等待 ready；若已有 owner，它完成本机认证后 attach；owner 正在启动、异常退出或 ownership 不可证明时 fail closed，不退回第二个 writer。owner discovery/auth、crash takeover 与 service shutdown 都属于 runtime，不进入 Protocol。openInProcess 固定创建 kind=sdk 的 client，callerLabel 只是审计 label，不能选择 user / host actor。需要 host、Panel 或 CLI actor 的入口由各自 composition 调用 runtime.connectTrusted；该函数不从 distilly 根或 node convenience API 导出。根 index.ts 不 import / re-export node.ts。Distilly 构造器不偷偷创建引擎或读 HOME；只有名字明确的 openInProcess 做本机 attach/start I/O。
 
-§29 Step 8 只落 browser-safe 根与 injected-client tests，不创建 `distilly/node` subpath，也不声称任一 facade method 有本机 backend。openInProcess 与该 subpath 只能和完整 production LocalRuntime 同一 feature 落地；在那之前，Distilly / Person 的全部方法由 full fake EngineClient contract fixture 验证 method、params、MutationContext、null-to-void 与 close 转发。
+browser-safe 根与 injected-client tests 不创建 `distilly/node` subpath，也不声称任一 facade method 有本机 backend。openInProcess 与该 subpath 只能和完整 production single-writer runtime 同一 feature 落地；在那之前，Distilly / Person 的全部方法由 full fake EngineClient contract fixture 验证 method、params、MutationContext、null-to-void 与 close 转发。
 
 ### 18.6 API 稳定性
 

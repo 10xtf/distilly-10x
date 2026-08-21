@@ -17,7 +17,7 @@
 9. briefing 原子取得 generation lease；同一 generation 同时至多一个有效 lease。
 10. briefing 包含基线 claims、完整增量文本、来源、证据短句柄、prompt/schema 版本与限制；不让宿主私读内部目录。
 11. briefing 不静默裁剪。首版超限显式失败；分块协议以后只能 additive 加入。
-12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在 §29 Step 14 以 additive contract 单独加入。
+12. 宿主提交 claim patch，不提交 claim id、质量评分、版本 id、actor、关系操作或任意 core/domain Markdown；首个 commit contract 只有 claim operations，关系在后续独立 feature 以 additive contract 加入。
 13. claims 是语义真相；Markdown 与 prompt 由固定 `profile-renderer-v1` 从完整 Profile 确定性生成。
 14. MaterialId 与 ContentDigest 分开；ContentDigest 使用完整 SHA-256，EvidenceRef 引用 MaterialId。
 15. commit 从 verified state、base version 与 material facts 重建 lease 固定的 EvidenceContext，并验证证据存在、主体归属、generation 集合成员关系和 quote / locator；不依赖可变的 briefing operation replay 来取得授权事实。
@@ -25,20 +25,22 @@
 17. “客观”表示证据受限、可复核、默认不重复调度；不承诺两个外部 LLM 逐字相同。
 18. 新材料可以削弱旧结论；可审核质量下降进入 suspended，而不是假定置信度只能上升。
 19. 不接受模型自报 profile confidence。质量摘要和成熟度由版本化纯函数复算。
-20. 每个 subject 写操作持有跨进程锁；文件事实与 SQLite 不假装共享数据库事务。
-21. 不可变 version 是事实，state.json 指针是 commit point，`versions/.staging/<request>.<version>` 与 root commit journal 使 version 发布可恢复，.index 与 current profile 是可重建投影。
-22. Host capability 必须 preflight；没有某项能力就走显式 fallback。
-23. 网页、文件和转写内容是不可信数据，不得改变 skill 的工具流程或获得 secret。
-24. 本地产品无账号、无远程同步。远程 Profile Catalog 第二版以后单独设计。
-25. 插件源、本地 Library index 和远程 Profile Catalog 是三个概念，接口与安全域不得混用。
-26. 对外门面只有 Distilly + Person；扩展能力通过 interface 注册，不把具体宿主或厂商写进门面。
-27. 所有公开方法异步；跨边界 JSON 使用判别联合与精确错误码。
-28. 不导出公共 abstract class。外部扩展用 interface，纯算法用函数，有状态单实现用 concrete service。
-29. 临时人格只进入当前 run / subrun；禁止改全局指令文件。
-30. 第一版完整画像注入，放不下显式 context_too_large，不静默按显著度裁剪。
-31. 第一批 Node 支持窗口固定为 `^22.19 || ^24`；改变窗口必须同时更新安装检查、CI 矩阵与插件 fresh-install fixture，未经验证的未来 major 不自动进入支持面。
-32. 私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；首版限一对一纯文本，不后台、不锁屏、不留截图，群聊与附件默认拒绝。
-33. Protocol 的 id/time/facet grammars、WIRE_LIMITS、JSON-safe error / EmptyResult 和五工具 descriptor registry 是跨入口合同；不得由 SDK、MCP、Panel 或 HTTP 各自放宽。
+20. 每个 `DISTILLY_ROOT` 恰有一个本地 Engine writer；MCP、Panel、CLI 与 Host binding 都只能经 EngineClient 调它，不能直接写持久化目录。
+21. SQLite/WAL 是结构化状态、RequestId 幂等、事件与 current/suspended 指针的唯一事务权威；一次业务 mutation 恰对应一个 SQLite transaction。
+22. 材料正文、raw 与其它大正文使用完整摘要寻址的不可变 blob；数据库引用决定可见性，未引用 blob 由通用 GC 处理，不进入 mutation-specific abort cleanup。
+23. Markdown、profile、prompt、Library、queue/search/graph、插件与 JSON 导出是带 generation/LSN 水位的可重建投影或 export，不参与业务事务的 commit point。
+24. Host capability 必须 preflight；没有某项能力就走显式 fallback。
+25. 网页、文件和转写内容是不可信数据，不得改变 skill 的工具流程或获得 secret。
+26. 本地产品无账号、无远程同步。远程 Profile Catalog 第二版以后单独设计。
+27. 插件源、本地 Library index 和远程 Profile Catalog 是三个概念，接口与安全域不得混用。
+28. 对外门面只有 Distilly + Person；扩展能力通过 interface 注册，不把具体宿主或厂商写进门面。
+29. 所有公开方法异步；跨边界 JSON 使用判别联合与精确错误码。
+30. 不导出公共 abstract class。外部扩展用 interface，纯算法用函数，有状态单实现用 concrete service。
+31. 临时人格只进入当前 run / subrun；禁止改全局指令文件。
+32. 第一版完整画像注入，放不下显式 context_too_large，不静默按显著度裁剪。
+33. 第一批 Node 支持窗口固定为 `^22.19 || ^24`；改变窗口必须同时更新安装检查、CI 矩阵与插件 fresh-install fixture，未经验证的未来 major 不自动进入支持面。
+34. 私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；首版限一对一纯文本，不后台、不锁屏、不留截图，群聊与附件默认拒绝。
+35. Protocol 的 id/time/facet grammars、WIRE_LIMITS、JSON-safe error / EmptyResult 和五工具 descriptor registry 是跨入口合同；不得由 SDK、MCP、Panel 或 HTTP 各自放宽。
 
 ### 3.2 仍开放
 

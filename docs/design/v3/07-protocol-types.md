@@ -4,15 +4,15 @@
 
 ### 7.1 协议包的职责
 
-@distilly/protocol 只拥有跨包、跨进程或落盘会出现的词汇：
+@distilly/protocol 只拥有跨包或跨进程的产品词汇：
 
 - 品牌 id、枚举和值类型；
-- EngineMethodMap、EngineEvent 与 EngineClient；
+- EngineMethodMap、EngineEvent、EngineClient 与窄的 EngineAdministrationClient；
 - 五个 MCP 工具的精确 name/title/description、runtime/JSON schema 与 annotations；
 - DistillyErrorCode 与 wire error；
 - zod 边界 schema 和协议版本常量。
 
-它不读文件、不启动网络、不依赖 MCP SDK、不包含业务 service，也不导入任何其它 Distilly 包。
+它不读存储、不启动网络、不依赖 MCP SDK、不包含业务 service，也不导入任何其它 Distilly 包。SQLite row、storage schema、blob metadata、projection watermark、GC state 与任何 journal/recovery record 都是 Engine-private，不能因为测试方便进入公共 Protocol。
 
 ### 7.2 品牌 id
 
@@ -25,10 +25,6 @@ export type SubjectId       = Branded<`subject_${string}`, "SubjectId">;
 export type SpaceId         = Branded<`space_${string}`, "SpaceId">;
 export type MaterialId      = Branded<`mat_${string}`, "MaterialId">;
 export type RawId           = Branded<`raw_${string}`, "RawId">;
-export type FactChecksum    = Branded<
-  `fact_sha256_${string}`,
-  "FactChecksum"
->;
 export type ContentDigest   = Branded<`sha256_${string}`, "ContentDigest">;
 export type ProvenanceDigest = Branded<
   `provenance_sha256_${string}`,
@@ -73,7 +69,7 @@ export const BUILTIN_PEOPLE_SPACE_ID =
   "space_00000000000000000000000000000001" as SpaceId;
 ~~~
 
-RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。它可以安全用作 root operations/<request-id>.json、operations/.locks/<request-id>.lock 与 transactions/<request-id>.json，不再另做不透明 filename 编码。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。LeaseOwnerId 的 wire form 固定为 `lease_owner_` + 32 位小写十六进制；它由 engine 在创建每个 ClientSessionContext 时生成，不是公开 method params，也不能从 actor id 派生。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
+RequestId 的 wire form 固定为 `req_` + 32 位小写十六进制，即 128-bit caller-generated randomness；空值、大写 hex、额外字符、斜杠、反斜杠和点段都 invalid_input。Engine 在 operations 表中用它做全局唯一幂等键；它不是文件名或锁名。SDK helper 与 Host/MCP presenter 每次顶层 mutation 生成一个，重试复用同一值。LeaseOwnerId 的 wire form 固定为 `lease_owner_` + 32 位小写十六进制；它由 engine 在创建每个 ClientSessionContext 时生成，不是公开 method params，也不能从 actor id 派生。BUILTIN_PEOPLE_SPACE_ID 是唯一非随机 SpaceId，只能指向 §9.2 的 exact built-in record；其余 SpaceId 由 generator 生成并避开该值。IsoDateTime 只接受经有效日历校验的 UTC 毫秒 RFC 3339 canonical form `YYYY-MM-DDTHH:mm:ss.sssZ`；offset、缺毫秒、leap second 与无效日期都 invalid_input。HostName 是 1..64 位 ASCII lowercase slug，grammar 为 `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`。FacetPath 总长 1..128，由点分的 ASCII lowercase segment 组成；每段长 1..32 且 grammar 为 `[a-z][a-z0-9_]*`。
 
 运行时 schema 还要校验每个品牌 id 的前缀、长度和字符集。品牌只解决编译期混用，不替代边界校验。
 
@@ -165,6 +161,19 @@ export interface PurgeSubjectInput extends SubjectRef {
   readonly confirmation: string;
 }
 
+export type PurgeResult =
+  | {
+      readonly subjectId: SubjectId;
+      readonly logicalDeletion: "complete";
+      readonly physicalDeletion: "complete";
+    }
+  | {
+      readonly subjectId: SubjectId;
+      readonly logicalDeletion: "complete";
+      readonly physicalDeletion: "pending";
+      readonly pendingBlobCount: number;
+    };
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -183,7 +192,7 @@ export const WIRE_LIMITS = {
   reasonBytes: 8_192,
   claimTextBytes: 16_384,
   quoteBytes: 65_536,
-  correctionTextBytes: 65_536,
+  correctionTextBytes: 16_384,
   materialContentBytes: 1_048_576,
   ingestMaterials: 32,
   smallArrayItems: 64,
@@ -193,16 +202,13 @@ export const WIRE_LIMITS = {
   listLimit: 200,
 } as const;
 
-export const FACT_LIMITS = {
-  sourceIdentityBytes: 8_208,
-} as const;
 ~~~
 
 除 JsonObject 和类型中显式写出的开放 Record 外，所有 public object runtime schema 都拒绝 unknown keys，JSON Schema 递归使用 additionalProperties=false。所有整数必须是 safe integer；generation、count、index 与 locator 为非负数，limit 为 1..WIRE_LIMITS.listLimit。JsonValue 只允许可编码 JSON 的有限值，不接受 undefined、bigint、函数、symbol、非有限 number 或循环。
 
-WIRE_LIMITS 的 string 上限按 UTF-8 bytes 计；必填模型字符串为非空，optional string 出现时也不能是空值。displayName、alias、provider/handle/externalId、domainPack、clientRef、title、language、author/participant、producer/version 和可见 label 用 labelBytes；query 用 queryBytes；URI 用 uriBytes；reason/review note/general notes 用 reasonBytes；claim text 用 claimTextBytes；evidence quote 用 quoteBytes；correction text 用 correctionTextBytes；每份 MaterialInput.content 用 materialContentBytes。aliases、identityHints、authors、participants、supersedes、observedIn 与普通 evidence 数组最多 smallArrayItems；每批 ingest 最多 ingestMaterials，patch 最多 patchOperations，单个 operation 最多 evidencePerOperation，显式开放 Record 最多 openRecordEntries。一个完整工具输入的 canonical UTF-8 JSON 最多 toolInputBytes；超限在业务 service 之前 invalid_input，不由各入口自造更宽阈值。
+WIRE_LIMITS 的 string 上限按 UTF-8 bytes 计；必填模型字符串为非空，optional string 出现时也不能是空值。displayName、alias、provider/handle/externalId、domainPack、clientRef、title、language、author/participant、producer/version 和可见 label 用 labelBytes；query 用 queryBytes；URI 用 uriBytes；reason/review note/general notes 用 reasonBytes；claim text 用 claimTextBytes；evidence quote 用 quoteBytes；correction text 用 correctionTextBytes；每份 MaterialInput.content 用 materialContentBytes。correctionTextBytes 有意逐值等于 claimTextBytes=16,384，因为完整 correction 正文立即成为 replacement Claim.text 与其 full-body quote；它不能借 quoteBytes 的 65,536 上限绕过 claim schema。aliases、identityHints、authors、participants、supersedes、observedIn 与普通 evidence 数组最多 smallArrayItems；每批 ingest 最多 ingestMaterials，patch 最多 patchOperations，单个 operation 最多 evidencePerOperation，显式开放 Record 最多 openRecordEntries。一个完整工具输入的 canonical UTF-8 JSON 最多 toolInputBytes；超限在业务 service 之前 invalid_input，不由各入口自造更宽阈值。
 
-schema 验证 raw wire value 后，引擎凡经 Unicode NFC、label trim、material-text-v1 或 WHATWG URL serialization 得到 canonical string，都必须对 canonical UTF-8 bytes 再应用原字段上限；raw value 合法但 canonical bytes 扩张超限仍返回 invalid_input。MaterialRecord.sourceIdentity 是带冻结 namespace 的引擎派生事实，不复用 URI schema；它使用独立 `FACT_LIMITS.sourceIdentityBytes=8_208` schema，足以容纳当前最长 `artifact-uri-v1\0` 前缀加完整 8,192-byte canonical URI，因此也不得为容纳 `source-uri-v1\0` 而反向收窄 public URI 上限。
+schema 验证 raw wire value 后，引擎凡经 Unicode NFC、label trim、material-text-v1 或 WHATWG URL serialization 得到 canonical string，都必须对 canonical UTF-8 bytes 再应用原字段上限；raw value 合法但 canonical bytes 扩张超限仍返回 invalid_input。Engine-private storage 派生字段有自己的 storage schema 上限，不能反向扩大或收窄 public wire。
 
 ### 7.3 Wire envelope 与幂等
 
@@ -249,9 +255,9 @@ export interface ClientSessionContext {
 }
 ~~~
 
-ActorContext、LeaseOwnerId 与 capacity 在创建 EngineClient 或完成 RPC/MCP 握手时由可信 composition 派生，不出现在 ingest / brief / renew / release / commit / correct 的模型参数中。每次 EngineClient session 必须使用不同的 engine-owned LeaseOwnerId；重连得到新 owner，不能借 actor id 或 caller label 继承旧 lease。PrivateUiCaptureContext 不属于 ClientSessionContext 或 protocol wire；它是 engine 在验证活跃 grant 后封装在一次性 capture session 内的私有状态，普通 EngineRuntime.connect、MCP tool input、聊天正文和公开 SDK 都不能构造、cast 或重放它。公开 openInProcess 不能接收任意 ActorContext 或 LeaseOwnerId；普通 SDK 固定为 sdk，CLI / Panel 的直接动作由它们自己的入口绑定 user，MCP 固定为 host，后台 worker 固定为 executor。
+ActorContext、LeaseOwnerId 与 capacity 在创建 EngineClient 或完成 RPC/MCP 握手时由可信 composition 派生，不出现在 ingest / brief / renew / release / commit / correct 的模型参数中。每次 EngineClient session 必须使用不同的 engine-owned LeaseOwnerId；重连得到新 owner，不能借 actor id 或 caller label 继承旧 lease。PrivateUiCaptureContext 不属于 ClientSessionContext 或 protocol wire；它是 engine 在验证活跃 grant 后封装在一次性 capture session 内的私有状态，普通 EngineRuntime.connect、MCP tool input、聊天正文和公开 SDK 都不能构造、cast 或重放它。普通 SDK 固定为 sdk，CLI / Panel 的直接动作由它们自己的入口绑定 user，MCP 固定为 host，后台 worker 固定为 executor；这些 client 都不获得 storage capability。
 
-MCP correct 仍记录真实 actor=host。它可以记录“宿主转述了用户原话”的 correction provenance，但不能冒充直接 user 动作。普通 SDK 的 Person.correct 同样记录 actor=sdk，而不是把 SDK 调用者猜成 user。CorrectionService 对所有非 user actor 写 relayed provenance、加入 relayed_correction reason 并 suspended；只有 Panel / CLI 的明确 correct、promote、reject 操作能记录 actor=user。actor 是审计来源，不代替文件权限或授权判断。
+MCP correct 仍记录真实 actor=host。它可以记录“宿主转述了用户原话”的 correction provenance，但不能冒充直接 user 动作。普通 SDK 的 Person.correct 同样记录 actor=sdk，而不是把 SDK 调用者猜成 user。CorrectionService 对所有非 user actor 写 relayed provenance、加入 relayed_correction reason 并 suspended；只有 Panel / CLI 的明确 correct、promote、reject 操作能记录 actor=user。actor 是审计来源，不代替 Engine session 授权或数据库访问边界。
 
 ### 7.5 错误码
 
@@ -334,7 +340,7 @@ not_found、ambiguous_subject 和 nothing_pending 在有对应判别结果的工
 | private capture ingest | 可信 session、subject-target/scope digest、expiry、computer_use_transcript、一次性状态 | permission_denied / invalid_input |
 | pending brief / commit | job、generation、lease、brief contract、base、集合 hash | lease_* / stale_job / schema_unsupported |
 | claim patch | operation、facet、目标 claim、证据集合、quote | invalid_input / evidence_invalid |
-| 磁盘读取 | 每种事实文件 schemaVersion 与 checksum | schema_unsupported / storage_corrupt |
+| Engine storage read | query 直接使用的 row/foreign key/canonical id 与 blob digest | schema_unsupported / storage_corrupt |
 | 配置读取 | 已知字段、类型、secret reference | invalid_input |
 | 插件 / bundle / adapter 输入 | manifest、bundle 签名、第三方产物 | host_unsupported / adapter_failed |
 

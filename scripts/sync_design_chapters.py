@@ -130,7 +130,7 @@ V3 = Corpus(
         "03-locked-and-superseded.md",
         "04-trust-and-principles.md",
         "05-architecture-and-state.md",
-        "06-fact-layer-and-recovery.md",
+        "06-storage-authority-and-transactions.md",
         "07-protocol-types.md",
         "08-mcp-tools.md",
         "09-subject-identity.md",

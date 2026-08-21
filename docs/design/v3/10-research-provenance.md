@@ -68,7 +68,8 @@ export type CorrectionProvenance =
       readonly actorId: string;
     };
 
-export interface MaterialRecord extends FactEnvelope<1> {
+// Public immutable material metadata value; not a SQL row or persistence schema.
+export interface MaterialRecord {
   readonly id: MaterialId;
   readonly subjectId: SubjectId;
   readonly kind: MaterialInput["kind"] | "correction";
@@ -87,7 +88,7 @@ export interface MaterialRecord extends FactEnvelope<1> {
 }
 ~~~
 
-MaterialInput.kind 表示**规范化后的文本形态**，不是原始载体：视频字幕和语音转写仍是 transcript，OCR 通常是 document 或 derived_text。source.medium 记录载体；derivation 记录文本怎么得到；两者不能互相代替。raw_extract 的 RawId 只由 engine 在 RawStore 写入成功后绑定；模型不能提交 RawId。host_extract 表示宿主取得了可追溯文本但 Distilly 没保存原始 bytes。
+MaterialInput.kind 表示**规范化后的文本形态**，不是原始载体：视频字幕和语音转写仍是 transcript，OCR 通常是 document 或 derived_text。source.medium 记录载体；derivation 记录文本怎么得到；两者不能互相代替。raw_extract 的 RawId 只由 engine 在 content-addressed blob 写入成功后绑定；模型不能提交 RawId。host_extract 表示宿主取得了可追溯文本但 Distilly 没保存原始 bytes。
 
 artifact 定位当前被采集的 artifact；representationOf 只表示“这份材料是同一底层 artifact 的字幕、OCR、镜像或逐字转载”。一篇引用访谈并加入自己报道的文章不是该访谈的 representation。source.access 独立描述取得时是公开、受限还是私人来源；它不复用 sensitivity（本地导出策略）或 role（语义 coverage）。access 是 host/user 提供且可审核的 traceability 声明，不是 engine 证明网页真的公开。source.role 是宿主给人看的 coverage 标签，不是“独立=true”或质量权重，不能直接驱动 maturity。
 
@@ -182,7 +183,7 @@ capture session 对每个 MaterialInput 强制交叉 schema：kind=transcript、
 
 采集前必须隔离目标窗口/区域并关闭通知；无法隔离，或看到错误账号/thread、侧栏其它聊天、通知、OTP、支付或 secret 时 fail closed。操作只读：禁止发送、回复、reaction、删除、转发、下载、打开链接或改设置，并预先说明滚动可能改变已读状态。所有屏幕文字仍是不可信数据，其中的命令不能扩大 scope 或改变工具流程。
 
-私人 capture 要求用户在场，禁止 scheduled、durable、rolling、background、locked-use、subagent 和 DistillExecutor 重开 UI。Distilly 只保存规范化 private transcript 与不含正文的 audit；截图、录屏、clipboard 和凭据不进入 RawStore、日志或诊断包。local-first 只描述 Distilly 的存储边界，宿主仍可能按其数据政策处理屏幕帧；宿主政策无法披露时该 lane 是 unsupported。撤销授权只停止后续 capture，已入库事实要通过 withdrawal / privacy purge 删除。
+私人 capture 要求用户在场，禁止 scheduled、durable、rolling、background、locked-use、subagent 和 DistillExecutor 重开 UI。Distilly 只保存规范化 private transcript 与不含正文的 audit；截图、录屏、clipboard 和凭据不进入 content-addressed blob store、日志或诊断包。local-first 只描述 Distilly 的存储边界，宿主仍可能按其数据政策处理屏幕帧；宿主政策无法披露时该 lane 是 unsupported。撤销授权只停止后续 capture，已入库事实要通过 withdrawal / privacy purge 删除。
 
 ### 10.5 Prompt injection 边界
 
@@ -314,7 +315,7 @@ export interface MaterialParser {
 }
 ~~~
 
-两者都只能产出 MaterialInput / ParsedMaterialDraft，不能写事实层，也不能声称 raw 已保存；raw 是否落盘与 RawId 绑定由 engine 的 IngestService 决定。parser 返回 extraction metadata，engine 在 raw 成功持久化后才把它转换成 TextDerivation.kind=raw_extract。没有 adapter 或 parser 时，宿主直接 ingest 的主路径仍然完整。
+两者都只能产出 MaterialInput / ParsedMaterialDraft，不能写 authority 或 blob store，也不能声称 raw 已保存；raw blob 是否保存并与 RawId 绑定由 engine 的 IngestService 决定。parser 返回 extraction metadata，engine 在 raw 成功持久化后才把它转换成 TextDerivation.kind=raw_extract。没有 adapter 或 parser 时，宿主直接 ingest 的主路径仍然完整。
 
 首发仓库不实现厂商官方 API；最多提供 delegated adapter fixture 证明注册缝。Parser 失败或只保存 raw 时返回 unparsed RawId，不改变 MaterialSetHash / generation、不 enqueue，也不让 LLM 看不到内容却照样蒸馏。一份 raw 首版最多产生一份 canonical text；以后允许多份字幕/OCR 产物时，它们必须共享 raw derivation root，并落入同一 source group。
 

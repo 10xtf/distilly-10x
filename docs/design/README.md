@@ -32,7 +32,7 @@ Then load the section that owns the change.
 | [03-locked-and-superseded.md](v3/03-locked-and-superseded.md) | Locked decisions, open items, V2 supersession |
 | [04-trust-and-principles.md](v3/04-trust-and-principles.md) | LLM/engine boundary and product principles |
 | [05-architecture-and-state.md](v3/05-architecture-and-state.md) | Layers, processes, main path, state machines |
-| [06-fact-layer-and-recovery.md](v3/06-fact-layer-and-recovery.md) | Home tree, immutable facts, transaction, recovery |
+| [06-storage-authority-and-transactions.md](v3/06-storage-authority-and-transactions.md) | SQLite authority, immutable blobs, transactions, projections, audit, backup |
 | [07-protocol-types.md](v3/07-protocol-types.md) | Branded ids, shared values, errors, validation boundaries |
 | [08-mcp-tools.md](v3/08-mcp-tools.md) | Exact five model tools and wire envelopes |
 | [09-subject-identity.md](v3/09-subject-identity.md) | Subject creation, spaces, identity resolution |

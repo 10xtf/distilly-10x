@@ -18,17 +18,17 @@ export interface CreateSubjectInput {
 }
 ~~~
 
-调用方不提供 subjectId，也不决定文件夹 slug。引擎生成不可变 id；displayName、别名和 slug 可变。目录路径永远使用 id，改名不会使 EvidenceRef、关系或安装记录失效。
+调用方不提供 subjectId，也不决定 storage key。引擎生成不可变 id；displayName 与别名可变，改名不会使 EvidenceRef、关系或安装记录失效。
 
 ### 9.2 空间规则
 
-- 真实人物缺省进入保留的 `BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001"`；该路径上只接受 exact `{ id: BUILTIN_PEOPLE_SPACE_ID, displayName: "People", kind: "people" }` SpaceRecord。
+- 真实人物缺省进入保留的 `BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001"`；该 id 只接受 exact `{ id: BUILTIN_PEOPLE_SPACE_ID, displayName: "People", kind: "people" }` row。
 - fictional 必须明确作品或世界空间；不能默认和真实人物混在一起。
 - custom 空间由 SDK / Panel 创建，MCP create target 可以在同一次请求创建空间。
 - 同名只在同一空间内构成歧义；跨空间查询必须显式允许。
 - 关系默认不跨空间，跨空间 link 需要用户明确操作。
 
-people bootstrap 取 `spaces/<BUILTIN_PEOPLE_SPACE_ID>.identity.lock`，以 create-exclusive 写入或重读 exact record；已有文件任何字段不同都是 storage_corrupt，不会换一个随机 people space。inline space 则在 root `spaces/.catalog.lock` 内按 `(kind, canonical display label)` 解析或 create-exclusive 创建，在锁内重读 facts，不以 `.index` 判定存在性。
+people bootstrap 在 SQLite transaction 内以保留 id insert-or-verify exact row；任一字段不同都是 storage_corrupt，不会换一个随机 people space。inline space 以 `(kind, canonical display label)` 的数据库唯一约束解析或创建，Library/search projection 只能加速候选，不能决定存在性。
 
 `label-v1` 是唯一的 displayName / alias canonicalization：Unicode NFC，只移除首尾连续的 U+0009 / U+000A / U+000D / U+0020，保留大小写与内部 bytes；结果为空则 invalid_input。aliases 分别用同一函数，按 canonical UTF-8 bytes 去重、升序并存储。首版不 case-fold、不 fuzzy match、不压缩内部空白；规则升级必须用新版本，不静默改旧事实。
 
@@ -42,23 +42,22 @@ identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 h
 
 ### 9.4 原子创建与重复
 
-模型路径只有 ingest(create)。引擎先用 label-v1 和版本化 identity-locator 函数规范化 create target，并在锁内重新搜索 facts。判定顺序固定：
+模型路径只有 ingest(create)。引擎先用 label-v1 和版本化 identity-locator 函数规范化 create target。进入 create/ingest 的唯一 SQLite transaction 后，按固定顺序重新检查：
 
-- requestId 已成功：返回原主体；
-- 任一 exact canonical url/account/external_id locator 命中唯一主体：already_exists，并在 typed subjectResolution 返回该 subject；两个以上 exact locator 命中是 storage_corrupt；
+- RequestId 已成功：返回 stored result；
+- 任一 exact canonical url/account/external_id locator 命中唯一主体：already_exists，并在 typed subjectResolution 返回该 subject；同一 locator 关联多个主体是 storage_corrupt；
 - 没有 exact locator 时，按 exact canonical displayName 或 alias 收集候选。如果候选在 target 也提供的某个 locator kind 上已有可证明的不同 canonical value，排除该候选；未提供该 kind 不算冲突；
-- 排除后恰好一个候选：保守返回 already_exists 与该 subject，remediation 要求调用方改用 existing target 或补充可区分 locator；
-- 排除后两个以上候选：ambiguous_subject，并返回全部稳定排序 candidates；
-- 无冲突：创建 subject + 第一批材料，再发布 subject.created。
+- 排除后恰好一个候选：保守返回 already_exists 与该 subject，remediation 要求改用 existing target 或补充可区分 locator；
+- 排除后两个以上候选：ambiguous_subject，并返回稳定排序 candidates；
+- 无冲突：同一 transaction 插入 subject、第一批 material references、generation/job、operation 与 events。
 
-description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → Library projection reservation → 文件提交 / Library apply → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。锁按相反顺序释放；任何路径都不得在持有 projection lock 或 SQLite transaction 时反向等待 filesystem lock。
+description 永不参与唯一性、already_exists 或合并。space/locator/name 的 unique index 和事务内重查处理两个并发 create；不再为 candidate id、space catalog、identity 或 subject 建文件锁。
 
-create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批验证失败则不发布。一旦 prepared journal 已记录 candidate，aborted 后同 request/input/actor 重试仍复用它，不生成第二个 id。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
+create target 在 normalization 后预分配 candidate SubjectId；只有 transaction 成功才可见。相同 RequestId 的重试由 operations row 返回同一个 SubjectId；失败或 conflict 不产生空主体。private capture 的 subject fallback 可以在 blob/MaterialId 计算前使用这个 candidate id，而数据库仍原子提交“主体 + 第一批材料”。
 
-独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；Step 5 不物化该 handler。ingest(create) 直接执行上述原子事务，永不先调用 subjects.create 产生空主体。
+独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；ingest(create) 永不先调用 subjects.create 产生空主体。
 
-`canonicalizeIngestSubjectTarget` 还负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
-
+`canonicalizeIngestSubjectTarget` 负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
 ### 9.5 生命周期
 
 archive 从默认列表、搜索和 Recall 中隐藏主体，但保留事实与血缘。purge 物理删除主体内容，只能由 Panel / CLI 的显式危险动作触发，不给模型工具。

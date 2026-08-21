@@ -45,8 +45,9 @@ Flag as a blocker, not a nit:
 - Silent salience truncation or a host adapter that trims instead of failing closed
 - `O(n²)` graph rebuild on `commit`
 - A bot that invents its own persona files
-- A collector that writes the fact layer itself, or a constructor that does network or credential I/O
+- A collector that writes SQLite, blobs, or projections itself, or a constructor that does network or credential I/O
 - A Panel, MCP handler, binding, or adapter that reads engine stores instead of using EngineClient
+- A second Engine writer for one root, a product surface that bypasses EngineClient, or a mutation-specific file journal/staging/recovery protocol
 - Reusing a host-bound client for direct Panel user actions, or accepting actor from model/tool input
 - Putting profile state in a cloud database
 - Shipping a required embedding or multimodal API key on the default path
@@ -59,7 +60,7 @@ TypeScript-era blockers, from [design §7](../design/v3/07-protocol-types.md), [
 - Runtime validation, a fallback branch, or a hostile-input test on a typed same-process call, when the value is not crossing one of the eight boundaries in §7.6
 - An upward or circular package dependency, such as the engine importing the facade or a shared type living outside `@distilly/protocol`
 - A `switch` on a discriminant union that does not end in `assertNever`
-- A dependency that needs a native prebuild, or SQLite holding a fact instead of a projection that `.index/` can lose
+- A dependency that needs a native prebuild, a persistence row/schema exported through Protocol, or a rebuildable projection treated as transaction authority
 
 ## Manual checks
 
@@ -69,9 +70,9 @@ TypeScript-era blockers, from [design §7](../design/v3/07-protocol-types.md), [
 - **Scope:** every new abstraction, option, and compatibility path has a current consumer. Speculative generality is out of scope.
 - **Model perspective:** inspect the exact prompt, tool schema, result, or host instructions the model sees. Flag concepts outside the task. Stable projection text is asserted, not trusted from an agent report.
 - **Enforcement:** follow every denial (quality/review gate, host unsupported, adapter auth) to the operation that executes it. Alternate callers must not bypass it.
-- **Fact vs index:** Markdown / jsonl remain reconstructable after deleting `.index/`.
+- **Authority vs output:** SQLite rows and referenced blobs are authoritative; Markdown/JSON/Library/search/queue/plugin outputs carry a source generation/LSN and remain reconstructable after deletion.
 - **Real entry path:** tests call the shipped CLI, module, or installer when that is what users run. A hand-wired helper is not the entry path.
-- **Test strength:** assertions fail on the intended regression and check external state (files under a temp `DISTILLY_ROOT`, queue rows, version pointers). Coverage of a line is not evidence.
+- **Test strength:** assertions fail on the intended regression and check external state (rows, referenced blobs, version pointers, projection watermarks under a temp `DISTILLY_ROOT`). Coverage of a line is not evidence.
 - **Implemented notes:** a PR that ships a `proposed/` note moves and rewrites it to present tense in the same diff.
 
 ## Reporting

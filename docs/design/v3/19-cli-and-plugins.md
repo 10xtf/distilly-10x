@@ -29,14 +29,18 @@ distilly rollback <subject> <version>
 
 distilly install <subject> --host <host>
 distilly export <subject> --host <host> --dest <path>
+distilly backup --dest <path> [--overwrite]
+distilly restore --from <path> --confirm <manifest-digest>
 distilly migrate --from <legacy-skill-dir>
 ~~~
 
 CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
 
-setup/doctor/upgrade/uninstall 是安装 composition 命令；mcp 创建 kind=host 且由 binding capacity 绑定的 client；panel 与其余数据命令各创建一个 kind=user client。每次 connect 都由 engine 生成新的 LeaseOwnerId，flag、环境变量和模型输入都没有 owner override。direct CLI user client 固定使用下述 sdk_explicit capacity；每个 mutation 顶层动作生成一个新的 RequestId，并只在该动作的 transport retry 内复用，绝不把一个 RequestId 跨 method 复用。`purge --confirm` 必须逐字等于 resolve 后 SubjectRecord 的 exact displayName，再作为 PurgeSubjectInput.confirmation 传入；ambiguous selector 在显示候选后退出，不能自行选中。`uninstall --host` 只移除 host plugin/bootstrap，不等于 Person.uninstall 的某个 profile projection；首版 CLI 不为后者另设隐含重载。
+`backup` / `restore` 只通过 `LocalRuntime.administration()` 取得同一 root owner 的 `EngineAdministrationClient`，不是复制内部目录的 shell shortcut。backup destination 默认 create-exclusive，只有显式 `--overwrite` 才可替换一个已验证为 Distilly backup 的目标；restore 的 confirmation 必须逐字等于先检查所得 manifest digest。restore 进入 maintenance、让普通 client 停止新调用、在 sibling root 完成验证与切换，CLI 只在新 authority 已重新打开后报告成功和保留的 previousRootPath。
 
-`distilly distill` 是一个前台、单进程、单 EngineClient session 的 brief→编辑→commit 命令。它取得 lease 后以 create-exclusive 创建仅当前用户可读的 draft envelope（POSIX mode 0600；Windows 用 current-user-only ACL），保持同一 client 与 engine-owned LeaseOwnerId 存活，把文件路径和明确的“编辑完成后确认/取消”提示交给用户，并在确认前按该 session 的 lease 做 renew。确认后它重新读取同一文件，验证 snapshot 未改、解析 DistillPatch，再用内存中的同一 lease owner 和一次生成后复用的 commit RequestId 调 distill.commit。成功后删除 envelope；用户取消、schema 失败或正常 shutdown 时先 best-effort release 再删除；process crash 只依靠 expiresAt，不伪造 release。它不启动后台 daemon，也不允许编辑器进程脱离后让 distilly 命令退出。
+setup/doctor/upgrade/uninstall 是安装 composition 命令；mcp 创建 kind=host 且由 binding capacity 绑定的 client；panel 与其余数据命令各创建一个 kind=user client。每次 connect 都由 engine 生成新的 LeaseOwnerId，flag、环境变量和模型输入都没有 owner override。direct CLI user client 固定使用下述 sdk_explicit capacity；每个 mutation 顶层动作生成一个新的 RequestId，并只在该动作的 transport retry 内复用，绝不把一个 RequestId 跨 method 复用。`purge --confirm` 必须逐字等于 resolve 后 SubjectRecord 的 exact displayName，再作为 PurgeSubjectInput.confirmation 传入；ambiguous selector 在显示候选后退出，不能自行选中。CLI 必须逐字段显示 PurgeResult；`physicalDeletion="pending"` 时明确显示 pendingBlobCount 与 `distilly doctor` remediation，不能打印“已物理删除”。`uninstall --host` 只移除 host plugin/bootstrap，不等于 Person.uninstall 的某个 profile projection；首版 CLI 不为后者另设隐含重载。
+
+`distilly distill` 是一个前台、单 EngineClient session 的 brief→编辑→commit 命令。它 attach 到该 root 的唯一 Engine service，取得 lease 后以 create-exclusive 创建仅当前用户可读的 draft envelope（POSIX mode 0600；Windows 用 current-user-only ACL），保持同一 client 与 engine-owned LeaseOwnerId 存活，把文件路径和明确的“编辑完成后确认/取消”提示交给用户，并在确认前按该 session 的 lease 做 renew。确认后它重新读取同一文件，验证 snapshot 未改、解析 DistillPatch，再用内存中的同一 lease owner 和一次生成后复用的 commit RequestId 调 distill.commit。成功后删除 envelope；用户取消、schema 失败或正常 shutdown 时先 best-effort release 再删除；CLI 退出只依靠 expiresAt，不伪造 release，也不关闭仍供 MCP/Panel 使用的 Engine service。
 
 CLI-owned draft envelope schemaVersion=1，包含 `briefing`（HostDistillBriefing 去掉唯一字段 `lease.owner`）、一个初始空 `patch` 槽和 content-free `snapshotDigest`；digest 覆盖去 owner 后的完整 briefing，所以 jobId、generation、leaseId、briefContractDigest、materialSetHash、baseVersionId、材料、短 evidence refs、prompt、限制和 expiry 任一改动都被拒绝。LeaseOwnerId 只留在当前 EngineClient session 内，绝不写入 envelope、flag、环境变量或重连 token。用户手写的裸 DistillPatch、已有文件、非 regular file、symlink、owner/mode 不安全的 envelope 与 snapshotDigest 不匹配都在 commit 前拒绝。CLI direct session 的 BriefCapacity 固定为 source=`sdk_explicit`，maximumInputTokens=4,194,304、maximumToolResultBytes=4,194,304；这只是本地文件上限，不声称外部模型拥有同样 context。
 
@@ -59,7 +63,7 @@ npx distilly@VERSION setup 是 bootstrap 入口，但只有 complete EngineRunti
 
 ### 19.3 版本握手
 
-PluginInstallManifest 是 Step 12 写入 `~/.distilly/` 的机器级安装事实，记录 pluginVersion、engineVersion、wireMajor、promptVersion 与 launcher digest；它不是 source tree 的 `plugins/release-manifest.json`。MCP initialize 暴露 server version；canonical skill 的 minimum / maximum wire major 与 engine 握手。
+PluginInstallManifest 是 production setup 写入 `~/.distilly/` 的机器级安装记录，记录 pluginVersion、engineVersion、wireMajor、promptVersion 与 launcher digest；它不是业务 authority，也不是 source tree 的 `plugins/release-manifest.json`。MCP initialize 暴露 server version；canonical skill 的 minimum / maximum wire major 与 engine 握手。
 
 - major 不兼容：拒绝工具调用并给 upgrade / rollback 命令；
 - plugin patch 落后但 wire 兼容：doctor 警告，不阻塞；
@@ -103,7 +107,7 @@ handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；S
 
 解析后的 ToolOutput 是唯一结果值。MCP CallToolResult 精确使用 `structuredContent: parsedOutput` 与 `content: [{ type: "text", text: JSON.stringify(parsedOutput) }]`；content text 解码后必须与 structuredContent 深相等。domain、invalid_input、presenter failure 与 unexpected 都作为正常的这份 structured WireFailure 返回，不依赖 MCP SDK generic `isError` / JSON-RPC error 承载产品错误。只有 transport 在连一份合法 WireFailure 都无法序列化时才允许协议级失败。
 
-§29 Step 8 的真实 stdio smoke 由 test-only child entry 注入一个覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，经 initialize → tools/list → 每个 tools/call → EOF/close 走真实字节 transport。它证明 descriptor、handler、envelope 与 stdio 生命周期，不接触 DISTILLY_ROOT、不构造 LocalRuntime、也不是可操作的 `distilly mcp` 用户入口；production stdio 只能在完整 composition slice 落地。
+当前真实 stdio smoke 由 test-only child entry 注入一个覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，经 initialize → tools/list → 每个 tools/call → EOF/close 走真实字节 transport。它证明 descriptor、handler、envelope 与 stdio 生命周期，不接触 DISTILLY_ROOT、不构造 Engine service、也不是可操作的 `distilly mcp` 用户入口；production stdio 只能在完整 composition feature 落地。
 
 ~~~text
 plugins/
@@ -116,12 +120,12 @@ plugins/
 │           └── assets/
 ├── codex/
 │   ├── .codex-plugin/plugin.json
-│   ├── .mcp.json.template               # Step 12 input；不可安装
+│   ├── .mcp.json.template               # production setup input；不可安装
 │   ├── hooks/
 │   └── skills/distilly/                 # assembler exact mirror
 ├── claude-code/
 │   ├── .claude-plugin/plugin.json
-│   ├── .mcp.json.template               # Step 12 input；不可安装
+│   ├── .mcp.json.template               # production setup input；不可安装
 │   ├── hooks/
 │   └── skills/distilly/                 # assembler exact mirror
 └── fixtures/
@@ -169,7 +173,7 @@ export interface PluginReleaseManifestV1 {
 
 releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
 
-Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 Step 12 setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；Step 9 因此不宣称这些 source trees 可启动 MCP。Step 12 才把 sentinel 替换为 JSON-escaped absolute launcher path，写目标宿主实际读取的 `.mcp.json`，再做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
+Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 production setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；capability-only source trees因此不声称可启动 MCP。production setup 才把 sentinel 替换为 JSON-escaped absolute launcher path，写目标宿主实际读取的 `.mcp.json`，再做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
 
 ### 19.5 三种分发概念
 

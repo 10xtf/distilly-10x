@@ -400,6 +400,71 @@ export const validateVersionArtifactSet = (input: VersionArtifactSet): VersionAr
   return { version, manifest, claims, profile, prompt: input.prompt };
 };
 
+/**
+ * Verifies that a rollback artifact set is the canonical new-version wrapper around its source.
+ *
+ * @param source - Complete immutable historical version selected by the rollback.
+ * @param rollback - Complete new immutable artifact set created by the rollback.
+ */
+export const validateRollbackArtifactCopy = (
+  source: StoredCompleteVersion,
+  rollback: VersionArtifactSet,
+): void => {
+  const { version } = rollback;
+  if (
+    version.creation.kind !== "rollback" ||
+    version.creation.targetVersionId !== source.version.id ||
+    version.id === source.version.id ||
+    version.parentId === undefined ||
+    version.subjectId !== source.version.subjectId ||
+    version.createdDisposition !== "current" ||
+    version.derivedFromCandidateVersionId !== undefined ||
+    version.reviewReasons !== undefined
+  ) {
+    throw storageCorrupt(
+      "Rollback metadata does not identify a distinct canonical current version.",
+    );
+  }
+  if (
+    version.subjectDisplayName !== source.version.subjectDisplayName ||
+    version.generation !== source.version.generation ||
+    version.materialSetHash !== source.version.materialSetHash ||
+    version.materialCount !== source.version.materialCount ||
+    version.rendererVersion !== source.version.rendererVersion ||
+    !canonicalEqual(version.quality, source.version.quality) ||
+    !canonicalEqual(rollback.manifest, source.manifest) ||
+    !canonicalEqual(rollback.claims.claims, source.claims.claims)
+  ) {
+    throw storageCorrupt("Rollback artifacts do not exactly copy their historical source.");
+  }
+
+  const rendered = renderProfile({
+    subjectId: source.version.subjectId,
+    displayName: source.version.subjectDisplayName,
+    versionId: version.id,
+    claims: source.claims.claims,
+    quality: source.version.quality,
+  });
+  const expectedProfile: Profile = {
+    subjectId: source.version.subjectId,
+    displayName: source.version.subjectDisplayName,
+    versionId: version.id,
+    claims: source.claims.claims,
+    core: rendered.core,
+    domains: rendered.domains,
+    rendered: rendered.markdown,
+    quality: source.version.quality,
+  };
+  if (
+    rollback.claims.subjectId !== source.version.subjectId ||
+    rollback.claims.versionId !== version.id ||
+    !canonicalEqual(rollback.profile, expectedProfile) ||
+    rollback.prompt !== renderPrompt(expectedProfile)
+  ) {
+    throw storageCorrupt("Rollback profile and prompt are not rebuilt from the copied source.");
+  }
+};
+
 const verifyExpected = (actual: StoredCompleteVersion, expected: VersionArtifactSet): void => {
   for (const [label, left, right] of [
     ["version.json", actual.version, expected.version],

@@ -284,7 +284,7 @@ export class DistillLeaseService {
       () => engineMethodSchemas["distill.pending"].params.parse(rawFilter),
       "params",
     );
-    await this.#dependencies.recovery.reconcileAll();
+    await this.#dependencies.recovery.reconcilePending();
     const jobs = (await this.#dependencies.queue.list(filter, this.#dependencies.clock.now())).map(
       (record) => record.job,
     );
@@ -377,7 +377,7 @@ export class DistillLeaseService {
     });
 
     for (;;) {
-      await this.#dependencies.recovery.reconcileAll();
+      await this.#dependencies.recovery.reconcilePending();
       const requestLease = await this.#dependencies.requestLocks.acquire(mutation.requestId);
       let outcome: LockedOutcome | undefined;
       let reconcileRequestId: MutationContext["requestId"] | undefined;

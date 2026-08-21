@@ -201,6 +201,25 @@ export class SubjectService {
     return this.toSummary(subject, space);
   }
 
+  /**
+   * Builds a subject summary from a caller-held authoritative state snapshot.
+   *
+   * @param subjectId - Existing subject id.
+   * @param state - Already verified state for the same subject.
+   * @returns The complete public identity summary at that state snapshot.
+   */
+  async readSummaryAtState(
+    subjectId: SubjectId,
+    state: SubjectStateRecord,
+  ): Promise<SubjectSummary> {
+    if (state.subjectId !== subjectId) {
+      throw storageCorrupt("A subject summary state snapshot belongs to another subject.");
+    }
+    const subject = await this.#subjects.read(subjectId);
+    const space = await this.#spaces.read(subject.spaceId);
+    return summarizeSubject(subject, space, state);
+  }
+
   private async toSummary(subject: SubjectRecord, space: SpaceRecord): Promise<SubjectSummary> {
     const state = await readStateForSubject(this.#states, subject.id);
     return summarizeSubject(subject, space, state);

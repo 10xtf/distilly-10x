@@ -14,6 +14,8 @@ import type {
   PendingJobMarker,
   Profile,
   RequestId,
+  ReviewDecisionTransactionRecord,
+  RollbackTransactionRecord,
   SubjectRecord,
   SubjectId,
   SubjectStateRecord,
@@ -36,12 +38,13 @@ import { canonicalJson } from "../facts/canonical-json.js";
 import type { FileStateStore } from "../facts/state-store.js";
 import type { FileSubjectStore } from "../facts/subject-store.js";
 import type { FileTransactionStore } from "../facts/transaction-store.js";
-import type { VersionArtifactSet } from "../facts/version-store.js";
+import type { StoredCompleteVersion, VersionArtifactSet } from "../facts/version-store.js";
 import { validateVersionArtifactSet } from "../facts/version-store.js";
 import type { FileVersionStore } from "../facts/version-store.js";
 import { storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { QueueRepository } from "../queue/sqlite-projection.js";
+import { validateRollbackHistoricalCopy } from "../read/committed-version-reader.js";
 import type { FileIngestStaging } from "./ingest-staging.js";
 import type { FileRequestLock } from "./request-lock.js";
 import type { FileSpaceIdentityLock } from "./space-identity-lock.js";
@@ -59,8 +62,14 @@ export interface RecoveryHooks {
   readonly afterQueue?: () => void | Promise<void>;
   /** Runs after the disposable current profile has been rebuilt. */
   readonly afterCurrentProfile?: () => void | Promise<void>;
+  /** Runs after the optional Library projection reports a durable clean or dirty state. */
+  readonly afterLibrary?: () => void | Promise<void>;
   /** Runs after a commit journal has reached its durable terminal state. */
   readonly afterCommitTerminal?: () => void | Promise<void>;
+  /** Runs after a review journal has reached its durable terminal state. */
+  readonly afterReviewTerminal?: () => void | Promise<void>;
+  /** Runs after a rollback journal has reached its durable terminal state. */
+  readonly afterRollbackTerminal?: () => void | Promise<void>;
 }
 
 const optionalSubject = async (
@@ -96,6 +105,22 @@ const optionalEvent = async (
     return await store.read(subjectId, eventId);
   } catch (error) {
     if (error instanceof DistillyError && error.code === "not_found") return undefined;
+    throw error;
+  }
+};
+
+const requiredVersion = async (
+  store: FileVersionStore,
+  subjectId: SubjectId,
+  versionId: VersionId,
+  message: string,
+): Promise<StoredCompleteVersion> => {
+  try {
+    return await store.read(subjectId, versionId);
+  } catch (error) {
+    if (error instanceof DistillyError && error.code === "not_found") {
+      throw storageCorrupt(message, error);
+    }
     throw error;
   }
 };
@@ -197,6 +222,73 @@ const terminalCommitTransaction = (
   }) as DistillCommitTransactionRecord;
 };
 
+const terminalReviewTransaction = (
+  transaction: ReviewDecisionTransactionRecord,
+  state: "committed" | "aborted",
+  finishedAt: IsoDateTime,
+): ReviewDecisionTransactionRecord => {
+  const payload = {
+    schemaVersion: 1,
+    transactionKind: "review_decision",
+    method: transaction.method,
+    requestId: transaction.requestId,
+    subjectId: transaction.subjectId,
+    candidateVersionId: transaction.candidateVersionId,
+    previousStateChecksum: transaction.previousStateChecksum,
+    ...(transaction.previousCurrentVersionId === undefined
+      ? {}
+      : { previousCurrentVersionId: transaction.previousCurrentVersionId }),
+    previousSuspendedVersionId: transaction.previousSuspendedVersionId,
+    ...(transaction.previousPending === undefined
+      ? {}
+      : { previousPending: transaction.previousPending }),
+    targetState: transaction.targetState,
+    operation: transaction.operation,
+    events: transaction.events,
+    preparedAt: transaction.preparedAt,
+    finishedAt,
+    state,
+  } as const;
+  return transactionRecordSchema.parse({
+    ...payload,
+    checksum: computeFactChecksum(payload),
+  }) as ReviewDecisionTransactionRecord;
+};
+
+const terminalRollbackTransaction = (
+  transaction: RollbackTransactionRecord,
+  state: "committed" | "aborted",
+  finishedAt: IsoDateTime,
+): RollbackTransactionRecord => {
+  const payload = {
+    schemaVersion: 1,
+    transactionKind: "rollback",
+    requestId: transaction.requestId,
+    subjectId: transaction.subjectId,
+    targetVersionId: transaction.targetVersionId,
+    previousStateChecksum: transaction.previousStateChecksum,
+    previousCurrentVersionId: transaction.previousCurrentVersionId,
+    ...(transaction.previousPending === undefined
+      ? {}
+      : { previousPending: transaction.previousPending }),
+    targetState: transaction.targetState,
+    version: transaction.version,
+    materialManifest: transaction.materialManifest,
+    claims: transaction.claims,
+    profile: transaction.profile,
+    prompt: transaction.prompt,
+    operation: transaction.operation,
+    events: transaction.events,
+    preparedAt: transaction.preparedAt,
+    finishedAt,
+    state,
+  } as const;
+  return transactionRecordSchema.parse({
+    ...payload,
+    checksum: computeFactChecksum(payload),
+  }) as RollbackTransactionRecord;
+};
+
 const statePayloadWithPending = (
   state: SubjectStateRecord,
   pending: PendingJobMarker,
@@ -215,6 +307,14 @@ const statePayloadWithPending = (
 
 const samePending = (left: PendingJobMarker, right: PendingJobMarker): boolean =>
   canonicalJson(left) === canonicalJson(right);
+
+const samePendingFacts = (
+  left: PendingJobMarker | undefined,
+  right: PendingJobMarker | undefined,
+): boolean =>
+  left === undefined || right === undefined
+    ? left === right
+    : canonicalJson(left) === canonicalJson(right);
 
 const pendingReferencesVersion = (
   pending: PendingJob | PendingJobMarker,
@@ -340,6 +440,9 @@ const operationReferencesVersion = (operation: OperationFact, versionId: Version
 const eventReferencesVersion = (event: EngineEvent, versionId: VersionId): boolean =>
   event.versionId === versionId;
 
+const eventRecordReferencesVersion = (event: EventRecord, versionId: VersionId): boolean =>
+  eventReferencesVersion(event.event, versionId) || event.relatedVersionId === versionId;
+
 const transactionReferencesVersion = (
   transaction: TransactionRecord,
   versionId: VersionId,
@@ -366,7 +469,32 @@ const transactionReferencesVersion = (
         claimsReferenceVersion(transaction.claims.claims, versionId) ||
         profileReferencesVersion(transaction.profile, versionId) ||
         operationReferencesVersion(transaction.operation, versionId) ||
-        transaction.events.some((event) => eventReferencesVersion(event.event, versionId))
+        transaction.events.some((event) => eventRecordReferencesVersion(event, versionId))
+      );
+    case "review_decision":
+      return (
+        transaction.candidateVersionId === versionId ||
+        transaction.previousCurrentVersionId === versionId ||
+        transaction.previousSuspendedVersionId === versionId ||
+        (transaction.previousPending !== undefined &&
+          pendingReferencesVersion(transaction.previousPending, versionId)) ||
+        stateReferencesVersion(transaction.targetState, versionId) ||
+        operationReferencesVersion(transaction.operation, versionId) ||
+        transaction.events.some((event) => eventRecordReferencesVersion(event, versionId))
+      );
+    case "rollback":
+      return (
+        transaction.targetVersionId === versionId ||
+        transaction.previousCurrentVersionId === versionId ||
+        (transaction.previousPending !== undefined &&
+          pendingReferencesVersion(transaction.previousPending, versionId)) ||
+        stateReferencesVersion(transaction.targetState, versionId) ||
+        versionReferencesVersion(transaction.version, versionId) ||
+        transaction.claims.versionId === versionId ||
+        claimsReferenceVersion(transaction.claims.claims, versionId) ||
+        profileReferencesVersion(transaction.profile, versionId) ||
+        operationReferencesVersion(transaction.operation, versionId) ||
+        transaction.events.some((event) => eventRecordReferencesVersion(event, versionId))
       );
     default: {
       const exhaustive: never = transaction;
@@ -388,6 +516,293 @@ const commitArtifacts = (transaction: DistillCommitTransactionRecord): VersionAr
 
 const exactArtifacts = (left: VersionArtifactSet, right: VersionArtifactSet): boolean =>
   canonicalJson(left) === canonicalJson(right);
+
+const creationEventsFor = (
+  events: readonly EventRecord[],
+  versionId: VersionId,
+): readonly EventRecord[] =>
+  events.filter(
+    (record) =>
+      record.event.versionId === versionId &&
+      (record.event.kind === "version.current" ||
+        record.event.kind === "version.suspended" ||
+        record.event.kind === "version.rolled_back"),
+  );
+
+const expectedCreationKind = (
+  version: VersionRecord,
+): "version.current" | "version.suspended" | "version.rolled_back" =>
+  version.creation.kind === "rollback"
+    ? "version.rolled_back"
+    : version.createdDisposition === "current"
+      ? "version.current"
+      : "version.suspended";
+
+const assertVersionCreationEvent = (
+  version: VersionRecord,
+  events: readonly EventRecord[],
+): void => {
+  const creationEvents = creationEventsFor(events, version.id);
+  const creation = creationEvents[0];
+  if (
+    creationEvents.length !== 1 ||
+    creation === undefined ||
+    creation.event.kind !== expectedCreationKind(version) ||
+    creation.event.at !== version.createdAt ||
+    canonicalJson(creation.actor) !== canonicalJson(version.actor) ||
+    (version.creation.kind === "rollback" &&
+      creation.relatedVersionId !== version.creation.targetVersionId)
+  ) {
+    throw storageCorrupt("A journal version is missing its exact durable creation event.");
+  }
+};
+
+const assertJournalEventMaterialization = (
+  transactionState: TransactionRecord["state"],
+  expected: EventRecord,
+  durable: readonly EventRecord[],
+  message: string,
+): void => {
+  if (
+    durable.length > 1 ||
+    durable.some((record) => canonicalJson(record) !== canonicalJson(expected)) ||
+    (transactionState === "committed" && durable.length !== 1) ||
+    (transactionState === "aborted" && durable.length !== 0)
+  ) {
+    throw storageCorrupt(message);
+  }
+};
+
+const assertJournalEventTupleMaterialization = (
+  transaction: Pick<TransactionRecord, "requestId" | "state"> & {
+    readonly events: readonly EventRecord[];
+  },
+  durable: readonly EventRecord[],
+  message: string,
+): void => {
+  const materialized = durable.filter((record) => record.requestId === transaction.requestId);
+  let expectedCount: number;
+  if (transaction.state === "committed") {
+    expectedCount = transaction.events.length;
+  } else if (transaction.state === "aborted") {
+    expectedCount = 0;
+  } else {
+    expectedCount = 0;
+    while (
+      expectedCount < transaction.events.length &&
+      materialized.some((record) => record.eventId === transaction.events[expectedCount]?.eventId)
+    ) {
+      expectedCount += 1;
+    }
+  }
+  if (materialized.length !== expectedCount) throw storageCorrupt(message);
+  for (let index = 0; index < expectedCount; index += 1) {
+    const expected = transaction.events[index];
+    const actual = materialized.find((record) => record.eventId === expected?.eventId);
+    if (
+      expected === undefined ||
+      actual === undefined ||
+      canonicalJson(actual) !== canonicalJson(expected)
+    ) {
+      throw storageCorrupt(message);
+    }
+  }
+};
+
+const rollbackArtifacts = (transaction: RollbackTransactionRecord): VersionArtifactSet => ({
+  version: transaction.version,
+  manifest: transaction.materialManifest,
+  claims: transaction.claims,
+  profile: transaction.profile,
+  prompt: transaction.prompt,
+});
+
+const versionSummary = (
+  version: VersionRecord,
+  status: "current" | "suspended" | "historical" | "rejected",
+): VersionSummary => ({
+  id: version.id,
+  subjectId: version.subjectId,
+  ...(version.parentId === undefined ? {} : { parentId: version.parentId }),
+  ...(version.derivedFromCandidateVersionId === undefined
+    ? {}
+    : { derivedFromCandidateVersionId: version.derivedFromCandidateVersionId }),
+  generation: version.generation,
+  materialSetHash: version.materialSetHash,
+  creation: version.creation,
+  status,
+  actor: version.actor,
+  quality: version.quality,
+  createdAt: version.createdAt,
+});
+
+const expectedReviewInputChecksum = (
+  transaction: ReviewDecisionTransactionRecord,
+): OperationFact["inputChecksum"] => {
+  const reason = transaction.events[0].reason;
+  return computeFactChecksum({
+    method: `versions.${transaction.method}`,
+    params: {
+      subjectId: transaction.subjectId,
+      candidateVersionId: transaction.candidateVersionId,
+      ...(reason === undefined ? {} : { reason }),
+    },
+    actor: transaction.operation.actor,
+  });
+};
+
+/**
+ * Verifies the deterministic fields of one review-decision journal target.
+ *
+ * @param transaction - Journal retaining the exact target and derived side effects.
+ * @param state - State expected to equal the journal target byte-for-byte.
+ */
+export const validateReviewTransactionTarget = (
+  transaction: ReviewDecisionTransactionRecord,
+  state: SubjectStateRecord,
+): void => {
+  verifyFactChecksum(transaction.targetState);
+  verifyFactChecksum(transaction.operation);
+  for (const event of transaction.events) verifyFactChecksum(event);
+  if (
+    state.checksum !== transaction.targetState.checksum ||
+    canonicalJson(state) !== canonicalJson(transaction.targetState)
+  ) {
+    throw storageCorrupt("Recovered review target state does not match its journal payload.");
+  }
+  if (transaction.operation.inputChecksum !== expectedReviewInputChecksum(transaction)) {
+    throw storageCorrupt("Recovered review operation does not match its trusted input preimage.");
+  }
+  const previousPayload = {
+    schemaVersion: 2,
+    subjectId: transaction.subjectId,
+    generation: transaction.targetState.generation,
+    ...(transaction.targetState.materialSetHash === undefined
+      ? {}
+      : { materialSetHash: transaction.targetState.materialSetHash }),
+    materialManifest: transaction.targetState.materialManifest,
+    ...(transaction.previousCurrentVersionId === undefined
+      ? {}
+      : { currentVersionId: transaction.previousCurrentVersionId }),
+    suspendedVersionId: transaction.previousSuspendedVersionId,
+    ...(transaction.previousPending === undefined ? {} : { pending: transaction.previousPending }),
+  } as const;
+  if (computeFactChecksum(previousPayload) !== transaction.previousStateChecksum) {
+    throw storageCorrupt("A review journal cannot reconstruct its exact previous state.");
+  }
+};
+
+const expectedRollbackInputChecksum = (
+  transaction: RollbackTransactionRecord,
+): OperationFact["inputChecksum"] => {
+  const reason = transaction.events[0].reason;
+  if (reason === undefined) {
+    throw storageCorrupt("A rollback journal is missing its required reason.");
+  }
+  return computeFactChecksum({
+    method: "versions.rollback",
+    params: {
+      subjectId: transaction.subjectId,
+      targetVersionId: transaction.targetVersionId,
+      reason,
+    },
+    actor: transaction.operation.actor,
+  });
+};
+
+/**
+ * Verifies the deterministic fields and complete artifacts of one rollback journal target.
+ *
+ * @param transaction - Journal retaining the copied immutable artifacts.
+ * @param state - State expected to equal the journal target byte-for-byte.
+ * @returns The normalized immutable rollback artifact set.
+ */
+export const validateRollbackTransactionTarget = (
+  transaction: RollbackTransactionRecord,
+  state: SubjectStateRecord,
+): VersionArtifactSet => {
+  verifyFactChecksum(transaction.targetState);
+  verifyFactChecksum(transaction.operation);
+  for (const event of transaction.events) verifyFactChecksum(event);
+  if (
+    state.checksum !== transaction.targetState.checksum ||
+    canonicalJson(state) !== canonicalJson(transaction.targetState)
+  ) {
+    throw storageCorrupt("Recovered rollback target state does not match its journal payload.");
+  }
+  if (transaction.operation.inputChecksum !== expectedRollbackInputChecksum(transaction)) {
+    throw storageCorrupt("Recovered rollback operation does not match its trusted input preimage.");
+  }
+  const previousPayload = {
+    schemaVersion: 2,
+    subjectId: transaction.subjectId,
+    generation: transaction.targetState.generation,
+    ...(transaction.targetState.materialSetHash === undefined
+      ? {}
+      : { materialSetHash: transaction.targetState.materialSetHash }),
+    materialManifest: transaction.targetState.materialManifest,
+    currentVersionId: transaction.previousCurrentVersionId,
+    ...(transaction.previousPending === undefined ? {} : { pending: transaction.previousPending }),
+  } as const;
+  if (computeFactChecksum(previousPayload) !== transaction.previousStateChecksum) {
+    throw storageCorrupt("A rollback journal cannot reconstruct its exact previous state.");
+  }
+  if (
+    transaction.version.reviewReasons !== undefined ||
+    transaction.version.derivedFromCandidateVersionId !== undefined
+  ) {
+    throw storageCorrupt("A rollback version cannot retain review or candidate derivation fields.");
+  }
+  return validateVersionArtifactSet(rollbackArtifacts(transaction));
+};
+
+const assertManifestSubsetAndDelta = (
+  state: SubjectStateRecord,
+  manifest: VersionArtifactSet["manifest"],
+): number => {
+  const current = new Map(state.materialManifest.map((entry) => [entry.materialId, entry]));
+  for (const entry of manifest.items) {
+    const authoritative = current.get(entry.materialId);
+    if (
+      authoritative === undefined ||
+      authoritative.contentDigest !== entry.contentDigest ||
+      authoritative.provenanceDigest !== entry.provenanceDigest
+    ) {
+      throw storageCorrupt("A review baseline is not an exact subset of authoritative materials.");
+    }
+  }
+  return state.materialManifest.length - manifest.items.length;
+};
+
+const assertRebasedPending = (
+  state: SubjectStateRecord,
+  previousPending: PendingJobMarker | undefined,
+  baseline: VersionArtifactSet["manifest"],
+  baseVersionId: VersionId,
+  preparedAt: IsoDateTime,
+): void => {
+  const delta = assertManifestSubsetAndDelta(state, baseline);
+  if (previousPending === undefined || delta === 0) {
+    if (state.pending !== undefined) {
+      throw storageCorrupt("A zero-delta or previously absent review job must remain absent.");
+    }
+    return;
+  }
+  const pending = state.pending;
+  if (
+    pending === undefined ||
+    pending.jobId === previousPending.jobId ||
+    pending.generation !== state.generation ||
+    pending.baseVersionId !== baseVersionId ||
+    pending.materialSetHash !== state.materialSetHash ||
+    pending.addedMaterialCount !== delta ||
+    pending.totalMaterialCount !== state.materialManifest.length ||
+    pending.queuedAt !== preparedAt ||
+    pending.lease !== undefined
+  ) {
+    throw storageCorrupt("A review transaction does not contain the exact rebased pending job.");
+  }
+};
 
 /**
  * Verifies every deterministic, trusted, and checksummed field of a commit target.
@@ -590,6 +1005,16 @@ const assertTargetState = (
   }
 };
 
+/** Optional subject projection updated only after authoritative fact commit. */
+export interface SubjectProjection {
+  apply(subjectId: SubjectId): Promise<"clean" | "dirty">;
+  hasWriterIntent?(): Promise<boolean>;
+  completeWriter?(subjectId: SubjectId): Promise<void>;
+  settleReconciledIntent?(
+    hasPreparedJournal: () => Promise<boolean>,
+  ): Promise<"pending" | "settled">;
+}
+
 /** Concrete stores, locks, projection, and trusted seams used by recovery. */
 export interface RecoveryDependencies {
   readonly transactions: FileTransactionStore;
@@ -607,6 +1032,7 @@ export interface RecoveryDependencies {
   readonly spaceIdentityLocks: FileSpaceIdentityLock;
   readonly subjectLocks: FileSubjectLock;
   readonly queue: QueueRepository;
+  readonly library?: SubjectProjection;
   readonly eventBus: EventBus;
   readonly clock: Clock;
   readonly hooks?: RecoveryHooks;
@@ -629,6 +1055,7 @@ export class RecoveryService {
   readonly #spaceIdentityLocks: FileSpaceIdentityLock;
   readonly #subjectLocks: FileSubjectLock;
   readonly #queue: QueueRepository;
+  readonly #library: SubjectProjection | undefined;
   readonly #eventBus: EventBus;
   readonly #clock: Clock;
   readonly #hooks: RecoveryHooks;
@@ -654,6 +1081,7 @@ export class RecoveryService {
     this.#spaceIdentityLocks = input.spaceIdentityLocks;
     this.#subjectLocks = input.subjectLocks;
     this.#queue = input.queue;
+    this.#library = input.library;
     this.#eventBus = input.eventBus;
     this.#clock = input.clock;
     this.#hooks = input.hooks ?? {};
@@ -661,9 +1089,29 @@ export class RecoveryService {
 
   /** Reconciles every currently visible prepared journal in RequestId order. */
   async reconcileAll(): Promise<void> {
-    for (const transaction of await this.#transactions.list()) {
-      if (transaction.state === "prepared") await this.reconcile(transaction.requestId);
+    for (;;) {
+      for (const transaction of await this.#transactions.list()) {
+        if (transaction.state === "prepared") {
+          await this.reconcileRequest(transaction.requestId);
+        }
+      }
+      if ((await this.settleLibraryIntent()) === "settled") return;
     }
+  }
+
+  /**
+   * Reconciles only when the durable Library intent proves a writer may be pending.
+   *
+   * Startup still calls {@link reconcileAll}; post-startup reads and mutations use
+   * this O(1) clean-path probe so permanent terminal journals are not rescanned.
+   */
+  async reconcilePending(): Promise<void> {
+    if (this.#library?.hasWriterIntent === undefined) {
+      await this.reconcileAll();
+      return;
+    }
+    if (!(await this.#library.hasWriterIntent())) return;
+    await this.reconcileAll();
   }
 
   /**
@@ -672,6 +1120,11 @@ export class RecoveryService {
    * @param requestId - Root transaction id to inspect.
    */
   async reconcile(requestId: RequestId): Promise<void> {
+    await this.reconcileRequest(requestId);
+    await this.settleLibraryIntent();
+  }
+
+  private async reconcileRequest(requestId: RequestId): Promise<void> {
     const requestLease = await this.#requestLocks.acquire(requestId);
     let publishedEvents: readonly EngineEvent[];
     try {
@@ -696,6 +1149,13 @@ export class RecoveryService {
       await requestLease.release();
     }
     for (const event of publishedEvents) await this.#eventBus.publish(event);
+  }
+
+  private async settleLibraryIntent(): Promise<"pending" | "settled"> {
+    if (this.#library?.settleReconciledIntent === undefined) return "settled";
+    return this.#library.settleReconciledIntent(async () =>
+      (await this.#transactions.list()).some((transaction) => transaction.state === "prepared"),
+    );
   }
 
   /**
@@ -737,6 +1197,7 @@ export class RecoveryService {
       ...(state.pending === undefined ? {} : { pending: state.pending }),
     });
     await this.#hooks.afterQueue?.();
+    const libraryStatus = await this.applyLibrary(transaction.subjectId);
     await this.#transactions.write(
       terminalIngestTransaction(
         transaction,
@@ -744,6 +1205,7 @@ export class RecoveryService {
         terminalTime(transaction.preparedAt, this.#clock.now()),
       ),
     );
+    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
     return transaction.events.map((record) => record.event);
   }
 
@@ -775,6 +1237,7 @@ export class RecoveryService {
       pending: transaction.targetPending,
     });
     await this.#hooks.afterQueue?.();
+    const libraryStatus = await this.applyLibrary(transaction.subjectId);
     await this.#transactions.write(
       terminalLeaseTransaction(
         transaction,
@@ -782,6 +1245,7 @@ export class RecoveryService {
         terminalTime(transaction.preparedAt, this.#clock.now()),
       ),
     );
+    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
     return [transaction.event.event];
   }
 
@@ -822,6 +1286,7 @@ export class RecoveryService {
       stateChecksum: state.checksum,
     });
     await this.#hooks.afterQueue?.();
+    const libraryStatus = await this.applyLibrary(transaction.subjectId);
     await this.#transactions.write(
       terminalCommitTransaction(
         transaction,
@@ -830,7 +1295,272 @@ export class RecoveryService {
       ),
     );
     await this.#hooks.afterCommitTerminal?.();
+    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
     return transaction.events.map((record) => record.event);
+  }
+
+  /**
+   * Verifies immutable candidate semantics retained by a review journal.
+   *
+   * @param transaction - Prepared or terminal review journal to validate.
+   * @returns The verified immutable candidate referenced by the journal.
+   */
+  async validateReviewJournalSemantics(
+    transaction: ReviewDecisionTransactionRecord,
+  ): Promise<StoredCompleteVersion> {
+    validateReviewTransactionTarget(transaction, transaction.targetState);
+    const candidate = await requiredVersion(
+      this.#versions,
+      transaction.subjectId,
+      transaction.candidateVersionId,
+      "A review journal references a missing immutable candidate.",
+    );
+    if (
+      candidate.version.createdDisposition !== "suspended" ||
+      candidate.version.reviewReasons === undefined ||
+      candidate.version.parentId !== transaction.previousCurrentVersionId ||
+      canonicalJson(transaction.operation.result) !==
+        canonicalJson(
+          versionSummary(
+            candidate.version,
+            transaction.method === "promote" ? "current" : "rejected",
+          ),
+        )
+    ) {
+      throw storageCorrupt("Reviewed candidate does not match its transaction result or parent.");
+    }
+    const durableEvents = await this.#events.list(transaction.subjectId);
+    assertVersionCreationEvent(candidate.version, durableEvents);
+    assertJournalEventMaterialization(
+      transaction.state,
+      transaction.events[0],
+      durableEvents.filter(
+        (record) =>
+          record.event.versionId === transaction.candidateVersionId &&
+          (record.event.kind === "version.promoted" || record.event.kind === "version.rejected"),
+      ),
+      "A review journal disagrees with the durable candidate decision event.",
+    );
+    assertJournalEventTupleMaterialization(
+      transaction,
+      durableEvents,
+      "A review journal disagrees with its complete durable event tuple.",
+    );
+    if (transaction.method === "promote") {
+      assertRebasedPending(
+        transaction.targetState,
+        transaction.previousPending,
+        candidate.manifest,
+        candidate.version.id,
+        transaction.preparedAt,
+      );
+    } else if (!samePendingFacts(transaction.targetState.pending, transaction.previousPending)) {
+      throw storageCorrupt("Reject recovery does not preserve pending work exactly.");
+    }
+    return candidate;
+  }
+
+  /**
+   * Verifies copied source semantics and the required publication state of a rollback journal.
+   *
+   * @param transaction - Prepared or terminal rollback journal to validate.
+   * @param publication - Required, absent, or either exact publication state.
+   * @returns The normalized immutable rollback artifact set.
+   */
+  async validateRollbackJournalSemantics(
+    transaction: RollbackTransactionRecord,
+    publication: "required" | "absent" | "optional" = "required",
+  ): Promise<VersionArtifactSet> {
+    const artifacts = validateRollbackTransactionTarget(transaction, transaction.targetState);
+    if (publication === "required") {
+      const stored = await requiredVersion(
+        this.#versions,
+        transaction.subjectId,
+        transaction.version.id,
+        "A committed rollback journal references a missing published version.",
+      );
+      if (!exactArtifacts(stored, artifacts)) {
+        throw storageCorrupt("Published rollback artifacts do not match their journal.");
+      }
+    } else {
+      const stored = (await this.#versions.list(transaction.subjectId)).find(
+        (candidate) => candidate.version.id === transaction.version.id,
+      );
+      if (publication === "absent" && stored !== undefined) {
+        throw storageCorrupt("An aborted rollback journal retains its unpublished target version.");
+      }
+      if (
+        publication === "optional" &&
+        stored !== undefined &&
+        !exactArtifacts(stored, artifacts)
+      ) {
+        throw storageCorrupt("Published rollback artifacts do not match their journal.");
+      }
+    }
+    const source = await requiredVersion(
+      this.#versions,
+      transaction.subjectId,
+      transaction.targetVersionId,
+      "A rollback journal references a missing historical source.",
+    );
+    await requiredVersion(
+      this.#versions,
+      transaction.subjectId,
+      transaction.previousCurrentVersionId,
+      "A rollback journal references a missing previous current version.",
+    );
+    if (
+      canonicalJson(transaction.operation.result) !==
+      canonicalJson(versionSummary(transaction.version, "current"))
+    ) {
+      throw storageCorrupt("A rollback operation result does not match its immutable version.");
+    }
+    const [durableVersions, durableEvents] = await Promise.all([
+      this.#versions.list(transaction.subjectId),
+      this.#events.list(transaction.subjectId),
+    ]);
+    validateRollbackHistoricalCopy(
+      artifacts,
+      new Map(durableVersions.map((stored) => [stored.version.id, stored] as const)),
+      durableEvents,
+    );
+    assertVersionCreationEvent(source.version, durableEvents);
+    const sourceDecisions = durableEvents.filter(
+      (record) =>
+        record.event.versionId === transaction.targetVersionId &&
+        (record.event.kind === "version.promoted" || record.event.kind === "version.rejected"),
+    );
+    if (
+      source.version.createdAt > transaction.preparedAt ||
+      (source.version.createdDisposition === "current" && sourceDecisions.length !== 0) ||
+      (source.version.createdDisposition === "suspended" &&
+        (sourceDecisions.length !== 1 ||
+          sourceDecisions[0]?.event.kind !== "version.promoted" ||
+          sourceDecisions[0].event.at < source.version.createdAt ||
+          sourceDecisions[0].event.at > transaction.preparedAt))
+    ) {
+      throw storageCorrupt("A rollback journal source was not historical when it was prepared.");
+    }
+    assertJournalEventMaterialization(
+      transaction.state,
+      transaction.events[0],
+      creationEventsFor(durableEvents, transaction.version.id),
+      "A rollback journal disagrees with its durable creation event.",
+    );
+    assertJournalEventTupleMaterialization(
+      transaction,
+      durableEvents,
+      "A rollback journal disagrees with its complete durable event tuple.",
+    );
+    assertRebasedPending(
+      transaction.targetState,
+      transaction.previousPending,
+      transaction.materialManifest,
+      transaction.version.id,
+      transaction.preparedAt,
+    );
+    return artifacts;
+  }
+
+  /**
+   * Materializes a visible promote or reject target from its exact journal payload.
+   *
+   * @param transaction - Prepared review journal whose fact commit point is visible.
+   * @param state - Exact visible target state.
+   * @returns Durable events ready for best-effort publication.
+   */
+  async materializeReviewCommitted(
+    transaction: ReviewDecisionTransactionRecord,
+    state: SubjectStateRecord,
+  ): Promise<readonly EngineEvent[]> {
+    if (transaction.state !== "prepared") {
+      throw storageCorrupt("Only a visible prepared review target can be materialized.");
+    }
+    validateReviewTransactionTarget(transaction, state);
+    const candidate = await this.validateReviewJournalSemantics(transaction);
+
+    await this.#operations.write(transaction.operation);
+    await this.#hooks.afterOperation?.();
+    for (const record of transaction.events) {
+      await this.#events.write(transaction.subjectId, record);
+      await this.#hooks.afterEvent?.(record.eventId);
+    }
+    if (transaction.method === "promote") {
+      await this.#currentProfiles.recover(transaction.requestId, candidate);
+      await this.#hooks.afterCurrentProfile?.();
+    }
+    await this.#queue.apply({
+      subjectId: transaction.subjectId,
+      stateChecksum: state.checksum,
+      ...(state.pending === undefined ? {} : { pending: state.pending }),
+    });
+    await this.#hooks.afterQueue?.();
+    const libraryStatus = await this.applyLibrary(transaction.subjectId);
+    await this.#transactions.write(
+      terminalReviewTransaction(
+        transaction,
+        "committed",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
+    await this.#hooks.afterReviewTerminal?.();
+    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
+    return transaction.events.map((record) => record.event);
+  }
+
+  /**
+   * Materializes a visible rollback-created version from its exact journal payload.
+   *
+   * @param transaction - Prepared rollback journal whose fact commit point is visible.
+   * @param state - Exact visible target state.
+   * @returns Durable events ready for best-effort publication.
+   */
+  async materializeRollbackCommitted(
+    transaction: RollbackTransactionRecord,
+    state: SubjectStateRecord,
+  ): Promise<readonly EngineEvent[]> {
+    if (transaction.state !== "prepared") {
+      throw storageCorrupt("Only a visible prepared rollback target can be materialized.");
+    }
+    validateRollbackTransactionTarget(transaction, state);
+    const artifacts = await this.validateRollbackJournalSemantics(transaction);
+
+    await this.#operations.write(transaction.operation);
+    await this.#hooks.afterOperation?.();
+    for (const record of transaction.events) {
+      await this.#events.write(transaction.subjectId, record);
+      await this.#hooks.afterEvent?.(record.eventId);
+    }
+    await this.#currentProfiles.recover(transaction.requestId, artifacts);
+    await this.#hooks.afterCurrentProfile?.();
+    await this.#queue.apply({
+      subjectId: transaction.subjectId,
+      stateChecksum: state.checksum,
+      ...(state.pending === undefined ? {} : { pending: state.pending }),
+    });
+    await this.#hooks.afterQueue?.();
+    const libraryStatus = await this.applyLibrary(transaction.subjectId);
+    await this.#transactions.write(
+      terminalRollbackTransaction(
+        transaction,
+        "committed",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
+    await this.#hooks.afterRollbackTerminal?.();
+    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
+    return transaction.events.map((record) => record.event);
+  }
+
+  private async applyLibrary(subjectId: SubjectId): Promise<"clean" | "dirty"> {
+    if (this.#library === undefined) return "clean";
+    const status = await this.#library.apply(subjectId);
+    await this.#hooks.afterLibrary?.();
+    return status;
+  }
+
+  private async completeLibraryWriter(subjectId: SubjectId): Promise<void> {
+    await this.#library?.completeWriter?.(subjectId);
   }
 
   private async reconcileLocked(transaction: TransactionRecord): Promise<readonly EngineEvent[]> {
@@ -841,6 +1571,10 @@ export class RecoveryService {
         return this.reconcileLeaseLocked(transaction);
       case "distill_commit":
         return this.reconcileCommitLocked(transaction);
+      case "review_decision":
+        return this.reconcileReviewLocked(transaction);
+      case "rollback":
+        return this.reconcileRollbackLocked(transaction);
       default: {
         const exhaustive: never = transaction;
         return exhaustive;
@@ -995,6 +1729,124 @@ export class RecoveryService {
     return [];
   }
 
+  private async reconcileReviewLocked(
+    transaction: ReviewDecisionTransactionRecord,
+  ): Promise<readonly EngineEvent[]> {
+    const subject = await optionalSubject(this.#subjects, transaction.subjectId);
+    if (subject === undefined) {
+      throw storageCorrupt("Prepared review journal references a missing subject.");
+    }
+    const state = await optionalState(this.#states, transaction.subjectId);
+    if (state === undefined) {
+      throw storageCorrupt("Prepared review journal references a missing subject state.");
+    }
+
+    if (state.checksum === transaction.targetState.checksum) {
+      return this.materializeReviewCommitted(transaction, state);
+    }
+    if (state.checksum !== transaction.previousStateChecksum) {
+      throw storageCorrupt("Prepared review is neither at its target nor its previous fact state.");
+    }
+    if (
+      state.currentVersionId !== transaction.previousCurrentVersionId ||
+      state.suspendedVersionId !== transaction.previousSuspendedVersionId ||
+      !samePendingFacts(state.pending, transaction.previousPending) ||
+      state.generation !== transaction.targetState.generation ||
+      state.materialSetHash !== transaction.targetState.materialSetHash ||
+      canonicalJson(state.materialManifest) !==
+        canonicalJson(transaction.targetState.materialManifest)
+    ) {
+      throw storageCorrupt("Previous review state does not match its exact journal fields.");
+    }
+    await this.validateReviewJournalSemantics(transaction);
+    const operation = await this.#operations.readOptional(transaction.requestId);
+    const events = await Promise.all(
+      transaction.events.map((record) =>
+        optionalEvent(this.#events, transaction.subjectId, record.eventId),
+      ),
+    );
+    if (operation !== undefined || events.some((event) => event !== undefined)) {
+      throw storageCorrupt(
+        "A previous-state review journal cannot have post-commit operation or event facts.",
+      );
+    }
+    await this.#transactions.write(
+      terminalReviewTransaction(
+        transaction,
+        "aborted",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
+    return [];
+  }
+
+  private async reconcileRollbackLocked(
+    transaction: RollbackTransactionRecord,
+  ): Promise<readonly EngineEvent[]> {
+    const subject = await optionalSubject(this.#subjects, transaction.subjectId);
+    if (subject === undefined) {
+      throw storageCorrupt("Prepared rollback journal references a missing subject.");
+    }
+    const state = await optionalState(this.#states, transaction.subjectId);
+    if (state === undefined) {
+      throw storageCorrupt("Prepared rollback journal references a missing subject state.");
+    }
+
+    if (state.checksum === transaction.targetState.checksum) {
+      return this.materializeRollbackCommitted(transaction, state);
+    }
+    if (state.checksum !== transaction.previousStateChecksum) {
+      throw storageCorrupt(
+        "Prepared rollback is neither at its target nor its previous fact state.",
+      );
+    }
+    if (
+      state.currentVersionId !== transaction.previousCurrentVersionId ||
+      state.suspendedVersionId !== undefined ||
+      !samePendingFacts(state.pending, transaction.previousPending) ||
+      state.generation !== transaction.targetState.generation ||
+      state.materialSetHash !== transaction.targetState.materialSetHash ||
+      canonicalJson(state.materialManifest) !==
+        canonicalJson(transaction.targetState.materialManifest)
+    ) {
+      throw storageCorrupt("Previous rollback state does not match its exact journal fields.");
+    }
+    if (
+      transaction.previousPending?.lease !== undefined &&
+      transaction.previousPending.lease.expiresAt > transaction.preparedAt
+    ) {
+      throw storageCorrupt("A rollback journal was prepared while its pending lease was active.");
+    }
+    const artifacts = await this.validateRollbackJournalSemantics(transaction, "optional");
+    const operation = await this.#operations.readOptional(transaction.requestId);
+    const events = await Promise.all(
+      transaction.events.map((record) =>
+        optionalEvent(this.#events, transaction.subjectId, record.eventId),
+      ),
+    );
+    if (operation !== undefined || events.some((event) => event !== undefined)) {
+      throw storageCorrupt(
+        "A previous-state rollback journal cannot have post-commit operation or event facts.",
+      );
+    }
+    await this.#versionStaging.cleanup(transaction.requestId, artifacts);
+    await this.#versionStaging.removePublishedExact(
+      transaction.requestId,
+      artifacts,
+      async (subjectId, versionId) => {
+        await this.verifyVersionUnreferencedForCleanup(transaction.requestId, subjectId, versionId);
+      },
+    );
+    await this.#transactions.write(
+      terminalRollbackTransaction(
+        transaction,
+        "aborted",
+        terminalTime(transaction.preparedAt, this.#clock.now()),
+      ),
+    );
+    return [];
+  }
+
   /**
    * Proves that a journal-owned version has no durable state, lineage, transaction, or operation
    * reference before exact pre-commit cleanup removes it.
@@ -1016,6 +1868,11 @@ export class RecoveryService {
       const state = await optionalState(this.#states, subject.id);
       if (state !== undefined && stateReferencesVersion(state, versionId)) {
         throw storageCorrupt("A journal-owned version is still referenced by subject state.");
+      }
+      for (const event of await this.#events.list(subject.id)) {
+        if (eventRecordReferencesVersion(event, versionId)) {
+          throw storageCorrupt("A journal-owned version is referenced by durable lineage.");
+        }
       }
       for (const historical of await this.#versions.list(subject.id)) {
         if (historical.version.id === versionId) continue;

@@ -1,9 +1,10 @@
-import { DistillyError, eventRecordSchema } from "@distilly/protocol";
+import { DistillyError, eventIdSchema, eventRecordSchema } from "@distilly/protocol";
 import type { EventId, EventRecord, RuntimeSchema, SubjectId } from "@distilly/protocol";
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
 import { createFactFile, readFactFile } from "./fact-file.js";
+import { listFactDirectory } from "./directory-scan.js";
 import type { FileSubjectStore } from "./subject-store.js";
 
 const eventFactSchema: RuntimeSchema<EventRecord> = {
@@ -14,6 +15,9 @@ const eventFactSchema: RuntimeSchema<EventRecord> = {
 
 const isFileCollision = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "EEXIST";
+
+const EVENT_FILE_PATTERN = /^(event_[0-9a-f]{32})\.json$/u;
+const EVENT_TEMP_PATTERN = /^\.event_[0-9a-f]{32}\.json\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp$/u;
 
 const requireSubject = async (subjects: FileSubjectStore, subjectId: SubjectId): Promise<void> => {
   try {
@@ -94,5 +98,28 @@ export class FileEventStore {
     }
     assertSubject(subjectId, record);
     return record;
+  }
+
+  /**
+   * Lists every verified immutable event for one subject in EventId order.
+   *
+   * @param subjectId - Subject whose event history is requested.
+   * @returns Canonically ordered verified event records.
+   */
+  async list(subjectId: SubjectId): Promise<readonly EventRecord[]> {
+    await requireSubject(this.#subjects, subjectId);
+    const records: EventRecord[] = [];
+    for (const entry of await listFactDirectory(
+      this.#layout.root,
+      this.#layout.eventsDirectory(subjectId),
+    )) {
+      if (EVENT_TEMP_PATTERN.test(entry.name) && entry.kind === "file") continue;
+      const match = EVENT_FILE_PATTERN.exec(entry.name);
+      if (match === null || entry.kind !== "file") {
+        throw storageCorrupt("Events directory contains an unknown entry.");
+      }
+      records.push(await this.read(subjectId, eventIdSchema.parse(match[1])));
+    }
+    return records;
   }
 }

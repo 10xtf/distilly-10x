@@ -35,8 +35,12 @@ export interface Profile {
 export interface ProfileDiff {
   readonly added: readonly Claim[];
   readonly removed: readonly Claim[];
+  readonly changed: readonly {
+    readonly before: Claim;
+    readonly after: Claim;
+  }[];
   readonly changedFacets: readonly FacetPath[];
-  readonly beforeQuality: QualitySummary;
+  readonly beforeQuality?: QualitySummary;
   readonly afterQuality: QualitySummary;
 }
 
@@ -58,12 +62,20 @@ export interface CorrectInput extends SubjectRef {
   readonly correction: CorrectionDraft;
 }
 
+/** Aggregate material sensitivity shown by the local library. */
+export type LibraryPrivacy = "none" | "private" | "shareable" | "mixed";
+
 /** Local-library read model for one subject. */
 export interface LibraryEntry {
   readonly subject: SubjectSummary;
   readonly status: SubjectStatus;
-  readonly pendingJobs: number;
-  readonly suspendedVersions: number;
+  readonly privacy: LibraryPrivacy;
+  readonly searchTerms: readonly string[];
+  readonly currentQuality?: QualitySummary;
+  readonly suspendedQuality?: QualitySummary;
+  readonly pendingJobs: 0 | 1;
+  readonly suspendedVersions: 0 | 1;
+  readonly newMaterialCount: number;
   readonly lastChangedAt: IsoDateTime;
 }
 

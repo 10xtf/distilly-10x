@@ -95,13 +95,16 @@ import type {
   CommitInput,
   CommitResult,
   DiffInput,
-  LineageEvent,
   LineageInput,
+  LineagePage,
   ReviewActionInput,
   ReviewItem,
+  ReviewPage,
   ReviewQuery,
   ReviewReason,
   RollbackInput,
+  VersionPage,
+  VersionQuery,
   VersionSummary,
 } from "./values/versions.js";
 
@@ -207,18 +210,18 @@ type ExpectedEngineMethodMap = Readonly<{
   readonly "profiles.prompt": Method<GetProfileInput, string>;
   readonly "profiles.status": Method<SubjectRef, SubjectStatus>;
   readonly "profiles.correct": Method<CorrectInput, CommitResult>;
-  readonly "versions.list": Method<SubjectRef, readonly VersionSummary[]>;
+  readonly "versions.list": Method<VersionQuery, VersionPage>;
   readonly "versions.diff": Method<DiffInput, ProfileDiff>;
   readonly "versions.promote": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.reject": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.rollback": Method<RollbackInput, VersionSummary>;
-  readonly "versions.lineage": Method<LineageInput, readonly LineageEvent[]>;
+  readonly "versions.lineage": Method<LineageInput, LineagePage>;
   readonly "hosts.install": Method<InstallInput, InstallRef>;
   readonly "hosts.uninstall": Method<UninstallInput, EmptyResult>;
   readonly "hosts.export": Method<HostExportInput, ExportRef>;
   readonly "library.list": Method<LibraryQuery, LibraryPage>;
   readonly "library.rebuild": Method<Record<string, never>, RebuildResult>;
-  readonly "reviews.list": Method<ReviewQuery, readonly ReviewItem[]>;
+  readonly "reviews.list": Method<ReviewQuery, ReviewPage>;
   readonly "bundles.inspect": Method<BundleInspectInput, BundleInspection>;
   readonly "bundles.import": Method<BundleImportInput, BundleImportResult>;
   readonly "bundles.export": Method<BundleExportInput, BundleExportResult>;

@@ -15,6 +15,9 @@ import {
   operationTombstoneRecordSchema,
   pendingLeaseMarkerSchema,
   pendingJobMarkerSchema,
+  reviewDecisionTransactionMethodSchema,
+  reviewDecisionTransactionRecordSchema,
+  rollbackTransactionRecordSchema,
   spaceRecordSchema,
   subjectRecordSchema,
   subjectStateRecordSchema,
@@ -56,6 +59,8 @@ import type {
   OperationTombstoneRecord,
   PendingLeaseMarker,
   PendingJobMarker,
+  ReviewDecisionTransactionRecord,
+  RollbackTransactionRecord,
   SpaceRecord,
   SubjectRecord,
   SubjectStateRecord,
@@ -70,6 +75,7 @@ const ALT_HEX_32 = "1".repeat(32);
 const THIRD_HEX_32 = "2".repeat(32);
 const HEX_64 = "0".repeat(64);
 const ALT_HEX_64 = "1".repeat(64);
+const THIRD_HEX_64 = "2".repeat(64);
 
 const subjectId = subjectIdSchema.parse(`subject_${HEX_32}`);
 const otherSubjectId = subjectIdSchema.parse(`subject_${ALT_HEX_32}`);
@@ -84,6 +90,7 @@ const secondProvenanceDigest = provenanceDigestSchema.parse(`provenance_sha256_$
 const materialSetHash = materialSetHashSchema.parse(`set_sha256_${HEX_64}`);
 const versionId = versionIdSchema.parse(`version_${HEX_64}`);
 const candidateVersionId = versionIdSchema.parse(`version_${ALT_HEX_64}`);
+const rollbackVersionId = versionIdSchema.parse(`version_${THIRD_HEX_64}`);
 const jobId = jobIdSchema.parse(`job_${HEX_32}`);
 const leaseId = leaseIdSchema.parse(`lease_${HEX_32}`);
 const requestId = requestIdSchema.parse(`req_${HEX_32}`);
@@ -838,6 +845,126 @@ const preparedSuspendedCommitTransaction = {
   events: [versionSuspendedEvent, jobChangedEvent],
 } satisfies DistillCommitTransactionRecord;
 
+const promotedVersionEvent = {
+  ...versionCurrentEvent,
+  event: { kind: "version.promoted", subjectId, versionId: candidateVersionId, at },
+  reason: "Accept reviewed risk.",
+} satisfies EventRecord;
+
+const rejectedVersionEvent = {
+  ...versionCurrentEvent,
+  event: { kind: "version.rejected", subjectId, versionId: candidateVersionId, at },
+  reason: "Evidence is insufficient.",
+} satisfies EventRecord;
+
+const promotedTargetState = {
+  ...commitTargetState,
+  currentVersionId: candidateVersionId,
+} satisfies SubjectStateRecord;
+
+const rejectedTargetState = {
+  ...subjectStateRecord,
+  checksum: otherFactChecksum,
+  currentVersionId: versionId,
+} satisfies SubjectStateRecord;
+
+const preparedPromoteTransaction = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  transactionKind: "review_decision",
+  method: "promote",
+  requestId,
+  subjectId,
+  candidateVersionId,
+  previousStateChecksum: factChecksum,
+  previousCurrentVersionId: versionId,
+  previousSuspendedVersionId: candidateVersionId,
+  previousPending: pendingMarker,
+  targetState: promotedTargetState,
+  operation: {
+    ...operationRecords["versions.promote"],
+    result: commitVersion,
+  },
+  events: [promotedVersionEvent, jobChangedEvent],
+  preparedAt: at,
+  state: "prepared",
+} satisfies ReviewDecisionTransactionRecord;
+
+const preparedRejectTransaction = {
+  ...preparedPromoteTransaction,
+  method: "reject",
+  targetState: rejectedTargetState,
+  operation: operationRecords["versions.reject"],
+  events: [rejectedVersionEvent],
+} satisfies ReviewDecisionTransactionRecord;
+
+const rollbackPreviousPending = {
+  ...pendingMarker,
+  baseVersionId: candidateVersionId,
+} satisfies PendingJobMarker;
+
+const rollbackVersionSummary = {
+  ...currentVersion,
+  id: rollbackVersionId,
+  parentId: candidateVersionId,
+  creation: { kind: "rollback", targetVersionId: versionId },
+} as const;
+
+const rollbackVersionRecord = {
+  ...versionRecord,
+  id: rollbackVersionId,
+  parentId: candidateVersionId,
+  creation: { kind: "rollback", targetVersionId: versionId },
+  rendererVersion: "profile-renderer-v1",
+} satisfies VersionRecord;
+
+const rollbackClaimsSnapshot = {
+  ...commitClaimsSnapshot,
+  versionId: rollbackVersionId,
+} satisfies VersionClaimsSnapshot;
+
+const rollbackProfile = {
+  ...profile,
+  versionId: rollbackVersionId,
+} as const;
+
+const rollbackTargetState = {
+  ...commitTargetState,
+  currentVersionId: rollbackVersionId,
+} satisfies SubjectStateRecord;
+
+const rolledBackVersionEvent = {
+  ...versionCurrentEvent,
+  event: { kind: "version.rolled_back", subjectId, versionId: rollbackVersionId, at },
+  reason: "Restore known state.",
+  relatedVersionId: versionId,
+} satisfies EventRecord;
+
+const preparedRollbackTransaction = {
+  schemaVersion: 1,
+  checksum: factChecksum,
+  transactionKind: "rollback",
+  requestId,
+  subjectId,
+  targetVersionId: versionId,
+  previousStateChecksum: factChecksum,
+  previousCurrentVersionId: candidateVersionId,
+  previousPending: rollbackPreviousPending,
+  targetState: rollbackTargetState,
+  version: rollbackVersionRecord,
+  materialManifest: versionManifest,
+  claims: rollbackClaimsSnapshot,
+  profile: rollbackProfile,
+  prompt: "# Distilly simulation context\n",
+  operation: {
+    ...operationRecords["versions.rollback"],
+    result: rollbackVersionSummary,
+  },
+  events: [rolledBackVersionEvent, jobChangedEvent],
+  preparedAt: at,
+  state: "prepared",
+} satisfies RollbackTransactionRecord;
+
 const parseRoundTrip = (schema: { parse(value: unknown): unknown }, fixture: unknown): unknown => {
   const parsed = schema.parse(fixture);
   const serialized = JSON.stringify(parsed);
@@ -869,11 +996,18 @@ describe("persisted fact runtime schemas", () => {
     expectTypeOf<keyof typeof operationRecords>().toEqualTypeOf<MutationMethodName>();
     expectTypeOf<OperationFact>().toEqualTypeOf<OperationRecord | OperationTombstoneRecord>();
     expectTypeOf<TransactionRecord>().toEqualTypeOf<
-      IngestTransactionRecord | DistillLeaseTransactionRecord | DistillCommitTransactionRecord
+      | IngestTransactionRecord
+      | DistillLeaseTransactionRecord
+      | DistillCommitTransactionRecord
+      | ReviewDecisionTransactionRecord
+      | RollbackTransactionRecord
     >();
     expectTypeOf<DistillLeaseTransactionMethod>().toEqualTypeOf<"brief" | "renew" | "release">();
     expect(distillLeaseTransactionMethodSchema.parse("brief")).toBe("brief");
     expect(() => distillLeaseTransactionMethodSchema.parse("distill.brief")).toThrow();
+    expect(reviewDecisionTransactionMethodSchema.parse("promote")).toBe("promote");
+    expect(reviewDecisionTransactionMethodSchema.parse("reject")).toBe("reject");
+    expect(() => reviewDecisionTransactionMethodSchema.parse("versions.promote")).toThrow();
     expectTypeOf<OperationScope>().toEqualTypeOf<
       | { readonly kind: "global" }
       | { readonly kind: "subject"; readonly subjectId: typeof subjectId }
@@ -1011,6 +1145,28 @@ describe("persisted fact runtime schemas", () => {
       ],
       [transactionRecordSchema, preparedCommitTransaction],
       [transactionRecordSchema, preparedSuspendedCommitTransaction],
+      [reviewDecisionTransactionRecordSchema, preparedPromoteTransaction],
+      [reviewDecisionTransactionRecordSchema, preparedRejectTransaction],
+      [
+        reviewDecisionTransactionRecordSchema,
+        { ...preparedPromoteTransaction, state: "committed", finishedAt },
+      ],
+      [
+        reviewDecisionTransactionRecordSchema,
+        { ...preparedRejectTransaction, state: "aborted", finishedAt },
+      ],
+      [transactionRecordSchema, preparedPromoteTransaction],
+      [transactionRecordSchema, preparedRejectTransaction],
+      [rollbackTransactionRecordSchema, preparedRollbackTransaction],
+      [
+        rollbackTransactionRecordSchema,
+        { ...preparedRollbackTransaction, state: "committed", finishedAt },
+      ],
+      [
+        rollbackTransactionRecordSchema,
+        { ...preparedRollbackTransaction, state: "aborted", finishedAt },
+      ],
+      [transactionRecordSchema, preparedRollbackTransaction],
     ] as const;
 
     for (const [schema, fixture] of fixtures) parseRoundTrip(schema, fixture);
@@ -1345,6 +1501,226 @@ describe("persisted fact runtime schemas", () => {
         requestId: undefined,
       }),
     ).not.toThrow();
+  });
+
+  it("keeps review and rollback lineage metadata event-discriminated", () => {
+    expect(() => eventRecordSchema.parse(promotedVersionEvent)).not.toThrow();
+    expect(() => eventRecordSchema.parse(rejectedVersionEvent)).not.toThrow();
+    expect(() => eventRecordSchema.parse(rolledBackVersionEvent)).not.toThrow();
+    expect(() =>
+      eventRecordSchema.parse({
+        ...rejectedVersionEvent,
+        reason: undefined,
+        relatedVersionId: rollbackVersionId,
+      }),
+    ).not.toThrow();
+
+    const invalidEvents = [
+      { ...promotedVersionEvent, reason: "   " },
+      { ...promotedVersionEvent, relatedVersionId: versionId },
+      { ...rejectedVersionEvent, relatedVersionId: rollbackVersionId },
+      { ...rolledBackVersionEvent, reason: undefined },
+      { ...rolledBackVersionEvent, relatedVersionId: undefined },
+      { ...rolledBackVersionEvent, relatedVersionId: rollbackVersionId },
+      { ...eventRecord, reason: "Not allowed." },
+      { ...eventRecord, relatedVersionId: versionId },
+    ];
+    for (const invalidEvent of invalidEvents) {
+      expect(() => eventRecordSchema.parse(invalidEvent)).toThrow();
+    }
+  });
+
+  it("rejects internally inconsistent review-decision journals", () => {
+    const rebasedPending = {
+      ...pendingMarker,
+      jobId: jobIdSchema.parse(`job_${ALT_HEX_32}`),
+      baseVersionId: candidateVersionId,
+      queuedAt: at,
+    };
+    const invalidTransactions = [
+      { ...preparedPromoteTransaction, transactionKind: "future" },
+      { ...preparedPromoteTransaction, candidateVersionId: rollbackVersionId },
+      { ...preparedPromoteTransaction, previousCurrentVersionId: candidateVersionId },
+      { ...preparedPromoteTransaction, previousStateChecksum: otherFactChecksum },
+      {
+        ...preparedPromoteTransaction,
+        previousPending: { ...pendingMarker, baseVersionId: candidateVersionId },
+      },
+      {
+        ...preparedPromoteTransaction,
+        targetState: { ...promotedTargetState, subjectId: otherSubjectId },
+      },
+      {
+        ...preparedPromoteTransaction,
+        targetState: { ...promotedTargetState, suspendedVersionId: candidateVersionId },
+      },
+      {
+        ...preparedPromoteTransaction,
+        targetState: { ...promotedTargetState, currentVersionId: versionId },
+      },
+      {
+        ...preparedPromoteTransaction,
+        operation: { ...preparedPromoteTransaction.operation, requestId: otherRequestId },
+      },
+      {
+        ...preparedPromoteTransaction,
+        operation: {
+          ...preparedPromoteTransaction.operation,
+          scope: { kind: "subject", subjectId: otherSubjectId },
+        },
+      },
+      {
+        ...preparedPromoteTransaction,
+        operation: { ...preparedPromoteTransaction.operation, completedAt: finishedAt },
+      },
+      {
+        ...preparedPromoteTransaction,
+        operation: {
+          ...preparedPromoteTransaction.operation,
+          result: { ...preparedPromoteTransaction.operation.result, status: "historical" },
+        },
+      },
+      {
+        ...preparedPromoteTransaction,
+        previousPending: undefined,
+        targetState: { ...promotedTargetState, pending: rebasedPending },
+      },
+      {
+        ...preparedPromoteTransaction,
+        targetState: {
+          ...promotedTargetState,
+          pending: { ...rebasedPending, jobId },
+        },
+      },
+      {
+        ...preparedPromoteTransaction,
+        targetState: {
+          ...promotedTargetState,
+          pending: { ...rebasedPending, lease: pendingLeaseMarker },
+        },
+      },
+      { ...preparedPromoteTransaction, events: [promotedVersionEvent] },
+      {
+        ...preparedPromoteTransaction,
+        events: [{ ...promotedVersionEvent, relatedVersionId: versionId }, jobChangedEvent],
+      },
+      {
+        ...preparedPromoteTransaction,
+        events: [
+          { ...promotedVersionEvent, event: { ...promotedVersionEvent.event, at: finishedAt } },
+          jobChangedEvent,
+        ],
+      },
+      { ...preparedRejectTransaction, targetState: { ...rejectedTargetState, pending: undefined } },
+      { ...preparedRejectTransaction, events: [rejectedVersionEvent, jobChangedEvent] },
+      {
+        ...preparedPromoteTransaction,
+        state: "committed",
+        finishedAt: "2026-08-19T23:59:00.000Z",
+      },
+    ];
+    for (const transaction of invalidTransactions) {
+      expect(() => reviewDecisionTransactionRecordSchema.parse(transaction)).toThrow();
+    }
+  });
+
+  it("rejects internally inconsistent rollback journals", () => {
+    const invalidTransactions = [
+      { ...preparedRollbackTransaction, transactionKind: "future" },
+      { ...preparedRollbackTransaction, targetVersionId: candidateVersionId },
+      { ...preparedRollbackTransaction, previousStateChecksum: otherFactChecksum },
+      {
+        ...preparedRollbackTransaction,
+        previousPending: { ...rollbackPreviousPending, baseVersionId: versionId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        targetState: { ...rollbackTargetState, subjectId: otherSubjectId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        targetState: { ...rollbackTargetState, currentVersionId: candidateVersionId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        targetState: { ...rollbackTargetState, suspendedVersionId: versionId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        version: { ...rollbackVersionRecord, id: versionId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        version: { ...rollbackVersionRecord, parentId: versionId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        version: {
+          ...rollbackVersionRecord,
+          creation: { kind: "rollback", targetVersionId: candidateVersionId },
+        },
+      },
+      {
+        ...preparedRollbackTransaction,
+        version: { ...rollbackVersionRecord, materialCount: 2 },
+      },
+      {
+        ...preparedRollbackTransaction,
+        claims: { ...rollbackClaimsSnapshot, subjectId: otherSubjectId },
+      },
+      {
+        ...preparedRollbackTransaction,
+        profile: { ...rollbackProfile, displayName: "Grace" },
+      },
+      {
+        ...preparedRollbackTransaction,
+        operation: { ...preparedRollbackTransaction.operation, actor: { kind: "user", id: "u" } },
+      },
+      {
+        ...preparedRollbackTransaction,
+        operation: {
+          ...preparedRollbackTransaction.operation,
+          result: { ...rollbackVersionSummary, status: "historical" },
+        },
+      },
+      {
+        ...preparedRollbackTransaction,
+        previousPending: undefined,
+        targetState: {
+          ...rollbackTargetState,
+          pending: {
+            ...rollbackPreviousPending,
+            jobId: jobIdSchema.parse(`job_${ALT_HEX_32}`),
+            baseVersionId: rollbackVersionId,
+            lease: undefined,
+          },
+        },
+      },
+      { ...preparedRollbackTransaction, events: [rolledBackVersionEvent] },
+      {
+        ...preparedRollbackTransaction,
+        events: [{ ...rolledBackVersionEvent, reason: undefined }, jobChangedEvent],
+      },
+      {
+        ...preparedRollbackTransaction,
+        events: [
+          { ...rolledBackVersionEvent, relatedVersionId: candidateVersionId },
+          jobChangedEvent,
+        ],
+      },
+      {
+        ...preparedRollbackTransaction,
+        events: [rolledBackVersionEvent, { ...jobChangedEvent, requestId: otherRequestId }],
+      },
+      {
+        ...preparedRollbackTransaction,
+        state: "aborted",
+        finishedAt: "2026-08-19T23:59:00.000Z",
+      },
+    ];
+    for (const transaction of invalidTransactions) {
+      expect(() => rollbackTransactionRecordSchema.parse(transaction)).toThrow();
+    }
   });
 
   it("enforces distill lease transaction lifecycle and common correlations", () => {

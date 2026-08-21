@@ -30,6 +30,7 @@ const ALLOWED_INTERNAL_DEPENDENCIES = new Map([
   ["@distilly/bindings", new Set(["@distilly/protocol"])],
   ["distilly", new Set(["@distilly/protocol"])],
   ["@distilly/mcp", new Set(["@distilly/protocol"])],
+  ["@distilly/panel", new Set(["@distilly/protocol", "@distilly/mcp"])],
 ]);
 
 function compareText(left, right) {

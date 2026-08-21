@@ -81,7 +81,10 @@
     ├── queue.db
     ├── queue.dirty                       # queue projection 的 fixed-byte dirty marker
     ├── graph.db
-    └── library.json
+    ├── library.json
+    ├── library.dirty                     # Library rebuild/apply 的 fixed-byte dirty marker
+    ├── library.intent                    # fact writer 与 recovery 的 durable coordination marker
+    └── library.lock/                     # Library query/rebuild/writer 的跨进程锁
 ~~~
 
 DISTILLY_ROOT 可以覆盖根目录。所有 id 都经过 schema 验证后再拼路径；路径参数不得包含斜杠、点段或平台分隔符。
@@ -201,6 +204,8 @@ export interface EventRecord extends FactEnvelope<1> {
   readonly event: EngineEvent;
   readonly actor: ActorContext;
   readonly requestId?: RequestId;
+  readonly reason?: string;
+  readonly relatedVersionId?: VersionId;
 }
 
 export type StoredOperationResult<M extends MutationMethodName> =
@@ -324,13 +329,67 @@ export interface DistillCommitTransactionBase extends FactEnvelope<1> {
 export type DistillCommitTransactionRecord =
   DistillCommitTransactionBase & TransactionLifecycle;
 
+export type ReviewDecisionTransactionMethod = "promote" | "reject";
+
+type ReviewDecisionEngineMethod<
+  M extends ReviewDecisionTransactionMethod,
+> = `versions.${M}`;
+
+export type ReviewDecisionTransactionRecord = {
+  [M in ReviewDecisionTransactionMethod]: FactEnvelope<1> & {
+    readonly transactionKind: "review_decision";
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly subjectId: SubjectId;
+    readonly candidateVersionId: VersionId;
+    readonly previousStateChecksum: FactChecksum;
+    readonly previousCurrentVersionId?: VersionId;
+    readonly previousSuspendedVersionId: VersionId;
+    readonly previousPending?: PendingJobMarker;
+    readonly targetState: SubjectStateRecord;
+    readonly operation: OperationRecord<ReviewDecisionEngineMethod<M>>;
+    readonly events:
+      | readonly [EventRecord]
+      | readonly [EventRecord, EventRecord];
+    readonly preparedAt: IsoDateTime;
+  };
+}[ReviewDecisionTransactionMethod] & TransactionLifecycle;
+
+export interface RollbackTransactionBase extends FactEnvelope<1> {
+  readonly transactionKind: "rollback";
+  readonly requestId: RequestId;
+  readonly subjectId: SubjectId;
+  readonly targetVersionId: VersionId;
+  readonly previousStateChecksum: FactChecksum;
+  readonly previousCurrentVersionId: VersionId;
+  readonly previousPending?: PendingJobMarker;
+  readonly targetState: SubjectStateRecord;
+  readonly version: VersionRecord;
+  readonly materialManifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+  readonly profile: Profile;
+  readonly prompt: string;
+  readonly operation: OperationRecord<"versions.rollback">;
+  readonly events:
+    | readonly [EventRecord]
+    | readonly [EventRecord, EventRecord];
+  readonly preparedAt: IsoDateTime;
+}
+
+export type RollbackTransactionRecord =
+  RollbackTransactionBase & TransactionLifecycle;
+
 export type TransactionRecord =
   | IngestTransactionRecord
   | DistillLeaseTransactionRecord
-  | DistillCommitTransactionRecord;
+  | DistillCommitTransactionRecord
+  | ReviewDecisionTransactionRecord
+  | RollbackTransactionRecord;
 ~~~
 
-SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationFact.requestId 必须分别匹配其路径段；TransactionRecord.requestId 必须匹配 root `transactions/<request-id>.json`，SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 `event` 字段。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
+SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationFact.requestId 必须分别匹配其路径段；TransactionRecord.requestId 必须匹配 root `transactions/<request-id>.json`，SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 content-light 的 `event` 字段，不把 reason 或 relatedVersionId 扩进 EngineEvent。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
+
+EventRecord 的 reason/relatedVersionId 是 lineage 专用的非正文元数据。直接 promote/reject 可带非空、trim 后的 reason；promote 禁止 relatedVersionId，直接 reject 也禁止 relatedVersionId。correction 替代 candidate 时用 `version.rejected` 记录旧 candidate，并令 relatedVersionId=替代 version、reason 缺失，由 lineage 投影为 candidate_replaced。rollback 的 `version.rolled_back` 必须同时带调用方必填的非空 reason 与作为内容来源的 targetVersionId；event.versionId 是新 rollback version。其它 event kind 禁止这两个字段。EventRecord reader 对不符合该判别规则的组合返回 storage_corrupt；watch 始终只发送现有 EngineEvent，不泄漏 reason。
 
 `materialManifest` 是当前 generation 的事实 membership，不是从 materials 目录猜出的缓存；它和 VersionMaterialManifest 使用完全相同的 entry 结构，按 MaterialId canonical bytes 严格升序且不得重复。空主体固定 generation=0、manifest 为空且没有 materialSetHash；每次改变 committed material set 的 ingest 只把 generation 增一。非空 manifest 按 hashMaterialSet 重算必须等于 materialSetHash。`pending` 保存从事实重建 job 所需的稳定字段，`pending.lease` 是 lease 唯一事实权威；attempt、failure 与 projection LSN 仍只在 queue.db。pending 存在时，其 generation/materialSetHash/totalMaterialCount 必须分别等于 state.generation/materialSetHash/materialManifest.length，baseVersionId 当且仅当 state.currentVersionId 存在并与它相等；addedMaterialCount 必须等于当前 manifest 相对 verified base version manifest 的差集大小。lease transition 不能改变这些字段。
 
@@ -343,6 +402,10 @@ IngestTransactionRecord.operation 固定为 materials.ingest，其 requestId 必
 DistillCommitTransactionRecord 是一次成功 commit 的完整恢复权威。`previousPending` 必须逐字段等于 previous state 的 pending，且 job/id/generation/base/materialSetHash、active lease id/owner/digest 都分别匹配 journal、trusted session 与 CommitInput；`targetState` 除 checksum、version pointers 与删除 pending 外保留 previous state 的 subjectId、generation、materialSetHash 和完整 materialManifest。current disposition 固定 `targetState.currentVersionId=version.id` 且没有 suspended，suspended disposition 固定保留 previous current 并令 `targetState.suspendedVersionId=version.id`；两者都不得有 pending。存在 active suspended 时不能准备该 journal。
 
 `acceptedPatch` 是通过 wire、target、evidence 与时间校验后的 exact DistillPatch，empty operations 也合法；`patchDigest = "sha256_" + SHA-256("distill-patch-v1\0" + canonicalJson(acceptedPatch))`。journal 内 version/materialManifest/claims/profile/prompt 必须逐字节等于要发布的五类事实与投影，profile.displayName 必须等于 version.subjectDisplayName，prompt 必须等于 `renderPrompt(profile)`。operation 的 request/scope/actor/result 必须匹配 journal 与 disposition；events 固定为恰好 `[version.current | version.suspended, job.changed]`，两条的 requestId/actor/subjectId 与 operation 相同，第一条 versionId=version.id，第二条不得带 versionId，eventId 不得重复。成功 CommitResult 的 reasons 与 version.reviewReasons 相同；current 时两者都为空/不存在，suspended 时两者都是同一个非空 canonical tuple。preparedAt、version.createdAt、operation.completedAt 与两条 `event.at` 使用本次 mutation 的同一个 canonical time，terminal finishedAt 不早于它。任何交叉关系不成立都是 storage_corrupt，不能据某一份嵌套 payload 猜测。
+
+ReviewDecisionTransactionRecord 固定一次 promote 或 reject 的完整 previous/target 边界。previousStateChecksum 保护整个 previous state；previousCurrentVersionId、previousSuspendedVersionId 与 previousPending 必须和该 verified previous state 逐字段相等，candidateVersionId 必须等于 previousSuspendedVersionId。targetState 保留 subjectId、generation、materialSetHash 与完整 materialManifest。promote 令 candidate 成为 current 并删除 suspended；reject 保留 current 并删除 suspended。reject 必须逐字段保留 previous pending；promote 若存在 previous pending，则按 §20.2 对新 current 重新派生 pending。events 第一条分别是 `version.promoted` 或 `version.rejected`；第二条当且仅当 pending 发生改变时存在并为 `job.changed`。operation、events、journal 必须共享 requestId、actor、subjectId 与本次 mutation time；promote/reject 的 OperationRecord result 是跨 commit point 当时的 exact VersionSummary，之后 status 再变化也不改 replay bytes。
+
+RollbackTransactionRecord 是 rollback 的完整恢复权威。previousStateChecksum、previousCurrentVersionId 与 previousPending 必须精确匹配 verified previous state；targetVersionId 必须指向同 subject、在该 previous state/事件视图中为 historical 且不是 current、suspended 或 rejected 的完整版本。journal 的新 VersionRecord 逐字段复制 target 的 generation、materialSetHash、materialCount、quality、rendererVersion 与 version-time subjectDisplayName，claims array 与 manifest items 也逐字段复制；parentId=previousCurrentVersionId，derivedFromCandidateVersionId/reviewReasons 缺失，creation=`{ kind: "rollback", targetVersionId }`，actor=operation actor，createdDisposition=current，id 是新算出的 VersionId。新的 VersionClaimsSnapshot/Profile wrapper 使用新 version id；Profile 的 displayName/claims/quality 来自 target并用 pinned renderer重建，prompt=`renderPrompt(profile)`，不能把 target wrapper 内的旧 versionId 原样复制。新 version 的 createdAt、operation.completedAt、events at 与 queuedAt 使用同一次 mutation time。targetState 只把 current 指向新 id、保持无 suspended，并保持 previous 的 generation、materialSetHash 与完整 authoritative materialManifest 不变；pending 按 §20.2 重派生。events 第一条固定 `version.rolled_back`，带必填 reason 与 relatedVersionId=targetVersionId；第二条当且仅当 pending 发生改变时为 `job.changed`。所有嵌套事实、operation 与 event 的交叉关系不成立都是 storage_corrupt。
 
 ### 6.4 写入事务
 
@@ -367,6 +430,10 @@ DistillCommitTransactionRecord 是一次成功 commit 的完整恢复权威。`p
 6. 清除 queue projection，并只更新已经配置的其它投影；失败标对应 projection dirty，不回滚事实，也不为未安装的 library 制造 dirty。
 7. journal 标 committed，按逆序释放锁，最后依 tuple 顺序发送已落盘的两个 EngineEvent。硬拒绝不走本流程；成功后 pending/lease 已由事实 commit 一并消耗。
 
+每次 promote / reject 按同一事务边界执行：先按全局 request reconciliation → request lock → subject lock，处理 completed/terminal replay 或 idempotency_conflict，再读取 verified state 与 candidate version。candidate 必须仍精确等于 state.suspendedVersionId，且 candidate.parentId 必须等于锁内 currentVersionId；否则在零写入下返回 review_conflict。服务在锁内生成完整 targetState、成功 OperationRecord 与固定 events，写 ReviewDecisionTransactionRecord=prepared 并 flush，再以 write-temp + fsync + atomic rename 替换 state.json；**这个 atomic replace 是 review decision 唯一 commit point**。跨过后才从 journal 幂等补 operation/events、current profile projection（仅 promote）和 queue/其它已配置投影，标 committed，释放锁后发布已落盘 EngineEvent。reject 不改 current projection，pending 逐字段原样保留；promote 的 pending rebase 使用 §20.2 的新 JobId 规则。
+
+rollback 使用相同 lock、replay 与 prepared-journal 纪律，但在准备前先拒绝 active suspended，再拒绝未过期 active lease，校验 target 是同 subject 的 eligible historical version。它在固定 `versions/.staging/<request-id>.<new-version-id>/` 写 journal 固定的新 version 全套文件，逐文件校验/flush/fsync 后 atomic rename 为 published version，再 atomic replace state.json；**state atomic replace 是 rollback 唯一 commit point**。随后才物化 operation、固定 events、current profile 与 queue/其它已配置投影并标 committed。staging、published-abort 与 `.deleting` 的校验、引用检查、rename、fsync 和可重入清理逐条复用 distill-commit 协议，不允许另造较弱的 rollback cleanup。
+
 VersionId 固定为 `"version_" + SHA-256(canonicalJson(preimage))`，不加额外 namespace；preimage 的 exact key set 是 subjectId、**version-time subjectDisplayName**、generation、materialSetHash、parent / derived edge、creation contract、actor、createdDisposition、rendererVersion、canonical reviewReasons、**删除每个 Claim.createdIn 后**的 canonical claims 与 QualitySummary。id 本身、FactEnvelope、createdAt 不进入 preimage。引擎先对该 preimage 计算 VersionId，再把本次新增或 revise 产生的 claim 的 createdIn 填为该 id；沿用或改变状态的旧 claim 保留最初的 createdIn。Profile.displayName 与 VersionRecord.subjectDisplayName 必须相等，历史 prompt 只从该不可变 Profile 重放，不能从以后可变的 SubjectRecord.displayName 重建。这样 createdIn 仍可追溯而不与 VersionId 循环，名称、审核 disposition 与 prompt 历史也不会脱离 id。相同有效事务重试命中已有版本并返回相同结果，不重复生成；相同 patch 在不同 BriefContract 下会得到不同 id。
 
 ### 6.5 崩溃恢复
@@ -381,12 +448,15 @@ VersionId 固定为 `"version_" + SHA-256(canonicalJson(preimage))`，不加额�
 - prepared distill-commit journal 的 targetState checksum 已可见：先校验 version 目录逐字节匹配 journal 内 VersionRecord/material manifest/claims/Profile/prompt，target 没有 pending 且 pointer/disposition、operation、固定两事件及所有交叉关系成立，再补 operation/event/current projection/queue 并标 committed；
 - prepared distill-commit journal 的 target 不可见而 current state checksum 仍精确等于 previousStateChecksum、pending 逐字段等于 previousPending：事实 commit point 未跨过。只可删除该 journal 固定 `versions/.staging/<request>.<version>/`，以及内容逐字节匹配 journal、未被任何 verified state current/suspended、历史 parent/derived edge、terminal journal 或 operation 引用的已发布 `versions/<version>/`；后者在两次 exact/read-reference 验证后必须先 atomic rename 到固定 journal-owned `versions/.staging/<request>.<version>.deleting/` 并 fsync parent，再只对该 deleting path 做可重入 recursive cleanup，避免崩溃把 published path 留成不可验证的半目录。否则保留现场并报 storage_corrupt。完成可证明清理后标 aborted，不写 operation/event/projection，原 pending/lease 原样保留；
 - prepared distill-commit 的 state 既非完整 target 也非完整 previous，目标 version 内容与 journal 不同，或删除候选仍被引用：storage_corrupt，不能猜测 finish/abort，也不能按目录名宽泛清理；
+- prepared review-decision journal 的 targetState checksum 已可见：在 subject lock 内校验 target pointer、candidate/current、pending、operation 与一或两条 fixed events 的全部交叉关系，再补 operation/events/current projection/queue 并标 committed；target 不可见而 current state checksum 精确等于 previousStateChecksum，且 current/suspended/pending 逐字段等于 journal 的 previous fields 时标 aborted，不写 operation/event/projection；state 是任何第三态或任一交叉字段不符都返回 storage_corrupt；
+- prepared rollback journal 的 targetState checksum 已可见：逐字节校验新 version 全套事实、target copied content、current pointer、operation/events 与 pending rebase 后补齐 projection 并标 committed；target 不可见而 current state checksum 精确等于 previousStateChecksum、current/pending 与 journal 精确相等时，按 distill-commit 相同的固定 staging、published reference checks 与 `.deleting` 协议安全清理并标 aborted；第三态、内容不同或仍有引用一律 storage_corrupt；
 - 没有 active commit journal 时，verified state reader 仍必须验证 currentVersionId 与 suspendedVersionId 各自指向一份完整 version；suspended 的 parentId 必须等于 currentVersionId。state 指向不存在、摘要/renderer/prompt 不匹配的 version 一律 storage_corrupt；
+- 公开 material/profile/version/review 读在解析边界后先完成 root journal reconciliation，再取得对应 subject lock，并在该锁内读取完整 state/material/version/event snapshot；不能在释放 lock 后再按 manifest 补读正文。物理 `versions/<version-id>/` 只有在同 subject EventRecord 中存在恰好一条匹配 createdDisposition/creation source 与 createdAt 的 `version.current`、`version.suspended` 或 `version.rolled_back` creation event 才进入 committed visible set。每个 version/relatedVersionId、parentId、derivedFromCandidateVersionId、rollback target 与 renderer-only source 都必须指向同一 visible set；inactive suspended 必须恰有一次 promote/reject，active suspended 不得已有 terminal decision，created-current 不得有 review decision，candidate_replaced/rollback event 必须精确匹配版本中的 derived/source edge。无 journal 的完整 orphan version、重复/矛盾 decision 或任一外键缺失都是 storage_corrupt，不得静默过滤或标成 historical；
 - material 目录不在 state.materialManifest、任何历史 VersionMaterialManifest 或 active prepared journal 中时是 orphan corruption；recovery 不把它静默收编，也不在没有 journal 证明时删除；
 - queue.db 缺失/corrupt、schema 不是 user_version=2、queue.dirty 存在或 marker bytes 异常：都是 index_unavailable，不得当作空队列；从所有已验证 schemaVersion=2 state.pending 重建，未过期 lease 原样保留，过期 lease 按时间派生为 pending；其它 .index 投影同样从各自事实显式 rebuild，不回退全文扫描；
 - stale request / space catalog / space identity / subject lock：只有超过固定内部 TTL 且 owner heartbeat 不再前进时才能回收。
 
-aborted ingest 对同一 requestId + inputChecksum 可在 root request lock 内重新进入 prepared；create 必须复用 journal 原 candidate SubjectId，按当前事实重算 target checksums。aborted distill-commit 也只可由同一 request/input/actor/LeaseOwnerId 在 previousStateChecksum、previousPending 与 active lease 仍逐字段相同时重进 prepared，并复用 journal 已接受的 patch/digest、VersionId、operation/event ids 与 canonical reasons；lease 已过期或 state 已变则返回相应 exact error，不重解释 patch。该 requestId 不同 input、actor 或 owner 永久 idempotency_conflict。committed journal 及 completed operation 只能 immutable replay，不得重进 prepared。首版不对 completed operation 或 terminal journal 做时间型自动 GC，prepared 也永不依赖墙钟超时删除；所有清理只能由 recovery 或 purge 的可证明路径驱动。
+aborted ingest 对同一 requestId + inputChecksum 可在 root request lock 内重新进入 prepared；create 必须复用 journal 原 candidate SubjectId，按当前事实重算 target checksums。aborted distill-commit 也只可由同一 request/input/actor/LeaseOwnerId 在 previousStateChecksum、previousPending 与 active lease 仍逐字段相同时重进 prepared，并复用 journal 已接受的 patch/digest、VersionId、operation/event ids 与 canonical reasons；lease 已过期或 state 已变则返回相应 exact error，不重解释 patch。aborted review-decision / rollback 只可由相同 method、canonical params、actor 与 inputChecksum 在 exact previous state 仍成立时重进 prepared，并复用 journal 中所有 ids、time、operation、events 与 rollback version bytes；state 已变则返回 review_conflict 或相应 exact stale/conflict error，不按新 state 改写旧 journal。该 requestId 不同 input、actor 或 owner 永久 idempotency_conflict。committed journal 及 completed operation 只能 immutable replay，不得重进 prepared。首版不对 completed operation 或 terminal journal 做时间型自动 GC，prepared 也永不依赖墙钟超时删除；所有清理只能由 recovery 或 purge 的可证明路径驱动。
 
 privacy purge 用 TransactionRecord 未来的 purge discriminant 先写一份 prepared purge journal，其中列出所有关联该 subject 的 root subject-scoped operations 与 transaction journals。多个 root files 不被伪称为同时原子：purge 在该 prepared journal 下可恢复地逐个 atomic replace completed operation 为 OperationTombstoneRecord、逐个删除相关 root journal，最后用 purge state/commit point 发布完成；recovery 保证中途崩溃后继续到全部完成。若某 request 只有关联 journal 而还没有 completed operation，purge 仍从 journal.operation 写入 tombstone 后再删该 journal；这也清除 brief OperationRecord 中为精确重放保留的完整 briefing。tombstone 不保留 actor、result 或主体内容；同 RequestId 与相同 inputChecksum 后续返回 not_found，不同 input、actor、lease owner 或 brief capacity 返回 idempotency_conflict，不得把被 purge 的请求当新请求复用。
 

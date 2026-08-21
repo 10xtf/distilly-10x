@@ -237,6 +237,16 @@ export class Layout {
   }
 
   /**
+   * Directory containing all immutable materials for one subject.
+   *
+   * @param subjectId - Subject that owns the material collection.
+   * @returns The confined absolute material-collection path.
+   */
+  materialsDirectory(subjectId: SubjectId): string {
+    return this.inside("subjects", subjectIdSchema.parse(subjectId), "knowledge", "materials");
+  }
+
+  /**
    * Directory containing one immutable material and its text.
    *
    * @param subjectId - Subject that owns the material.
@@ -244,13 +254,7 @@ export class Layout {
    * @returns The confined absolute material-directory path.
    */
   materialDirectory(subjectId: SubjectId, materialId: MaterialId): string {
-    return this.inside(
-      "subjects",
-      subjectIdSchema.parse(subjectId),
-      "knowledge",
-      "materials",
-      materialIdSchema.parse(materialId),
-    );
+    return resolve(this.materialsDirectory(subjectId), materialIdSchema.parse(materialId));
   }
 
   /**
@@ -290,6 +294,16 @@ export class Layout {
   }
 
   /**
+   * Directory containing immutable events for one subject.
+   *
+   * @param subjectId - Subject that owns the event facts.
+   * @returns The confined absolute event directory.
+   */
+  eventsDirectory(subjectId: SubjectId): string {
+    return this.inside("subjects", subjectIdSchema.parse(subjectId), "events");
+  }
+
+  /**
    * Path of one immutable event record.
    *
    * @param subjectId - Subject that owns the event.
@@ -297,12 +311,7 @@ export class Layout {
    * @returns The confined absolute event-record path.
    */
   eventFile(subjectId: SubjectId, eventId: EventId): string {
-    return this.inside(
-      "subjects",
-      subjectIdSchema.parse(subjectId),
-      "events",
-      `${eventIdSchema.parse(eventId)}.json`,
-    );
+    return resolve(this.eventsDirectory(subjectId), `${eventIdSchema.parse(eventId)}.json`);
   }
 
   /**
@@ -635,6 +644,42 @@ export class Layout {
    */
   queueDirtyFile(): string {
     return this.inside(".index", "queue.dirty");
+  }
+
+  /**
+   * Path of the disposable canonical Library projection.
+   *
+   * @returns The confined absolute Library projection path.
+   */
+  libraryFile(): string {
+    return this.inside(".index", "library.json");
+  }
+
+  /**
+   * Path of the exact fixed-byte Library projection dirty marker.
+   *
+   * @returns The confined absolute Library dirty-marker path.
+   */
+  libraryDirtyFile(): string {
+    return this.inside(".index", "library.dirty");
+  }
+
+  /**
+   * Path of the owner-token Library writer intent marker.
+   *
+   * @returns The confined absolute Library intent-marker path.
+   */
+  libraryIntentFile(): string {
+    return this.inside(".index", "library.intent");
+  }
+
+  /**
+   * Cross-process lock covering every Library projection read and write.
+   *
+   * @returns The confined absolute Library lock-directory path.
+   */
+  libraryLock(): string {
+    return this.inside(".index", "library.lock");
   }
 
   /**

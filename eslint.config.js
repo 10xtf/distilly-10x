@@ -30,7 +30,7 @@ export default tseslint.config(
       parserOptions: {
         // One compile face per package, plus a separate config for repo-level
         // programs that must not hang off the solution (design §25.1).
-        project: ["./packages/*/tsconfig.json", "./tsconfig.tools.json"],
+        project: ["./packages/*/tsconfig*.json", "./tsconfig.tools.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

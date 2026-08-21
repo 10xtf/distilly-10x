@@ -29,6 +29,8 @@ Decisions, each with the failure it prevents:
 
 Landing order places in-process `watch` with the commit path, then ships the Panel with the first complete plugin slice. Protocol contract fixtures prove aggregates before the HTTP UI; a speculative TUI is not used as scaffolding.
 
+The implemented Step 10 rationale lives in the [dedicated verified review and Panel feature Note](../../implemented/feature/2026-08-21-step-10-verified-review-and-panel.md).
+
 ## Alternatives considered
 
 - **Leave the Panel at “a tool returns a URL”** — rejected: the first interactive caller would either poll or reach into the engine, and both are far more expensive to undo than to specify.

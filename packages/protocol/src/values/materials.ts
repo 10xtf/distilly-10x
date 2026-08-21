@@ -265,7 +265,9 @@ export interface SourceGroupingContext {
 /** Material list read model without full content. */
 export interface MaterialSummary {
   readonly record: MaterialRecord;
-  readonly contentCharacters: number;
+  readonly contentScalarCount: number;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }
@@ -287,6 +289,8 @@ export interface GetMaterialInput {
 export interface MaterialView {
   readonly record: MaterialRecord;
   readonly content: string;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }

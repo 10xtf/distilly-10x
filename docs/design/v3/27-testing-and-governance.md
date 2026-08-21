@@ -20,6 +20,10 @@
 - Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；internal_error 固定 retryable=false 且不带 details/cause/stack，expected errors 不得被它吞掉；
 - 全部 public object 拒绝 unknown keys；WIRE_LIMITS 每个边界值与总 toolInputBytes、safe/nonnegative integer、positive bounded limit 都有正反 fixture；
 - EngineMethodMap 精确 35 keys 与 mutation/query 分区，无 payload 结果字节稳定为 null，不出现 void/undefined；
+- versions.list/reviews.list/versions.lineage 的 VersionPage/ReviewPage/LineagePage runtime round-trip，limit 1/50/200/+1、nextCursor absence/presence、method/filter-bound opaque cursor、16,384-byte/+1 与 1,024-byte worst-case escaped displayName exact sort tuple；MaterialPage 同时锁 Unicode-scalar count、rawAvailable/inCurrentGeneration；
+- LibraryEntry.searchTerms 的 max=`openRecordEntries+6`、exact UTF-8 sort/dedupe 与 projection round-trip；Library text 只靠 domainPack/current domain root、archived/private/stable/pending/suspended token 命中时仍返回该 subject，并与结构化 filter 取交集；
+- ProfileDiff 的 added/removed/changed exact ClaimId partition、`changed.before/after`、facet 排序，以及首个 suspended 的 current/beforeQuality 缺失；普通 versions.diff 必须有 beforeQuality；
+- EventRecord reason/relatedVersionId 判别矩阵：direct promote/reject、candidate_replaced、rollback 与其它 kind 的允许/禁止组合；EngineEvent key 集保持不变且 watch 不泄漏 reason；
 - EngineEvent decoder 遇到未知 kind 返回 schema_unsupported、不调 handler 并触发全量重读；其它 unknown discriminant 在边界失败；
 - full SHA-256 与 MaterialId source semantics；
 - source-groups-v1 的五类 exact proof-key preimage、每材料 key union、跨材料 union 与 component `sg_` hash 有 golden fixtures；artifact/representation 共 locator namespace、source.uri 只在无 artifact 时 fallback、CaptureAuditRef 不参与；
@@ -42,6 +46,7 @@ Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开�
 真实临时目录覆盖：
 
 - create + first ingest 在 root transaction 与 `subjects/.staging/<request>.<subject>` 下的原子性；createdSubject=true 的 targetSubjectChecksum/absent previous 与 existing 的 inverse schema 均有正反 fixture；
+- 公开 fact reads 在 reconcile→subject lock 内完成正文与 manifest/version/event 的同一 snapshot；commit/rollback `afterVersionPublished` 阻塞时 list/explicit profile/material/diff 不暴露 candidate。无 journal creation event 的完整 physical version、缺失 parent/derived/rollback/renderer source、缺失或重复 creation、active/terminal 或 promoted+rejected 冲突、candidate_replaced/rollback edge mismatch 均 storage_corrupt，不被过滤成 historical；
 - 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；request → catalog（inline）→ space identity → subject → projection 的锁顺序无死锁；BUILTIN_PEOPLE_SPACE_ID 并发 bootstrap 只得到 exact People record，其它内容拒绝；
 - label-v1 的 NFC、四种 ASCII edge trim、case/internal-byte preservation 与 alias canonical dedupe/sort；inline space 的 kind+exact canonical label 并发解析不重复建 space；
 - create 重复矩阵覆盖 exact locator、唯一 exact name/alias、两个以上候选、same-kind locator disagreement 排除、description 不参与唯一性；
@@ -57,8 +62,12 @@ Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开�
 - aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
 - DistillCommitTransactionRecord runtime round-trip/cross-invariant 覆盖 acceptedPatch+patchDigest、lease owner、previous checksum/pending、完整 targetState、VersionRecord/materials/claims/Profile/prompt、correlated OperationRecord、固定 `[version.current|version.suspended, job.changed]` 与 lifecycle；任一 nested mismatch 拒绝；
 - commit 在 prepared journal、固定 `versions/.staging/<request>.<version>` 各文件、version rename、state swap、operation、两 event、current projection、queue 与 terminal journal 每一步崩溃；target finish、exact previous abort、第三态 corrupt；abort 只删同 journal 且逐字节匹配的 staging/未引用 published version，不能删被 state/lineage/其它 journal 引用的目录；published abort cleanup 在 atomic rename 到固定 `.deleting` path 前后及 recursive cleanup 中断后都可重入，published path 不得留下半目录；
+- ReviewDecisionTransactionRecord 的 promote/reject method-correlated schema、exact previous/target、operation/result、reason 与一或两 events；state swap 前后、operation/event/profile/queue/terminal 每个 crash point都只有 target-first finish、exact previous abort、第三态 storage_corrupt，reject pending逐字节不变；
+- RollbackTransactionRecord 的 source target 与新 version/materials/claims/Profile/prompt copied invariants、new id/parent/creation/actor/disposition、authoritative generation/full manifest unchanged；version staging/publish/state swap 及后续每个 crash point复用 distill-commit 的 reference check 与 `.deleting` cleanup，不能留下半目录或误删 source/被引用版本；
+- promote/rollback 有 pending 时以新 current manifest 重算 delta，delta>0 生成新 JobId、mutation-time queuedAt、无 lease，delta=0 清除；reject marker byte-identical；rollback active suspended/lease 与 current/suspended/rejected/cross-subject target 全部在零写入下返回 exact error；
 - claims.json 是单一 VersionClaimsSnapshot，claims 按 ClaimId UTF-8 严格升序无重复；version/material manifest/material content/evidence quote/Unicode-scalar locator/Profile/renderer/prompt 任一 missing 或不一致必须 storage_corrupt，manifest 缺项、hash 或 materialCount 不符同样拒绝；current/suspended reader 即使没有 prepared journal 也验证完整 version；
 - recovery 幂等且只有一个 current；
+- JsonLibraryProjection 的 schemaVersion=1/checksum/recordKind/canonical entry sort+dedupe、exact `distilly-library-dirty-v1\n`、exact `distilly-library-intent-v1 <32-lowerhex>\n` 与 `.index/library.lock`；missing/dirty/malformed/corrupt/symlink 全部 index_unavailable。每个 LibraryEntry-changing writer 在任何事实读写前按 subject → Library 取得 reservation并 durable 写 intent、保持到 journal terminal 后再清；新 mutation不得覆盖旧 intent，recovery继承但仅 root reconciliation 在 Library 锁内证明无 prepared journal后清除。apply 在同进程复用 reservation；subject read 在拿锁后 O(1) 复查 intent并在命中时先释放再恢复，query不扫描 facts，rebuild在只持 Library lock时枚举 verified seed且不取得全库 subject locks。clean no-intent query不扫描 terminal journals；intent create/clear、fact commit 后至 dirty create、record replace、dirty clear、terminal 前后各 crash point均不出现 clean-stale read；afterVersionPublished / afterFactCommit（含 throw）、post-subject-lock intent race与 query/rebuild 的确定性 barrier证明按 Library lock+intent线性化，rebuild seed只看到 mutation 前或终态；
 - queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty v2 exact bytes、PRAGMA user_version=2、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified SubjectStateRecord v2 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 user_version=1 在 open 时判 index_unavailable 并自动 rebuild，不执行 ALTER/row migration；
 - queue rebuild 在 projection lock 内才调用 AsyncIterable seed supplier；并发 writer 在 snapshot 前、snapshot 中和 replace/clear-marker 后提交 state 的 fixtures 都证明其 apply 最终发生在 rebuild 后或被 snapshot 包含，不会留下 clean-but-stale；
 - corrupt checksum / unknown schema 拒绝；
@@ -111,14 +120,20 @@ FakeHost 不声称证明真实宿主 UI；Step 9 capability binding 只有 manif
 
 ### 27.6 Panel
 
-- 无 token、错 token、跨站 Origin、错 Host、超大 body、路径逃逸和占用端口拒绝；
-- token 从 fragment 移除并以 header 发送；
-- CSP 无远程资源；
+- `/rpc` 对 EngineMethodMap exact 35 keys 做 query/mutation envelope、params-before-call/result-after-call 与 final WireSuccess/WireFailure round-trip；query 的 requestId/actionNonce、mutation 缺任一字段和所有 unknown key 都拒绝且零 call；
+- `/action-nonces` 覆盖 `panel_action_<64hex>`、token/method/requestId/canonical-params digest binding、60 秒前/边界 expiry、原子 single consume、并发 replay 与 client/connection/oversize failure 后不可复用；所有 MutationMethodName 都走 nonce；
+- 三个 POST endpoint 都覆盖 exact Bearer、literal Host/Origin，static/health 只允许无 Origin 或 exact Origin；无 token、错 token、Origin 缺失/null/多值/跨站、错 Host 与 CORS preflight 全部拒绝；token 在首个 fetch/subresource 前从 fragment 移除并只以 header 发送；
+- `/health` exact canonical JSON+LF bytes、package-semver source、200/content-type 与零 EngineClient call；404/405/431/401/403/415/413/400 transport matrix固定，合法 method/domain WireFailure 保持 HTTP 200；
+- request header 16 KiB、body 4 MiB/+1→HTTP 413 invalid_input、nonstream response 16 MiB/+1→一次性 context_too_large failure，证明 oversized 路径不半写且 EngineClient call 数符合 §15.5；
+- build allowlist、percent-decode/NUL/dot/repeated separator/backslash/encoded separator/query、symlink ancestor/file、realpath containment 与占用端口拒绝；CSP/Referrer-Policy/nosniff/CORP/no-store exact snapshot且没有远程资源或 service worker；
+- `POST /events` strict body 与 fetch streaming 覆盖 watch subscribe→ready→initial reads 次序、ready 前 buffer、无 id/replay、慢消费者、断线和单 frame/header 16 KiB/+1；断流都取消订阅并触发 cursor discard + full reread；不用 EventSource；
 - SSE unknown event 由 decoder 产生 schema_unsupported、不调 UI handler 并触发全库 re-read；
+- PanelLauncher 覆盖 new/starting/running/closing/closed、并发 present single-flight、start failure retry、invalid handle URL、close-vs-start、handle.close exactly once、close failure sharing、closed 后不重启与 borrowed client 不关闭；
 - Panel action 与等价 CLI action 产出相同 version / event；
-- UI 显示的 quality 字段全部来自 protocol；
+- UI 显示的 privacy/quality/pending/suspended/new-material/lastChangedAt 字段全部来自 protocol，同 snapshot 聚合且排序/cursor 语义固定；review route 只从 subject-filtered ReviewPage 找 exact candidate，再由 mutation CAS fail closed，不存在 reviews.get；
 - Evidence / Materials 显示 medium、role、derivation、raw/capture provenance 与 engine source-group basis，不在前端重算 eligibility；
-- atVersionId 只从该版本 materials manifest 重建 source group；新增 bridge material不改变历史展示，旧 grouping 实现不可用时明确 schema_unsupported；
+- atVersionId 只从该版本 materials manifest 重建 source group；新增 bridge material不改变历史展示，旧 grouping 实现不可用时明确 schema_unsupported；Step 10 native_text/host_extract 返回 rawAvailable=false，raw_extract 因无 verified RawStore reader 返回 schema_unsupported；
+- Step 10 只启用真实 reads 与 promote/reject/rollback；correct/install/archive/production doctor controls disabled/future-only，injected full-client doctor 只读可显示；断言没有 fake success、LocalRuntime、CLI 或 production command；
 - Discover 首版不存在。
 
 ### 27.7 Fresh install

@@ -15,7 +15,7 @@ const reviewUrl = (port = "43123") =>
 
 describe("review launch boundary", () => {
   it("accepts the exact loopback Panel review route and valid port limits", () => {
-    for (const port of ["1", "80", "43123", "65535"]) {
+    for (const port of ["1", "81", "43123", "65535"]) {
       const value = { ref, url: reviewUrl(port) };
       expect(reviewLaunchSchema.parse(value)).toEqual(value);
     }
@@ -30,6 +30,7 @@ describe("review launch boundary", () => {
     ["query", reviewUrl().replace("/#", "/?source=test#")],
     ["non-root path", reviewUrl().replace("/#", "/panel/#")],
     ["zero port", reviewUrl("0")],
+    ["default HTTP port", reviewUrl("80")],
     ["port with a leading zero", reviewUrl("043123")],
     ["port above TCP range", reviewUrl("65536")],
     ["uppercase token", reviewUrl().replace(TOKEN, "A".repeat(64))],

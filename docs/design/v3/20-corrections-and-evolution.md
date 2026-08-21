@@ -31,15 +31,33 @@ export declare class CorrectionService {
 
 ~~~ts
 export declare class ReviewService {
-  promote(input: ReviewActionInput, actor: ActorContext): Promise<VersionSummary>;
-  reject(input: ReviewActionInput, actor: ActorContext): Promise<VersionSummary>;
-  rollback(input: RollbackInput, actor: ActorContext): Promise<VersionSummary>;
+  promote(
+    input: ReviewActionInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
+  reject(
+    input: ReviewActionInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
+  rollback(
+    input: RollbackInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
 }
 ~~~
 
-promote/reject 要检查 candidate 仍是当前 suspended target；并发 review 只有一个成功，另一个 review_conflict。理由进入事件，但 reject reason 不改 candidate 内容。
+三种 mutation 都使用 context.requestId 进入 §6 的全局 idempotency、prepared journal 与 recovery；actor 由 trusted client session 注入，不能来自 Panel params。服务先做同 RequestId replay/conflict，再按 request → subject 取锁并在锁内重读 verified state。promote/reject 要求 candidateVersionId 仍精确等于 current suspended target，candidate.parentId 仍精确等于锁内 currentVersionId；并发 review 恰有一个跨过 state commit point，另一个 review_conflict。promote/reject 的 reason optional，出现时 trim 后必须非空并只进 content-light EventRecord；reject 不修改 candidate immutable facts。reject 删除 suspended pointer、保留 current，并把原 pending marker（包括 JobId、queuedAt 与 lease）逐字段原样带入 target state。
 
-rollback 在存在 active suspended target 时返回 review_conflict，要求用户先 promote、reject 或 correct；它不能偷偷改变 current 后留下永远无法 promote 的 candidate。没有 suspended 时，rollback 不删除后续历史，而是创建一个新 version，内容等同目标历史版本、parent 指向当前、actor=可信 session actor、event=rolled_back；event.versionId 是新版本，relatedVersionId 是内容来源的历史版本。
+promote 会改变 pending 的 base identity。若 previous state 没有 pending，target 也没有；若有，则对 authoritative state.materialManifest 减去新 current version manifest，按 MaterialId 计算 delta。delta=0 时清除 pending；delta>0 时必须生成**新 JobId**，令 generation/materialSetHash/totalMaterialCount 取 unchanged authoritative state，baseVersionId=新 current id，addedMaterialCount=delta，queuedAt=本次 mutation time，且 lease 缺失；不得沿用旧 JobId、queuedAt 或 lease。JobId 的 identity 包含 base，所以即使新 marker 的其它数值碰巧相同也要换 id。pending 改变时 journal 才附加一条 job.changed EventRecord 并同步 queue；reject 从不发 job.changed。
+
+rollback reason 必填且 trim 后非空。服务先拒绝 active suspended target 为 review_conflict，要求用户先 promote、reject 或 correct；随后若 pending 带 `expiresAt > mutation time` 的 active lease，返回 lease_conflict，零写入。已过期 lease 不阻止 rollback。targetVersionId 必须解析到同一 subject 的完整、eligible historical version，不能是 current、suspended 或由 reject/candidate-replaced event 派生的 rejected；不存在返回 not_found，存在但状态不 eligible 返回 invalid_input。
+
+rollback 不删除或改写后续历史，而是创建一个新的 current version：claims array、VersionMaterialManifest items、quality、rendererVersion 和 version-time subjectDisplayName 精确复制 target；parentId 取锁内 current；derivedFromCandidateVersionId/reviewReasons 缺失；creation=`{ kind: "rollback", targetVersionId }`；actor 取 caller；createdDisposition=current；按 §6 VersionId preimage 生成新的 VersionId。VersionClaimsSnapshot 与 Profile 都使用新 id，Profile/rendered/prompt 从 copied content重建而不沿用 source wrapper 的旧 id。新 VersionRecord.generation/materialSetHash/materialCount 与 target 一致；与此同时 authoritative target SubjectStateRecord 的 generation、materialSetHash 与完整 current-generation materialManifest 逐字段保持不变。新 version 的 event.versionId 是新 id，EventRecord.relatedVersionId 是 source target，reason 是 caller reason。
+
+rollback 对 previous pending 使用与 promote 相同的 delta rebase：以新 rollback version manifest 为 base，从 unchanged authoritative state manifest 计算；delta=0 清除，delta>0 生成新 JobId、mutation-time queuedAt、无 lease并重算 count。即使旧 lease已过期也不沿用。没有 previous pending 时不因版本 manifest 与 current generation 不同而隐式创建 job；排队只能由已有 pending 或显式 redistill/ingest 产生。所有 promote/reject/rollback 的 target state、operation、events 与 rollback version bytes 在 state replace 前写进 typed journal；state.json atomic replace 是 commit point，之后的 status summary replay 返回 journal 保存的 exact result。
 
 ### 20.3 显式 redistill
 

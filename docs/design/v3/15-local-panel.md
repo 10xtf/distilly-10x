@@ -40,6 +40,8 @@ Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生�
 - adapter / parser / optional executor preflight；
 - telemetry 明确 off / on，不显示虚假使用量。
 
+这是完整产品的页面信息架构，不授权 Step 10 伪造尚未落地的 handler。Step 10 UI 只启用注入 client 已真实实现并经双向 schema 验证的 read methods，以及 promote/reject/rollback；correct、install、archive 与 production doctor 可以显示 disabled 的未来说明或只读文案，但不能返回假成功、写 fixture facts 或调用占位 handler。测试注入的 full EngineClient 若真实实现 system.doctor，可渲染其 DoctorSnapshot；production system.doctor handler 与 capability/full binding 结论仍属于 Step 12。Step 10 不创建 LocalRuntime、不提供 CLI executable 或用户可运行的 `distilly panel` command。
+
 Discover 不出现在首版导航。Profile Catalog 没达到 §24 进入条件前，空 tab 只会制造“是不是要登录”的误解。
 
 ### 15.3 面板读模型
@@ -47,11 +49,19 @@ Discover 不出现在首版导航。Profile Catalog 没达到 §24 进入条件�
 界面所需聚合由引擎返回：
 
 ~~~ts
+export type LibraryPrivacy =
+  | "none" | "private" | "shareable" | "mixed";
+
 export interface LibraryEntry {
   readonly subject: SubjectSummary;
   readonly status: SubjectStatus;
-  readonly pendingJobs: number;
-  readonly suspendedVersions: number;
+  readonly privacy: LibraryPrivacy;
+  readonly searchTerms: readonly string[];
+  readonly currentQuality?: QualitySummary;
+  readonly suspendedQuality?: QualitySummary;
+  readonly pendingJobs: 0 | 1;
+  readonly suspendedVersions: 0 | 1;
+  readonly newMaterialCount: number;
   readonly lastChangedAt: IsoDateTime;
 }
 
@@ -60,6 +70,11 @@ export interface ReviewItem {
   readonly current?: VersionSummary;
   readonly reasons: readonly ReviewReason[];
   readonly diff: ProfileDiff;
+}
+
+export interface ReviewPage {
+  readonly items: readonly ReviewItem[];
+  readonly nextCursor?: string;
 }
 
 export interface MaterialQuery extends SubjectRef {
@@ -71,7 +86,9 @@ export interface MaterialQuery extends SubjectRef {
 
 export interface MaterialSummary {
   readonly record: MaterialRecord;
-  readonly contentCharacters: number;
+  readonly contentScalarCount: number;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }
@@ -96,6 +113,8 @@ export interface GetMaterialInput {
 export interface MaterialView {
   readonly record: MaterialRecord;
   readonly content: string;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }
@@ -132,30 +151,34 @@ export interface DoctorSnapshot {
 }
 ~~~
 
-LibraryEntry、ReviewItem、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。
+LibraryEntry、ReviewItem、ReviewPage、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。每个 LibraryEntry 从同一次 verified SubjectRecord/SubjectStateRecord 与其引用的 immutable versions 聚合：privacy 对 authoritative current-generation materialManifest 计算，空集合为 none、全 private 为 private、全 shareable 为 shareable、混合为 mixed；currentQuality / suspendedQuality 当且仅当相应 pointer 存在；pendingJobs 与 suspendedVersions 分别是相应 state marker/pointer 的 0 或 1；newMaterialCount=`state.pending?.addedMaterialCount ?? 0`，显式 redistill 因而可为 0。searchTerms 是 exact-dedupe 后按 UTF-8 bytes 升序的有界 label tuple：SubjectRecord.domainPack（若存在）、current Profile.domains 的每个 root、subject lifecycle、privacy、current maturity（若存在），以及 pendingJobs=1 时的 literal `pending`、suspendedVersions=1 时的 literal `suspended`；最多 `WIRE_LIMITS.openRecordEntries + 6` 项。lastChangedAt 是该 subject 已验证 EventRecord 的最大 event.at，subject.created 是非空基线；它不是文件 mtime、projection 更新时间或 Panel 当前时间。
+
+ProfileDiff 的 added/removed 是 before/after ClaimId 集差，changed 是同一 ClaimId 但 canonical Claim bytes 不同的 `{before, after}`，三组分别按相关 ClaimId canonical UTF-8 bytes 升序；changedFacets 是三组所涉及 facet 的去重 canonical 升序。普通 versions.diff 的 beforeQuality/afterQuality 都存在。subject 的首个 suspended version 没有 current baseline 时，ReviewItem.current 与 diff.beforeQuality 都缺失，不伪造零质量；diff.added 是全部 candidate claims，removed/changed 为空，changedFacets 是 candidate facets。ReviewItem 的 reasons 必须逐字段等于 candidate version 的 reviewReasons。
 
 MaterialQuery / GetMaterialInput 未给 atVersionId 时按当前 generation 派生分组；给定 atVersionId 时，引擎从该 version 的 materials.json manifest 取得精确集合，并按 VersionRecord.quality.sourceGroupingVersion 重建当时的 group。不存在于该 manifest 的 MaterialId 返回 not_found，binary 已不支持该历史 grouping version 时返回 schema_unsupported。Panel 只展示返回的 SourceGroupingContext，不拿当前材料目录或当前算法猜历史结果。
 
-suspendedVersions 在 V3 首版只能是 0 或 1；字段保留 number 是为了列表聚合显示，不表示允许多个 active targets。历史上曾 suspended 后被 reject / promote 的版本通过 versions.list 查看，不计入该数。
+contentScalarCount 按 Unicode scalar value 计数，精确等于 `Array.from(content).length`，与 quote locator 的计量单位一致而不是 UTF-16 code units 或 grapheme clusters。inCurrentGeneration 始终对读取时 verified state.materialManifest 判定；历史 atVersionId 查询也必须和当前 manifest 比较。rawAvailable 当且仅当该 MaterialRecord 的 supported derivation 引用了一份当前存在且验证通过的 raw fact；没有 raw 引用或受支持策略未保留 raw 时为 false，引用存在但 raw 丢失/损坏仍返回 storage_corrupt，不能降级成 false。Step 10 的真实 material read service 只支持 native_text / host_extract，因此两者固定 rawAvailable=false；遇到 raw_extract 必须因尚无 verified RawStore reader 返回 schema_unsupported，不能猜 false/true。raw_extract 正例随 Step 11/12 的 raw ingestion/read slice 落地。MaterialPage items 按 MaterialId canonical UTF-8 bytes 升序。
+
+suspendedVersions 在 V3 首版只能是 0 或 1。历史上曾 suspended 后被 reject / promote 的版本通过 versions.list 查看，不计入该数。
+
+所有带 cursor/limit 的首版本地 EngineMethodMap page 使用相同边界：limit 缺省 50、最小 1、最大 200，越界是 invalid_input；nextCursor 只在后面确有下一项时存在。cursor 是 engine 生成的 opaque、versioned value，UTF-8 最多 16,384 bytes，并绑定 exact method、canonical normalized filters 与最后一项的完整 sort tuple；该独立上限必须容纳合法 1,024-byte displayName 经 canonical JSON escaping/base64url 后的最坏情况，不能复用较窄的 labelBytes。格式错误、跨 method 或 filter mismatch 都是 invalid_input。SubjectPage 与 LibraryPage 分别按 `(displayName UTF-8 asc, id asc)` 和 `(subject.displayName UTF-8 asc, subject.id asc)`；ReviewPage 为 `(candidate.createdAt desc, candidate.subjectId asc, candidate.id asc)`；MaterialPage 为 `(record.id UTF-8 asc)`；VersionPage 为 `(createdAt desc, id asc)`；LineagePage 为 `(at desc, eventId asc)`。首版 cursor 不承诺跨 mutation 的 snapshot isolation；收到 EngineEvent、流断开或页面间检测到变化时，Panel 必须丢弃 cursor 并从第一页全量重读。
 
 ### 15.4 Transport
 
 ~~~text
 distilly panel --port <n>
-  GET  /                  静态资源
+  GET  /                  固定 allowlist 内的静态资源
   GET  /health            不含人物数据的版本与 readiness
-  POST /rpc               EngineMethodMap 的类型化 JSON 调用
-  GET  /events            watch 的 SSE 字节流
+  POST /action-nonces     mutation 的短期一次性 transport nonce
+  POST /rpc               完整 EngineMethodMap 的类型化 JSON 调用
+  POST /events            带认证 header 的 fetch SSE 字节流
 ~~~
 
 ~~~ts
 export interface PanelServerOptions {
   readonly client: EngineClient;
   readonly assetsDir: string;
-  readonly host: "127.0.0.1";
   readonly port: number;
-  readonly tokenFactory: () => string;
-  readonly allowedOrigins: readonly string[];
 }
 
 export interface PanelHandle {
@@ -163,29 +186,83 @@ export interface PanelHandle {
   readonly close: () => Promise<void>;
 }
 
+export type PanelActionNonce = Branded<string, "PanelActionNonce">;
+
+export type PanelQueryRpcRequest = {
+  [M in QueryMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly params: EngineMethodMap[M]["params"];
+    readonly requestId?: never;
+    readonly actionNonce?: never;
+  };
+}[QueryMethodName];
+
+export type PanelMutationRpcRequest = {
+  [M in MutationMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly params: EngineMethodMap[M]["params"];
+    readonly requestId: RequestId;
+    readonly actionNonce: PanelActionNonce;
+  };
+}[MutationMethodName];
+
+export type PanelRpcRequest =
+  | PanelQueryRpcRequest
+  | PanelMutationRpcRequest;
+
+export type PanelRpcResponse<M extends keyof EngineMethodMap> =
+  | WireSuccess<EngineMethodMap[M]["result"]>
+  | WireFailure;
+
+export type PanelActionNonceRequest = {
+  [M in MutationMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly params: EngineMethodMap[M]["params"];
+  };
+}[MutationMethodName];
+
+export interface PanelActionNonceGrant {
+  readonly actionNonce: PanelActionNonce;
+  readonly expiresAt: IsoDateTime;
+}
+
+export interface PanelEventStreamRequest {
+  readonly wireVersion: typeof WIRE_VERSION;
+}
+
 export declare function startPanelServer(
   options: PanelServerOptions,
 ): Promise<PanelHandle>;
 ~~~
 
-PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。startPanelServer 借用而不拥有传入的 client；PanelHandle.close 只停止 HTTP/SSE transport 并清理自己的订阅，创建 client 的 composition 在 handle 关闭后再关闭 client。
+`/rpc` 覆盖 exact、完整的 EngineMethodMap，不能只注册当前 UI 用到的子集。query object 严格禁止 requestId/actionNonce；mutation object 必须同时带 requestId/actionNonce。handler 先按 method 对 unknown params 做 `engineMethodSchemas[M].params.parse`，再调用 query 或 mutation overload；mutation 只把 requestId 放入 MutationContext，绝不把 actionNonce 传给 engine 或纳入 OperationRecord/inputChecksum。成功结果在序列化前再经 `engineMethodSchemas[M].result.parse`；成功与 domain/validation failure 最后都解析成 strict `WireSuccess | WireFailure`，wireVersion 固定为 `"3"`，没有第三种 JSON 或未校验 passthrough。
 
-production token 是 32 个 crypto-random bytes 的 64 位小写十六进制；tokenFactory 是测试 seam，返回值在监听前按同一 grammar 校验。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+Step 10 的 PanelServer 只借用注入的完整 EngineClient，不创建 LocalRuntime、不读取 DISTILLY_ROOT，也不拥有 client。Step 12 production composition 才为本次 Panel 会话创建单独、kind=user 的 client；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭该 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
 
-Fragment 不发给服务器；前端读出 token 与可选 review route 后，立刻只从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，并在 fetch Authorization header 中使用内存 token。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
+`GET /health` 的成功 value 是 exact、closed `{ "status": "ready", "panelVersion": "<@distilly/panel package semver>", "wireVersion": "3" }`；HTTP 200 body bytes 固定为 canonical key ordering 的 `{"panelVersion":"<semver>","status":"ready","wireVersion":"3"}\n`，`Content-Type: application/json; charset=utf-8`。panelVersion 只来自该 package 的 build version source。它不调用 EngineClient，也不包含 root/path/token/nonce、主体、projection 计数或环境字段。
+
+production token 是 32 个 crypto-random bytes 编码的 64 位小写十六进制，每次成功启动重新生成且只驻留内存。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+
+Fragment 不发给服务器；前端在发起任何网络请求、加载任何非初始 document subresource 之前读出 token 与可选 review route，立即用 history.replaceState 从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，以后只在内存保存 token。所有受保护 fetch 使用 `Authorization: Bearer TOKEN`。事件流必须用可设置 header/body 的 fetch streaming `POST /events`，不使用原生 EventSource。
 
 ### 15.5 安全不变量
 
-1. 只绑定 127.0.0.1；不接受 0.0.0.0、局域网地址或 hostname 自动解析。
-2. 每次启动新建高熵 token；RPC、events 都必须验证。
-3. 校验 Origin 与 Host；拒绝 null、跨站和未知 origin。
-4. 明确端口被占就失败；不在已经给用户 URL 后静默换端口。
-5. 静态资源全部本地，CSP 禁止远程脚本、frame 与任意 connect-src。
-6. RPC body、响应与日志有大小上限；日志不写材料正文、token 或 secret。
-7. Panel 只持 EngineClient，不 import engine store，不读取 DISTILLY_ROOT。
-8. purge、publish 等危险动作需要二次确认和短期 action nonce。
+1. Server 只调用 literal `127.0.0.1` listen，不接受可配置 host、`0.0.0.0`、IPv6、LAN address 或 hostname 解析。port 必须是 1..65535 且不等于 HTTP 默认端口 80 的 safe integer，确保浏览器不会把显式端口从 origin/Host 规范化掉；占用就以 busy 失败，不在已生成 URL 后换端口。每个请求必须恰有一个 Host header，value 逐字节等于 `127.0.0.1:<actual-port>`。
+2. `/rpc`、`/events`、`/action-nonces` 必须同时满足 exact Host、`Origin: http://127.0.0.1:<actual-port>` 和 timing-safe 比较成功的 exact Bearer token；Authorization 必须是恰好一个 header，value 精确为 `Bearer ` 加 64 lowercase hex，无前后空白或其它 auth parameter。Origin 缺失、`null`、多值、大小写/默认端口变体或跨站都拒绝。静态 GET 与 `/health` 只允许 Origin 缺失或同一个 exact Origin；任意其它 Origin 拒绝。服务不发 CORS allow headers。
+3. 三个 POST endpoint 必须恰有一个 Content-Type header，value 逐字节为 `application/json` 或 `application/json; charset=utf-8`，并只接收严格单个 JSON value 与对应 closed schema。累计 request headers 不得超过 16,384 bytes；raw body 最多 4,194,304 bytes，读到第 4,194,305 byte 立即停止并返回 HTTP 413 + strict、retryable=false 的 invalid_input WireFailure，不调用 client、nonce store 或业务 parser。
+4. 非 streaming response 必须先完整构造、result-parse、bounded serialize 并确认 UTF-8 bytes 不超过 16,777,216，再一次写出；不能先发 headers/部分 JSON。超限改成 retryable=false、无内容的 context_too_large WireFailure，details 只可包含数字 size/limit；该 failure 本身也必须在限额内。日志只记 content-free method/status/size，不记 body、params/result、材料正文、token、nonce 或 secret。
+5. 静态文件只从 build-time 固定 allowlist 提供。router 对 percent-decode failure、NUL、反斜线、编码后或解码后的 `/`、`.`、`..` path segment、重复 separator、query/fragment 与非 allowlist 路径 fail closed；assetsDir 的每个祖先与最终文件都必须拒绝 symlink，并验证 real path 仍在 exact assets root。不能把 URL path 直接 join 到磁盘。`/health` 只返回版本/readiness，不含人物、路径、token 或 nonce。
+6. 所有 document/static response 固定发送 `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'; worker-src 'none'`、`Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff`、`Cross-Origin-Resource-Policy: same-origin` 与 `Cache-Control: no-store`。不允许 data/inline/eval/remote script、remote connect、frame 或 service worker。
+7. 所有 MutationMethodName 都需要 transport nonce，不只 purge/publish 等危险子集。Panel 只有在用户明确确认一次动作后，才向 `/action-nonces` 发送 exact method/requestId/params；服务先用对应 method params schema 校验，生成 `panel_action_` + 64 lowercase hex，再用 `WireSuccess<PanelActionNonceGrant>` 返回并对整个 result schema 做最终 parse。nonce 绑定当前 panel token、method、requestId 与 `SHA-256("panel-action-params-v1\0" + canonicalJson(params))`，expiresAt 精确为签发时刻 +60 秒，只驻内存。RPC 在 `now >= expiresAt`、任一 binding 不同或 nonce 不存在时返回 invalid_input；通过全部 envelope/params/binding 校验后、进入 client.call 前原子 consume，一经 consume 即使 client failure、response 超限或连接中断也不能重用。并发相同 nonce 恰有一个调用能进入 client。
+8. `/events` body 必须逐字段等于 `{ "wireVersion": "3" }`。服务完成 auth/body 校验后先注册 `client.watch`，缓冲注册与 ready 之间的 EngineEvent，再以 HTTP 200、`Content-Type: text/event-stream; charset=utf-8`、`Cache-Control: no-store` 且无 compression 写恰好 `event: ready\ndata:{"wireVersion":"3"}\n\n`；Panel 收到 ready 后才启动初始全量 reads，随后处理已缓冲与新 frame，后者 bytes 精确为 `event: engine\ndata:` + `canonicalJson(engineEvent)` + `\n\n`。每个 SSE response header block 和每个完整 frame 各自最多 16,384 UTF-8 bytes；单个 EngineEvent 仍过大、socket backpressure 造成 bounded queue 溢出或任意流断开时，server 取消订阅并断流，client 丢弃 cursor、重新连接并全量重读。流没有 id/Last-Event-ID/replay 语义，不能把丢失事件猜成连续。
 
-无 token、错 token、跨站 Origin、错误 Host、超大 body、端口占用与路径穿越各有拒绝测试。
+HTTP status 不留给 handler 自选：未知 path=404，已知 path 的错误 method=405，header 超限=431，Bearer 缺失/错误=401，Host/Origin 规则失败=403，不支持的 Content-Type=415，body 超限=413，malformed JSON 或 strict top-level envelope/wire/method shape 失败=400。经过这些 transport checks 后，合法 `/rpc` method 的 params invalid_input、engine domain error、result validation归一失败、unexpected internal_error 和 16 MiB context_too_large replacement 都以 HTTP 200 承载 strict WireFailure；合法 nonce request 的 expired/replayed/rebound nonce不会调用 client并以 HTTP 400 invalid_input WireFailure 返回。除 static 404 外，JSON endpoint 的 4xx body 仍须是 bounded strict WireFailure，统一使用现有 invalid_input、retryable=false，不新增 auth code；401/403 使用同一个无 details 的 generic message且不回显 token、Origin 或 Host，405 只列该 route 的 exact Allow method。
+
+无 token、错 token、跨站/缺失 Origin、错误 Host、oversized header/body/response/event、nonce expiry/replay/rebinding、端口占用、symlink 与各种 path decode/traversal 各有拒绝测试；每条测试同时断言零 EngineClient call 或按规定最多一次 call。
 
 ### 15.6 生命周期与宿主打开方式
 
@@ -207,7 +284,13 @@ export declare class PanelLauncher implements ReviewPresenter {
 
 distilly panel 在前台运行并打印 URL。MCP / CLI presenter 得到 suspended CommitResult 时，通过注入的 ReviewPresenter 启动或复用本次会话的 PanelServer，再把 ReviewLaunch 作为工具 structured value 返回；CommitService / CommitResult 只知道 ReviewRef，不知道 HTTP 或 URL。ReviewPresenter 接口由 mcp 导出，PanelLauncher 由 panel/server 实现，所以 mcp 不静态依赖 panel。
 
-PanelLauncher 对首次 start 做 single-flight；并发 present 共享同一个成功 handle，随后只为各自 ReviewRef 构造精确 route。present 返回的 launch.ref 必须逐字段等于输入 ref，URL route 也必须编码同一 ref。close 幂等；一旦 close 开始，新的 present 明确失败而不重启另一个 server。PanelLauncher 拥有并在 close 中关闭它启动的唯一 PanelHandle，但借用该 handle 使用的 user client；外层 composition 关闭 PanelLauncher 后再关闭 user client，最后关闭共享 LocalRuntime。直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。
+PanelLauncher 的状态机精确为 new → starting → running → closing → closed。new 中首个 present 创建唯一 start promise；starting 中所有 present 共享它。start 在没有交出 handle 前失败时，所有 waiter 得到同一 failure，清空 promise并回到 new，之后 present 可重试；但 close 一旦开始就不再重试。start 交出的 handle.url 必须先通过 exact Panel root URL schema，随后每个 present 才为自己的 ReviewRef 构造 route；launch.ref 与输入逐字段相同，URL route 编码同一 ref，任一 mismatch fail closed。若已取得 handle 但 root URL validation 失败，launcher 立即进入 closing，所有 waiter 得到同一 validation failure，与并发 close 共享对该 handle 恰好一次的 close attempt，最终进入 closed且不可重试，不能泄漏 server 或另起第二个。
+
+present 的 linearization point 是：start 已成功、handle URL 已验证、launcher 仍为 running，且 exact launch value 已构造完成。close 在该点之后才开始时，present 可返回该 launch；close 已把状态改成 closing 而 present 尚未越过该点时，present 必须失败，不能返回一个正在被关闭的首次 URL。start rejection 永远原样交给其 waiters；若 close 同时等待该 rejection，close 随后正常进入 closed。
+
+close 是 single-flight 且幂等：closing/closed 以后所有新 present 都在调用 start 或复用 handle 前明确失败，不能重启。close 与 starting 竞争时先等待该 start settle；若它成功，PanelHandle.close 恰好调用一次，所有尚未成功返回的 present 失败；若它失败，不调用不存在的 handle。running handle 也只关闭一次。即使 handle.close 报错，所有 close caller 收到同一结果，launcher 仍终止在 closed、不可重启且保留已尝试关闭的 handle reference 只作 ownership 证明。PanelLauncher 只拥有它启动的 PanelHandle，借用 handle 所使用的 client；Step 12 外层 composition 才按 PanelLauncher → user client → LocalRuntime 关闭，直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。Step 10 fixture 不创建或关闭 LocalRuntime。
+
+review route 不需要 `reviews.get`。UI 用 route.subjectId 调 `reviews.list({ subjectId, ... })`，必要时逐页读取并只接受 candidate.id 精确等于 route.candidateVersionId 的 ReviewItem；找不到、同 subject 出现不一致 active candidate、或 route/ref mismatch 都作为 stale review 显示并触发全量重读，不选择“最新 candidate”替代。promote/reject 的 mutation CAS 仍是最终权威，route 与 read 之后发生竞争时返回 review_conflict。
 
 宿主能打开本机链接就展示；不能时让用户复制到系统浏览器。模型职责到“提供地址与说明”结束，不点击 DOM，也不把 Panel 操作当工具执行。
 

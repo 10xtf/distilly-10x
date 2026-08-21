@@ -502,7 +502,10 @@ export interface EngineEvent {
     ├── queue.db
     ├── queue.dirty                       # queue projection 的 fixed-byte dirty marker
     ├── graph.db
-    └── library.json
+    ├── library.json
+    ├── library.dirty                     # Library rebuild/apply 的 fixed-byte dirty marker
+    ├── library.intent                    # fact writer 与 recovery 的 durable coordination marker
+    └── library.lock/                     # Library query/rebuild/writer 的跨进程锁
 ~~~
 
 DISTILLY_ROOT 可以覆盖根目录。所有 id 都经过 schema 验证后再拼路径；路径参数不得包含斜杠、点段或平台分隔符。
@@ -622,6 +625,8 @@ export interface EventRecord extends FactEnvelope<1> {
   readonly event: EngineEvent;
   readonly actor: ActorContext;
   readonly requestId?: RequestId;
+  readonly reason?: string;
+  readonly relatedVersionId?: VersionId;
 }
 
 export type StoredOperationResult<M extends MutationMethodName> =
@@ -745,13 +750,67 @@ export interface DistillCommitTransactionBase extends FactEnvelope<1> {
 export type DistillCommitTransactionRecord =
   DistillCommitTransactionBase & TransactionLifecycle;
 
+export type ReviewDecisionTransactionMethod = "promote" | "reject";
+
+type ReviewDecisionEngineMethod<
+  M extends ReviewDecisionTransactionMethod,
+> = `versions.${M}`;
+
+export type ReviewDecisionTransactionRecord = {
+  [M in ReviewDecisionTransactionMethod]: FactEnvelope<1> & {
+    readonly transactionKind: "review_decision";
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly subjectId: SubjectId;
+    readonly candidateVersionId: VersionId;
+    readonly previousStateChecksum: FactChecksum;
+    readonly previousCurrentVersionId?: VersionId;
+    readonly previousSuspendedVersionId: VersionId;
+    readonly previousPending?: PendingJobMarker;
+    readonly targetState: SubjectStateRecord;
+    readonly operation: OperationRecord<ReviewDecisionEngineMethod<M>>;
+    readonly events:
+      | readonly [EventRecord]
+      | readonly [EventRecord, EventRecord];
+    readonly preparedAt: IsoDateTime;
+  };
+}[ReviewDecisionTransactionMethod] & TransactionLifecycle;
+
+export interface RollbackTransactionBase extends FactEnvelope<1> {
+  readonly transactionKind: "rollback";
+  readonly requestId: RequestId;
+  readonly subjectId: SubjectId;
+  readonly targetVersionId: VersionId;
+  readonly previousStateChecksum: FactChecksum;
+  readonly previousCurrentVersionId: VersionId;
+  readonly previousPending?: PendingJobMarker;
+  readonly targetState: SubjectStateRecord;
+  readonly version: VersionRecord;
+  readonly materialManifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+  readonly profile: Profile;
+  readonly prompt: string;
+  readonly operation: OperationRecord<"versions.rollback">;
+  readonly events:
+    | readonly [EventRecord]
+    | readonly [EventRecord, EventRecord];
+  readonly preparedAt: IsoDateTime;
+}
+
+export type RollbackTransactionRecord =
+  RollbackTransactionBase & TransactionLifecycle;
+
 export type TransactionRecord =
   | IngestTransactionRecord
   | DistillLeaseTransactionRecord
-  | DistillCommitTransactionRecord;
+  | DistillCommitTransactionRecord
+  | ReviewDecisionTransactionRecord
+  | RollbackTransactionRecord;
 ~~~
 
-SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationFact.requestId 必须分别匹配其路径段；TransactionRecord.requestId 必须匹配 root `transactions/<request-id>.json`，SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 `event` 字段。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
+SpaceRecord.id、SubjectRecord.id、SubjectStateRecord.subjectId、MaterialRecord.id、VersionRecord.id、EventRecord.eventId、OperationFact.requestId 必须分别匹配其路径段；TransactionRecord.requestId 必须匹配 root `transactions/<request-id>.json`，SubjectRecord.spaceId 必须指向存在的 SpaceRecord。EventRecord.event.at 是该事件的 canonical time，所有 subject-scoped kind 必须带同一 subjectId，所有 version kind 必须带 versionId；watch 只在对应 EventRecord 已落盘后发布 content-light 的 `event` 字段，不把 reason 或 relatedVersionId 扩进 EngineEvent。恢复生成的非请求事件使用 actor=system 且可省略 requestId，其余 mutation event 必须带 operation 的 requestId/actor。
+
+EventRecord 的 reason/relatedVersionId 是 lineage 专用的非正文元数据。直接 promote/reject 可带非空、trim 后的 reason；promote 禁止 relatedVersionId，直接 reject 也禁止 relatedVersionId。correction 替代 candidate 时用 `version.rejected` 记录旧 candidate，并令 relatedVersionId=替代 version、reason 缺失，由 lineage 投影为 candidate_replaced。rollback 的 `version.rolled_back` 必须同时带调用方必填的非空 reason 与作为内容来源的 targetVersionId；event.versionId 是新 rollback version。其它 event kind 禁止这两个字段。EventRecord reader 对不符合该判别规则的组合返回 storage_corrupt；watch 始终只发送现有 EngineEvent，不泄漏 reason。
 
 `materialManifest` 是当前 generation 的事实 membership，不是从 materials 目录猜出的缓存；它和 VersionMaterialManifest 使用完全相同的 entry 结构，按 MaterialId canonical bytes 严格升序且不得重复。空主体固定 generation=0、manifest 为空且没有 materialSetHash；每次改变 committed material set 的 ingest 只把 generation 增一。非空 manifest 按 hashMaterialSet 重算必须等于 materialSetHash。`pending` 保存从事实重建 job 所需的稳定字段，`pending.lease` 是 lease 唯一事实权威；attempt、failure 与 projection LSN 仍只在 queue.db。pending 存在时，其 generation/materialSetHash/totalMaterialCount 必须分别等于 state.generation/materialSetHash/materialManifest.length，baseVersionId 当且仅当 state.currentVersionId 存在并与它相等；addedMaterialCount 必须等于当前 manifest 相对 verified base version manifest 的差集大小。lease transition 不能改变这些字段。
 
@@ -764,6 +823,10 @@ IngestTransactionRecord.operation 固定为 materials.ingest，其 requestId 必
 DistillCommitTransactionRecord 是一次成功 commit 的完整恢复权威。`previousPending` 必须逐字段等于 previous state 的 pending，且 job/id/generation/base/materialSetHash、active lease id/owner/digest 都分别匹配 journal、trusted session 与 CommitInput；`targetState` 除 checksum、version pointers 与删除 pending 外保留 previous state 的 subjectId、generation、materialSetHash 和完整 materialManifest。current disposition 固定 `targetState.currentVersionId=version.id` 且没有 suspended，suspended disposition 固定保留 previous current 并令 `targetState.suspendedVersionId=version.id`；两者都不得有 pending。存在 active suspended 时不能准备该 journal。
 
 `acceptedPatch` 是通过 wire、target、evidence 与时间校验后的 exact DistillPatch，empty operations 也合法；`patchDigest = "sha256_" + SHA-256("distill-patch-v1\0" + canonicalJson(acceptedPatch))`。journal 内 version/materialManifest/claims/profile/prompt 必须逐字节等于要发布的五类事实与投影，profile.displayName 必须等于 version.subjectDisplayName，prompt 必须等于 `renderPrompt(profile)`。operation 的 request/scope/actor/result 必须匹配 journal 与 disposition；events 固定为恰好 `[version.current | version.suspended, job.changed]`，两条的 requestId/actor/subjectId 与 operation 相同，第一条 versionId=version.id，第二条不得带 versionId，eventId 不得重复。成功 CommitResult 的 reasons 与 version.reviewReasons 相同；current 时两者都为空/不存在，suspended 时两者都是同一个非空 canonical tuple。preparedAt、version.createdAt、operation.completedAt 与两条 `event.at` 使用本次 mutation 的同一个 canonical time，terminal finishedAt 不早于它。任何交叉关系不成立都是 storage_corrupt，不能据某一份嵌套 payload 猜测。
+
+ReviewDecisionTransactionRecord 固定一次 promote 或 reject 的完整 previous/target 边界。previousStateChecksum 保护整个 previous state；previousCurrentVersionId、previousSuspendedVersionId 与 previousPending 必须和该 verified previous state 逐字段相等，candidateVersionId 必须等于 previousSuspendedVersionId。targetState 保留 subjectId、generation、materialSetHash 与完整 materialManifest。promote 令 candidate 成为 current 并删除 suspended；reject 保留 current 并删除 suspended。reject 必须逐字段保留 previous pending；promote 若存在 previous pending，则按 §20.2 对新 current 重新派生 pending。events 第一条分别是 `version.promoted` 或 `version.rejected`；第二条当且仅当 pending 发生改变时存在并为 `job.changed`。operation、events、journal 必须共享 requestId、actor、subjectId 与本次 mutation time；promote/reject 的 OperationRecord result 是跨 commit point 当时的 exact VersionSummary，之后 status 再变化也不改 replay bytes。
+
+RollbackTransactionRecord 是 rollback 的完整恢复权威。previousStateChecksum、previousCurrentVersionId 与 previousPending 必须精确匹配 verified previous state；targetVersionId 必须指向同 subject、在该 previous state/事件视图中为 historical 且不是 current、suspended 或 rejected 的完整版本。journal 的新 VersionRecord 逐字段复制 target 的 generation、materialSetHash、materialCount、quality、rendererVersion 与 version-time subjectDisplayName，claims array 与 manifest items 也逐字段复制；parentId=previousCurrentVersionId，derivedFromCandidateVersionId/reviewReasons 缺失，creation=`{ kind: "rollback", targetVersionId }`，actor=operation actor，createdDisposition=current，id 是新算出的 VersionId。新的 VersionClaimsSnapshot/Profile wrapper 使用新 version id；Profile 的 displayName/claims/quality 来自 target并用 pinned renderer重建，prompt=`renderPrompt(profile)`，不能把 target wrapper 内的旧 versionId 原样复制。新 version 的 createdAt、operation.completedAt、events at 与 queuedAt 使用同一次 mutation time。targetState 只把 current 指向新 id、保持无 suspended，并保持 previous 的 generation、materialSetHash 与完整 authoritative materialManifest 不变；pending 按 §20.2 重派生。events 第一条固定 `version.rolled_back`，带必填 reason 与 relatedVersionId=targetVersionId；第二条当且仅当 pending 发生改变时为 `job.changed`。所有嵌套事实、operation 与 event 的交叉关系不成立都是 storage_corrupt。
 
 ### 6.4 写入事务
 
@@ -788,6 +851,10 @@ DistillCommitTransactionRecord 是一次成功 commit 的完整恢复权威。`p
 6. 清除 queue projection，并只更新已经配置的其它投影；失败标对应 projection dirty，不回滚事实，也不为未安装的 library 制造 dirty。
 7. journal 标 committed，按逆序释放锁，最后依 tuple 顺序发送已落盘的两个 EngineEvent。硬拒绝不走本流程；成功后 pending/lease 已由事实 commit 一并消耗。
 
+每次 promote / reject 按同一事务边界执行：先按全局 request reconciliation → request lock → subject lock，处理 completed/terminal replay 或 idempotency_conflict，再读取 verified state 与 candidate version。candidate 必须仍精确等于 state.suspendedVersionId，且 candidate.parentId 必须等于锁内 currentVersionId；否则在零写入下返回 review_conflict。服务在锁内生成完整 targetState、成功 OperationRecord 与固定 events，写 ReviewDecisionTransactionRecord=prepared 并 flush，再以 write-temp + fsync + atomic rename 替换 state.json；**这个 atomic replace 是 review decision 唯一 commit point**。跨过后才从 journal 幂等补 operation/events、current profile projection（仅 promote）和 queue/其它已配置投影，标 committed，释放锁后发布已落盘 EngineEvent。reject 不改 current projection，pending 逐字段原样保留；promote 的 pending rebase 使用 §20.2 的新 JobId 规则。
+
+rollback 使用相同 lock、replay 与 prepared-journal 纪律，但在准备前先拒绝 active suspended，再拒绝未过期 active lease，校验 target 是同 subject 的 eligible historical version。它在固定 `versions/.staging/<request-id>.<new-version-id>/` 写 journal 固定的新 version 全套文件，逐文件校验/flush/fsync 后 atomic rename 为 published version，再 atomic replace state.json；**state atomic replace 是 rollback 唯一 commit point**。随后才物化 operation、固定 events、current profile 与 queue/其它已配置投影并标 committed。staging、published-abort 与 `.deleting` 的校验、引用检查、rename、fsync 和可重入清理逐条复用 distill-commit 协议，不允许另造较弱的 rollback cleanup。
+
 VersionId 固定为 `"version_" + SHA-256(canonicalJson(preimage))`，不加额外 namespace；preimage 的 exact key set 是 subjectId、**version-time subjectDisplayName**、generation、materialSetHash、parent / derived edge、creation contract、actor、createdDisposition、rendererVersion、canonical reviewReasons、**删除每个 Claim.createdIn 后**的 canonical claims 与 QualitySummary。id 本身、FactEnvelope、createdAt 不进入 preimage。引擎先对该 preimage 计算 VersionId，再把本次新增或 revise 产生的 claim 的 createdIn 填为该 id；沿用或改变状态的旧 claim 保留最初的 createdIn。Profile.displayName 与 VersionRecord.subjectDisplayName 必须相等，历史 prompt 只从该不可变 Profile 重放，不能从以后可变的 SubjectRecord.displayName 重建。这样 createdIn 仍可追溯而不与 VersionId 循环，名称、审核 disposition 与 prompt 历史也不会脱离 id。相同有效事务重试命中已有版本并返回相同结果，不重复生成；相同 patch 在不同 BriefContract 下会得到不同 id。
 
 ### 6.5 崩溃恢复
@@ -802,12 +869,15 @@ VersionId 固定为 `"version_" + SHA-256(canonicalJson(preimage))`，不加额�
 - prepared distill-commit journal 的 targetState checksum 已可见：先校验 version 目录逐字节匹配 journal 内 VersionRecord/material manifest/claims/Profile/prompt，target 没有 pending 且 pointer/disposition、operation、固定两事件及所有交叉关系成立，再补 operation/event/current projection/queue 并标 committed；
 - prepared distill-commit journal 的 target 不可见而 current state checksum 仍精确等于 previousStateChecksum、pending 逐字段等于 previousPending：事实 commit point 未跨过。只可删除该 journal 固定 `versions/.staging/<request>.<version>/`，以及内容逐字节匹配 journal、未被任何 verified state current/suspended、历史 parent/derived edge、terminal journal 或 operation 引用的已发布 `versions/<version>/`；后者在两次 exact/read-reference 验证后必须先 atomic rename 到固定 journal-owned `versions/.staging/<request>.<version>.deleting/` 并 fsync parent，再只对该 deleting path 做可重入 recursive cleanup，避免崩溃把 published path 留成不可验证的半目录。否则保留现场并报 storage_corrupt。完成可证明清理后标 aborted，不写 operation/event/projection，原 pending/lease 原样保留；
 - prepared distill-commit 的 state 既非完整 target 也非完整 previous，目标 version 内容与 journal 不同，或删除候选仍被引用：storage_corrupt，不能猜测 finish/abort，也不能按目录名宽泛清理；
+- prepared review-decision journal 的 targetState checksum 已可见：在 subject lock 内校验 target pointer、candidate/current、pending、operation 与一或两条 fixed events 的全部交叉关系，再补 operation/events/current projection/queue 并标 committed；target 不可见而 current state checksum 精确等于 previousStateChecksum，且 current/suspended/pending 逐字段等于 journal 的 previous fields 时标 aborted，不写 operation/event/projection；state 是任何第三态或任一交叉字段不符都返回 storage_corrupt；
+- prepared rollback journal 的 targetState checksum 已可见：逐字节校验新 version 全套事实、target copied content、current pointer、operation/events 与 pending rebase 后补齐 projection 并标 committed；target 不可见而 current state checksum 精确等于 previousStateChecksum、current/pending 与 journal 精确相等时，按 distill-commit 相同的固定 staging、published reference checks 与 `.deleting` 协议安全清理并标 aborted；第三态、内容不同或仍有引用一律 storage_corrupt；
 - 没有 active commit journal 时，verified state reader 仍必须验证 currentVersionId 与 suspendedVersionId 各自指向一份完整 version；suspended 的 parentId 必须等于 currentVersionId。state 指向不存在、摘要/renderer/prompt 不匹配的 version 一律 storage_corrupt；
+- 公开 material/profile/version/review 读在解析边界后先完成 root journal reconciliation，再取得对应 subject lock，并在该锁内读取完整 state/material/version/event snapshot；不能在释放 lock 后再按 manifest 补读正文。物理 `versions/<version-id>/` 只有在同 subject EventRecord 中存在恰好一条匹配 createdDisposition/creation source 与 createdAt 的 `version.current`、`version.suspended` 或 `version.rolled_back` creation event 才进入 committed visible set。每个 version/relatedVersionId、parentId、derivedFromCandidateVersionId、rollback target 与 renderer-only source 都必须指向同一 visible set；inactive suspended 必须恰有一次 promote/reject，active suspended 不得已有 terminal decision，created-current 不得有 review decision，candidate_replaced/rollback event 必须精确匹配版本中的 derived/source edge。无 journal 的完整 orphan version、重复/矛盾 decision 或任一外键缺失都是 storage_corrupt，不得静默过滤或标成 historical；
 - material 目录不在 state.materialManifest、任何历史 VersionMaterialManifest 或 active prepared journal 中时是 orphan corruption；recovery 不把它静默收编，也不在没有 journal 证明时删除；
 - queue.db 缺失/corrupt、schema 不是 user_version=2、queue.dirty 存在或 marker bytes 异常：都是 index_unavailable，不得当作空队列；从所有已验证 schemaVersion=2 state.pending 重建，未过期 lease 原样保留，过期 lease 按时间派生为 pending；其它 .index 投影同样从各自事实显式 rebuild，不回退全文扫描；
 - stale request / space catalog / space identity / subject lock：只有超过固定内部 TTL 且 owner heartbeat 不再前进时才能回收。
 
-aborted ingest 对同一 requestId + inputChecksum 可在 root request lock 内重新进入 prepared；create 必须复用 journal 原 candidate SubjectId，按当前事实重算 target checksums。aborted distill-commit 也只可由同一 request/input/actor/LeaseOwnerId 在 previousStateChecksum、previousPending 与 active lease 仍逐字段相同时重进 prepared，并复用 journal 已接受的 patch/digest、VersionId、operation/event ids 与 canonical reasons；lease 已过期或 state 已变则返回相应 exact error，不重解释 patch。该 requestId 不同 input、actor 或 owner 永久 idempotency_conflict。committed journal 及 completed operation 只能 immutable replay，不得重进 prepared。首版不对 completed operation 或 terminal journal 做时间型自动 GC，prepared 也永不依赖墙钟超时删除；所有清理只能由 recovery 或 purge 的可证明路径驱动。
+aborted ingest 对同一 requestId + inputChecksum 可在 root request lock 内重新进入 prepared；create 必须复用 journal 原 candidate SubjectId，按当前事实重算 target checksums。aborted distill-commit 也只可由同一 request/input/actor/LeaseOwnerId 在 previousStateChecksum、previousPending 与 active lease 仍逐字段相同时重进 prepared，并复用 journal 已接受的 patch/digest、VersionId、operation/event ids 与 canonical reasons；lease 已过期或 state 已变则返回相应 exact error，不重解释 patch。aborted review-decision / rollback 只可由相同 method、canonical params、actor 与 inputChecksum 在 exact previous state 仍成立时重进 prepared，并复用 journal 中所有 ids、time、operation、events 与 rollback version bytes；state 已变则返回 review_conflict 或相应 exact stale/conflict error，不按新 state 改写旧 journal。该 requestId 不同 input、actor 或 owner 永久 idempotency_conflict。committed journal 及 completed operation 只能 immutable replay，不得重进 prepared。首版不对 completed operation 或 terminal journal 做时间型自动 GC，prepared 也永不依赖墙钟超时删除；所有清理只能由 recovery 或 purge 的可证明路径驱动。
 
 privacy purge 用 TransactionRecord 未来的 purge discriminant 先写一份 prepared purge journal，其中列出所有关联该 subject 的 root subject-scoped operations 与 transaction journals。多个 root files 不被伪称为同时原子：purge 在该 prepared journal 下可恢复地逐个 atomic replace completed operation 为 OperationTombstoneRecord、逐个删除相关 root journal，最后用 purge state/commit point 发布完成；recovery 保证中途崩溃后继续到全部完成。若某 request 只有关联 journal 而还没有 completed operation，purge 仍从 journal.operation 写入 tombstone 后再删该 journal；这也清除 brief OperationRecord 中为精确重放保留的完整 briefing。tombstone 不保留 actor、result 或主体内容；同 RequestId 与相同 inputChecksum 后续返回 not_found，不同 input、actor、lease owner 或 brief capacity 返回 idempotency_conflict，不得把被 purge 的请求当新请求复用。
 
@@ -1589,7 +1659,7 @@ identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 h
 - 排除后两个以上候选：ambiguous_subject，并返回全部稳定排序 candidates；
 - 无冲突：创建 subject + 第一批材料，再发布 subject.created。
 
-description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → 文件提交 → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。
+description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → Library projection reservation → 文件提交 / Library apply → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。锁按相反顺序释放；任何路径都不得在持有 projection lock 或 SQLite transaction 时反向等待 filesystem lock。
 
 create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批验证失败则不发布。一旦 prepared journal 已记录 candidate，aborted 后同 request/input/actor 重试仍复用它，不生成第二个 id。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
 
@@ -2544,8 +2614,12 @@ export interface RenderedProfile {
 export interface ProfileDiff {
   readonly added: readonly Claim[];
   readonly removed: readonly Claim[];
+  readonly changed: readonly {
+    readonly before: Claim;
+    readonly after: Claim;
+  }[];
   readonly changedFacets: readonly FacetPath[];
-  readonly beforeQuality: QualitySummary;
+  readonly beforeQuality?: QualitySummary;
   readonly afterQuality: QualitySummary;
 }
 
@@ -2870,6 +2944,8 @@ Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生�
 - adapter / parser / optional executor preflight；
 - telemetry 明确 off / on，不显示虚假使用量。
 
+这是完整产品的页面信息架构，不授权 Step 10 伪造尚未落地的 handler。Step 10 UI 只启用注入 client 已真实实现并经双向 schema 验证的 read methods，以及 promote/reject/rollback；correct、install、archive 与 production doctor 可以显示 disabled 的未来说明或只读文案，但不能返回假成功、写 fixture facts 或调用占位 handler。测试注入的 full EngineClient 若真实实现 system.doctor，可渲染其 DoctorSnapshot；production system.doctor handler 与 capability/full binding 结论仍属于 Step 12。Step 10 不创建 LocalRuntime、不提供 CLI executable 或用户可运行的 `distilly panel` command。
+
 Discover 不出现在首版导航。Profile Catalog 没达到 §24 进入条件前，空 tab 只会制造“是不是要登录”的误解。
 
 ### 15.3 面板读模型
@@ -2877,11 +2953,19 @@ Discover 不出现在首版导航。Profile Catalog 没达到 §24 进入条件�
 界面所需聚合由引擎返回：
 
 ~~~ts
+export type LibraryPrivacy =
+  | "none" | "private" | "shareable" | "mixed";
+
 export interface LibraryEntry {
   readonly subject: SubjectSummary;
   readonly status: SubjectStatus;
-  readonly pendingJobs: number;
-  readonly suspendedVersions: number;
+  readonly privacy: LibraryPrivacy;
+  readonly searchTerms: readonly string[];
+  readonly currentQuality?: QualitySummary;
+  readonly suspendedQuality?: QualitySummary;
+  readonly pendingJobs: 0 | 1;
+  readonly suspendedVersions: 0 | 1;
+  readonly newMaterialCount: number;
   readonly lastChangedAt: IsoDateTime;
 }
 
@@ -2890,6 +2974,11 @@ export interface ReviewItem {
   readonly current?: VersionSummary;
   readonly reasons: readonly ReviewReason[];
   readonly diff: ProfileDiff;
+}
+
+export interface ReviewPage {
+  readonly items: readonly ReviewItem[];
+  readonly nextCursor?: string;
 }
 
 export interface MaterialQuery extends SubjectRef {
@@ -2901,7 +2990,9 @@ export interface MaterialQuery extends SubjectRef {
 
 export interface MaterialSummary {
   readonly record: MaterialRecord;
-  readonly contentCharacters: number;
+  readonly contentScalarCount: number;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }
@@ -2926,6 +3017,8 @@ export interface GetMaterialInput {
 export interface MaterialView {
   readonly record: MaterialRecord;
   readonly content: string;
+  readonly rawAvailable: boolean;
+  readonly inCurrentGeneration: boolean;
   readonly sourceGroup: SourceGroup;
   readonly grouping: SourceGroupingContext;
 }
@@ -2962,30 +3055,34 @@ export interface DoctorSnapshot {
 }
 ~~~
 
-LibraryEntry、ReviewItem、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。
+LibraryEntry、ReviewItem、ReviewPage、ProfileDiff 都住 protocol。Panel 不从多个接口拼接后自算 maturity、pending 或 review reason。新增屏幕聚合时先加入 EngineMethodMap，再由 SDK 与 UI 使用。每个 LibraryEntry 从同一次 verified SubjectRecord/SubjectStateRecord 与其引用的 immutable versions 聚合：privacy 对 authoritative current-generation materialManifest 计算，空集合为 none、全 private 为 private、全 shareable 为 shareable、混合为 mixed；currentQuality / suspendedQuality 当且仅当相应 pointer 存在；pendingJobs 与 suspendedVersions 分别是相应 state marker/pointer 的 0 或 1；newMaterialCount=`state.pending?.addedMaterialCount ?? 0`，显式 redistill 因而可为 0。searchTerms 是 exact-dedupe 后按 UTF-8 bytes 升序的有界 label tuple：SubjectRecord.domainPack（若存在）、current Profile.domains 的每个 root、subject lifecycle、privacy、current maturity（若存在），以及 pendingJobs=1 时的 literal `pending`、suspendedVersions=1 时的 literal `suspended`；最多 `WIRE_LIMITS.openRecordEntries + 6` 项。lastChangedAt 是该 subject 已验证 EventRecord 的最大 event.at，subject.created 是非空基线；它不是文件 mtime、projection 更新时间或 Panel 当前时间。
+
+ProfileDiff 的 added/removed 是 before/after ClaimId 集差，changed 是同一 ClaimId 但 canonical Claim bytes 不同的 `{before, after}`，三组分别按相关 ClaimId canonical UTF-8 bytes 升序；changedFacets 是三组所涉及 facet 的去重 canonical 升序。普通 versions.diff 的 beforeQuality/afterQuality 都存在。subject 的首个 suspended version 没有 current baseline 时，ReviewItem.current 与 diff.beforeQuality 都缺失，不伪造零质量；diff.added 是全部 candidate claims，removed/changed 为空，changedFacets 是 candidate facets。ReviewItem 的 reasons 必须逐字段等于 candidate version 的 reviewReasons。
 
 MaterialQuery / GetMaterialInput 未给 atVersionId 时按当前 generation 派生分组；给定 atVersionId 时，引擎从该 version 的 materials.json manifest 取得精确集合，并按 VersionRecord.quality.sourceGroupingVersion 重建当时的 group。不存在于该 manifest 的 MaterialId 返回 not_found，binary 已不支持该历史 grouping version 时返回 schema_unsupported。Panel 只展示返回的 SourceGroupingContext，不拿当前材料目录或当前算法猜历史结果。
 
-suspendedVersions 在 V3 首版只能是 0 或 1；字段保留 number 是为了列表聚合显示，不表示允许多个 active targets。历史上曾 suspended 后被 reject / promote 的版本通过 versions.list 查看，不计入该数。
+contentScalarCount 按 Unicode scalar value 计数，精确等于 `Array.from(content).length`，与 quote locator 的计量单位一致而不是 UTF-16 code units 或 grapheme clusters。inCurrentGeneration 始终对读取时 verified state.materialManifest 判定；历史 atVersionId 查询也必须和当前 manifest 比较。rawAvailable 当且仅当该 MaterialRecord 的 supported derivation 引用了一份当前存在且验证通过的 raw fact；没有 raw 引用或受支持策略未保留 raw 时为 false，引用存在但 raw 丢失/损坏仍返回 storage_corrupt，不能降级成 false。Step 10 的真实 material read service 只支持 native_text / host_extract，因此两者固定 rawAvailable=false；遇到 raw_extract 必须因尚无 verified RawStore reader 返回 schema_unsupported，不能猜 false/true。raw_extract 正例随 Step 11/12 的 raw ingestion/read slice 落地。MaterialPage items 按 MaterialId canonical UTF-8 bytes 升序。
+
+suspendedVersions 在 V3 首版只能是 0 或 1。历史上曾 suspended 后被 reject / promote 的版本通过 versions.list 查看，不计入该数。
+
+所有带 cursor/limit 的首版本地 EngineMethodMap page 使用相同边界：limit 缺省 50、最小 1、最大 200，越界是 invalid_input；nextCursor 只在后面确有下一项时存在。cursor 是 engine 生成的 opaque、versioned value，UTF-8 最多 16,384 bytes，并绑定 exact method、canonical normalized filters 与最后一项的完整 sort tuple；该独立上限必须容纳合法 1,024-byte displayName 经 canonical JSON escaping/base64url 后的最坏情况，不能复用较窄的 labelBytes。格式错误、跨 method 或 filter mismatch 都是 invalid_input。SubjectPage 与 LibraryPage 分别按 `(displayName UTF-8 asc, id asc)` 和 `(subject.displayName UTF-8 asc, subject.id asc)`；ReviewPage 为 `(candidate.createdAt desc, candidate.subjectId asc, candidate.id asc)`；MaterialPage 为 `(record.id UTF-8 asc)`；VersionPage 为 `(createdAt desc, id asc)`；LineagePage 为 `(at desc, eventId asc)`。首版 cursor 不承诺跨 mutation 的 snapshot isolation；收到 EngineEvent、流断开或页面间检测到变化时，Panel 必须丢弃 cursor 并从第一页全量重读。
 
 ### 15.4 Transport
 
 ~~~text
 distilly panel --port <n>
-  GET  /                  静态资源
+  GET  /                  固定 allowlist 内的静态资源
   GET  /health            不含人物数据的版本与 readiness
-  POST /rpc               EngineMethodMap 的类型化 JSON 调用
-  GET  /events            watch 的 SSE 字节流
+  POST /action-nonces     mutation 的短期一次性 transport nonce
+  POST /rpc               完整 EngineMethodMap 的类型化 JSON 调用
+  POST /events            带认证 header 的 fetch SSE 字节流
 ~~~
 
 ~~~ts
 export interface PanelServerOptions {
   readonly client: EngineClient;
   readonly assetsDir: string;
-  readonly host: "127.0.0.1";
   readonly port: number;
-  readonly tokenFactory: () => string;
-  readonly allowedOrigins: readonly string[];
 }
 
 export interface PanelHandle {
@@ -2993,29 +3090,83 @@ export interface PanelHandle {
   readonly close: () => Promise<void>;
 }
 
+export type PanelActionNonce = Branded<string, "PanelActionNonce">;
+
+export type PanelQueryRpcRequest = {
+  [M in QueryMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly params: EngineMethodMap[M]["params"];
+    readonly requestId?: never;
+    readonly actionNonce?: never;
+  };
+}[QueryMethodName];
+
+export type PanelMutationRpcRequest = {
+  [M in MutationMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly params: EngineMethodMap[M]["params"];
+    readonly requestId: RequestId;
+    readonly actionNonce: PanelActionNonce;
+  };
+}[MutationMethodName];
+
+export type PanelRpcRequest =
+  | PanelQueryRpcRequest
+  | PanelMutationRpcRequest;
+
+export type PanelRpcResponse<M extends keyof EngineMethodMap> =
+  | WireSuccess<EngineMethodMap[M]["result"]>
+  | WireFailure;
+
+export type PanelActionNonceRequest = {
+  [M in MutationMethodName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly params: EngineMethodMap[M]["params"];
+  };
+}[MutationMethodName];
+
+export interface PanelActionNonceGrant {
+  readonly actionNonce: PanelActionNonce;
+  readonly expiresAt: IsoDateTime;
+}
+
+export interface PanelEventStreamRequest {
+  readonly wireVersion: typeof WIRE_VERSION;
+}
+
 export declare function startPanelServer(
   options: PanelServerOptions,
 ): Promise<PanelHandle>;
 ~~~
 
-PanelServerOptions.client 必须由 LocalRuntime 为本次 Panel 会话单独绑定 kind=user；即使 Panel 是由 MCP 的 ReviewPresenter 启动，也不能复用 host client。HTTP handler 只把已校验的 MethodMap params 与 mutation requestId 转给这个 client。startPanelServer 借用而不拥有传入的 client；PanelHandle.close 只停止 HTTP/SSE transport 并清理自己的订阅，创建 client 的 composition 在 handle 关闭后再关闭 client。
+`/rpc` 覆盖 exact、完整的 EngineMethodMap，不能只注册当前 UI 用到的子集。query object 严格禁止 requestId/actionNonce；mutation object 必须同时带 requestId/actionNonce。handler 先按 method 对 unknown params 做 `engineMethodSchemas[M].params.parse`，再调用 query 或 mutation overload；mutation 只把 requestId 放入 MutationContext，绝不把 actionNonce 传给 engine 或纳入 OperationRecord/inputChecksum。成功结果在序列化前再经 `engineMethodSchemas[M].result.parse`；成功与 domain/validation failure 最后都解析成 strict `WireSuccess | WireFailure`，wireVersion 固定为 `"3"`，没有第三种 JSON 或未校验 passthrough。
 
-production token 是 32 个 crypto-random bytes 的 64 位小写十六进制；tokenFactory 是测试 seam，返回值在监听前按同一 grammar 校验。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+Step 10 的 PanelServer 只借用注入的完整 EngineClient，不创建 LocalRuntime、不读取 DISTILLY_ROOT，也不拥有 client。Step 12 production composition 才为本次 Panel 会话创建单独、kind=user 的 client；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭该 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
 
-Fragment 不发给服务器；前端读出 token 与可选 review route 后，立刻只从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，并在 fetch Authorization header 中使用内存 token。事件流用支持 header 的 fetch streaming，不使用不能设置 Authorization 的原生 EventSource。
+`GET /health` 的成功 value 是 exact、closed `{ "status": "ready", "panelVersion": "<@distilly/panel package semver>", "wireVersion": "3" }`；HTTP 200 body bytes 固定为 canonical key ordering 的 `{"panelVersion":"<semver>","status":"ready","wireVersion":"3"}\n`，`Content-Type: application/json; charset=utf-8`。panelVersion 只来自该 package 的 build version source。它不调用 EngineClient，也不包含 root/path/token/nonce、主体、projection 计数或环境字段。
+
+production token 是 32 个 crypto-random bytes 编码的 64 位小写十六进制，每次成功启动重新生成且只驻留内存。PanelHandle.url 精确形如 `http://127.0.0.1:PORT/#TOKEN`；某个 ReviewRef 的 ReviewLaunch.url 精确形如 `http://127.0.0.1:PORT/#TOKEN/review/SUBJECT_ID/CANDIDATE_VERSION_ID`。ReviewLaunch runtime schema 拒绝 https、localhost、IPv6、缺显式端口、userinfo、query、非根 path、错误 token/route 和 ref 与 route 不一致；它不是任意 http(s) URL。
+
+Fragment 不发给服务器；前端在发起任何网络请求、加载任何非初始 document subresource 之前读出 token 与可选 review route，立即用 history.replaceState 从地址栏移除 token、保留 `#/review/SUBJECT_ID/CANDIDATE_VERSION_ID`，以后只在内存保存 token。所有受保护 fetch 使用 `Authorization: Bearer TOKEN`。事件流必须用可设置 header/body 的 fetch streaming `POST /events`，不使用原生 EventSource。
 
 ### 15.5 安全不变量
 
-1. 只绑定 127.0.0.1；不接受 0.0.0.0、局域网地址或 hostname 自动解析。
-2. 每次启动新建高熵 token；RPC、events 都必须验证。
-3. 校验 Origin 与 Host；拒绝 null、跨站和未知 origin。
-4. 明确端口被占就失败；不在已经给用户 URL 后静默换端口。
-5. 静态资源全部本地，CSP 禁止远程脚本、frame 与任意 connect-src。
-6. RPC body、响应与日志有大小上限；日志不写材料正文、token 或 secret。
-7. Panel 只持 EngineClient，不 import engine store，不读取 DISTILLY_ROOT。
-8. purge、publish 等危险动作需要二次确认和短期 action nonce。
+1. Server 只调用 literal `127.0.0.1` listen，不接受可配置 host、`0.0.0.0`、IPv6、LAN address 或 hostname 解析。port 必须是 1..65535 且不等于 HTTP 默认端口 80 的 safe integer，确保浏览器不会把显式端口从 origin/Host 规范化掉；占用就以 busy 失败，不在已生成 URL 后换端口。每个请求必须恰有一个 Host header，value 逐字节等于 `127.0.0.1:<actual-port>`。
+2. `/rpc`、`/events`、`/action-nonces` 必须同时满足 exact Host、`Origin: http://127.0.0.1:<actual-port>` 和 timing-safe 比较成功的 exact Bearer token；Authorization 必须是恰好一个 header，value 精确为 `Bearer ` 加 64 lowercase hex，无前后空白或其它 auth parameter。Origin 缺失、`null`、多值、大小写/默认端口变体或跨站都拒绝。静态 GET 与 `/health` 只允许 Origin 缺失或同一个 exact Origin；任意其它 Origin 拒绝。服务不发 CORS allow headers。
+3. 三个 POST endpoint 必须恰有一个 Content-Type header，value 逐字节为 `application/json` 或 `application/json; charset=utf-8`，并只接收严格单个 JSON value 与对应 closed schema。累计 request headers 不得超过 16,384 bytes；raw body 最多 4,194,304 bytes，读到第 4,194,305 byte 立即停止并返回 HTTP 413 + strict、retryable=false 的 invalid_input WireFailure，不调用 client、nonce store 或业务 parser。
+4. 非 streaming response 必须先完整构造、result-parse、bounded serialize 并确认 UTF-8 bytes 不超过 16,777,216，再一次写出；不能先发 headers/部分 JSON。超限改成 retryable=false、无内容的 context_too_large WireFailure，details 只可包含数字 size/limit；该 failure 本身也必须在限额内。日志只记 content-free method/status/size，不记 body、params/result、材料正文、token、nonce 或 secret。
+5. 静态文件只从 build-time 固定 allowlist 提供。router 对 percent-decode failure、NUL、反斜线、编码后或解码后的 `/`、`.`、`..` path segment、重复 separator、query/fragment 与非 allowlist 路径 fail closed；assetsDir 的每个祖先与最终文件都必须拒绝 symlink，并验证 real path 仍在 exact assets root。不能把 URL path 直接 join 到磁盘。`/health` 只返回版本/readiness，不含人物、路径、token 或 nonce。
+6. 所有 document/static response 固定发送 `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'; worker-src 'none'`、`Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff`、`Cross-Origin-Resource-Policy: same-origin` 与 `Cache-Control: no-store`。不允许 data/inline/eval/remote script、remote connect、frame 或 service worker。
+7. 所有 MutationMethodName 都需要 transport nonce，不只 purge/publish 等危险子集。Panel 只有在用户明确确认一次动作后，才向 `/action-nonces` 发送 exact method/requestId/params；服务先用对应 method params schema 校验，生成 `panel_action_` + 64 lowercase hex，再用 `WireSuccess<PanelActionNonceGrant>` 返回并对整个 result schema 做最终 parse。nonce 绑定当前 panel token、method、requestId 与 `SHA-256("panel-action-params-v1\0" + canonicalJson(params))`，expiresAt 精确为签发时刻 +60 秒，只驻内存。RPC 在 `now >= expiresAt`、任一 binding 不同或 nonce 不存在时返回 invalid_input；通过全部 envelope/params/binding 校验后、进入 client.call 前原子 consume，一经 consume 即使 client failure、response 超限或连接中断也不能重用。并发相同 nonce 恰有一个调用能进入 client。
+8. `/events` body 必须逐字段等于 `{ "wireVersion": "3" }`。服务完成 auth/body 校验后先注册 `client.watch`，缓冲注册与 ready 之间的 EngineEvent，再以 HTTP 200、`Content-Type: text/event-stream; charset=utf-8`、`Cache-Control: no-store` 且无 compression 写恰好 `event: ready\ndata:{"wireVersion":"3"}\n\n`；Panel 收到 ready 后才启动初始全量 reads，随后处理已缓冲与新 frame，后者 bytes 精确为 `event: engine\ndata:` + `canonicalJson(engineEvent)` + `\n\n`。每个 SSE response header block 和每个完整 frame 各自最多 16,384 UTF-8 bytes；单个 EngineEvent 仍过大、socket backpressure 造成 bounded queue 溢出或任意流断开时，server 取消订阅并断流，client 丢弃 cursor、重新连接并全量重读。流没有 id/Last-Event-ID/replay 语义，不能把丢失事件猜成连续。
 
-无 token、错 token、跨站 Origin、错误 Host、超大 body、端口占用与路径穿越各有拒绝测试。
+HTTP status 不留给 handler 自选：未知 path=404，已知 path 的错误 method=405，header 超限=431，Bearer 缺失/错误=401，Host/Origin 规则失败=403，不支持的 Content-Type=415，body 超限=413，malformed JSON 或 strict top-level envelope/wire/method shape 失败=400。经过这些 transport checks 后，合法 `/rpc` method 的 params invalid_input、engine domain error、result validation归一失败、unexpected internal_error 和 16 MiB context_too_large replacement 都以 HTTP 200 承载 strict WireFailure；合法 nonce request 的 expired/replayed/rebound nonce不会调用 client并以 HTTP 400 invalid_input WireFailure 返回。除 static 404 外，JSON endpoint 的 4xx body 仍须是 bounded strict WireFailure，统一使用现有 invalid_input、retryable=false，不新增 auth code；401/403 使用同一个无 details 的 generic message且不回显 token、Origin 或 Host，405 只列该 route 的 exact Allow method。
+
+无 token、错 token、跨站/缺失 Origin、错误 Host、oversized header/body/response/event、nonce expiry/replay/rebinding、端口占用、symlink 与各种 path decode/traversal 各有拒绝测试；每条测试同时断言零 EngineClient call 或按规定最多一次 call。
 
 ### 15.6 生命周期与宿主打开方式
 
@@ -3037,7 +3188,13 @@ export declare class PanelLauncher implements ReviewPresenter {
 
 distilly panel 在前台运行并打印 URL。MCP / CLI presenter 得到 suspended CommitResult 时，通过注入的 ReviewPresenter 启动或复用本次会话的 PanelServer，再把 ReviewLaunch 作为工具 structured value 返回；CommitService / CommitResult 只知道 ReviewRef，不知道 HTTP 或 URL。ReviewPresenter 接口由 mcp 导出，PanelLauncher 由 panel/server 实现，所以 mcp 不静态依赖 panel。
 
-PanelLauncher 对首次 start 做 single-flight；并发 present 共享同一个成功 handle，随后只为各自 ReviewRef 构造精确 route。present 返回的 launch.ref 必须逐字段等于输入 ref，URL route 也必须编码同一 ref。close 幂等；一旦 close 开始，新的 present 明确失败而不重启另一个 server。PanelLauncher 拥有并在 close 中关闭它启动的唯一 PanelHandle，但借用该 handle 使用的 user client；外层 composition 关闭 PanelLauncher 后再关闭 user client，最后关闭共享 LocalRuntime。直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。
+PanelLauncher 的状态机精确为 new → starting → running → closing → closed。new 中首个 present 创建唯一 start promise；starting 中所有 present 共享它。start 在没有交出 handle 前失败时，所有 waiter 得到同一 failure，清空 promise并回到 new，之后 present 可重试；但 close 一旦开始就不再重试。start 交出的 handle.url 必须先通过 exact Panel root URL schema，随后每个 present 才为自己的 ReviewRef 构造 route；launch.ref 与输入逐字段相同，URL route 编码同一 ref，任一 mismatch fail closed。若已取得 handle 但 root URL validation 失败，launcher 立即进入 closing，所有 waiter 得到同一 validation failure，与并发 close 共享对该 handle 恰好一次的 close attempt，最终进入 closed且不可重试，不能泄漏 server 或另起第二个。
+
+present 的 linearization point 是：start 已成功、handle URL 已验证、launcher 仍为 running，且 exact launch value 已构造完成。close 在该点之后才开始时，present 可返回该 launch；close 已把状态改成 closing 而 present 尚未越过该点时，present 必须失败，不能返回一个正在被关闭的首次 URL。start rejection 永远原样交给其 waiters；若 close 同时等待该 rejection，close 随后正常进入 closed。
+
+close 是 single-flight 且幂等：closing/closed 以后所有新 present 都在调用 start 或复用 handle 前明确失败，不能重启。close 与 starting 竞争时先等待该 start settle；若它成功，PanelHandle.close 恰好调用一次，所有尚未成功返回的 present 失败；若它失败，不调用不存在的 handle。running handle 也只关闭一次。即使 handle.close 报错，所有 close caller 收到同一结果，launcher 仍终止在 closed、不可重启且保留已尝试关闭的 handle reference 只作 ownership 证明。PanelLauncher 只拥有它启动的 PanelHandle，借用 handle 所使用的 client；Step 12 外层 composition 才按 PanelLauncher → user client → LocalRuntime 关闭，直接调用 startPanelServer 的 caller 则先关 handle、再关自己创建的 client。Step 10 fixture 不创建或关闭 LocalRuntime。
+
+review route 不需要 `reviews.get`。UI 用 route.subjectId 调 `reviews.list({ subjectId, ... })`，必要时逐页读取并只接受 candidate.id 精确等于 route.candidateVersionId 的 ReviewItem；找不到、同 subject 出现不一致 active candidate、或 route/ref mismatch 都作为 stale review 显示并触发全量重读，不选择“最新 candidate”替代。promote/reject 的 mutation CAS 仍是最终权威，route 与 read 之后发生竞争时返回 review_conflict。
 
 宿主能打开本机链接就展示；不能时让用户复制到系统浏览器。模型职责到“提供地址与说明”结束，不点击 DOM，也不把 Panel 操作当工具执行。
 
@@ -3667,6 +3824,16 @@ export interface RollbackInput extends SubjectRef {
   readonly reason: string;
 }
 
+export interface VersionQuery extends SubjectRef {
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+export interface VersionPage {
+  readonly items: readonly VersionSummary[];
+  readonly nextCursor?: string;
+}
+
 export interface LineageInput extends SubjectRef {
   readonly cursor?: string;
   readonly limit?: number;
@@ -3683,6 +3850,11 @@ export interface LineageEvent {
   readonly actor: ActorContext;
   readonly at: IsoDateTime;
   readonly reason?: string;
+}
+
+export interface LineagePage {
+  readonly items: readonly LineageEvent[];
+  readonly nextCursor?: string;
 }
 
 // LineageEvent is a read model projected from EventRecord plus immutable
@@ -3808,12 +3980,12 @@ export type EngineMethodMap = Readonly<{
   readonly "profiles.status": Method<SubjectRef, SubjectStatus>;
   readonly "profiles.correct": Method<CorrectInput, CommitResult>;
 
-  readonly "versions.list": Method<SubjectRef, readonly VersionSummary[]>;
+  readonly "versions.list": Method<VersionQuery, VersionPage>;
   readonly "versions.diff": Method<DiffInput, ProfileDiff>;
   readonly "versions.promote": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.reject": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.rollback": Method<RollbackInput, VersionSummary>;
-  readonly "versions.lineage": Method<LineageInput, readonly LineageEvent[]>;
+  readonly "versions.lineage": Method<LineageInput, LineagePage>;
 
   readonly "hosts.install": Method<InstallInput, InstallRef>;
   readonly "hosts.uninstall": Method<UninstallInput, EmptyResult>;
@@ -3821,7 +3993,7 @@ export type EngineMethodMap = Readonly<{
 
   readonly "library.list": Method<LibraryQuery, LibraryPage>;
   readonly "library.rebuild": Method<Record<string, never>, RebuildResult>;
-  readonly "reviews.list": Method<ReviewQuery, readonly ReviewItem[]>;
+  readonly "reviews.list": Method<ReviewQuery, ReviewPage>;
 
   readonly "bundles.inspect": Method<BundleInspectInput, BundleInspection>;
   readonly "bundles.import": Method<BundleImportInput, BundleImportResult>;
@@ -3923,7 +4095,7 @@ export declare class Distilly {
   release(input: ReleaseLeaseInput, mutation?: MutationOptions): Promise<void>;
   commit(input: CommitInput, mutation?: MutationOptions): Promise<CommitResult>;
 
-  reviews(query?: ReviewQuery): Promise<readonly ReviewItem[]>;
+  reviews(query?: ReviewQuery): Promise<ReviewPage>;
   promote(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   reject(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<void>;
@@ -3962,7 +4134,9 @@ export declare class Person {
     mutation?: MutationOptions,
   ): Promise<PendingJob>;
 
-  versions(): Promise<readonly VersionSummary[]>;
+  versions(
+    options?: Omit<VersionQuery, "subjectId">,
+  ): Promise<VersionPage>;
   diff(a: VersionId, b: VersionId): Promise<ProfileDiff>;
   rollback(
     input: { readonly versionId: VersionId; readonly reason: string },
@@ -3970,7 +4144,7 @@ export declare class Person {
   ): Promise<VersionSummary>;
   lineage(
     options?: Omit<LineageInput, "subjectId">,
-  ): Promise<readonly LineageEvent[]>;
+  ): Promise<LineagePage>;
 
   install(
     host: HostName,
@@ -3992,7 +4166,7 @@ Person 的 public constructor 与 `distilly.person(subjectId)` 语义相同：�
 
 purge 不放 Person 第一屏；它是 Distilly.purge / Panel / CLI 的显式危险入口。关系方法可以在关系 slice 后 additive 加到 Person，不阻塞首发。
 
-browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewActionInput`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
+browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewPage`、`ReviewActionInput`、`VersionQuery`、`VersionPage`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`LineagePage`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
 
 ### 18.5 Composition root
 
@@ -4264,15 +4438,33 @@ export declare class CorrectionService {
 
 ~~~ts
 export declare class ReviewService {
-  promote(input: ReviewActionInput, actor: ActorContext): Promise<VersionSummary>;
-  reject(input: ReviewActionInput, actor: ActorContext): Promise<VersionSummary>;
-  rollback(input: RollbackInput, actor: ActorContext): Promise<VersionSummary>;
+  promote(
+    input: ReviewActionInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
+  reject(
+    input: ReviewActionInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
+  rollback(
+    input: RollbackInput,
+    actor: ActorContext,
+    context: MutationContext,
+  ): Promise<VersionSummary>;
 }
 ~~~
 
-promote/reject 要检查 candidate 仍是当前 suspended target；并发 review 只有一个成功，另一个 review_conflict。理由进入事件，但 reject reason 不改 candidate 内容。
+三种 mutation 都使用 context.requestId 进入 §6 的全局 idempotency、prepared journal 与 recovery；actor 由 trusted client session 注入，不能来自 Panel params。服务先做同 RequestId replay/conflict，再按 request → subject 取锁并在锁内重读 verified state。promote/reject 要求 candidateVersionId 仍精确等于 current suspended target，candidate.parentId 仍精确等于锁内 currentVersionId；并发 review 恰有一个跨过 state commit point，另一个 review_conflict。promote/reject 的 reason optional，出现时 trim 后必须非空并只进 content-light EventRecord；reject 不修改 candidate immutable facts。reject 删除 suspended pointer、保留 current，并把原 pending marker（包括 JobId、queuedAt 与 lease）逐字段原样带入 target state。
 
-rollback 在存在 active suspended target 时返回 review_conflict，要求用户先 promote、reject 或 correct；它不能偷偷改变 current 后留下永远无法 promote 的 candidate。没有 suspended 时，rollback 不删除后续历史，而是创建一个新 version，内容等同目标历史版本、parent 指向当前、actor=可信 session actor、event=rolled_back；event.versionId 是新版本，relatedVersionId 是内容来源的历史版本。
+promote 会改变 pending 的 base identity。若 previous state 没有 pending，target 也没有；若有，则对 authoritative state.materialManifest 减去新 current version manifest，按 MaterialId 计算 delta。delta=0 时清除 pending；delta>0 时必须生成**新 JobId**，令 generation/materialSetHash/totalMaterialCount 取 unchanged authoritative state，baseVersionId=新 current id，addedMaterialCount=delta，queuedAt=本次 mutation time，且 lease 缺失；不得沿用旧 JobId、queuedAt 或 lease。JobId 的 identity 包含 base，所以即使新 marker 的其它数值碰巧相同也要换 id。pending 改变时 journal 才附加一条 job.changed EventRecord 并同步 queue；reject 从不发 job.changed。
+
+rollback reason 必填且 trim 后非空。服务先拒绝 active suspended target 为 review_conflict，要求用户先 promote、reject 或 correct；随后若 pending 带 `expiresAt > mutation time` 的 active lease，返回 lease_conflict，零写入。已过期 lease 不阻止 rollback。targetVersionId 必须解析到同一 subject 的完整、eligible historical version，不能是 current、suspended 或由 reject/candidate-replaced event 派生的 rejected；不存在返回 not_found，存在但状态不 eligible 返回 invalid_input。
+
+rollback 不删除或改写后续历史，而是创建一个新的 current version：claims array、VersionMaterialManifest items、quality、rendererVersion 和 version-time subjectDisplayName 精确复制 target；parentId 取锁内 current；derivedFromCandidateVersionId/reviewReasons 缺失；creation=`{ kind: "rollback", targetVersionId }`；actor 取 caller；createdDisposition=current；按 §6 VersionId preimage 生成新的 VersionId。VersionClaimsSnapshot 与 Profile 都使用新 id，Profile/rendered/prompt 从 copied content重建而不沿用 source wrapper 的旧 id。新 VersionRecord.generation/materialSetHash/materialCount 与 target 一致；与此同时 authoritative target SubjectStateRecord 的 generation、materialSetHash 与完整 current-generation materialManifest 逐字段保持不变。新 version 的 event.versionId 是新 id，EventRecord.relatedVersionId 是 source target，reason 是 caller reason。
+
+rollback 对 previous pending 使用与 promote 相同的 delta rebase：以新 rollback version manifest 为 base，从 unchanged authoritative state manifest 计算；delta=0 清除，delta>0 生成新 JobId、mutation-time queuedAt、无 lease并重算 count。即使旧 lease已过期也不沿用。没有 previous pending 时不因版本 manifest 与 current generation 不同而隐式创建 job；排队只能由已有 pending 或显式 redistill/ingest 产生。所有 promote/reject/rollback 的 target state、operation、events 与 rollback version bytes 在 state replace 前写进 typed journal；state.json atomic replace 是 commit point，之后的 status summary replay 返回 journal 保存的 exact result。
 
 ### 20.3 显式 redistill
 
@@ -4487,7 +4679,7 @@ relations.jsonl 只追加 add / invalidate event；当前 Relation 是重放结�
 
 1. queue.db：job/lease 的公开 read projection、attempt、failure 与 projection LSN；
 2. graph.db：relation / mention 的 neighbor projection；
-3. library.json：主体列表、名称/别名、空间、maturity、pending 与 suspended 数；首版实现固定为 JsonLibraryProjection。
+3. library.json：§15.3 的 canonical LibraryEntry 列表，包括 privacy、bounded searchTerms、current/suspended quality、pending/suspended 0|1、新材料数与 lastChangedAt；首版实现固定为 JsonLibraryProjection。
 
 它不保存唯一 materials、claims、versions、corrections 或 current pointer。删除 .index 后，人物事实不丢；但需要显式 rebuild 才恢复 search / queue / graph 服务。
 
@@ -4502,31 +4694,42 @@ export interface LibraryProjection {
   upsert(entry: LibraryEntry): Promise<void>;
   remove(subjectId: SubjectId): Promise<void>;
   query(input: LibraryQuery): Promise<LibraryPage>;
-  rebuild(entries: AsyncIterable<LibraryEntry>): Promise<RebuildResult>;
+  rebuild(entries: () => AsyncIterable<LibraryEntry>): Promise<RebuildResult>;
+}
+
+export interface LibraryProjectionRecord extends FactEnvelope<1> {
+  readonly recordKind: "library";
+  readonly entries: readonly LibraryEntry[];
 }
 ~~~
 
 这是 interface，因为生产 JSON、测试内存实现与以后本地全文索引是合理的多个实现。首版不同时维护 SQLite library table。它是内部 extension port，不从 distilly 根导出。
 
-ProjectionService 从 fact stores 生成 LibraryEntry；Panel 不写 projection，SubjectService / CommitService 在事实提交后 best-effort 更新。失败设置 dirty marker。
+ProjectionService 从 fact stores 生成 LibraryEntry；Panel 不写 projection。`.index/library.json` 是 checksum-protected schemaVersion=1 LibraryProjectionRecord，entries 使用 LibraryPage 的完整 sort tuple 严格升序且 SubjectId 不重复；文件中没有 cursor、page 截断或 UI-only 字段。`.index/library.dirty` 的唯一合法 bytes 是 ASCII `distilly-library-dirty-v1\n`；`.index/library.intent` 的唯一合法 bytes 是 ASCII `distilly-library-intent-v1 <owner-token>\n`，其中 `<owner-token>` 是创建该 marker 的 `.index/library.lock` reservation 所生成的 32 个 lowercase hex owner token，recovery 继承时不重写。`.index/library.lock` 使用 §9.4 相同的跨进程 owner/heartbeat/stale-recovery 纪律；其它 marker bytes、symlink 或 lock protocol mismatch 都返回 index_unavailable，不能猜。
+
+每个可能改变 LibraryEntry 的 writer 把 `.index/library.lock` reservation 作为 subject writer lock 的尾部：先取得 subject lock，再取得 Library reservation，只有两者都成功后 service 才能继续读取或写入该 mutation 的 facts。新 mutation 在锁内发现 intent absent 后先 atomic create+fsync 自己的 exact intent；若旧 intent 已存在，它必须不覆盖 marker、按 Library → subject 释放并返回 retryable busy。prepared-journal recovery 可以继承旧 intent，但不能在单条 journal materialize 中清除它。reservation 一直保持到 recovery 已完成 Library apply 或留下 exact dirty marker并把 journal 标 terminal，最后按 Library → subject 反向释放。同一进程的 apply 必须复用该 reservation，不能二次取得同一 filesystem lock。普通 subject read 在 root reconcile 后取得 subject lock，并在读 facts 前按相同 subject → Library 顺序做一次 O(1) intent probe；若此时发现 reconcile 后新建的 intent，它先释放 subject，再从 root reconcile/retry，绝不持 subject lock恢复 journal。Library query 只取得 Library lock且不扫描 facts；rebuild 同样不取得全库 subject locks，但会在 Library lock 内按 §23.4 枚举 verified subject seed。于是 query / rebuild 若先取得 Library lock，后来的 writer 会在任何事实读写前等待；writer 若先取得 reservation，query / rebuild 会等到该 mutation 的事实与 projection 已处于同一终态。
+
+每个可能改变 LibraryEntry 的事实 mutation 在跨过自己的 state commit point 后、把 journal 标 terminal 前，必须在 library projection lock 内先 atomic create+fsync dirty marker，再从该 mutation journal/verified facts计算 exact upsert/remove，atomic replace+fsync library.json，最后 unlink+fsync dirty marker。clean apply 仍保留 intent；只有 journal 已 durable terminal 且 terminal crash hook 已通过后，普通 writer 才在仍持 reservation 时删除并 fsync自己的 intent。dirty apply、异常退出与 recovery apply 都留下 intent。apply 失败只要 exact dirty marker 已 durable 就不回滚事实；journal 可继续 terminal，但后续 read 返回 index_unavailable。若进程在事实 commit 与 dirty marker create 之间、clean apply 与 terminal 之间、或 terminal 与 intent clear 之间崩溃，intent 都仍 durable；任何 library read 先用 O(1) probe 检查 intent，absent 时不枚举历史 journal，present 时才运行 root prepared-journal reconciliation，recovery 再完成同一 apply、留下 durable dirty，或证明 terminal 后清除 intent。reconcileAll 在处理当轮全部 prepared journal 后取得 Library lock：intent absent 即完成；intent present 时只在该锁内确认 transaction store 已无 prepared journal才 unlink+fsync intent，否则释放并继续 recovery。这个额外的 transaction scan 只在 fail-closed intent 存在时发生，不给普通 clean projection read 增加 subject/fact scan。因而不存在事实已新、index 仍 clean-stale 的可观察窗口。未跨事实 commit point 的 aborted journal 不改 library；它留下的 intent同样只能经上述 reconciliation proof 清除。
 
 ### 23.4 Rebuild
 
-rebuild：
+rebuild 先完成 root journal reconciliation，再在持有 `.index/library.lock` 的整个 verified seed collection 与 replace 期间执行；seed supplier 只能在拿到 lock 后迭代。与 rebuild 并发的事实 writer 要么已经持有 reservation并先完成，随后 seed 看到终态；要么先取得 subject lock但在 Library reservation 处等待，直到 rebuild replace 后才开始读取或写入该 mutation 的 facts。clean projection 因而不会看到半发布 version，也不会漏 mutation。流程是：
 
 - 扫描 subject.json 与 state.json；
 - 校验每个 current / suspended version；
 - 从 version quality 生成 LibraryEntry；
 - 从 state 重建 pending generation；
-- 从 relation events 重建 graph；
-- 写临时 index，再原子替换；
-- 记录输入 root checksum 和 projection schema。
+- 按 canonical Library sort tuple 排序、拒绝重复 SubjectId；
+- 先 durable 写 exact dirty marker，再写 checksum/schemaVersion=1 临时 record，fsync 后原子替换 library.json 与 parent；
+- 最后删除并 fsync dirty marker，再释放 lock。relation graph 使用自己的独立 lock/rebuild，不混入 library atomicity。
 
-读取发现 dirty / schema mismatch 时显式 index_unavailable，提示 distilly library rebuild；不假装搜过但返回空。
+这里描述的是 `LibraryProjection.rebuild` 的 library phase。顶层 `library.rebuild` method 仍依次调用 queue 与 graph 各自的 locked rebuild，并把三个阶段的 counts/同一次 operation time 汇总成 RebuildResult；三个 disposable indexes 没有伪造共同 atomic commit，一个阶段失败就保留其 exact dirty marker 并返回最窄 index_unavailable。
+
+library query 先完成 root journal reconciliation，再只取得 projection read coordination并要求 intent absent后读取 record；若 reconciliation 后有新 writer 创建 intent，query 返回 retryable busy，调用层可再完成一次 reconciliation/retry，但绝不能读取旧 clean record。它不枚举 subject/space facts，也不取得任一 subject/identity/catalog lock。library.json missing、dirty marker 存在或 malformed、intent malformed、checksum/schema/recordKind/order/duplicate/canonical LibraryEntry 任一损坏都显式 index_unavailable，提示 `library.rebuild`；不全文扫描、不自行修复、不假装搜过但返回空。cursor 在 validated canonical entries 上按 §15.3 生成。
 
 ### 23.5 不做向量召回
 
-首版单人物 Recall 读取完整 Profile，不需要 embedding。Library search 用名字、别名、空间、domain 和状态字段。只有真实出现“几千份公开 bundle 的语义发现”需求，才评估本地 embedding；它仍是可删投影，不成为 claims 事实层，也不要求云 key。
+首版单人物 Recall 读取完整 Profile，不需要 embedding。Library `text` search 固定为 query NFC normalization 后用 ECMAScript `toLowerCase()`，再对 subject displayName、aliases、space displayName、identity hint 的公开字符串与 LibraryEntry.searchTerms 做 substring match；它不是 locale-sensitive collation 或 fuzzy search。searchTerms 让 domainPack、current domain roots 与 lifecycle/privacy/maturity/pending/suspended 状态可搜，同时保持 projection 有界且不复制 Profile 正文。结构化 space/lifecycle/pending/suspended filter 与 text 取交集。只有真实出现“几千份公开 bundle 的语义发现”需求，才评估本地 embedding；它仍是可删投影，不成为 claims 事实层，也不要求云 key。
 
 ### 23.6 未来全文索引规则
 
@@ -5241,6 +5444,10 @@ private transcript 默认 sensitivity=private，export / publish 不自动包含
 - Wire major、idempotency conflict、错误码 exhaustiveness；already_exists 必带唯一 subject，ambiguous_subject 必带至少两个 candidates，其它 subjectResolution 和非 JSON details 拒绝；internal_error 固定 retryable=false 且不带 details/cause/stack，expected errors 不得被它吞掉；
 - 全部 public object 拒绝 unknown keys；WIRE_LIMITS 每个边界值与总 toolInputBytes、safe/nonnegative integer、positive bounded limit 都有正反 fixture；
 - EngineMethodMap 精确 35 keys 与 mutation/query 分区，无 payload 结果字节稳定为 null，不出现 void/undefined；
+- versions.list/reviews.list/versions.lineage 的 VersionPage/ReviewPage/LineagePage runtime round-trip，limit 1/50/200/+1、nextCursor absence/presence、method/filter-bound opaque cursor、16,384-byte/+1 与 1,024-byte worst-case escaped displayName exact sort tuple；MaterialPage 同时锁 Unicode-scalar count、rawAvailable/inCurrentGeneration；
+- LibraryEntry.searchTerms 的 max=`openRecordEntries+6`、exact UTF-8 sort/dedupe 与 projection round-trip；Library text 只靠 domainPack/current domain root、archived/private/stable/pending/suspended token 命中时仍返回该 subject，并与结构化 filter 取交集；
+- ProfileDiff 的 added/removed/changed exact ClaimId partition、`changed.before/after`、facet 排序，以及首个 suspended 的 current/beforeQuality 缺失；普通 versions.diff 必须有 beforeQuality；
+- EventRecord reason/relatedVersionId 判别矩阵：direct promote/reject、candidate_replaced、rollback 与其它 kind 的允许/禁止组合；EngineEvent key 集保持不变且 watch 不泄漏 reason；
 - EngineEvent decoder 遇到未知 kind 返回 schema_unsupported、不调 handler 并触发全量重读；其它 unknown discriminant 在边界失败；
 - full SHA-256 与 MaterialId source semantics；
 - source-groups-v1 的五类 exact proof-key preimage、每材料 key union、跨材料 union 与 component `sg_` hash 有 golden fixtures；artifact/representation 共 locator namespace、source.uri 只在无 artifact 时 fallback、CaptureAuditRef 不参与；
@@ -5263,6 +5470,7 @@ Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开�
 真实临时目录覆盖：
 
 - create + first ingest 在 root transaction 与 `subjects/.staging/<request>.<subject>` 下的原子性；createdSubject=true 的 targetSubjectChecksum/absent previous 与 existing 的 inverse schema 均有正反 fixture；
+- 公开 fact reads 在 reconcile→subject lock 内完成正文与 manifest/version/event 的同一 snapshot；commit/rollback `afterVersionPublished` 阻塞时 list/explicit profile/material/diff 不暴露 candidate。无 journal creation event 的完整 physical version、缺失 parent/derived/rollback/renderer source、缺失或重复 creation、active/terminal 或 promoted+rejected 冲突、candidate_replaced/rollback edge mismatch 均 storage_corrupt，不被过滤成 historical；
 - 同空间两个进程并发 create 相同 locator/name 时只有一个主体成功；request → catalog（inline）→ space identity → subject → projection 的锁顺序无死锁；BUILTIN_PEOPLE_SPACE_ID 并发 bootstrap 只得到 exact People record，其它内容拒绝；
 - label-v1 的 NFC、四种 ASCII edge trim、case/internal-byte preservation 与 alias canonical dedupe/sort；inline space 的 kind+exact canonical label 并发解析不重复建 space；
 - create 重复矩阵覆盖 exact locator、唯一 exact name/alias、两个以上候选、same-kind locator disagreement 排除、description 不参与唯一性；
@@ -5278,8 +5486,12 @@ Step 8 client-adapter conformance 另覆盖：Distilly / Person 的每个公开�
 - aborted 同 request/input/actor 可复用同 candidate SubjectId 重进 prepared 并重算 target，不同 input/actor 永久 conflict；committed/completed 只 immutable replay；壁钟前进不会自动 GC prepared、completed 或 terminal journal；
 - DistillCommitTransactionRecord runtime round-trip/cross-invariant 覆盖 acceptedPatch+patchDigest、lease owner、previous checksum/pending、完整 targetState、VersionRecord/materials/claims/Profile/prompt、correlated OperationRecord、固定 `[version.current|version.suspended, job.changed]` 与 lifecycle；任一 nested mismatch 拒绝；
 - commit 在 prepared journal、固定 `versions/.staging/<request>.<version>` 各文件、version rename、state swap、operation、两 event、current projection、queue 与 terminal journal 每一步崩溃；target finish、exact previous abort、第三态 corrupt；abort 只删同 journal 且逐字节匹配的 staging/未引用 published version，不能删被 state/lineage/其它 journal 引用的目录；published abort cleanup 在 atomic rename 到固定 `.deleting` path 前后及 recursive cleanup 中断后都可重入，published path 不得留下半目录；
+- ReviewDecisionTransactionRecord 的 promote/reject method-correlated schema、exact previous/target、operation/result、reason 与一或两 events；state swap 前后、operation/event/profile/queue/terminal 每个 crash point都只有 target-first finish、exact previous abort、第三态 storage_corrupt，reject pending逐字节不变；
+- RollbackTransactionRecord 的 source target 与新 version/materials/claims/Profile/prompt copied invariants、new id/parent/creation/actor/disposition、authoritative generation/full manifest unchanged；version staging/publish/state swap 及后续每个 crash point复用 distill-commit 的 reference check 与 `.deleting` cleanup，不能留下半目录或误删 source/被引用版本；
+- promote/rollback 有 pending 时以新 current manifest 重算 delta，delta>0 生成新 JobId、mutation-time queuedAt、无 lease，delta=0 清除；reject marker byte-identical；rollback active suspended/lease 与 current/suspended/rejected/cross-subject target 全部在零写入下返回 exact error；
 - claims.json 是单一 VersionClaimsSnapshot，claims 按 ClaimId UTF-8 严格升序无重复；version/material manifest/material content/evidence quote/Unicode-scalar locator/Profile/renderer/prompt 任一 missing 或不一致必须 storage_corrupt，manifest 缺项、hash 或 materialCount 不符同样拒绝；current/suspended reader 即使没有 prepared journal 也验证完整 version；
 - recovery 幂等且只有一个 current；
+- JsonLibraryProjection 的 schemaVersion=1/checksum/recordKind/canonical entry sort+dedupe、exact `distilly-library-dirty-v1\n`、exact `distilly-library-intent-v1 <32-lowerhex>\n` 与 `.index/library.lock`；missing/dirty/malformed/corrupt/symlink 全部 index_unavailable。每个 LibraryEntry-changing writer 在任何事实读写前按 subject → Library 取得 reservation并 durable 写 intent、保持到 journal terminal 后再清；新 mutation不得覆盖旧 intent，recovery继承但仅 root reconciliation 在 Library 锁内证明无 prepared journal后清除。apply 在同进程复用 reservation；subject read 在拿锁后 O(1) 复查 intent并在命中时先释放再恢复，query不扫描 facts，rebuild在只持 Library lock时枚举 verified seed且不取得全库 subject locks。clean no-intent query不扫描 terminal journals；intent create/clear、fact commit 后至 dirty create、record replace、dirty clear、terminal 前后各 crash point均不出现 clean-stale read；afterVersionPublished / afterFactCommit（含 throw）、post-subject-lock intent race与 query/rebuild 的确定性 barrier证明按 Library lock+intent线性化，rebuild seed只看到 mutation 前或终态；
 - queue apply 在 durable marker、SQLite commit/DB fsync、marker unlink/parent fsync 每步崩溃；queue.dirty v2 exact bytes、PRAGMA user_version=2、missing/corrupt DB 与 malformed marker 都触发 sibling-DB atomic rebuild，从全部 verified SubjectStateRecord v2 以相同 JobId 重建，不能假装空且不回滚人物事实；Step 5 user_version=1 在 open 时判 index_unavailable 并自动 rebuild，不执行 ALTER/row migration；
 - queue rebuild 在 projection lock 内才调用 AsyncIterable seed supplier；并发 writer 在 snapshot 前、snapshot 中和 replace/clear-marker 后提交 state 的 fixtures 都证明其 apply 最终发生在 rebuild 后或被 snapshot 包含，不会留下 clean-but-stale；
 - corrupt checksum / unknown schema 拒绝；
@@ -5332,14 +5544,20 @@ FakeHost 不声称证明真实宿主 UI；Step 9 capability binding 只有 manif
 
 ### 27.6 Panel
 
-- 无 token、错 token、跨站 Origin、错 Host、超大 body、路径逃逸和占用端口拒绝；
-- token 从 fragment 移除并以 header 发送；
-- CSP 无远程资源；
+- `/rpc` 对 EngineMethodMap exact 35 keys 做 query/mutation envelope、params-before-call/result-after-call 与 final WireSuccess/WireFailure round-trip；query 的 requestId/actionNonce、mutation 缺任一字段和所有 unknown key 都拒绝且零 call；
+- `/action-nonces` 覆盖 `panel_action_<64hex>`、token/method/requestId/canonical-params digest binding、60 秒前/边界 expiry、原子 single consume、并发 replay 与 client/connection/oversize failure 后不可复用；所有 MutationMethodName 都走 nonce；
+- 三个 POST endpoint 都覆盖 exact Bearer、literal Host/Origin，static/health 只允许无 Origin 或 exact Origin；无 token、错 token、Origin 缺失/null/多值/跨站、错 Host 与 CORS preflight 全部拒绝；token 在首个 fetch/subresource 前从 fragment 移除并只以 header 发送；
+- `/health` exact canonical JSON+LF bytes、package-semver source、200/content-type 与零 EngineClient call；404/405/431/401/403/415/413/400 transport matrix固定，合法 method/domain WireFailure 保持 HTTP 200；
+- request header 16 KiB、body 4 MiB/+1→HTTP 413 invalid_input、nonstream response 16 MiB/+1→一次性 context_too_large failure，证明 oversized 路径不半写且 EngineClient call 数符合 §15.5；
+- build allowlist、percent-decode/NUL/dot/repeated separator/backslash/encoded separator/query、symlink ancestor/file、realpath containment 与占用端口拒绝；CSP/Referrer-Policy/nosniff/CORP/no-store exact snapshot且没有远程资源或 service worker；
+- `POST /events` strict body 与 fetch streaming 覆盖 watch subscribe→ready→initial reads 次序、ready 前 buffer、无 id/replay、慢消费者、断线和单 frame/header 16 KiB/+1；断流都取消订阅并触发 cursor discard + full reread；不用 EventSource；
 - SSE unknown event 由 decoder 产生 schema_unsupported、不调 UI handler 并触发全库 re-read；
+- PanelLauncher 覆盖 new/starting/running/closing/closed、并发 present single-flight、start failure retry、invalid handle URL、close-vs-start、handle.close exactly once、close failure sharing、closed 后不重启与 borrowed client 不关闭；
 - Panel action 与等价 CLI action 产出相同 version / event；
-- UI 显示的 quality 字段全部来自 protocol；
+- UI 显示的 privacy/quality/pending/suspended/new-material/lastChangedAt 字段全部来自 protocol，同 snapshot 聚合且排序/cursor 语义固定；review route 只从 subject-filtered ReviewPage 找 exact candidate，再由 mutation CAS fail closed，不存在 reviews.get；
 - Evidence / Materials 显示 medium、role、derivation、raw/capture provenance 与 engine source-group basis，不在前端重算 eligibility；
-- atVersionId 只从该版本 materials manifest 重建 source group；新增 bridge material不改变历史展示，旧 grouping 实现不可用时明确 schema_unsupported；
+- atVersionId 只从该版本 materials manifest 重建 source group；新增 bridge material不改变历史展示，旧 grouping 实现不可用时明确 schema_unsupported；Step 10 native_text/host_extract 返回 rawAvailable=false，raw_extract 因无 verified RawStore reader 返回 schema_unsupported；
+- Step 10 只启用真实 reads 与 promote/reject/rollback；correct/install/archive/production doctor controls disabled/future-only，injected full-client doctor 只读可显示；断言没有 fake success、LocalRuntime、CLI 或 production command；
 - Discover 首版不存在。
 
 ### 27.7 Fresh install
@@ -5520,9 +5738,9 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 7. **Claim patch + commit（不可拆 feature）**：在 package-internal composition 中一次交付从 verified state/base/materials 重建的 pinned EvidenceContext、claim-only DistillPatch validator、canonical resolved draft/ClaimId、apply/strength/quality/QualityGate、`profile-renderer-v1`、VersionRecord/material/claims/Profile/prompt 全套事实、DistillCommitTransactionRecord、固定 version staging path、state commit point、target-first recovery、completed operation、固定两事件、current projection与 queue apply。验收矩阵必须同时覆盖 empty/add/revise/supersede/contest、65,536/+1 bytes、locator/date/target/evidence、first-version与 delta gates、current/suspended state、active-review conflict、owner-bound idempotency、每个 crash point及历史 displayName/prompt重放。该 feature 不含 promote/reject、correction、relations、facade/MCP/CLI、root EngineRuntime/createEngine 或任何 public runtime；injected facade/MCP adapters、review、correction、production runtime/CLI 和 relations 分别留给 Steps 8、10、11、12、14。
 8. **Injected-client Facade + MCP adapters**：browser-safe `distilly` 根一次交付 Distilly / Person 的完整转发面、精确 runtime/type export allowlist 与 full fake EngineClient contract fixtures；`@distilly/mcp` 一次交付五 handlers、ReviewPresenter seam、统一 WireFailure、structuredContent/text 同值、server identity、真实 stdio child-process conformance 与 built-entry smoke。child 只注入 test-only full fake EngineClient / ReviewPresenter 并证明 transport；本步没有 `distilly/node`、`@distilly/runtime`、`@distilly/cli` executable、production `distilly mcp`、DISTILLY_ROOT backend 或用户可操作产品，不能用 fake smoke 声称主路径成立。
 9. **Host capability bindings + canonical skill**：先更新 Protocol HostPreflight 判别联合，再交付 `@distilly/bindings` 的 HostCapabilityBinding/full HostBinding contracts、HostRegistry 与 injected HostPreflightProvider factory seam；Codex / Claude Code concrete 仅为 kind=capability，preflight 只接受可信直接净 handshake 或 exact host/version/environment/release/wire/skill tuple 的真实截断 fixture，不能从 gross limit 推算，两者 privateUiCapture 固定 unavailable。同步交付唯一 recursive canonical skill tree、两个 exact-mirror copy、platform manifest fixtures、schemaVersion=1 release manifest 与 check-mode assembler。该 slice 不读用户 HOME/宿主 executable，不创建 host client，不实现 concrete injector/form renderer/private capture controller/full HostBinding/plugin lifecycle/doctor/runtime bootstrap/setup/production launcher；`.mcp.json.template` 不可安装。
-10. **必备 Panel + review**：ReviewService、Panel 所需完整 read models、promote/reject/rollback、PanelLauncher/ReviewPresenter、四页最小 UI、injected user EngineClient HTTP/SSE 与安全拒绝；不复用 fake host client，也还不发布 production CLI/runtime。
-11. **Correction + Recall / install**：CorrectionService 立即版本、prompt、subrun inject、HostInjector/HostFormRenderer concrete implementations、profile install/export 与对应真实 core/runtime-owned handlers；host/sdk relayed 与 user actor 分流闭合后，correct→review 才能进入 product conformance。本步仍不伪造需要 plugin lifecycle/doctor 的 kind=full HostBinding。
-12. **Core closure + production composition + CLI/setup（不可拆 production feature）**：先补齐并逐 key integration 证明全部 CoreMethodName 真 handler；同 feature 的后半把 Step 9 capability preflight、Step 11 injector/form renderer 与本步真实 plugin lifecycle/doctor 组合成 Codex / Claude Code kind=full factories，才导出 createEngine、createLocalRuntime、distilly/node openInProcess 与 actor-bound clients，并交付 production `distilly mcp`、完整数据 CLI、单进程 `distilly distill` lease/edit/commit、runtime bootstrap、doctor、setup/upgrade/uninstall、template→actual `.mcp.json` 渲染与 built-artifact fresh install。任何缺 handler、Panel presenter、CorrectionService、verified net host capacity、full binding method 或 teardown owner 都在 export 前 startup/build fail；不发布 placeholder command 或改名 partial runtime。
+10. **必备 Panel + review（不可与 production landing 混合）**：在 `@distilly/engine` package 内交付 §6 ReviewDecisionTransactionRecord/RollbackTransactionRecord、ReviewService 与 JsonLibraryProjection/read services；Protocol 同步交付完整 read models/pages/schemas。`@distilly/panel` 交付四页最小 UI、PanelLauncher/ReviewPresenter、借用 injected full user EngineClient 的完整 EngineMethodMap HTTP transport、`POST /events` fetch SSE、all-mutation nonce 与 §15/§27 安全拒绝。UI 只启用真实 reads 与 promote/reject/rollback；correct/install/archive/production doctor 只能 disabled/future-only，唯有测试注入的 full client 可显示真实只读 DoctorSnapshot。native_text/host_extract material reads 固定 rawAvailable=false；raw_extract 因没有 verified RawStore reader返回 schema_unsupported。本步不复用 fake host client、不创建/导出 LocalRuntime，不添加 CLI executable、production `distilly panel`/MCP handler、setup 或任何假成功。其验收用真实 temp facts + package-internal review/read composition 和 independently injected full transport fixture，不能声称用户入口已落地。
+11. **Correction + Recall / install**：CorrectionService 立即版本、prompt、subrun inject、HostInjector/HostFormRenderer concrete implementations、profile install/export 与对应真实 core/runtime-owned handlers，并开始 raw ingestion/verified RawStore reader slice，使 raw_extract read model 正例可实现；host/sdk relayed 与 user actor 分流闭合后，correct→review 才能进入 product conformance。本步仍不伪造需要 plugin lifecycle/doctor 的 kind=full HostBinding。
+12. **Core closure + production composition + CLI/setup（不可拆 production feature）**：先补齐并逐 key integration 证明全部 CoreMethodName 真 handler，包括未在 Step 11 完成的 raw ingestion/read closure；同 feature 的后半把 Step 9 capability preflight、Step 11 injector/form renderer 与本步真实 plugin lifecycle/doctor 组合成 Codex / Claude Code kind=full factories，才导出 createEngine、createLocalRuntime、distilly/node openInProcess 与 actor-bound clients，并交付 production `distilly mcp`、完整数据 CLI、单进程 `distilly distill` lease/edit/commit、runtime bootstrap、doctor、setup/upgrade/uninstall、template→actual `.mcp.json` 渲染与 built-artifact fresh install。任何缺 handler、Panel presenter、CorrectionService、verified net host capacity、full binding method 或 teardown owner 都在 export 前 startup/build fail；不发布 placeholder command 或改名 partial runtime。
 13. **Legacy migration**：真实 fixtures 与升级指南。
 14. **关系、Bot、TUI、后台 executor**：按真实需求分别落地。
 15. **Profile Catalog**：只在 §24.6 条件全部满足后立项。
@@ -5550,6 +5768,8 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 - old current 不变；
 - commit presenter 返回可打开的 review URL；
 - Panel 显示 diff、reason、quote、URI 与原始材料；
+- 首个 suspended 没有 current/beforeQuality 时不造 baseline；同 ClaimId 内容变化进入 changed before/after，review route 只接受 subject-filtered page 中的 exact candidate；
+- promote/reject/rollback 各自跨 state atomic-replace 后可恢复且 RequestId 精确重放；reject pending 原样，promote/rollback pending rebase 使用新 JobId、mutation-time queuedAt、无 lease并重算 delta；
 - Panel / CLI promote、reject、correct、rollback 结果一致；
 - events 与 versions 保留完整历史。
 
@@ -5566,6 +5786,7 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 - commit 从 verified state/base/materials 而非 brief operation 重建 m001/EvidenceContext；accepted patch 65,536 bytes 通过、+1 zero-write invalid_input，locator start<end、date range、target唯一与 pinned algorithm dispatch 都有正反验收；
 - claim add/revise/supersede/contest、canonical ClaimId/evidence/observedIn、exact quality/reason order、首版 delta skip 与 suspicious/manual gate可字节复算；
 - commit transaction 每个 crash point只有 target finish、exact previous abort或 storage_corrupt；abort只清 journal匹配且未引用的 staging/published version，恢复后只有一个 current且成功 state 无 pending/lease；
+- review-decision 与 rollback transaction 每个 crash point同样只有 target-first finish、exact previous abort或 storage_corrupt；rollback staging/published abort复用固定 `.deleting` cleanup，active suspended/lease 与非法 target 在零写入下返回 exact conflict/input error；
 - current 成功 current=new/suspended absent，suspended 成功 current unchanged/suspended=new，已有 active suspended 的 ordinary commit 在任何写入前 review_conflict；
 - 删除 .index 或打开 queue user_version=1 不丢人物事实；v2 rebuild 在 projection lock 内读取 verified state，保留 active lease并把 expired marker显示 pending；
 - version 的 claims.json 单一快照与 materials/version/content/evidence/profile/prompt 交叉可验证，createdIn 不与 VersionId preimage 循环；`profile-renderer-v1` 七 core/domain/active/contested/JSON escaping 与单 LF 字节稳定，历史 displayName/prompt 不受以后 SubjectRecord 改名影响；
@@ -5579,7 +5800,8 @@ Disk migrator 只前向、显式、可 dry-run；不在打开文件时自动就�
 - Step 9 Codex / Claude Code private UI capture 明确 unavailable 并走粘贴/导出；未来 full binding 只有通过 §27.5 的授权、隔离、只读、前台与零截图留存拒绝矩阵后才可报告 available；
 - 恶意材料不能改变工具序列或获得 secret；
 - actor、version id、claim id 与 quality 不能由模型输入；
-- Panel 拒绝本章规定的所有跨站 / token / path / size 攻击；
+- Panel 的 `/rpc` 覆盖完整 EngineMethodMap并双向 parse，所有 mutation 使用 token/method/requestId/params-bound 60-second one-use nonce；三个 POST endpoint 都要求 exact Bearer/Host/Origin；4 MiB request、16 MiB bounded response、16 KiB header/SSE frame、fixed static allowlist/symlink 与 CSP 拒绝全部通过；
+- `POST /events` fetch stream 先 subscribe 再 ready/initial reads，无 replay；慢消费者、未知/超大 event 或断线都取消订阅并全量重读；
 - plugin fresh install 不依赖 PATH 或 npx latest；
 - canonical skill 两宿主内容 digest 相同；
 - 没有 Catalog 登录、上传或 hidden sync；

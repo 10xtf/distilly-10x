@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { WIRE_LIMITS } from "../json.js";
 import {
+  compareUtf8,
+  cursorStringSchema,
   labelStringSchema,
   listLimitSchema,
   materialContentSchema,
@@ -377,7 +379,7 @@ export const materialQuerySchema = z.strictObject({
   subjectId: subjectIdSchema,
   kind: materialRecordKindSchema.optional(),
   atVersionId: versionIdSchema.optional(),
-  cursor: labelStringSchema.optional(),
+  cursor: cursorStringSchema.optional(),
   limit: listLimitSchema.optional(),
 });
 
@@ -389,15 +391,35 @@ export const sourceGroupingContextSchema = z.strictObject({
 
 export const materialSummarySchema = z.strictObject({
   record: materialRecordSchema,
-  contentCharacters: safeNonNegativeIntegerSchema,
+  contentScalarCount: safeNonNegativeIntegerSchema,
+  rawAvailable: z.boolean(),
+  inCurrentGeneration: z.boolean(),
   sourceGroup: sourceGroupSchema,
   grouping: sourceGroupingContextSchema,
 });
 
-export const materialPageSchema = z.strictObject({
-  items: z.array(materialSummarySchema).max(WIRE_LIMITS.listLimit),
-  nextCursor: labelStringSchema.optional(),
-});
+export const materialPageSchema = z
+  .strictObject({
+    items: z.array(materialSummarySchema).max(WIRE_LIMITS.listLimit),
+    nextCursor: cursorStringSchema.optional(),
+  })
+  .superRefine((page, context) => {
+    for (let index = 1; index < page.items.length; index += 1) {
+      const previous = page.items[index - 1];
+      const current = page.items[index];
+      if (
+        previous !== undefined &&
+        current !== undefined &&
+        compareUtf8(previous.record.id, current.record.id) >= 0
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["items", index, "record", "id"],
+          message: "material items must be strictly ordered by MaterialId",
+        });
+      }
+    }
+  });
 
 export const getMaterialInputSchema = z.strictObject({
   subjectId: subjectIdSchema,
@@ -408,6 +430,8 @@ export const getMaterialInputSchema = z.strictObject({
 export const materialViewSchema = z.strictObject({
   record: materialRecordSchema,
   content: materialContentSchema,
+  rawAvailable: z.boolean(),
+  inCurrentGeneration: z.boolean(),
   sourceGroup: sourceGroupSchema,
   grouping: sourceGroupingContextSchema,
 });

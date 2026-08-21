@@ -164,6 +164,18 @@ export interface RollbackInput extends SubjectRef {
   readonly reason: string;
 }
 
+/** Filters immutable versions for one subject. */
+export interface VersionQuery extends SubjectRef {
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+/** Cursor page of immutable version summaries. */
+export interface VersionPage {
+  readonly items: readonly VersionSummary[];
+  readonly nextCursor?: string;
+}
+
 /** Filters the projected lineage for one subject. */
 export interface LineageInput extends SubjectRef {
   readonly cursor?: string;
@@ -190,6 +202,12 @@ export interface LineageEvent {
   readonly reason?: string;
 }
 
+/** Cursor page of projected lineage events. */
+export interface LineagePage {
+  readonly items: readonly LineageEvent[];
+  readonly nextCursor?: string;
+}
+
 /** Filters suspended-candidate review projections. */
 export interface ReviewQuery {
   readonly subjectId?: SubjectId;
@@ -203,4 +221,10 @@ export interface ReviewItem {
   readonly current?: VersionSummary;
   readonly reasons: readonly [ReviewReason, ...ReviewReason[]];
   readonly diff: ProfileDiff;
+}
+
+/** Cursor page of active suspended-candidate reviews. */
+export interface ReviewPage {
+  readonly items: readonly ReviewItem[];
+  readonly nextCursor?: string;
 }

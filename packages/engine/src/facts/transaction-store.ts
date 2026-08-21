@@ -65,6 +65,8 @@ const mayReprepareTransaction = (previous: TransactionRecord, next: TransactionR
     case "distill_lease":
       return sameExactRetryPayload(previous, next);
     case "distill_commit":
+    case "review_decision":
+    case "rollback":
       return sameExactRetryPayload(previous, next);
     default: {
       const exhaustive: never = previous;

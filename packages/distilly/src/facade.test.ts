@@ -82,7 +82,7 @@ describe("Distilly", () => {
     client.setResult("subjects.list", { items: [] });
     client.setResult("subjects.resolve", { kind: "found", subject });
     client.setResult("distill.pending", []);
-    client.setResult("reviews.list", []);
+    client.setResult("reviews.list", { items: [] });
     const distilly = new Distilly({ client });
 
     const person = distilly.person(subjectId);
@@ -94,7 +94,7 @@ describe("Distilly", () => {
       subject,
     });
     await expect(distilly.pending()).resolves.toEqual([]);
-    await expect(distilly.reviews()).resolves.toEqual([]);
+    await expect(distilly.reviews()).resolves.toEqual({ items: [] });
 
     expect(client.calls).toEqual([
       { method: "subjects.list", params: {} },
@@ -220,15 +220,15 @@ describe("Person", () => {
     client.setResult("profiles.get", { subjectId, versionId } as never);
     client.setResult("profiles.prompt", "prompt\n");
     client.setResult("profiles.status", { subject } as never);
-    client.setResult("versions.list", []);
+    client.setResult("versions.list", { items: [] });
     client.setResult("versions.diff", { added: [], removed: [] } as never);
-    client.setResult("versions.lineage", []);
+    client.setResult("versions.lineage", { items: [] });
     const person = new Distilly({ client }).person(subjectId);
 
     await person.get({ versionId });
     await person.prompt();
     await person.status();
-    await person.versions();
+    await person.versions({ cursor: "versions-next", limit: 5 });
     await person.diff(versionId, secondVersionId);
     await person.lineage({ cursor: "next", limit: 7 });
 
@@ -236,7 +236,10 @@ describe("Person", () => {
       { method: "profiles.get", params: { subjectId, versionId } },
       { method: "profiles.prompt", params: { subjectId } },
       { method: "profiles.status", params: { subjectId } },
-      { method: "versions.list", params: { subjectId } },
+      {
+        method: "versions.list",
+        params: { subjectId, cursor: "versions-next", limit: 5 },
+      },
       {
         method: "versions.diff",
         params: { subjectId, before: versionId, after: secondVersionId },
@@ -352,7 +355,7 @@ describe("Person", () => {
   it("never lets cast-only fields override the bound subject", async () => {
     const client = new RecordingClient();
     client.setResult("distill.redistill", { id: "job" } as never);
-    client.setResult("versions.lineage", []);
+    client.setResult("versions.lineage", { items: [] });
     const person = new Person(client, subjectId);
     const attackerSubjectId = `subject_${"9".repeat(32)}` as SubjectId;
 

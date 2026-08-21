@@ -10,8 +10,8 @@ import type {
   IngestResult,
   InstallOptions,
   InstallRef,
-  LineageEvent,
   LineageInput,
+  LineagePage,
   MaterialInput,
   PendingJob,
   Profile,
@@ -20,6 +20,8 @@ import type {
   SubjectId,
   SubjectStatus,
   VersionId,
+  VersionPage,
+  VersionQuery,
   VersionSummary,
 } from "@distilly/protocol";
 import { DistillyError } from "@distilly/protocol";
@@ -166,10 +168,15 @@ export class Person {
   /**
    * Lists immutable versions for this subject.
    *
-   * @returns Version summaries in engine order.
+   * @param options - Optional cursor and page limit.
+   * @returns A page of version summaries in engine order.
    */
-  async versions(): Promise<readonly VersionSummary[]> {
-    return this.#client.call("versions.list", { subjectId: this.id });
+  async versions(options: Omit<VersionQuery, "subjectId"> = {}): Promise<VersionPage> {
+    return this.#client.call("versions.list", {
+      subjectId: this.id,
+      ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+    });
   }
 
   /**
@@ -207,9 +214,9 @@ export class Person {
    * Reads projected lineage events for this subject.
    *
    * @param options - Optional cursor and page limit.
-   * @returns Projected lineage events.
+   * @returns A page of projected lineage events.
    */
-  async lineage(options: Omit<LineageInput, "subjectId"> = {}): Promise<readonly LineageEvent[]> {
+  async lineage(options: Omit<LineageInput, "subjectId"> = {}): Promise<LineagePage> {
     return this.#client.call("versions.lineage", {
       subjectId: this.id,
       ...(options.cursor === undefined ? {} : { cursor: options.cursor }),

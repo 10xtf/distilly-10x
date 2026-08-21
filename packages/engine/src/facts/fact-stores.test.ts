@@ -549,6 +549,27 @@ describe("concrete fact stores", () => {
     expect(shareable.id).not.toBe(material.id);
   });
 
+  it("enumerates only complete canonical material directories", async () => {
+    const harness = await createHarness();
+    await seedSubject(harness);
+    const content = "Evidence-bound material.\n";
+    const material = makeMaterial(content);
+    await harness.materials.write(material, content);
+
+    await expect(harness.materials.list(SUBJECT_ID)).resolves.toEqual([
+      { record: material, content },
+    ]);
+
+    const unknown = join(harness.layout.materialsDirectory(SUBJECT_ID), "unknown");
+    await writeFile(unknown, "unknown");
+    await expectErrorCode(harness.materials.list(SUBJECT_ID), "storage_corrupt");
+    await rm(unknown);
+
+    const linked = join(harness.layout.materialsDirectory(SUBJECT_ID), `mat_${ALT_HEX_64}`);
+    await symlink(harness.layout.materialDirectory(SUBJECT_ID, material.id), linked);
+    await expectErrorCode(harness.materials.list(SUBJECT_ID), "storage_corrupt");
+  });
+
   it("removes only a matching journal material and makes missing cleanup idempotent", async () => {
     const harness = await createHarness();
     await seedSubject(harness);

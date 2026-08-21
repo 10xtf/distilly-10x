@@ -23,8 +23,19 @@ import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
+import type { JsonLibraryProjectionHooks } from "../projection/json-library-projection.js";
+import { JsonLibraryProjection } from "../projection/json-library-projection.js";
+import { LibraryCoordinatedSubjectLock } from "../projection/library-coordinated-subject-lock.js";
+import { LibraryService } from "../projection/library-service.js";
+import { ProjectionService } from "../projection/projection-service.js";
 import type { SqliteQueueRepositoryHooks } from "../queue/sqlite-projection.js";
 import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
+import { MaterialQueryService } from "../material/query-service.js";
+import { ProfileService } from "../profile/service.js";
+import { CommittedVersionReader } from "../read/committed-version-reader.js";
+import { ReviewQueryService } from "../review/query-service.js";
+import type { ReviewServiceHooks } from "../review/service.js";
+import { ReviewService } from "../review/service.js";
 import { SubjectService } from "../subject/service.js";
 import { FileIngestStaging } from "../transaction/ingest-staging.js";
 import { RecoveryService } from "../transaction/recovery.js";
@@ -35,6 +46,7 @@ import { FileSpaceIdentityLock } from "../transaction/space-identity-lock.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
 import type { VersionStagingHooks } from "../transaction/version-staging.js";
 import { FileVersionStaging } from "../transaction/version-staging.js";
+import { VersionService } from "../version/service.js";
 import { IngestService } from "./service.js";
 import type { IngestServiceHooks } from "./service.js";
 
@@ -49,6 +61,8 @@ export interface InternalEngineCompositionOptions {
   readonly queueHooks?: SqliteQueueRepositoryHooks;
   readonly leaseHooks?: DistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
+  readonly reviewHooks?: ReviewServiceHooks;
+  readonly libraryHooks?: JsonLibraryProjectionHooks;
   readonly versionStagingHooks?: VersionStagingHooks;
   readonly promptCatalog?: PromptCatalog;
 }
@@ -58,6 +72,13 @@ export interface InternalEngineComposition {
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
   readonly commits: CommitService;
+  readonly review: ReviewService;
+  readonly materials: MaterialQueryService;
+  readonly profiles: ProfileService;
+  readonly versions: VersionService;
+  readonly reviews: ReviewQueryService;
+  readonly library: LibraryService;
+  readonly libraryProjection: ProjectionService;
   readonly recovery: RecoveryService;
   readonly events: EventBus;
 }
@@ -115,7 +136,7 @@ export const createInternalEngineComposition = async (
   const requestLocks = new FileRequestLock(layout, clock);
   const spaceCatalogLocks = new FileSpaceCatalogLock(layout, clock);
   const spaceIdentityLocks = new FileSpaceIdentityLock(layout, clock);
-  const subjectLocks = new FileSubjectLock(layout, clock);
+  const readSubjectLocks = new FileSubjectLock(layout, clock);
   const queue = new SqliteQueueRepository(
     {
       root: layout.root,
@@ -125,6 +146,26 @@ export const createInternalEngineComposition = async (
     },
     options.queueHooks,
   );
+  const libraryIndex = new JsonLibraryProjection(layout, clock, options.libraryHooks);
+  const subjectLocks = new LibraryCoordinatedSubjectLock(layout, libraryIndex, clock);
+  const recoverySubjectLocks = new LibraryCoordinatedSubjectLock(
+    layout,
+    libraryIndex,
+    clock,
+    "recovery",
+  );
+  const libraryProjection: ProjectionService = new ProjectionService({
+    spaces,
+    subjects,
+    states,
+    materials,
+    versions: completeVersions,
+    events,
+    projection: libraryIndex,
+    reconcile: async (): Promise<void> => {
+      await recovery.reconcilePending();
+    },
+  });
   const recovery = new RecoveryService({
     transactions,
     operations,
@@ -139,8 +180,9 @@ export const createInternalEngineComposition = async (
     staging,
     requestLocks,
     spaceIdentityLocks,
-    subjectLocks,
+    subjectLocks: recoverySubjectLocks,
     queue,
+    library: libraryProjection,
     eventBus,
     clock,
     ...(options.recoveryHooks === undefined ? {} : { hooks: options.recoveryHooks }),
@@ -153,6 +195,17 @@ export const createInternalEngineComposition = async (
     spaceIdentityLocks,
     ids,
   );
+  const committedVersions = new CommittedVersionReader({
+    spaces,
+    subjects,
+    states,
+    materials,
+    versions: completeVersions,
+    events,
+    subjectLocks: readSubjectLocks,
+    reconcile: () => recovery.reconcilePending().then(() => undefined),
+    writerPending: () => libraryIndex.hasWriterIntent(),
+  });
   const ingest = new IngestService({
     spaces,
     subjects,
@@ -209,6 +262,41 @@ export const createInternalEngineComposition = async (
     eventBus,
     ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
   });
+  const review = new ReviewService({
+    subjects,
+    states,
+    materials,
+    versions: completeVersions,
+    versionStaging,
+    operations,
+    transactions,
+    events,
+    requestLocks,
+    subjectLocks,
+    recovery,
+    ids,
+    clock,
+    eventBus,
+    ...(options.reviewHooks === undefined ? {} : { hooks: options.reviewHooks }),
+  });
+  const materialQueries = new MaterialQueryService({
+    materials,
+    committedVersions,
+  });
+  const profiles = new ProfileService({
+    committedVersions,
+  });
+  const versionQueries = new VersionService({
+    committedVersions,
+  });
+  const reviews = new ReviewQueryService({
+    subjects,
+    committedVersions,
+  });
+  const library = new LibraryService({
+    projection: libraryIndex,
+    reconcile: () => recovery.reconcilePending().then(() => undefined),
+  });
 
   try {
     await queue.verifyAvailable();
@@ -218,5 +306,18 @@ export const createInternalEngineComposition = async (
   }
   await recovery.reconcileAll();
   await queue.verifyAvailable();
-  return { ingest, leases, commits, recovery, events: eventBus };
+  return {
+    ingest,
+    leases,
+    commits,
+    review,
+    materials: materialQueries,
+    profiles,
+    versions: versionQueries,
+    reviews,
+    library,
+    libraryProjection,
+    recovery,
+    events: eventBus,
+  };
 };

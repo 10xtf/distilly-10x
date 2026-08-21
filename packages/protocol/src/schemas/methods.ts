@@ -44,7 +44,7 @@ import {
   getProfileInputSchema,
   libraryPageSchema,
   libraryQuerySchema,
-  profileDiffSchema,
+  profileDiffWithBaselineSchema,
   profileSchema,
   rebuildResultSchema,
   renderedPromptSchema,
@@ -64,13 +64,14 @@ import {
   commitInputSchema,
   commitResultSchema,
   diffInputSchema,
-  lineageEventListSchema,
   lineageInputSchema,
+  lineagePageSchema,
   reviewActionInputSchema,
-  reviewItemListSchema,
+  reviewPageSchema,
   reviewQuerySchema,
   rollbackInputSchema,
-  versionSummaryListSchema,
+  versionPageSchema,
+  versionQuerySchema,
   versionSummarySchema,
 } from "./versions.js";
 
@@ -124,15 +125,15 @@ export const engineMethodSchemas: {
   "profiles.status": schemasFor<"profiles.status">()(subjectRefSchema, subjectStatusSchema),
   "profiles.correct": schemasFor<"profiles.correct">()(correctInputSchema, commitResultSchema),
 
-  "versions.list": schemasFor<"versions.list">()(subjectRefSchema, versionSummaryListSchema),
-  "versions.diff": schemasFor<"versions.diff">()(diffInputSchema, profileDiffSchema),
+  "versions.list": schemasFor<"versions.list">()(versionQuerySchema, versionPageSchema),
+  "versions.diff": schemasFor<"versions.diff">()(diffInputSchema, profileDiffWithBaselineSchema),
   "versions.promote": schemasFor<"versions.promote">()(
     reviewActionInputSchema,
     versionSummarySchema,
   ),
   "versions.reject": schemasFor<"versions.reject">()(reviewActionInputSchema, versionSummarySchema),
   "versions.rollback": schemasFor<"versions.rollback">()(rollbackInputSchema, versionSummarySchema),
-  "versions.lineage": schemasFor<"versions.lineage">()(lineageInputSchema, lineageEventListSchema),
+  "versions.lineage": schemasFor<"versions.lineage">()(lineageInputSchema, lineagePageSchema),
 
   "hosts.install": schemasFor<"hosts.install">()(installInputSchema, installRefSchema),
   "hosts.uninstall": schemasFor<"hosts.uninstall">()(uninstallInputSchema, emptyResultSchema),
@@ -140,7 +141,7 @@ export const engineMethodSchemas: {
 
   "library.list": schemasFor<"library.list">()(libraryQuerySchema, libraryPageSchema),
   "library.rebuild": schemasFor<"library.rebuild">()(emptyParamsSchema, rebuildResultSchema),
-  "reviews.list": schemasFor<"reviews.list">()(reviewQuerySchema, reviewItemListSchema),
+  "reviews.list": schemasFor<"reviews.list">()(reviewQuerySchema, reviewPageSchema),
 
   "bundles.inspect": schemasFor<"bundles.inspect">()(
     bundleInspectInputSchema,

@@ -23,6 +23,7 @@ InstallRef
 JobLease
 LineageEvent
 LineageInput
+LineagePage
 MaterialInput
 MutationOptions
 PendingFilter
@@ -38,12 +39,15 @@ ResolveSubjectInput
 ResolveSubjectResult
 ReviewActionInput
 ReviewItem
+ReviewPage
 ReviewQuery
 SubjectId
 SubjectPage
 SubjectQuery
 SubjectStatus
 VersionId
+VersionPage
+VersionQuery
 VersionSummary
 `
   .trim()

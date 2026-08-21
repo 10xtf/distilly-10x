@@ -148,6 +148,10 @@ describe("fact foundation defaults", () => {
       ],
       [layout.queueDatabaseFile(), join(".index", "queue.db")],
       [layout.queueDirtyFile(), join(".index", "queue.dirty")],
+      [layout.libraryFile(), join(".index", "library.json")],
+      [layout.libraryDirtyFile(), join(".index", "library.dirty")],
+      [layout.libraryIntentFile(), join(".index", "library.intent")],
+      [layout.libraryLock(), join(".index", "library.lock")],
     ];
     for (const [path, expected] of expectedPaths) {
       expect(relative(root, path)).toBe(expected);

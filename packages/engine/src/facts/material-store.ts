@@ -1,4 +1,9 @@
-import { DistillyError, WIRE_LIMITS, materialRecordSchema } from "@distilly/protocol";
+import {
+  DistillyError,
+  WIRE_LIMITS,
+  materialIdSchema,
+  materialRecordSchema,
+} from "@distilly/protocol";
 import type {
   MaterialId,
   MaterialRecord,
@@ -142,7 +147,51 @@ export class FileMaterialStore {
       throw error;
     }
     verifyMaterialIdentity(record, content);
+    const entries = await listFactDirectory(
+      this.#layout.root,
+      this.#layout.materialDirectory(subjectId, materialId),
+    );
+    if (
+      entries.length !== 2 ||
+      entries[0]?.name !== "content.txt" ||
+      entries[0].kind !== "file" ||
+      entries[1]?.name !== "material.json" ||
+      entries[1].kind !== "file"
+    ) {
+      throw storageCorrupt("Material directory contains an unknown or missing entry.");
+    }
     return { record, content };
+  }
+
+  /**
+   * Lists every complete immutable material for one subject in canonical MaterialId order.
+   *
+   * Unknown, near-miss, non-directory, symbolic-link, or corrupt entries fail closed so verified
+   * subject reads cannot overlook an orphan material fact.
+   *
+   * @param subjectId - Subject whose immutable materials are scanned.
+   * @returns Every complete verified material and exact normalized body.
+   */
+  async list(subjectId: SubjectId): Promise<readonly StoredMaterial[]> {
+    await requireSubject(this.#subjects, subjectId);
+    const entries = await listFactDirectory(
+      this.#layout.root,
+      this.#layout.materialsDirectory(subjectId),
+    );
+    const materials: StoredMaterial[] = [];
+    for (const entry of entries) {
+      if (entry.kind !== "directory") {
+        throw storageCorrupt("Material collection contains a non-directory artifact.");
+      }
+      let materialId: MaterialId;
+      try {
+        materialId = materialIdSchema.parse(entry.name);
+      } catch (error) {
+        throw storageCorrupt("Material collection contains an unknown directory name.", error);
+      }
+      materials.push(await this.read(subjectId, materialId));
+    }
+    return materials;
   }
 
   /**

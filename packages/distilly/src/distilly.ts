@@ -13,7 +13,7 @@ import type {
   ResolveSubjectInput,
   ResolveSubjectResult,
   ReviewActionInput,
-  ReviewItem,
+  ReviewPage,
   ReviewQuery,
   SubjectId,
   SubjectPage,
@@ -153,9 +153,9 @@ export class Distilly {
    * Lists suspended review items.
    *
    * @param query - Optional subject and cursor filters.
-   * @returns Review items in engine order.
+   * @returns A page of review items in engine order.
    */
-  async reviews(query: ReviewQuery = {}): Promise<readonly ReviewItem[]> {
+  async reviews(query: ReviewQuery = {}): Promise<ReviewPage> {
     return this.#client.call("reviews.list", query);
   }
 

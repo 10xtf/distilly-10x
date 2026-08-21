@@ -391,7 +391,7 @@ export class CommitService {
     });
 
     for (;;) {
-      await this.#dependencies.recovery.reconcileAll();
+      await this.#dependencies.recovery.reconcilePending();
       const requestLease = await this.#dependencies.requestLocks.acquire(mutation.requestId);
       let outcome: CommitOutcome | undefined;
       let reconcileRequestId: MutationContext["requestId"] | undefined;

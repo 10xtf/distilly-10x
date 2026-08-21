@@ -51,7 +51,7 @@ identity locator 的 normalization 是版本化纯函数：URL 必须是绝对 h
 - 排除后两个以上候选：ambiguous_subject，并返回全部稳定排序 candidates；
 - 无冲突：创建 subject + 第一批材料，再发布 subject.created。
 
-description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → 文件提交 → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。任何路径都不得在持有 SQLite transaction 时反向等待 filesystem lock。
+description 永不参与唯一性、already_exists 或合并。create 不能只锁预分配的 candidate SubjectId：两个并发请求会得到不同 id，仍可能同时通过重复检查。inline space 在 request lock 后先取 spaces/.catalog.lock，再解析或创建 SpaceRecord；引擎随后取得 `spaces/<space-id>.identity.lock`，在锁内从 subject facts 重做该空间的 identity/name 检查；`.index` 只能加速候选，不能决定唯一性。确认 candidate 后再取得 subject lock，直到 §6.4 的 create commit point 才释放。全局顺序固定为 root request lock → space catalog lock（仅 inline space）→ space identity lock（create）→ subject lock → Library projection reservation → 文件提交 / Library apply → SQLite projection；已有主体的 ingest 在 request lock 后直接取 subject lock。锁按相反顺序释放；任何路径都不得在持有 projection lock 或 SQLite transaction 时反向等待 filesystem lock。
 
 create target 在任何材料 hash 之前预分配一个 candidate SubjectId，但不写最终目录或索引；锁内确认无冲突后必须使用该 id，already_exists / ambiguous / 整批验证失败则不发布。一旦 prepared journal 已记录 candidate，aborted 后同 request/input/actor 重试仍复用它，不生成第二个 id。这样 private capture 的 subject_fallback 可以在首批 MaterialId 计算前用最终 SubjectId 派生 ConversationSourceKey，同时仍保持“主体 + 第一批材料”原子，不产生空主体。
 

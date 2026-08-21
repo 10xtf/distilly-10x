@@ -12,6 +12,7 @@ export const JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema
 export const WIRE_LIMITS = {
   toolInputBytes: 4_194_304,
   labelBytes: 1_024,
+  cursorBytes: 16_384,
   queryBytes: 4_096,
   uriBytes: 8_192,
   reasonBytes: 8_192,

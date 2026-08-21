@@ -7,6 +7,7 @@ import { ingestResultSchema, materialRecordSchema } from "./schemas/materials.js
 import { engineMethodSchemas } from "./schemas/methods.js";
 
 const HEX_32 = "0".repeat(32);
+const ALT_HEX_32 = "1".repeat(32);
 const HEX_64 = "0".repeat(64);
 const ALT_HEX_64 = "1".repeat(64);
 const THIRD_HEX_64 = "2".repeat(64);
@@ -143,6 +144,8 @@ const subjectStatus = {
   subject,
   generation: 1,
   materialSetHash,
+  pendingJobId: jobId,
+  suspendedVersionId: candidateVersionId,
   maturity: "forming",
 } as const;
 
@@ -261,7 +264,9 @@ const grouping = {
 
 const materialSummary = {
   record: materialRecord,
-  contentCharacters: 5,
+  contentScalarCount: 5,
+  rawAvailable: false,
+  inCurrentGeneration: true,
   sourceGroup,
   grouping,
 } as const;
@@ -344,6 +349,7 @@ const commitParams = {
 const profileDiff = {
   added: [claim],
   removed: [],
+  changed: [],
   changedFacets: ["identity"],
   beforeQuality: quality,
   afterQuality: quality,
@@ -380,8 +386,13 @@ const exportRef = {
 const libraryEntry = {
   subject,
   status: subjectStatus,
+  privacy: "private",
+  searchTerms: ["active", "forming", "pending", "private", "suspended"],
+  currentQuality: quality,
+  suspendedQuality: quality,
   pendingJobs: 1,
   suspendedVersions: 1,
+  newMaterialCount: 1,
   lastChangedAt: at,
 } as const;
 
@@ -484,7 +495,14 @@ const fixtures = {
   },
   "materials.get": {
     params: { subjectId, materialId, atVersionId: versionId },
-    result: { record: materialRecord, content: "hello", sourceGroup, grouping },
+    result: {
+      record: materialRecord,
+      content: "hello",
+      rawAvailable: false,
+      inCurrentGeneration: true,
+      sourceGroup,
+      grouping,
+    },
   },
   "distill.pending": {
     params: { subjectId, state: "pending", limit: 10 },
@@ -524,7 +542,7 @@ const fixtures = {
     },
     result: { kind: "current", version: currentVersion, profile },
   },
-  "versions.list": { params: { subjectId }, result: [currentVersion] },
+  "versions.list": { params: { subjectId }, result: { items: [currentVersion] } },
   "versions.diff": {
     params: { subjectId, before: versionId, after: candidateVersionId },
     result: profileDiff,
@@ -543,16 +561,18 @@ const fixtures = {
   },
   "versions.lineage": {
     params: { subjectId, cursor: "cursor-1", limit: 10 },
-    result: [
-      {
-        eventId,
-        kind: "committed",
-        versionId,
-        actor,
-        at,
-        reason: "Initial profile.",
-      },
-    ],
+    result: {
+      items: [
+        {
+          eventId,
+          kind: "committed",
+          versionId,
+          actor,
+          at,
+          reason: "Initial profile.",
+        },
+      ],
+    },
   },
   "hosts.install": {
     params: {
@@ -593,7 +613,7 @@ const fixtures = {
   },
   "reviews.list": {
     params: { subjectId, cursor: "cursor-1", limit: 10 },
-    result: [reviewItem],
+    result: { items: [reviewItem] },
   },
   "bundles.inspect": {
     params: { path: "/tmp/ada.distilly-profile" },
@@ -714,7 +734,9 @@ describe("engine method runtime schemas", () => {
       }),
     ).toThrow();
     expect(() =>
-      engineMethodSchemas["reviews.list"].result.parse([{ ...reviewItem, reasons: [] }]),
+      engineMethodSchemas["reviews.list"].result.parse({
+        items: [{ ...reviewItem, reasons: [] }],
+      }),
     ).toThrow();
 
     const longRendered = "x".repeat(WIRE_LIMITS.materialContentBytes + 1);
@@ -752,6 +774,175 @@ describe("engine method runtime schemas", () => {
       }),
     ).toThrow();
     expect(() => engineMethodSchemas["profiles.prompt"].result.parse("")).toThrow();
+  });
+
+  it("enforces canonical profile diffs and the optional first-version baseline", () => {
+    const changedClaim = { ...claim, text: "Ada writes carefully." };
+    const changedDiff = {
+      added: [],
+      removed: [],
+      changed: [{ before: claim, after: changedClaim }],
+      changedFacets: ["identity"],
+      beforeQuality: quality,
+      afterQuality: quality,
+    };
+    expect(() => engineMethodSchemas["versions.diff"].result.parse(changedDiff)).not.toThrow();
+
+    const secondClaim = { ...claim, id: `claim_${ALT_HEX_64}`, text: "Ada publishes." };
+    const invalidDiffs = [
+      { ...profileDiff, added: [secondClaim, claim] },
+      { ...profileDiff, added: [claim, claim] },
+      { ...profileDiff, removed: [claim] },
+      {
+        ...changedDiff,
+        changed: [{ before: claim, after: { ...changedClaim, id: `claim_${ALT_HEX_64}` } }],
+      },
+      { ...changedDiff, changed: [{ before: claim, after: claim }] },
+      { ...changedDiff, changedFacets: [] },
+      { ...changedDiff, changedFacets: ["identity", "identity"] },
+    ];
+    for (const invalidDiff of invalidDiffs) {
+      expect(() => engineMethodSchemas["versions.diff"].result.parse(invalidDiff)).toThrow();
+    }
+    expect(() =>
+      engineMethodSchemas["versions.diff"].result.parse({
+        ...profileDiff,
+        beforeQuality: undefined,
+      }),
+    ).toThrow();
+
+    const firstCandidate = { ...suspendedVersion, parentId: undefined };
+    const firstReview = {
+      candidate: firstCandidate,
+      reasons: [reviewReason],
+      diff: { ...profileDiff, beforeQuality: undefined },
+    };
+    expect(() =>
+      engineMethodSchemas["reviews.list"].result.parse({ items: [firstReview] }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["reviews.list"].result.parse({
+        items: [{ ...reviewItem, diff: { ...profileDiff, beforeQuality: undefined } }],
+      }),
+    ).toThrow();
+  });
+
+  it("keeps panel aggregate fields correlated and pages canonically ordered", () => {
+    const invalidLibraryEntries = [
+      { ...libraryEntry, pendingJobs: 0 },
+      { ...libraryEntry, suspendedVersions: 0 },
+      { ...libraryEntry, currentQuality: undefined },
+      { ...libraryEntry, suspendedQuality: undefined },
+      { ...libraryEntry, newMaterialCount: -1 },
+      { ...libraryEntry, status: { ...subjectStatus, maturity: "stable" } },
+      { ...libraryEntry, searchTerms: ["private", "active"] },
+      { ...libraryEntry, searchTerms: ["active", "active", "private"] },
+      { ...libraryEntry, searchTerms: ["forming", "pending", "private", "suspended"] },
+      {
+        ...libraryEntry,
+        searchTerms: [
+          "active",
+          ...Array.from(
+            { length: 66 },
+            (_, index) => `domain-${index.toString().padStart(2, "0")}`,
+          ),
+          "forming",
+          "pending",
+          "private",
+          "suspended",
+        ],
+      },
+    ];
+    for (const entry of invalidLibraryEntries) {
+      expect(() => engineMethodSchemas["library.list"].result.parse({ items: [entry] })).toThrow();
+    }
+    expect(() =>
+      engineMethodSchemas["library.list"].result.parse({
+        items: [
+          {
+            ...libraryEntry,
+            searchTerms: [
+              "active",
+              ...Array.from(
+                { length: 65 },
+                (_, index) => `domain-${index.toString().padStart(2, "0")}`,
+              ),
+              "forming",
+              "pending",
+              "private",
+              "suspended",
+            ],
+          },
+        ],
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      engineMethodSchemas["versions.list"].result.parse({
+        items: [currentVersion, { ...suspendedVersion, status: "historical" }],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["versions.list"].result.parse({
+        items: [{ ...suspendedVersion, status: "historical" }, currentVersion],
+      }),
+    ).toThrow();
+
+    const secondEventId = `event_${ALT_HEX_32}`;
+    const later = "2026-08-20T00:01:00.000Z";
+    const firstLineageEvent = { eventId, kind: "committed", versionId, actor, at: later };
+    const secondLineageEvent = {
+      eventId: secondEventId,
+      kind: "promoted",
+      versionId: candidateVersionId,
+      actor,
+      at,
+    };
+    expect(() =>
+      engineMethodSchemas["versions.lineage"].result.parse({
+        items: [firstLineageEvent, secondLineageEvent],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["versions.lineage"].result.parse({
+        items: [secondLineageEvent, firstLineageEvent],
+      }),
+    ).toThrow();
+
+    const secondMaterialSummary = {
+      ...materialSummary,
+      record: { ...materialRecord, id: `mat_${ALT_HEX_64}` },
+    };
+    expect(() =>
+      engineMethodSchemas["materials.list"].result.parse({
+        items: [materialSummary, secondMaterialSummary],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["materials.list"].result.parse({
+        items: [secondMaterialSummary, materialSummary],
+      }),
+    ).toThrow();
+  });
+
+  it("keeps subject pages in canonical display-name and SubjectId order", () => {
+    const secondSubjectId = `subject_${ALT_HEX_32}`;
+    const lowerNameSubject = { ...subject, displayName: "\uE000" };
+    const higherNameSubject = {
+      ...subject,
+      id: secondSubjectId,
+      displayName: "\u{1f600}",
+    };
+    const higherIdSubject = { ...subject, id: secondSubjectId };
+    const resultSchema = engineMethodSchemas["subjects.list"].result;
+
+    expect(() =>
+      resultSchema.parse({ items: [lowerNameSubject, higherNameSubject] }),
+    ).not.toThrow();
+    expect(() => resultSchema.parse({ items: [subject, higherIdSubject] })).not.toThrow();
+    expect(() => resultSchema.parse({ items: [higherNameSubject, lowerNameSubject] })).toThrow();
+    expect(() => resultSchema.parse({ items: [higherIdSubject, subject] })).toThrow();
+    expect(() => resultSchema.parse({ items: [subject, subject] })).toThrow();
   });
 
   it("rejects unknown keys recursively", () => {
@@ -805,14 +996,14 @@ describe("engine method runtime schemas", () => {
     ).toThrow();
     expect(() => engineMethodSchemas["distill.commit"].result.parse({ kind: "future" })).toThrow();
     expect(() =>
-      engineMethodSchemas["versions.list"].result.parse([
-        { ...currentVersion, creation: { kind: "future" } },
-      ]),
+      engineMethodSchemas["versions.list"].result.parse({
+        items: [{ ...currentVersion, creation: { kind: "future" } }],
+      }),
     ).toThrow();
     expect(() =>
-      engineMethodSchemas["reviews.list"].result.parse([
-        { ...reviewItem, reasons: [{ code: "future" }] },
-      ]),
+      engineMethodSchemas["reviews.list"].result.parse({
+        items: [{ ...reviewItem, reasons: [{ code: "future" }] }],
+      }),
     ).toThrow();
   });
 
@@ -865,6 +1056,17 @@ describe("engine method runtime schemas", () => {
     expect(() =>
       engineMethodSchemas["subjects.create"].params.parse({
         displayName: "x".repeat(WIRE_LIMITS.labelBytes + 1),
+      }),
+    ).toThrow();
+
+    expect(() =>
+      engineMethodSchemas["library.list"].params.parse({
+        cursor: "x".repeat(WIRE_LIMITS.cursorBytes),
+      }),
+    ).not.toThrow();
+    expect(() =>
+      engineMethodSchemas["library.list"].params.parse({
+        cursor: "x".repeat(WIRE_LIMITS.cursorBytes + 1),
       }),
     ).toThrow();
 
@@ -931,6 +1133,8 @@ describe("engine method runtime schemas", () => {
       engineMethodSchemas["materials.get"].result.parse({
         record: { ...materialRecord, sourceIdentity: sourceUriIdentityAtLimit },
         content: "hello",
+        rawAvailable: false,
+        inCurrentGeneration: true,
         sourceGroup,
         grouping,
       }),
@@ -939,6 +1143,8 @@ describe("engine method runtime schemas", () => {
       engineMethodSchemas["materials.get"].result.parse({
         record: { ...materialRecord, sourceIdentity: sourceIdentityAtLimit },
         content: "hello",
+        rawAvailable: false,
+        inCurrentGeneration: true,
         sourceGroup,
         grouping,
       }),
@@ -947,6 +1153,8 @@ describe("engine method runtime schemas", () => {
       engineMethodSchemas["materials.get"].result.parse({
         record: { ...materialRecord, sourceIdentity: sourceIdentityOverLimit },
         content: "hello",
+        rawAvailable: false,
+        inCurrentGeneration: true,
         sourceGroup,
         grouping,
       }),

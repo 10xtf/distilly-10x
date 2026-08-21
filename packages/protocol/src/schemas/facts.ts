@@ -12,6 +12,9 @@ import type {
   OperationTombstoneRecord,
   PendingLeaseMarker,
   PendingJobMarker,
+  ReviewDecisionTransactionMethod,
+  ReviewDecisionTransactionRecord,
+  RollbackTransactionRecord,
   SpaceRecord,
   StoredOperationResult,
   SubjectRecord,
@@ -23,6 +26,7 @@ import type {
 import type { VersionMaterialManifest, VersionRecord } from "../values/versions.js";
 import {
   labelStringSchema,
+  reasonStringSchema,
   safeNonNegativeIntegerSchema,
   safePositiveIntegerSchema,
 } from "./common.js";
@@ -310,6 +314,8 @@ export const eventRecordSchema = schemaFor<EventRecord>()(
       event: engineEventSchema,
       actor: actorContextSchema,
       requestId: requestIdSchema.optional(),
+      reason: reasonStringSchema.optional(),
+      relatedVersionId: versionIdSchema.optional(),
     })
     .superRefine((record, context) => {
       if (record.requestId === undefined && record.actor.kind !== "system") {
@@ -317,6 +323,66 @@ export const eventRecordSchema = schemaFor<EventRecord>()(
           code: "custom",
           path: ["requestId"],
           message: "only system events may omit a request id",
+        });
+      }
+
+      const hasReason = record.reason !== undefined;
+      const hasRelatedVersion = record.relatedVersionId !== undefined;
+      if (record.reason !== undefined && record.reason.trim().length === 0) {
+        context.addIssue({
+          code: "custom",
+          path: ["reason"],
+          message: "event reason must not be blank",
+        });
+      }
+
+      if (record.event.kind === "version.promoted") {
+        if (hasRelatedVersion) {
+          context.addIssue({
+            code: "custom",
+            path: ["relatedVersionId"],
+            message: "promote events cannot identify a related version",
+          });
+        }
+      } else if (record.event.kind === "version.rejected") {
+        if (hasReason && hasRelatedVersion) {
+          context.addIssue({
+            code: "custom",
+            path: ["reason"],
+            message: "candidate replacement events cannot include a direct-review reason",
+          });
+        }
+      } else if (record.event.kind === "version.rolled_back") {
+        if (!hasReason) {
+          context.addIssue({
+            code: "custom",
+            path: ["reason"],
+            message: "rollback events require a reason",
+          });
+        }
+        if (!hasRelatedVersion) {
+          context.addIssue({
+            code: "custom",
+            path: ["relatedVersionId"],
+            message: "rollback events require their source version",
+          });
+        }
+      } else if (hasReason || hasRelatedVersion) {
+        context.addIssue({
+          code: "custom",
+          path: hasReason ? ["reason"] : ["relatedVersionId"],
+          message: "only review and rollback events carry lineage metadata",
+        });
+      }
+
+      if (
+        record.relatedVersionId !== undefined &&
+        record.relatedVersionId === record.event.versionId
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["relatedVersionId"],
+          message: "related version must differ from the event version",
         });
       }
     }),
@@ -1323,11 +1389,440 @@ export const distillCommitTransactionRecordSchema = schemaFor<DistillCommitTrans
   distillCommitTransactionUnionSchema.superRefine(refineDistillCommitTransaction),
 );
 
+const decisionEventsSchema = z.union([
+  z.tuple([eventRecordSchema]),
+  z.tuple([eventRecordSchema, eventRecordSchema]),
+]);
+
+const reviewDecisionTransactionBaseShape = {
+  ...factEnvelopeV1Shape,
+  transactionKind: z.literal("review_decision"),
+  requestId: requestIdSchema,
+  subjectId: subjectIdSchema,
+  candidateVersionId: versionIdSchema,
+  previousStateChecksum: factChecksumSchema,
+  previousCurrentVersionId: versionIdSchema.optional(),
+  previousSuspendedVersionId: versionIdSchema,
+  previousPending: pendingJobMarkerSchema.optional(),
+  targetState: subjectStateRecordSchema,
+  events: decisionEventsSchema,
+  preparedAt: isoDateTimeSchema,
+} as const;
+
+/** Runtime schema for one persisted review-decision transaction method. */
+export const reviewDecisionTransactionMethodSchema = z.enum(["promote", "reject"]);
+
+const reviewDecisionTransactionVariant = <M extends ReviewDecisionTransactionMethod>(
+  method: M,
+  operation: (typeof operationRecordVariants)[`versions.${M}`],
+) =>
+  z.union([
+    z.strictObject({
+      ...reviewDecisionTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("prepared"),
+    }),
+    z.strictObject({
+      ...reviewDecisionTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("committed"),
+      finishedAt: isoDateTimeSchema,
+    }),
+    z.strictObject({
+      ...reviewDecisionTransactionBaseShape,
+      method: z.literal(method),
+      operation,
+      state: z.literal("aborted"),
+      finishedAt: isoDateTimeSchema,
+    }),
+  ]);
+
+const reviewDecisionTransactionUnionSchema = z.union([
+  reviewDecisionTransactionVariant("promote", operationRecordVariants["versions.promote"]),
+  reviewDecisionTransactionVariant("reject", operationRecordVariants["versions.reject"]),
+]);
+
+type ParsedReviewDecisionTransaction = z.infer<typeof reviewDecisionTransactionUnionSchema>;
+
+const pendingFactsEqual = (
+  left: z.infer<typeof pendingJobMarkerSchema> | undefined,
+  right: z.infer<typeof pendingJobMarkerSchema> | undefined,
+): boolean => factValuesEqual(left, right);
+
+const refineDecisionEvents = (
+  transaction: ParsedReviewDecisionTransaction,
+  expectedKind: "version.promoted" | "version.rejected",
+  pendingChanged: boolean,
+  context: z.core.$RefinementCtx,
+): void => {
+  const issue = (path: PropertyKey[], message: string): void => {
+    context.addIssue({ code: "custom", path, message });
+  };
+  const [decisionEvent, jobEvent] = transaction.events;
+  if (
+    decisionEvent.event.kind !== expectedKind ||
+    decisionEvent.event.subjectId !== transaction.subjectId ||
+    decisionEvent.event.versionId !== transaction.candidateVersionId
+  ) {
+    issue(["events", 0, "event"], "first event must identify the reviewed candidate");
+  }
+  if (decisionEvent.relatedVersionId !== undefined) {
+    issue(
+      ["events", 0, "relatedVersionId"],
+      "direct review decisions cannot identify a related version",
+    );
+  }
+  if (pendingChanged !== (jobEvent !== undefined)) {
+    issue(["events"], "a job.changed event exists if and only if the pending marker changes");
+  }
+  if (
+    jobEvent !== undefined &&
+    (jobEvent.event.kind !== "job.changed" ||
+      jobEvent.event.subjectId !== transaction.subjectId ||
+      jobEvent.event.versionId !== undefined)
+  ) {
+    issue(["events", 1, "event"], "second event must be the subject job.changed event");
+  }
+  if (jobEvent !== undefined && decisionEvent.eventId === jobEvent.eventId) {
+    issue(["events", 1, "eventId"], "review event ids must be unique");
+  }
+  for (const [index, event] of transaction.events.entries()) {
+    if (event.requestId !== transaction.requestId) {
+      issue(["events", index, "requestId"], "event request id must match the review journal");
+    }
+    if (!actorsEqual(event.actor, transaction.operation.actor)) {
+      issue(["events", index, "actor"], "event actor must match the stored operation");
+    }
+    if (event.event.at !== transaction.preparedAt) {
+      issue(["events", index, "event", "at"], "event time must match journal preparation");
+    }
+  }
+};
+
+const refineReviewDecisionTransaction = (
+  transaction: ParsedReviewDecisionTransaction,
+  context: z.core.$RefinementCtx,
+): void => {
+  const issue = (path: PropertyKey[], message: string): void => {
+    context.addIssue({ code: "custom", path, message });
+  };
+
+  if (transaction.state !== "prepared" && transaction.finishedAt < transaction.preparedAt) {
+    issue(["finishedAt"], "review journal finish time cannot precede preparation");
+  }
+  if (transaction.previousStateChecksum === transaction.targetState.checksum) {
+    issue(["targetState", "checksum"], "review target state must differ from previous state");
+  }
+  if (transaction.candidateVersionId !== transaction.previousSuspendedVersionId) {
+    issue(["candidateVersionId"], "review candidate must match the previous suspended pointer");
+  }
+  if (transaction.candidateVersionId === transaction.previousCurrentVersionId) {
+    issue(["candidateVersionId"], "review candidate must differ from previous current");
+  }
+  if (
+    transaction.previousPending !== undefined &&
+    transaction.previousPending.baseVersionId !== transaction.previousCurrentVersionId
+  ) {
+    issue(
+      ["previousPending", "baseVersionId"],
+      "previous pending base must match previous current",
+    );
+  }
+
+  const target = transaction.targetState;
+  if (target.subjectId !== transaction.subjectId) {
+    issue(["targetState", "subjectId"], "target state must belong to the journal subject");
+  }
+  if (target.suspendedVersionId !== undefined) {
+    issue(["targetState", "suspendedVersionId"], "review target must clear suspended");
+  }
+
+  const operation = transaction.operation;
+  if (operation.requestId !== transaction.requestId) {
+    issue(["operation", "requestId"], "operation request id must match the review journal");
+  }
+  if (operation.scope.kind !== "subject" || operation.scope.subjectId !== transaction.subjectId) {
+    issue(["operation", "scope"], "operation scope must match the review journal subject");
+  }
+  if (operation.completedAt !== transaction.preparedAt) {
+    issue(["operation", "completedAt"], "operation completion must match journal preparation");
+  }
+  if (
+    operation.result.id !== transaction.candidateVersionId ||
+    operation.result.subjectId !== transaction.subjectId ||
+    operation.result.parentId !== transaction.previousCurrentVersionId
+  ) {
+    issue(["operation", "result"], "operation result must identify the reviewed candidate");
+  }
+
+  if (transaction.method === "reject") {
+    if (target.currentVersionId !== transaction.previousCurrentVersionId) {
+      issue(["targetState", "currentVersionId"], "reject must preserve previous current");
+    }
+    if (!pendingFactsEqual(target.pending, transaction.previousPending)) {
+      issue(["targetState", "pending"], "reject must preserve pending work exactly");
+    }
+    if (operation.result.status !== "rejected") {
+      issue(["operation", "result", "status"], "reject result must be rejected");
+    }
+    refineDecisionEvents(transaction, "version.rejected", false, context);
+  } else {
+    if (target.currentVersionId !== transaction.candidateVersionId) {
+      issue(["targetState", "currentVersionId"], "promote must make the candidate current");
+    }
+    if (operation.result.status !== "current") {
+      issue(["operation", "result", "status"], "promote result must be current");
+    }
+    if (transaction.previousPending === undefined && target.pending !== undefined) {
+      issue(["targetState", "pending"], "promote cannot create previously absent pending work");
+    }
+    if (target.pending !== undefined) {
+      if (target.pending.baseVersionId !== transaction.candidateVersionId) {
+        issue(["targetState", "pending", "baseVersionId"], "promote must rebase pending");
+      }
+      if (target.pending.lease !== undefined) {
+        issue(["targetState", "pending", "lease"], "rebased pending work cannot retain a lease");
+      }
+      if (target.pending.queuedAt !== transaction.preparedAt) {
+        issue(
+          ["targetState", "pending", "queuedAt"],
+          "rebased pending work must use the mutation time",
+        );
+      }
+      if (target.pending.addedMaterialCount === 0) {
+        issue(
+          ["targetState", "pending", "addedMaterialCount"],
+          "zero-delta pending work must be cleared",
+        );
+      }
+      if (target.pending.jobId === transaction.previousPending?.jobId) {
+        issue(["targetState", "pending", "jobId"], "rebased pending work requires a new JobId");
+      }
+    }
+    const pendingChanged = !pendingFactsEqual(target.pending, transaction.previousPending);
+    refineDecisionEvents(transaction, "version.promoted", pendingChanged, context);
+  }
+};
+
+/** Runtime schema for an atomic candidate promote or reject journal. */
+export const reviewDecisionTransactionRecordSchema = schemaFor<ReviewDecisionTransactionRecord>()(
+  reviewDecisionTransactionUnionSchema.superRefine(refineReviewDecisionTransaction),
+);
+
+const rollbackTransactionBaseShape = {
+  ...factEnvelopeV1Shape,
+  transactionKind: z.literal("rollback"),
+  requestId: requestIdSchema,
+  subjectId: subjectIdSchema,
+  targetVersionId: versionIdSchema,
+  previousStateChecksum: factChecksumSchema,
+  previousCurrentVersionId: versionIdSchema,
+  previousPending: pendingJobMarkerSchema.optional(),
+  targetState: subjectStateRecordSchema,
+  version: versionRecordSchema,
+  materialManifest: versionMaterialManifestSchema,
+  claims: versionClaimsSnapshotSchema,
+  profile: profileSchema,
+  prompt: renderedPromptSchema,
+  operation: operationRecordVariants["versions.rollback"],
+  events: decisionEventsSchema,
+  preparedAt: isoDateTimeSchema,
+} as const;
+
+const rollbackTransactionUnionSchema = z.union([
+  z.strictObject({ ...rollbackTransactionBaseShape, state: z.literal("prepared") }),
+  z.strictObject({
+    ...rollbackTransactionBaseShape,
+    state: z.literal("committed"),
+    finishedAt: isoDateTimeSchema,
+  }),
+  z.strictObject({
+    ...rollbackTransactionBaseShape,
+    state: z.literal("aborted"),
+    finishedAt: isoDateTimeSchema,
+  }),
+]);
+
+type ParsedRollbackTransaction = z.infer<typeof rollbackTransactionUnionSchema>;
+
+const refineRollbackTransaction = (
+  transaction: ParsedRollbackTransaction,
+  context: z.core.$RefinementCtx,
+): void => {
+  const issue = (path: PropertyKey[], message: string): void => {
+    context.addIssue({ code: "custom", path, message });
+  };
+  if (transaction.state !== "prepared" && transaction.finishedAt < transaction.preparedAt) {
+    issue(["finishedAt"], "rollback journal finish time cannot precede preparation");
+  }
+  if (transaction.previousStateChecksum === transaction.targetState.checksum) {
+    issue(["targetState", "checksum"], "rollback target state must differ from previous state");
+  }
+  if (transaction.targetVersionId === transaction.previousCurrentVersionId) {
+    issue(["targetVersionId"], "rollback source must differ from previous current");
+  }
+  if (
+    transaction.previousPending !== undefined &&
+    transaction.previousPending.baseVersionId !== transaction.previousCurrentVersionId
+  ) {
+    issue(
+      ["previousPending", "baseVersionId"],
+      "previous pending base must match previous current",
+    );
+  }
+
+  const target = transaction.targetState;
+  const version = transaction.version;
+  if (target.subjectId !== transaction.subjectId) {
+    issue(["targetState", "subjectId"], "target state must belong to the journal subject");
+  }
+  if (target.currentVersionId !== version.id || target.suspendedVersionId !== undefined) {
+    issue(["targetState"], "rollback target must make the new version current and omit suspended");
+  }
+  if (version.subjectId !== transaction.subjectId) {
+    issue(["version", "subjectId"], "rollback version must belong to the journal subject");
+  }
+  if (
+    version.id === transaction.targetVersionId ||
+    version.id === transaction.previousCurrentVersionId
+  ) {
+    issue(["version", "id"], "rollback must create a distinct immutable version");
+  }
+  if (version.parentId !== transaction.previousCurrentVersionId) {
+    issue(["version", "parentId"], "rollback parent must be previous current");
+  }
+  if (
+    version.creation.kind !== "rollback" ||
+    version.creation.targetVersionId !== transaction.targetVersionId
+  ) {
+    issue(["version", "creation"], "rollback creation must identify the source version");
+  }
+  if (version.createdDisposition !== "current") {
+    issue(["version", "createdDisposition"], "rollback version must be created current");
+  }
+  if (version.materialCount !== transaction.materialManifest.items.length) {
+    issue(["version", "materialCount"], "rollback material count must match its manifest");
+  }
+  if (version.createdAt !== transaction.preparedAt) {
+    issue(["version", "createdAt"], "rollback version time must match journal preparation");
+  }
+  if (
+    transaction.claims.subjectId !== transaction.subjectId ||
+    transaction.claims.versionId !== version.id
+  ) {
+    issue(["claims"], "claims snapshot must identify the rollback subject and version");
+  }
+  if (
+    transaction.profile.subjectId !== transaction.subjectId ||
+    transaction.profile.versionId !== version.id
+  ) {
+    issue(["profile"], "profile must identify the rollback subject and version");
+  }
+  if (transaction.profile.displayName !== version.subjectDisplayName) {
+    issue(["profile", "displayName"], "profile and rollback version display names must match");
+  }
+  if (!factValuesEqual(transaction.profile.claims, transaction.claims.claims)) {
+    issue(["profile", "claims"], "profile claims must match the rollback claims snapshot");
+  }
+  if (!factValuesEqual(transaction.profile.quality, version.quality)) {
+    issue(["profile", "quality"], "profile quality must match the rollback version");
+  }
+
+  const operation = transaction.operation;
+  if (operation.requestId !== transaction.requestId) {
+    issue(["operation", "requestId"], "operation request id must match the rollback journal");
+  }
+  if (operation.scope.kind !== "subject" || operation.scope.subjectId !== transaction.subjectId) {
+    issue(["operation", "scope"], "operation scope must match the rollback journal subject");
+  }
+  if (!actorsEqual(operation.actor, version.actor)) {
+    issue(["operation", "actor"], "operation actor must match the rollback version actor");
+  }
+  if (operation.completedAt !== transaction.preparedAt) {
+    issue(["operation", "completedAt"], "operation completion must match journal preparation");
+  }
+  if (!versionSummaryMatchesRecord(operation.result, version, "current")) {
+    issue(["operation", "result"], "operation result must match the rollback version");
+  }
+
+  if (transaction.previousPending === undefined && target.pending !== undefined) {
+    issue(["targetState", "pending"], "rollback cannot create previously absent pending work");
+  }
+  if (target.pending !== undefined) {
+    if (target.pending.baseVersionId !== version.id) {
+      issue(["targetState", "pending", "baseVersionId"], "rollback must rebase pending");
+    }
+    if (target.pending.lease !== undefined) {
+      issue(["targetState", "pending", "lease"], "rebased pending work cannot retain a lease");
+    }
+    if (target.pending.queuedAt !== transaction.preparedAt) {
+      issue(
+        ["targetState", "pending", "queuedAt"],
+        "rebased pending work must use the mutation time",
+      );
+    }
+    if (target.pending.addedMaterialCount === 0) {
+      issue(
+        ["targetState", "pending", "addedMaterialCount"],
+        "zero-delta pending work must be cleared",
+      );
+    }
+    if (target.pending.jobId === transaction.previousPending?.jobId) {
+      issue(["targetState", "pending", "jobId"], "rebased pending work requires a new JobId");
+    }
+  }
+
+  const pendingChanged = !pendingFactsEqual(target.pending, transaction.previousPending);
+  const [rollbackEvent, jobEvent] = transaction.events;
+  if (
+    rollbackEvent.event.kind !== "version.rolled_back" ||
+    rollbackEvent.event.subjectId !== transaction.subjectId ||
+    rollbackEvent.event.versionId !== version.id ||
+    rollbackEvent.relatedVersionId !== transaction.targetVersionId
+  ) {
+    issue(["events", 0], "first event must identify the rollback version and source");
+  }
+  if (pendingChanged !== (jobEvent !== undefined)) {
+    issue(["events"], "a job.changed event exists if and only if rollback changes pending work");
+  }
+  if (
+    jobEvent !== undefined &&
+    (jobEvent.event.kind !== "job.changed" ||
+      jobEvent.event.subjectId !== transaction.subjectId ||
+      jobEvent.event.versionId !== undefined)
+  ) {
+    issue(["events", 1, "event"], "second event must be the subject job.changed event");
+  }
+  if (jobEvent !== undefined && rollbackEvent.eventId === jobEvent.eventId) {
+    issue(["events", 1, "eventId"], "rollback event ids must be unique");
+  }
+  for (const [index, event] of transaction.events.entries()) {
+    if (event.requestId !== transaction.requestId) {
+      issue(["events", index, "requestId"], "event request id must match the rollback journal");
+    }
+    if (!actorsEqual(event.actor, operation.actor)) {
+      issue(["events", index, "actor"], "event actor must match the stored operation");
+    }
+    if (event.event.at !== transaction.preparedAt) {
+      issue(["events", index, "event", "at"], "event time must match journal preparation");
+    }
+  }
+};
+
+/** Runtime schema for a complete deterministic rollback journal. */
+export const rollbackTransactionRecordSchema = schemaFor<RollbackTransactionRecord>()(
+  rollbackTransactionUnionSchema.superRefine(refineRollbackTransaction),
+);
+
 /** Runtime schema for the root transaction fact union. */
 export const transactionRecordSchema = schemaFor<TransactionRecord>()(
   z.union([
     ingestTransactionRecordSchema,
     distillLeaseTransactionRecordSchema,
     distillCommitTransactionRecordSchema,
+    reviewDecisionTransactionRecordSchema,
+    rollbackTransactionRecordSchema,
   ]),
 );

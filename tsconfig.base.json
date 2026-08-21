@@ -10,6 +10,8 @@
       "@distilly/bindings": ["./packages/bindings/src/index.ts"],
       "@distilly/mcp": ["./packages/mcp/src/index.ts"],
       "@distilly/mcp/stdio": ["./packages/mcp/src/stdio.ts"],
+      "@distilly/panel/server": ["./packages/panel/src/server.ts"],
+      "@distilly/panel/web": ["./packages/panel/src/web.ts"],
       "@distilly/protocol": ["./packages/protocol/src/index.ts"],
       "distilly": ["./packages/distilly/src/index.ts"]
     },

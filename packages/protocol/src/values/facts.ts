@@ -99,6 +99,8 @@ export interface EventRecord extends FactEnvelope<1> {
   readonly event: EngineEvent;
   readonly actor: ActorContext;
   readonly requestId?: RequestId;
+  readonly reason?: string;
+  readonly relatedVersionId?: VersionId;
 }
 
 /** Result stored for one successful mutation method. */
@@ -227,6 +229,57 @@ export interface DistillCommitTransactionBase extends FactEnvelope<1> {
 /** Crash-recoverable journal for one deterministic distillation commit. */
 export type DistillCommitTransactionRecord = DistillCommitTransactionBase & TransactionLifecycle;
 
+/** Short review-decision mutation name persisted by a review journal. */
+export type ReviewDecisionTransactionMethod = "promote" | "reject";
+
+type ReviewDecisionEngineMethod<M extends ReviewDecisionTransactionMethod> = `versions.${M}`;
+
+/** Crash-recoverable journal for accepting or rejecting one suspended candidate. */
+export type ReviewDecisionTransactionRecord = {
+  [M in ReviewDecisionTransactionMethod]: FactEnvelope<1> & {
+    readonly transactionKind: "review_decision";
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly subjectId: SubjectId;
+    readonly candidateVersionId: VersionId;
+    readonly previousStateChecksum: FactChecksum;
+    readonly previousCurrentVersionId?: VersionId;
+    readonly previousSuspendedVersionId: VersionId;
+    readonly previousPending?: PendingJobMarker;
+    readonly targetState: SubjectStateRecord;
+    readonly operation: OperationRecord<ReviewDecisionEngineMethod<M>>;
+    readonly events: readonly [EventRecord] | readonly [EventRecord, EventRecord];
+    readonly preparedAt: IsoDateTime;
+  } & TransactionLifecycle;
+}[ReviewDecisionTransactionMethod];
+
+/** Complete prepared payload for a rollback-created immutable version. */
+export interface RollbackTransactionBase extends FactEnvelope<1> {
+  readonly transactionKind: "rollback";
+  readonly requestId: RequestId;
+  readonly subjectId: SubjectId;
+  readonly targetVersionId: VersionId;
+  readonly previousStateChecksum: FactChecksum;
+  readonly previousCurrentVersionId: VersionId;
+  readonly previousPending?: PendingJobMarker;
+  readonly targetState: SubjectStateRecord;
+  readonly version: VersionRecord;
+  readonly materialManifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+  readonly profile: Profile;
+  readonly prompt: string;
+  readonly operation: OperationRecord<"versions.rollback">;
+  readonly events: readonly [EventRecord] | readonly [EventRecord, EventRecord];
+  readonly preparedAt: IsoDateTime;
+}
+
+/** Crash-recoverable journal for one historical-version rollback. */
+export type RollbackTransactionRecord = RollbackTransactionBase & TransactionLifecycle;
+
 /** Root transaction fact union for every atomic fact-layer mutation. */
 export type TransactionRecord =
-  IngestTransactionRecord | DistillLeaseTransactionRecord | DistillCommitTransactionRecord;
+  | IngestTransactionRecord
+  | DistillLeaseTransactionRecord
+  | DistillCommitTransactionRecord
+  | ReviewDecisionTransactionRecord
+  | RollbackTransactionRecord;

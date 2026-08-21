@@ -91,6 +91,31 @@ export const utf8ByteLength = (value: string): number => {
 };
 
 /**
+ * Compares strings by the canonical UTF-8 byte order used by fact and page models.
+ *
+ * @param left - First string to compare.
+ * @param right - Second string to compare.
+ * @returns A negative, zero, or positive ordering value.
+ */
+export const compareUtf8 = (left: string, right: string): number => {
+  const leftScalars = Array.from(left, (character) => {
+    const value = character.codePointAt(0) ?? 0xfffd;
+    return value >= 0xd800 && value <= 0xdfff ? 0xfffd : value;
+  });
+  const rightScalars = Array.from(right, (character) => {
+    const value = character.codePointAt(0) ?? 0xfffd;
+    return value >= 0xd800 && value <= 0xdfff ? 0xfffd : value;
+  });
+  const sharedLength = Math.min(leftScalars.length, rightScalars.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const leftScalar = leftScalars[index];
+    const rightScalar = rightScalars[index];
+    if (leftScalar !== rightScalar) return (leftScalar ?? 0) - (rightScalar ?? 0);
+  }
+  return leftScalars.length - rightScalars.length;
+};
+
+/**
  * Builds a non-empty string schema bounded by encoded UTF-8 bytes.
  *
  * @param maximumBytes - Inclusive encoded byte limit.
@@ -105,6 +130,7 @@ const boundedString = (maximumBytes: number) =>
     });
 
 export const labelStringSchema = boundedString(WIRE_LIMITS.labelBytes);
+export const cursorStringSchema = boundedString(WIRE_LIMITS.cursorBytes);
 export const queryStringSchema = boundedString(WIRE_LIMITS.queryBytes);
 export const uriStringSchema = boundedString(WIRE_LIMITS.uriBytes);
 export const sourceIdentityStringSchema = boundedString(FACT_LIMITS.sourceIdentityBytes);

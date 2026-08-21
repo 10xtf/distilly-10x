@@ -9,6 +9,8 @@ import {
   versionIdSchema,
 } from "./ids.js";
 import {
+  compareUtf8,
+  cursorStringSchema,
   httpUrlSchema,
   labelStringSchema,
   listLimitSchema,
@@ -78,14 +80,30 @@ export const subjectQuerySchema = z.strictObject({
   text: queryStringSchema.optional(),
   spaceId: spaceIdSchema.optional(),
   lifecycle: subjectLifecycleSchema.optional(),
-  cursor: labelStringSchema.optional(),
+  cursor: cursorStringSchema.optional(),
   limit: listLimitSchema.optional(),
 });
 
-export const subjectPageSchema = z.strictObject({
-  items: z.array(subjectSummarySchema).max(WIRE_LIMITS.listLimit),
-  nextCursor: labelStringSchema.optional(),
-});
+export const subjectPageSchema = z
+  .strictObject({
+    items: z.array(subjectSummarySchema).max(WIRE_LIMITS.listLimit),
+    nextCursor: cursorStringSchema.optional(),
+  })
+  .superRefine((page, context) => {
+    for (let index = 1; index < page.items.length; index += 1) {
+      const previous = page.items[index - 1];
+      const current = page.items[index];
+      if (previous === undefined || current === undefined) continue;
+      const nameOrder = compareUtf8(previous.displayName, current.displayName);
+      if (nameOrder > 0 || (nameOrder === 0 && compareUtf8(previous.id, current.id) >= 0)) {
+        context.addIssue({
+          code: "custom",
+          path: ["items", index],
+          message: "subjects must follow canonical display-name and SubjectId order",
+        });
+      }
+    }
+  });
 
 export const resolveSubjectInputSchema = z.strictObject({ selector: subjectSelectorSchema });
 

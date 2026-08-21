@@ -201,8 +201,12 @@ export interface RenderedProfile {
 export interface ProfileDiff {
   readonly added: readonly Claim[];
   readonly removed: readonly Claim[];
+  readonly changed: readonly {
+    readonly before: Claim;
+    readonly after: Claim;
+  }[];
   readonly changedFacets: readonly FacetPath[];
-  readonly beforeQuality: QualitySummary;
+  readonly beforeQuality?: QualitySummary;
   readonly afterQuality: QualitySummary;
 }
 

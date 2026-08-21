@@ -198,6 +198,7 @@ describe("complete V3 protocol public contract", () => {
         "limits": {
           "claimTextBytes": 16384,
           "correctionTextBytes": 65536,
+          "cursorBytes": 16384,
           "evidencePerOperation": 64,
           "ingestMaterials": 32,
           "labelBytes": 1024,

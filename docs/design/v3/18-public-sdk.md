@@ -115,6 +115,16 @@ export interface RollbackInput extends SubjectRef {
   readonly reason: string;
 }
 
+export interface VersionQuery extends SubjectRef {
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+export interface VersionPage {
+  readonly items: readonly VersionSummary[];
+  readonly nextCursor?: string;
+}
+
 export interface LineageInput extends SubjectRef {
   readonly cursor?: string;
   readonly limit?: number;
@@ -131,6 +141,11 @@ export interface LineageEvent {
   readonly actor: ActorContext;
   readonly at: IsoDateTime;
   readonly reason?: string;
+}
+
+export interface LineagePage {
+  readonly items: readonly LineageEvent[];
+  readonly nextCursor?: string;
 }
 
 // LineageEvent is a read model projected from EventRecord plus immutable
@@ -256,12 +271,12 @@ export type EngineMethodMap = Readonly<{
   readonly "profiles.status": Method<SubjectRef, SubjectStatus>;
   readonly "profiles.correct": Method<CorrectInput, CommitResult>;
 
-  readonly "versions.list": Method<SubjectRef, readonly VersionSummary[]>;
+  readonly "versions.list": Method<VersionQuery, VersionPage>;
   readonly "versions.diff": Method<DiffInput, ProfileDiff>;
   readonly "versions.promote": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.reject": Method<ReviewActionInput, VersionSummary>;
   readonly "versions.rollback": Method<RollbackInput, VersionSummary>;
-  readonly "versions.lineage": Method<LineageInput, readonly LineageEvent[]>;
+  readonly "versions.lineage": Method<LineageInput, LineagePage>;
 
   readonly "hosts.install": Method<InstallInput, InstallRef>;
   readonly "hosts.uninstall": Method<UninstallInput, EmptyResult>;
@@ -269,7 +284,7 @@ export type EngineMethodMap = Readonly<{
 
   readonly "library.list": Method<LibraryQuery, LibraryPage>;
   readonly "library.rebuild": Method<Record<string, never>, RebuildResult>;
-  readonly "reviews.list": Method<ReviewQuery, readonly ReviewItem[]>;
+  readonly "reviews.list": Method<ReviewQuery, ReviewPage>;
 
   readonly "bundles.inspect": Method<BundleInspectInput, BundleInspection>;
   readonly "bundles.import": Method<BundleImportInput, BundleImportResult>;
@@ -371,7 +386,7 @@ export declare class Distilly {
   release(input: ReleaseLeaseInput, mutation?: MutationOptions): Promise<void>;
   commit(input: CommitInput, mutation?: MutationOptions): Promise<CommitResult>;
 
-  reviews(query?: ReviewQuery): Promise<readonly ReviewItem[]>;
+  reviews(query?: ReviewQuery): Promise<ReviewPage>;
   promote(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   reject(input: ReviewActionInput, mutation?: MutationOptions): Promise<VersionSummary>;
   purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<void>;
@@ -410,7 +425,9 @@ export declare class Person {
     mutation?: MutationOptions,
   ): Promise<PendingJob>;
 
-  versions(): Promise<readonly VersionSummary[]>;
+  versions(
+    options?: Omit<VersionQuery, "subjectId">,
+  ): Promise<VersionPage>;
   diff(a: VersionId, b: VersionId): Promise<ProfileDiff>;
   rollback(
     input: { readonly versionId: VersionId; readonly reason: string },
@@ -418,7 +435,7 @@ export declare class Person {
   ): Promise<VersionSummary>;
   lineage(
     options?: Omit<LineageInput, "subjectId">,
-  ): Promise<readonly LineageEvent[]>;
+  ): Promise<LineagePage>;
 
   install(
     host: HostName,
@@ -440,7 +457,7 @@ Person 的 public constructor 与 `distilly.person(subjectId)` 语义相同：�
 
 purge 不放 Person 第一屏；它是 Distilly.purge / Panel / CLI 的显式危险入口。关系方法可以在关系 slice 后 additive 加到 Person，不阻塞首发。
 
-browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewActionInput`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
+browser-safe 根的 runtime export allowlist 精确为 `Distilly`、`Person`、`DistillyError`。type-only export allowlist 精确为 `DistillyOptions`、`MutationOptions`、`DistillyErrorCode`、`DistillyWireError`、`EngineClient`、`SubjectId`、`RequestId`、`VersionId`、`HostName`、`CreateSubjectInput`、`SubjectQuery`、`SubjectPage`、`ResolveSubjectInput`、`ResolveSubjectResult`、`PurgeSubjectInput`、`PendingFilter`、`PendingJob`、`BriefInput`、`HostDistillBriefing`、`RenewLeaseInput`、`ReleaseLeaseInput`、`JobLease`、`CommitInput`、`CommitResult`、`ReviewQuery`、`ReviewItem`、`ReviewPage`、`ReviewActionInput`、`VersionQuery`、`VersionPage`、`VersionSummary`、`Profile`、`SubjectStatus`、`MaterialInput`、`IngestResult`、`IngestFilesInput`、`IngestFilesResult`、`CorrectionDraft`、`RedistillInput`、`ProfileDiff`、`LineageInput`、`LineageEvent`、`LineagePage`、`InstallOptions`、`InstallRef`、`ExportOptions` 与 `ExportRef`。更底层的 protocol/schema/host/adapter 类型从其 owning package import；根不做 wildcard re-export。构建快照分别锁 runtime 与 type-only names，新增任何 root symbol 都是 API review。
 
 ### 18.5 Composition root
 

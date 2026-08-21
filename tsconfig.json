@@ -5,6 +5,7 @@
     { "path": "packages/engine" },
     { "path": "packages/bindings" },
     { "path": "packages/distilly" },
-    { "path": "packages/mcp" }
+    { "path": "packages/mcp" },
+    { "path": "packages/panel" }
   ]
 }

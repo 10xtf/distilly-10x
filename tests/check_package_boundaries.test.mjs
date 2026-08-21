@@ -71,7 +71,7 @@ test("accepts engine to protocol", async (testContext) => {
   assert.equal(result.stderr, "");
 });
 
-test("accepts facade, MCP, and bindings depending only on protocol", async (testContext) => {
+test("accepts facade, MCP, bindings, and Panel along their reviewed edges", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
@@ -94,6 +94,12 @@ test("accepts facade, MCP, and bindings depending only on protocol", async (test
         'export type { HostPreflight } from "@distilly/protocol";\n',
         { "@distilly/protocol": "workspace:*" },
       ],
+      [
+        "panel",
+        "@distilly/panel",
+        'export type { EngineClient } from "@distilly/protocol";\nexport type { ReviewPresenter } from "@distilly/mcp";\n',
+        { "@distilly/protocol": "workspace:*", "@distilly/mcp": "workspace:*" },
+      ],
     ],
   });
 
@@ -109,6 +115,9 @@ for (const [directory, name, forbiddenTarget] of [
   ["distilly", "distilly", "@distilly/mcp"],
   ["mcp", "@distilly/mcp", "@distilly/engine"],
   ["mcp", "@distilly/mcp", "distilly"],
+  ["panel", "@distilly/panel", "@distilly/engine"],
+  ["panel", "@distilly/panel", "@distilly/bindings"],
+  ["panel", "@distilly/panel", "distilly"],
 ]) {
   test(`rejects ${name} depending on ${forbiddenTarget}`, async (testContext) => {
     const root = await workspace(testContext, {
@@ -131,6 +140,20 @@ for (const [directory, name, forbiddenTarget] of [
             : "export interface Presenter {}\n",
           directory === "mcp" ? { [forbiddenTarget]: "workspace:*" } : {},
         ],
+        [
+          "panel",
+          "@distilly/panel",
+          directory === "panel"
+            ? `export type { Forbidden } from "${forbiddenTarget}";\n`
+            : "export interface Panel {}\n",
+          directory === "panel" ? { [forbiddenTarget]: "workspace:*" } : {},
+        ],
+        [
+          "bindings",
+          "@distilly/bindings",
+          "export interface Bindings {}\n",
+          {},
+        ],
       ],
     });
 
@@ -148,6 +171,11 @@ for (const [directory, name, forbiddenTarget] of [
   ["engine", "@distilly/engine", "@distilly/bindings"],
   ["distilly", "distilly", "@distilly/bindings"],
   ["mcp", "@distilly/mcp", "@distilly/bindings"],
+  ["protocol", "@distilly/protocol", "@distilly/panel"],
+  ["engine", "@distilly/engine", "@distilly/panel"],
+  ["distilly", "distilly", "@distilly/panel"],
+  ["mcp", "@distilly/mcp", "@distilly/panel"],
+  ["bindings", "@distilly/bindings", "@distilly/panel"],
   ["bindings", "@distilly/bindings", "@distilly/engine"],
   ["bindings", "@distilly/bindings", "distilly"],
   ["bindings", "@distilly/bindings", "@distilly/mcp"],
@@ -159,6 +187,7 @@ for (const [directory, name, forbiddenTarget] of [
       distilly: "export interface Facade {}\n",
       mcp: "export interface Mcp {}\n",
       bindings: "export interface Bindings {}\n",
+      panel: "export interface Panel {}\n",
     };
     const manifests = {
       protocol: {},
@@ -166,6 +195,7 @@ for (const [directory, name, forbiddenTarget] of [
       distilly: {},
       mcp: {},
       bindings: {},
+      panel: {},
     };
     sources[directory] = `export type { Forbidden } from "${forbiddenTarget}";\n`;
     manifests[directory] = { [forbiddenTarget]: "workspace:*" };
@@ -178,6 +208,7 @@ for (const [directory, name, forbiddenTarget] of [
         ["distilly", "distilly", sources.distilly, manifests.distilly],
         ["mcp", "@distilly/mcp", sources.mcp, manifests.mcp],
         ["bindings", "@distilly/bindings", sources.bindings, manifests.bindings],
+        ["panel", "@distilly/panel", sources.panel, manifests.panel],
       ],
     });
 

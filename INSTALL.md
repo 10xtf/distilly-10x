@@ -166,6 +166,7 @@ pip3 install openpyxl        # Excel .xlsx 转 CSV
 | 钉钉用户 | `dingtalk_auto_collector.py` |
 | 钉钉消息采集失败 | 手动截图 → 上传图片 |
 | Slack 用户 | `slack_auto_collector.py` |
+| celebrity 公开 X 帖子研究 | `research/xquik_public_posts.py` |
 
 **飞书自动采集初始化**：
 ```bash
@@ -200,6 +201,25 @@ python3 tools/slack_auto_collector.py --setup
 ```
 
 > Slack 详细配置见下方「[Slack 自动采集配置](#slack-自动采集配置)」章节
+
+### X 公开帖子候选采集（可选）
+
+此工具仅用于 celebrity research。先在当前 shell 中安全设置
+`XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。
+
+```bash
+python3 tools/research/xquik_public_posts.py \
+  --username "<公开账号>" \
+  --subject "<人物名称>" \
+  --limit 20 \
+  --output "./skills/celebrity/<slug>/knowledge/research/candidates/x_public_posts.json"
+```
+
+工具只发起 1 次只读搜索请求，不自动翻页。输出遵循标准 collector JSON
+结构。它是未经信任的候选证据，不是 research note。逐条打开 permalink，
+只把相关内容转述到 `knowledge/research/raw/`，并保留具体来源 URL。
+
+Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
 ---
 
@@ -334,6 +354,7 @@ python3 tools/install_openclaw_skill.py --dry-run
 python3 tools/install_codex_skill.py --dry-run
 
 # 测试 celebrity research toolchain
+python3 tools/research/xquik_public_posts.py --help
 python3 tools/research/srt_to_transcript.py --help
 python3 tools/research/merge_research.py --help
 python3 tools/research/quality_check.py --help

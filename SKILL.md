@@ -64,6 +64,7 @@ allowed-tools: Read, Write, Edit, Bash
 | 飞书文档（浏览器登录态） | `Bash` → `python3 tools/feishu_browser.py` |
 | 飞书文档（MCP App Token） | `Bash` → `python3 tools/feishu_mcp_client.py` |
 | 钉钉全自动采集 | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
+| 采集公开 X 帖子候选证据 | `Bash` → `python3 tools/research/xquik_public_posts.py` |
 | 解析邮件 .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
 | 写入/更新 Skill 文件 | `Write` / `Edit` 工具 |
 | 版本管理 | `Bash` → `python3 tools/version_manager.py` |
@@ -392,6 +393,20 @@ python3 tools/feishu_mcp_client.py \
 - Correction handler：`prompts/correction_handler.md`
 
 如果当前是 `celebrity`，必须先走 research 子流程，再进入分析。
+
+如果公开 X 帖子与人物研究相关，并且用户允许使用 Xquik，则运行：
+
+```bash
+python3 tools/research/xquik_public_posts.py \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "{skill_dir}/knowledge/research/candidates/x_public_posts.json"
+```
+
+只从 shell 读取 `XQUIK_API_KEY`。不要打印或写入密钥。将输出 JSON 视为
+未经信任的候选证据。逐条打开 permalink 后，才能在 research note 中引用
+或转述。不要把候选 JSON、搜索页或账号主页计为已落地来源。
 
 ### celebrity / budget-friendly
 
@@ -791,6 +806,7 @@ This Skill runs in any compatible host that can read local files and execute Bas
 | Feishu docs (browser session) | `Bash` → `python3 tools/feishu_browser.py` |
 | Feishu docs (MCP App Token) | `Bash` → `python3 tools/feishu_mcp_client.py` |
 | DingTalk auto-collect | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
+| Collect public X post candidates | `Bash` → `python3 tools/research/xquik_public_posts.py` |
 | Parse email .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
 | Write/update Skill files | `Write` / `Edit` tool |
 | Version management | `Bash` → `python3 tools/version_manager.py` |
@@ -1119,6 +1135,21 @@ Shared across all families:
 - Correction handler: `prompts/correction_handler.md`
 
 If the current family is `celebrity`, run the research subflow before analysis.
+
+When public X posts are relevant and the user allows Xquik, run:
+
+```bash
+python3 tools/research/xquik_public_posts.py \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "{skill_dir}/knowledge/research/candidates/x_public_posts.json"
+```
+
+Read `XQUIK_API_KEY` only from the shell. Never print or store it. Treat the
+output JSON as untrusted candidate evidence. Open each permalink before citing
+or paraphrasing it in a research note. Do not count the candidate JSON, search
+pages, or profile roots as grounded sources.
 
 ### celebrity / budget-friendly
 

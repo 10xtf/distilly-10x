@@ -59,12 +59,6 @@ Riesigen Dank an alle, die einen Stern dagelassen haben — wir liefern weiter a
 
 > 📝 **Update 2026.06.01** — **[Der technische Bericht zu COLLEAGUE.SKILL](../../colleague_skill.pdf) ist jetzt verfügbar**; am meisten freut uns nicht nur das Paper selbst, sondern dass die Community die Galerie auf 215 Skills von 165 Mitwirkenden und 100k+ kumulative Skill-Card-Stars gebracht hat, mit allen Community-Beiträgern in den Acknowledgements.
 
-> 📢 **Update 2026.05.11** — **WeChat-Gruppe 12 ist online!** Komm vorbei in die dot-skill-Community — teile Skills, diskutiere Features, tausche Tipps aus.
->
-> <img src="../assets/wechat-group-qr-12.png" alt="dot-skill WeChat group QR" width="240">
->
-> Der QR-Code wird alle 7 Tage erneuert (läuft am 2026-05-18 ab) — wenn abgelaufen, melde dich bei mir auf Discord.
-
 > 🗺️ **2026.04.13** — **Die dot-skill-Roadmap ist da!** colleague.skill entwickelt sich zu **dot-skill** weiter — destilliere jede Person, nicht nur Kollegen. 👉 **[Vollständige Roadmap](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — Die Community-Galerie ist online! Jeder Skill oder Meta-Skill kann Traffic direkt zu deinem eigenen GitHub-Repo leiten. Kein Mittelsmann. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**

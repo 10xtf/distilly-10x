@@ -65,12 +65,6 @@
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
-> 📢 **2026.05.11 更新** — **微信十二群建好啦！** 欢迎进群一起玩 dot-skill，分享 skill、聊聊功能、互相交流～
->
-> <img src="../assets/wechat-group-qr-12.png" alt="dot-skill 微信群二维码" width="240">
->
-> 二维码 7 天内（5 月 18 日前）有效，过期了就来 Discord 找我重新发。
-
 > 🗺️ **2026.04.13** — **dot-skill 路线图正式发布！** colleague.skill 正在进化为 **dot-skill** —— 蒸馏任何人，不止同事。 👉 **[完整路线图](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — 社区平台上线！任何 skill / meta-skill 可直接给自己的 GitHub repo 引流，没有中间商。 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**

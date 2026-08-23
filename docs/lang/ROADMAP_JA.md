@@ -1,8 +1,8 @@
 <div align="center">
 
-# dot-skill Roadmap
+# Distilly ロードマップ
 
-### colleague.skill から dot-skill へ -- 誰でも AI Skill に蒸留できる
+### Colleague Skill (`colleague.skill`) から Distilly へ -- 人を AI エージェントや互換 Bot が使える再利用可能な Skill に蒸留する
 
 <br>
 
@@ -13,9 +13,9 @@
 しかしコミュニティは、これが同僚だけの話ではないことを教えてくれました --
 教授、元恋人、自分自身、さらには架空のキャラクターまで蒸留する人が現れたのです。
 
-**そこで私たちは、colleague.skill を dot-skill に進化させることを決めました。**
+**そこで私たちは、Colleague Skill (`colleague.skill`) を Distilly に進化させることを決めました。**
 
-誰でも `.skill` になれる。
+誰でも、AI エージェントや互換 Bot が使える再利用可能な `.skill` になれる。
 
 <br>
 
@@ -62,9 +62,9 @@
 
 ---
 
-### Phase 2 -- dot-skill：同僚を超えて
+### Phase 2 -- Distilly：同僚を超えて
 
-> colleague.skill は始まりに過ぎない。dot-skill が未来だ。
+> Colleague Skill (`colleague.skill`) は始まりに過ぎない。Distilly が未来だ。
 
 **主な変更点：**
 
@@ -124,9 +124,9 @@
 | 方法 | リンク |
 |------|--------|
 | .skill を投稿する | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions)（近日公開） |
+| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（近日公開） |
 | リアルタイムでチャット | [Discord](https://discord.gg/NVX66RxWZv) |
-| バグを報告する | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| バグを報告する | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | コードを貢献する | `good-first-issue` ラベルを探すか、PR を直接作成 |
 
 **特に必要としています：**

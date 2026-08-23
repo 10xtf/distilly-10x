@@ -1,8 +1,8 @@
 <div align="center">
 
-# dot-skill 로드맵
+# Distilly 로드맵
 
-### colleague.skill에서 dot-skill로 — 누구나 AI 스킬로 증류하기
+### Colleague Skill (`colleague.skill`)에서 Distilly로 — 사람을 AI 에이전트와 호환 봇이 사용할 수 있는 재사용 가능한 Skill로 증류하기
 
 <br>
 
@@ -13,9 +13,9 @@
 하지만 커뮤니티는 이 프로젝트가 동료에게만 머무르지 않는다는 것도 보여줬습니다.
 교수, 전 연인, 자기 자신, 심지어 가상의 캐릭터까지 증류하고 있었으니까요.
 
-**그래서 우리는 colleague.skill을 dot-skill로 확장하기로 했습니다.**
+**그래서 우리는 Colleague Skill (`colleague.skill`)을 Distilly로 확장하기로 했습니다.**
 
-누구나 하나의 `.skill`이 될 수 있습니다.
+누구나 AI 에이전트와 호환 봇이 사용할 수 있는 재사용 가능한 `.skill`이 될 수 있습니다.
 
 <br>
 
@@ -62,9 +62,9 @@
 
 ---
 
-### Phase 2 — dot-skill: 동료를 넘어서
+### Phase 2 — Distilly: 동료를 넘어서
 
-> colleague.skill이 시작이었다면, dot-skill은 그 다음 단계입니다.
+> Colleague Skill (`colleague.skill`)이 시작이었다면, Distilly는 그 다음 단계입니다.
 
 **핵심 변화:**
 
@@ -124,9 +124,9 @@
 | 방법 | 위치 |
 |------|------|
 | .skill 제출 | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 토론 및 제안 | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (곧 공개) |
+| 토론 및 제안 | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (곧 공개) |
 | 실시간 채팅 | [Discord](https://discord.gg/NVX66RxWZv) |
-| 버그 제보 | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| 버그 제보 | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | 코드 기여 | `good-first-issue` 라벨을 찾거나 바로 PR 열기 |
 
 **특히 필요한 분들:**

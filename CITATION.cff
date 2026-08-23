@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use dot-skill or colleague.skill in your research or applications, please cite the technical report."
-title: "dot-skill"
+message: "If you use Distilly, its /dot-skill creator, or COLLEAGUE.SKILL in your research or applications, please cite the technical report."
+title: "Distilly"
 authors:
   - family-names: Zhou
     given-names: Tianyi
@@ -13,8 +13,8 @@ authors:
   - family-names: Hu
     given-names: Xia
 license: MIT
-repository-code: "https://github.com/titanwings/colleague-skill"
-url: "https://github.com/titanwings/colleague-skill"
+repository-code: "https://github.com/titanwings/distilly"
+url: "https://github.com/titanwings/distilly"
 preferred-citation:
   type: article
   title: "COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation"

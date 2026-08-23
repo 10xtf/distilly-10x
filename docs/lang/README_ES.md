@@ -1,18 +1,22 @@
 <div align="center">
 
-# 🧬 dot-skill（同事.skill）
+# 🧬 Distilly
+
+**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+
+![Distilly – Distill how they think](../social-preview-distilly-v5.png)
 
 ### *"¡Ustedes los que construyen LLMs son todos code-sages! ¡La carne es débil! ¡Asciendan al ciberespacio!"*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -28,16 +32,15 @@
 </td></tr>
 </table>
 
-### ✨ dot-skill resuelve los tres casos.
+### ✨ Distilly convierte a las personas en Skills reutilizables.
 
 <br>
 
-Actualizado de **colleague.skill** a **dot-skill** — ya no solo colegas, **cualquier persona** puede destilarse en un Skill
+Distilly destila la experiencia, el criterio, la voz y los flujos de trabajo de una persona, respaldados por fuentes, en un Skill reutilizable para agentes de IA y bots compatibles.
 
 Colegas · parejas · familia · viejos amigos · ídolos · figuras públicas · personajes ficticios — incluso tú mismo
 
-**Material fuente + tu descripción → un AI Skill que de verdad piensa como ellos**
-Piensa en su marco, habla con su voz
+**Material fuente + tu descripción → un Skill basado en evidencias y patrones observables**
 
 <br>
 
@@ -51,7 +54,7 @@ Piensa en su marco, habla con su voz
 
 <div align="center">
 
-### 🎉 Hito 2026.08.13 — **¡dot-skill ya superó las 20K ⭐!**
+### 🎉 Hito 2026.08.13 — **¡Distilly ya superó las 20K ⭐!**
 
 Gracias enormes a todos los que nos dieron star — seguiremos publicando, seguiremos destilando.
 
@@ -59,7 +62,7 @@ Gracias enormes a todos los que nos dieron star — seguiremos publicando, segui
 
 > 📝 **Actualización 2026.06.01** — **[El informe técnico de COLLEAGUE.SKILL](../../colleague_skill.pdf) ya está disponible**; lo que más nos alegra no es solo haber publicado un paper, sino ver cómo la comunidad llevó la galería a 215 skills de 165 contribuidores y 100k+ stars acumuladas en skill cards, con todos los contribuidores reconocidos en los Acknowledgements.
 
-> 🗺️ **2026.04.13** — **¡La hoja de ruta de dot-skill está aquí!** colleague.skill está evolucionando a **dot-skill** — destila a cualquier persona, no solo colegas. 👉 **[Hoja de ruta completa](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
+> 🗺️ **2026.04.13** — **¡La hoja de ruta de Distilly está aquí!** El proyecto que comenzó como colleague.skill ahora se llama **Distilly**: destila a cualquier persona, no solo colegas. 👉 **[Hoja de ruta completa](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — ¡La galería comunitaria está activa! Cualquier skill o meta-skill puede llevar tráfico directamente a tu propio repo de GitHub. Sin intermediarios. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
 
@@ -73,9 +76,9 @@ Creado por [@titanwings](https://github.com/titanwings)
 
 ## 🆕 Qué hay de nuevo en esta versión mayor
 
-### 1️⃣ De colleague-skill a dot-skill
+### 1️⃣ De Colleague Skill a Distilly
 
-Ya no está construido únicamente alrededor del escenario "colega". Un punto de entrada unificado `/dot-skill` se apoya en un motor de skills de propósito general — un solo motor destila a cualquier persona, en lugar de ser un script específico para colegas.
+Distilly ya no está construido únicamente alrededor del escenario «colega». Un motor de Skills de propósito general destila a cualquier persona a partir de fuentes, en lugar de ser un script específico para colegas. Por compatibilidad, el punto de entrada actual del creador sigue siendo `/dot-skill`.
 
 ### 2️⃣ Tres familias de personajes
 
@@ -96,7 +99,7 @@ Ya no está construido únicamente alrededor del escenario "colega". Un punto de
 <tr>
 <td><sub>Arquitectura de dos capas Work Skill + Persona — aprende tanto sus estándares técnicos y flujos de trabajo, como su manera de hablar y su postura en el trabajo. Soporta recolección automática desde Feishu / DingTalk / Slack.</sub></td>
 <td><sub>🆕 <b>Función de envío de fotos próximamente</b> — tu relación destilada no solo responderá mensajes; enviará fotos y compartirá momentos de su día, como lo haría una persona real.</sub></td>
-<td><sub>Incluye una <b>cadena de herramientas de investigación de seis dimensiones</b> completa (subtítulos → limpieza de transcripción → fusión de investigación → control de calidad). No imita el tono — reproduce sus modelos mentales y marcos de decisión.</sub></td>
+<td><sub>Incluye una <b>cadena de herramientas de investigación de seis dimensiones</b> completa (subtítulos → limpieza de transcripción → fusión de investigación → control de calidad). No se limita a imitar el tono: reconstruye patrones observables de razonamiento y decisión a partir de las fuentes.</sub></td>
 </tr>
 </tbody>
 </table>
@@ -135,9 +138,11 @@ Los Skills de personaje generados también se pueden instalar con un solo comand
 
 ## ⚡ Instalación
 
+Por compatibilidad, el punto de entrada actual del creador sigue siendo `/dot-skill`.
+
 Estamos en 2026 — tienes un Agent, deja que se instale solo. Abre tu Claude Code / Hermes / OpenClaw / Codex y pásale esta línea:
 
-> Instálame el skill dot-skill: `https://github.com/titanwings/colleague-skill`
+> Instálame Distilly: `https://github.com/titanwings/distilly`
 
 El Agent detectará el directorio de skills del host actual, clonará el repo y registrará el punto de entrada. Una vez hecho, escribe `/dot-skill` en cualquier host para lanzarlo.
 
@@ -147,7 +152,7 @@ El Agent detectará el directorio de skills del host actual, clonará el repo y 
 <br>
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill <TARGET>
+git clone https://github.com/titanwings/distilly <TARGET>
 ```
 
 | Host | Ruta `<TARGET>` |
@@ -165,7 +170,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 ## 🚀 Uso
 
-En el host donde dot-skill esté instalado, lánzalo — escribe `/dot-skill`, o simplemente dile a tu Agent "inicia dot-skill".
+En el host donde Distilly esté instalado, lánzalo con `/dot-skill` o simplemente dile a tu Agent «inicia Distilly».
 
 Primero te pregunta qué familia quieres destilar: `colleague` · `relationship` · `celebrity`.
 
@@ -272,7 +277,7 @@ relationship.skill ❯ ...Sí, un poquito. ¿Por qué preguntas?
 
 ### 🧱 Estructura del Skill generado
 
-dot-skill usa **Persona** como base universal, con módulos específicos de cada familia apilados encima:
+Distilly usa **Persona** como base universal, con módulos específicos de cada familia apilados encima:
 
 | Familia | Contenido de Persona | Módulos adicionales |
 |---------|----------------------|---------------------|
@@ -354,17 +359,17 @@ dot-skill/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> Este es el paper de **colleague.skill**, el predecesor de dot-skill. Cubre la arquitectura de dos capas Work Skill + Persona, la recolección de datos multi-fuente y la mecánica de generación de Skills — la base teórica para la familia `colleague` actual. Hay papers separados planeados sobre las extensiones de las familias relationship / celebrity.
+> Este es el paper de **colleague.skill**, el predecesor de Distilly. Cubre la arquitectura de dos capas Work Skill + Persona, la recolección de datos multi-fuente y la mecánica de generación de Skills — la base teórica para la familia `colleague` actual. Hay papers separados planeados sobre las extensiones de las familias relationship / celebrity.
 
 ---
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
  </picture>
 </a>
 

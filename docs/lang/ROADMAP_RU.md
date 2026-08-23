@@ -1,8 +1,8 @@
 <div align="center">
 
-# dot-skill Roadmap
+# Дорожная карта Distilly
 
-### От colleague.skill к dot-skill -- Дистиллируй любого человека в AI Skill
+### От Colleague Skill (`colleague.skill`) к Distilly -- Дистиллируйте людей в переиспользуемые навыки для ИИ-агентов и совместимых ботов
 
 <br>
 
@@ -13,9 +13,9 @@
 Но сообщество показало, что это выходит далеко за рамки коллег --
 вы дистиллировали преподавателей, бывших, самих себя и даже вымышленных персонажей.
 
-**Поэтому мы решили превратить colleague.skill в dot-skill.**
+**Поэтому мы решили превратить Colleague Skill (`colleague.skill`) в Distilly.**
 
-Любой человек может стать `.skill`.
+Любого человека можно превратить в переиспользуемый `.skill` для ИИ-агентов и совместимых ботов.
 
 <br>
 
@@ -62,9 +62,9 @@
 
 ---
 
-### Фаза 2 -- dot-skill: Не только коллеги
+### Фаза 2 -- Distilly: Не только коллеги
 
-> colleague.skill -- это начало. dot-skill -- это будущее.
+> Colleague Skill (`colleague.skill`) -- это начало. Distilly -- это будущее.
 
 **Ключевые изменения:**
 
@@ -124,9 +124,9 @@
 | Способ | Где |
 |--------|-----|
 | Отправить свой .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Обсуждать и предлагать | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (скоро) |
+| Обсуждать и предлагать | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (скоро) |
 | Общаться в реальном времени | [Discord](https://discord.gg/NVX66RxWZv) |
-| Сообщить об ошибке | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Сообщить об ошибке | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Внести код | Ищите метки `good-first-issue` или просто откройте PR |
 
 **Особенно нужны:**

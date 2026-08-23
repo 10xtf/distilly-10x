@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to colleague.skill! 感谢你的贡献！
+Thanks for contributing to Distilly! 感谢你为 Distilly 贡献！
 Please fill out the sections below. 请填写下方各部分。
 -->
 

@@ -31,7 +31,7 @@ assignees: []
 - OS: <!-- e.g. macOS 14.5, Ubuntu 22.04 -->
 - Python: <!-- output of `python3 --version` -->
 - Host: <!-- Claude Code / OpenClaw / other -->
-- colleague-skill commit: <!-- output of `git rev-parse --short HEAD` -->
+- Distilly commit: <!-- output of `git rev-parse --short HEAD` -->
 - Data source: <!-- Feishu / DingTalk / Slack / Confluence / WeChat / manual -->
 
 ## Additional context / 补充信息

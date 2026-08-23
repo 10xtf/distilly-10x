@@ -1,10 +1,12 @@
-# Contributing to colleague.skill / 贡献指南
+# Contributing to Distilly / Distilly 贡献指南
+
+> Formerly: **Colleague Skill / colleague-skill（原同事 Skill）**. The current compatible creator entrypoint remains `/dot-skill`.
 
 > English first, 中文在下方。
 
-Thank you for considering a contribution! This project turns colleagues (and anyone else) into AI skills, and it's only as good as its community.
+Thank you for considering a contribution! Distilly turns source material about a person into reusable Skills for AI agents and compatible bots, and it is only as good as its community.
 
-感谢你愿意贡献。这个项目的目标是把同事（以及任何人）蒸馏成 AI skill，社区越活跃它就越好。
+感谢你愿意贡献。Distilly 的目标是把人物材料蒸馏成可供 Agent 和兼容 Bot 复用的 Skill，社区越活跃，它就越好。
 
 ---
 
@@ -22,8 +24,8 @@ Thank you for considering a contribution! This project turns colleagues (and any
 ## Development setup / 开发环境
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill.git
-cd colleague-skill
+git clone https://github.com/titanwings/distilly.git
+cd distilly
 pip3 install -r requirements.txt
 ```
 
@@ -106,7 +108,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 ## Community / 社区
 
 - [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
-- [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) — long-form Q&A and design threads
+- [GitHub Discussions](https://github.com/titanwings/distilly/discussions) — long-form Q&A and design threads
 - [Skill gallery](https://titanwings.github.io/colleague-skill-site/) — browse and submit skills
 
 Be kind. Assume good intent. Disagree on the idea, not the person.

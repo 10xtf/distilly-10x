@@ -1,6 +1,6 @@
 ---
 name: dot-skill
-description: "Unified meta-skill engine for distilling colleague, relationship, or celebrity characters into reusable Skills. | 统一的 meta-skill 引擎，把 colleague、relationship、celebrity 三类对象蒸馏成可复用 Skill。"
+description: "Distilly's compatible creator for distilling colleague, relationship, or celebrity source material into reusable Skills for agents. | Distilly 的兼容创建器，把 colleague、relationship、celebrity 三类人物材料蒸馏成可供 Agent 使用的 Skill。"
 argument-hint: "[character] [name-or-slug]"
 version: "1.0.0"
 user-invocable: true
@@ -17,7 +17,9 @@ allowed-tools: Read, Write, Edit, Bash
 >
 > 所有 `Bash` 命令都必须在当前 `SKILL.md` 所在目录执行。下文出现的 `tools/...` 和 `prompts/...` 均为相对于 skill 根目录的相对路径。
 
-# dot-skill 创建器（兼容宿主版）
+# Distilly 创建器（兼容入口：dot-skill）
+
+> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。为兼容现有宿主与安装，Skill frontmatter 名称和 slash 入口暂时保留为 `dot-skill` / `/dot-skill`。
 
 ## 触发条件
 
@@ -744,7 +746,9 @@ rm -rf skills/celebrity/{slug}
 
 # English Version
 
-# dot-skill Creator (Compatible Host Edition)
+# Distilly Creator (Compatible Entrypoint: dot-skill)
+
+> Distilly was formerly **Colleague Skill / colleague-skill（原同事 Skill）**. For host and install compatibility, the Skill frontmatter name and slash entrypoint remain `dot-skill` / `/dot-skill` for now.
 
 ## Trigger Conditions
 

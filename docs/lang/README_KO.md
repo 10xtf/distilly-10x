@@ -1,18 +1,22 @@
 <div align="center">
 
-# 🧬 dot-skill（同事.skill）
+# 🧬 Distilly
+
+**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+
+![Distilly — Distill how they think](../social-preview-distilly-v5.png)
 
 ### *"LLM 만드는 너희는 다 코드 도사잖아! 육신은 약하다! 사이버 세계로 승천하라!"*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -28,16 +32,15 @@
 </td></tr>
 </table>
 
-### ✨ dot-skill이 이 세 가지를 모두 해결합니다.
+### ✨ Distilly는 사람을 재사용 가능한 Skill로 증류합니다.
 
 <br>
 
-**colleague.skill**에서 **dot-skill**로 업그레이드 — 동료뿐 아니라 **누구든** Skill로 증류할 수 있습니다
+Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 워크플로를 AI 에이전트와 호환 봇이 재사용할 수 있는 Skill로 증류합니다.
 
 동료 · 파트너 · 가족 · 오랜 친구 · 우상 · 공인 · 가상의 인물 — 심지어 자기 자신까지
 
-**소스 자료 + 당신의 설명 → 정말로 그 사람처럼 생각하는 AI Skill**
-그들의 프레임으로 사고하고, 그들의 목소리로 말합니다
+**소스 자료 + 당신의 설명 → 자료와 관찰 가능한 패턴에 근거한 Skill**
 
 <br>
 
@@ -51,7 +54,7 @@
 
 <div align="center">
 
-### 🎉 2026.08.13 마일스톤 — **dot-skill 이 20K ⭐ 를 돌파했습니다!**
+### 🎉 2026.08.13 마일스톤 — **Distilly가 20K ⭐를 돌파했습니다!**
 
 스타를 눌러주신 모든 분들께 큰 감사를 드립니다 — 앞으로도 계속 릴리즈하고, 계속 증류해 나가겠습니다.
 
@@ -59,7 +62,7 @@
 
 > 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](../../colleague_skill.pdf)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
 
-> 🗺️ **2026.04.13** — **dot-skill 로드맵이 공개되었습니다!** colleague.skill은 **dot-skill**로 진화 중입니다 — 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
+> 🗺️ **2026.04.13** — **Distilly 로드맵이 공개되었습니다!** colleague.skill로 시작한 프로젝트는 이제 **Distilly**라는 이름으로 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — 커뮤니티 갤러리가 공개되었습니다! 어떤 스킬이든 메타 스킬이든 트래픽을 자신의 GitHub 저장소로 바로 연결할 수 있습니다. 중간 단계 없음. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
 
@@ -73,9 +76,9 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ## 🆕 이번 메이저 릴리스의 새로운 점
 
-### 1️⃣ colleague-skill에서 dot-skill로
+### 1️⃣ Colleague Skill에서 Distilly로
 
-더 이상 "동료" 시나리오에만 묶여 있지 않습니다. 통합된 `/dot-skill` 엔트리포인트가 범용 스킬 엔진 위에서 동작하며, 동료 전용 스크립트가 아니라 하나의 엔진이 누구든 증류합니다.
+Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니다. 범용 Skill 엔진이 동료 전용 스크립트 대신, 소스에 근거해 누구든 증류합니다. 호환성을 위해 현재 Creator 엔트리포인트는 계속 `/dot-skill`을 사용합니다.
 
 ### 2️⃣ 세 가지 캐릭터 패밀리
 
@@ -96,7 +99,7 @@ Created by [@titanwings](https://github.com/titanwings)
 <tr>
 <td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Feishu / DingTalk / Slack 자동 수집을 지원합니다.</sub></td>
 <td><sub>🆕 <b>사진 공유 기능 곧 출시</b> — 증류된 관계가 메시지에 답장만 하는 게 아니라, 실제 사람처럼 사진을 보내고 하루의 한 조각을 공유합니다.</sub></td>
-<td><sub>완성도 높은 <b>6차원 리서치 툴체인</b> 탑재 (자막 → 트랜스크립트 정리 → 리서치 병합 → 품질 점검). 말투 흉내가 아니라, 그 사람의 멘탈 모델과 의사결정 프레임을 재현합니다.</sub></td>
+<td><sub>완성도 높은 <b>6차원 리서치 툴체인</b> 탑재 (자막 → 트랜스크립트 정리 → 리서치 병합 → 품질 점검). 단순한 말투 모방을 넘어, 출처에서 확인되는 사고·의사결정 패턴을 재구성합니다.</sub></td>
 </tr>
 </tbody>
 </table>
@@ -135,9 +138,11 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ## ⚡ 설치
 
+호환성을 위해 현재 Creator 엔트리포인트는 계속 `/dot-skill`을 사용합니다.
+
 2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex를 열고 다음 한 줄을 건네세요.
 
-> dot-skill 스킬을 설치해 줘: `https://github.com/titanwings/colleague-skill`
+> Distilly를 설치해 줘: `https://github.com/titanwings/distilly`
 
 Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 엔트리포인트를 등록합니다. 완료되면 어떤 호스트에서든 `/dot-skill`을 입력해 실행하세요.
 
@@ -147,7 +152,7 @@ Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클�
 <br>
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill <TARGET>
+git clone https://github.com/titanwings/distilly <TARGET>
 ```
 
 | 호스트 | `<TARGET>` 경로 |
@@ -165,7 +170,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 ## 🚀 사용법
 
-dot-skill이 설치된 호스트에서 `/dot-skill`을 입력하거나, 그냥 Agent에게 "dot-skill 시작해"라고 말하세요.
+Distilly가 설치된 호스트에서 `/dot-skill`을 입력하거나, Agent에게 “Distilly 시작해”라고 말하세요.
 
 먼저 어떤 패밀리를 증류할지 묻습니다: `colleague` · `relationship` · `celebrity`.
 
@@ -272,7 +277,7 @@ relationship.skill ❯ ...조금 했어. 왜 물어봐?
 
 ### 🧱 생성되는 Skill 구조
 
-dot-skill은 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 모듈을 쌓아 올립니다.
+Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 모듈을 쌓아 올립니다.
 
 | 패밀리 | Persona 내용 | 추가 모듈 |
 |--------|-------------|----------|
@@ -354,17 +359,17 @@ dot-skill/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> 이 논문은 dot-skill의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
+> 이 논문은 Distilly의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
 
 ---
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
  </picture>
 </a>
 

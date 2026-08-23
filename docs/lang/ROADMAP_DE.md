@@ -1,8 +1,8 @@
 <div align="center">
 
-# dot-skill Roadmap
+# Distilly Roadmap
 
-### Von colleague.skill zu dot-skill — Destilliere jeden Menschen in einen AI Skill
+### Von Colleague Skill (`colleague.skill`) zu Distilly — Menschen in wiederverwendbare Skills für KI-Agenten und kompatible Bots destillieren
 
 <br>
 
@@ -13,9 +13,9 @@ In zwei Wochen gaben uns 13.000+ Menschen die Antwort.
 Doch die Community zeigte uns, dass es weit über Kollegen hinausgeht —
 sie destillierten Professoren, Ex-Partner, sich selbst, sogar fiktive Figuren.
 
-**Also entschieden wir, colleague.skill zu dot-skill weiterzuentwickeln.**
+**Also entschieden wir, Colleague Skill (`colleague.skill`) zu Distilly weiterzuentwickeln.**
 
-Jeder kann zu einem `.skill` werden.
+Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompatible Bots werden.
 
 <br>
 
@@ -62,9 +62,9 @@ Jeder kann zu einem `.skill` werden.
 
 ---
 
-### Phase 2 — dot-skill: Über Kollegen hinaus
+### Phase 2 — Distilly: Über Kollegen hinaus
 
-> colleague.skill war der Anfang. dot-skill ist die Zukunft.
+> Colleague Skill (`colleague.skill`) war der Anfang. Distilly ist die Zukunft.
 
 **Wichtige Änderungen:**
 
@@ -124,9 +124,9 @@ Jeder kann zu einem `.skill` werden.
 | Wie | Wo |
 |-----|-----|
 | Reiche deinen .skill ein | [Galerie-PR](https://titanwings.github.io/colleague-skill-site/) |
-| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (demnächst) |
+| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (demnächst) |
 | Echtzeit-Chat | [Discord](https://discord.gg/NVX66RxWZv) |
-| Fehler melden | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Fehler melden | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Code beitragen | Suche nach `good-first-issue`-Labels oder öffne einfach einen PR |
 
 **Wir brauchen besonders:**

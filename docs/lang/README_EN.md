@@ -1,22 +1,26 @@
 <div align="center">
 
-<img src="../social-preview.png" alt="COLLEAGUE.SKILL — Distill how they think." width="100%">
+<img src="../social-preview-distilly-v5.png" alt="Distilly — Distill how they think" width="100%">
 
 <br>
 
-# 🧬 dot-skill（同事.skill）
+# 🧬 Distilly
 
-### *"You folks building LLMs are all code-sages! Flesh is weak! Ascend to cyberspace!"*
+**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+
+### Turn a person's experience, judgment, voice, and workflows into reusable Skills for AI agents and compatible bots.
+
+**Messages · documents · interviews · public sources → Distilly → Agent Skill → Agent / Bot**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
@@ -33,20 +37,21 @@
 </td></tr>
 </table>
 
-### ✨ dot-skill solves all three.
+### ✨ One project, many kinds of people.
 
 <br>
 
-Upgraded from **colleague.skill** to **dot-skill** — not just colleagues, **anyone** can be distilled into a Skill
+Distilly turns the materials you provide into a portable Skill for an Agent to use. It organizes observable experience, decision patterns, expression, and workflows; it does not claim to clone the person behind them.
 
 Colleagues · partners · family · old friends · idols · public figures · fictional characters — even yourself
 
-**Source material + your description →  an AI Skill that genuinely thinks like them**
-Thinks in their frame, speaks in their voice
+**Source material + your description → a source-grounded person Skill → your Agent or compatible Bot**
+
+> **Compatibility:** the released creator still launches through `/dot-skill`, and existing install directories keep the `dot-skill` name. **Distilly** is the project name; the working entrypoint remains unchanged for now.
 
 <br>
 
-[🆕 What's new](#-whats-new-in-this-major-release) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
 [**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
 
@@ -56,17 +61,17 @@ Thinks in their frame, speaks in their voice
 
 <div align="center">
 
-### 🎉 2026.08.13 Milestone — **dot-skill has passed 20K ⭐!**
+### 🎉 2026.08.13 Milestone — **the project has passed 20K ⭐!**
 
 Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
 
-> 🔷 **2026.08.13 Update** — dot-skill now supports **DeepSeek Harness** through its native filesystem Skill discovery. Install it globally at `~/.dsh/skills/dot-skill` or per project at `.dsh/skills/dot-skill`, then invoke `/dot-skill` directly.
+> 🔷 **2026.08.13 Update** — Distilly's current creator supports **DeepSeek Harness** through native filesystem Skill discovery. Install it globally at `~/.dsh/skills/dot-skill` or per project at `.dsh/skills/dot-skill`, then invoke `/dot-skill` directly.
 
 > 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](../../colleague_skill.pdf) is now available**; the happiest part is not just publishing a paper, but seeing the community grow the gallery to 215 skills from 165 contributors with 100k+ cumulative skill-card stars, all acknowledged in the paper.
 
-> 🗺️ **2026.04.13** — **dot-skill Roadmap is live!** colleague.skill is evolving into **dot-skill** — distill anyone, not just colleagues. 👉 **[Full Roadmap](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
+> 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — Community gallery is live! Any skill / meta-skill can drive traffic directly to your own GitHub repo. No middleman. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
 
@@ -78,11 +83,11 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ---
 
-## 🆕 What's new in this major release?
+## 🆕 What Distilly does today
 
-### 1️⃣ From colleague-skill to dot-skill
+### 1️⃣ From Colleague Skill to Distilly
 
-No longer only built around the "colleague" scenario. A unified `/dot-skill` entrypoint sits on a general-purpose skill engine — one engine distills anyone, instead of being a colleague-specific script.
+The project is no longer limited to the colleague scenario. Its current `/dot-skill` compatibility entrypoint can build source-grounded Skills for three person families with one creator workflow.
 
 ### 2️⃣ Three character families
 
@@ -101,9 +106,9 @@ No longer only built around the "colleague" scenario. A unified `/dot-skill` ent
 <td align="center"><sub>Public figures · creators · public voices · fictional characters</sub></td>
 </tr>
 <tr>
-<td><sub>Work Skill + Persona two-layer architecture — learns both their technical standards and workflows, and their manner of speaking and workplace posture. Supports Feishu / DingTalk / Slack auto-collection.</sub></td>
-<td><sub>🆕 <b>Photo-sharing feature coming soon</b> — your distilled relationship won't just reply to messages; it'll send photos and share slices of its day, the way a real person would.</sub></td>
-<td><sub>Ships with a complete <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check). Not mimicking tone — reproducing their mental models and decision frameworks.</sub></td>
+<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Feishu / DingTalk / Slack collection.</sub></td>
+<td><sub>Organizes material-derived expression patterns, emotional triggers, conflict patterns, and repair patterns into a reusable Persona Skill.</sub></td>
+<td><sub>Ships with a <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check) for organizing observable decisions, expression, and mental models.</sub></td>
 </tr>
 </tbody>
 </table>
@@ -145,9 +150,9 @@ Generated character Skills can also be installed into any supported host.
 
 It's 2026 — you have an Agent, let it install itself. Open your Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness and hand it this line:
 
-> Install the dot-skill skill for me: `https://github.com/titanwings/colleague-skill`
+> Install Distilly for me: `https://github.com/titanwings/distilly`
 
-The Agent will detect the current host's skills directory, clone the repo, and register the entrypoint. Once done, type `/dot-skill` in any host to launch.
+The Agent will detect the current host's skills directory, clone the repo, and register the current compatibility entrypoint. Once done, type `/dot-skill` in any supported host to launch Distilly's creator.
 
 <details>
 <summary><b>🛠️ Want to install it yourself? Click for paths</b></summary>
@@ -155,7 +160,7 @@ The Agent will detect the current host's skills directory, clone the repo, and r
 <br>
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill <TARGET>
+git clone https://github.com/titanwings/distilly <TARGET>
 ```
 
 | Host | `<TARGET>` path |
@@ -176,7 +181,7 @@ On DeepSeek Harness, place a generated Skill directory under `~/.dsh/skills/<ski
 
 ## 🚀 Usage
 
-In the host where dot-skill is installed, launch it — type `/dot-skill`, or just tell your Agent "start dot-skill".
+In the host where Distilly is installed, launch its current creator with `/dot-skill`, or tell your Agent "start Distilly".
 
 It first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
 
@@ -283,7 +288,7 @@ relationship.skill ❯ ...I did, a little bit. Why are you asking?
 
 ### 🧱 Generated Skill Structure
 
-dot-skill uses **Persona** as the universal base, with family-specific modules layered on top:
+Distilly's current creator uses **Persona** as the universal base, with family-specific modules layered on top:
 
 | Family | Persona Content | Additional Modules |
 |--------|-----------------|-------------------|
@@ -291,7 +296,7 @@ dot-skill uses **Persona** as the universal base, with family-specific modules l
 | 💞 **relationship** | Expression DNA · emotional triggers · conflict pattern · repair pattern | — |
 | 🌟 **celebrity** | Mental models · decision heuristics · expression DNA · external-evaluation contrast | ➕ Six-dimension research dossier (works / interviews / decisions / timeline...) |
 
-> **Execution**: Receive task → Persona decides attitude & tone → Additional modules fill in execution detail → Output in their voice
+> **Execution**: Receive task → Persona selects material-derived preferences and tone → Additional modules fill in execution detail → Produce a source-grounded response
 
 ### 🧬 Evolution
 
@@ -307,7 +312,7 @@ dot-skill uses **Persona** as the universal base, with family-specific modules l
 This project follows the [AgentSkills](https://agentskills.io) open standard. The entire repo is a skill directory:
 
 ```
-dot-skill/
+distilly/
 ├── SKILL.md                        # skill entry point (official frontmatter)
 ├── prompts/                        # prompt system across three families
 │   ├── intake.md                   #   [colleague] info intake
@@ -365,17 +370,17 @@ dot-skill/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> This is the paper for **colleague.skill**, dot-skill's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
+> This is the paper for **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 
 ---
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
  </picture>
 </a>
 

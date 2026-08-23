@@ -1,8 +1,8 @@
 <div align="center">
 
-# dot-skill Roadmap 🗺️
+# Distilly 路线图 🗺️
 
-### 从「同事.skill」到「dot-skill」—— 把任何人蒸馏成 AI Skill
+### 从 Colleague Skill / `colleague-skill`（原「同事 Skill」）到 Distilly —— 把人物蒸馏成可供 AI Agent 与兼容 Bot 复用的 Skill
 
 <br>
 
@@ -13,9 +13,9 @@
 但社区告诉我们，这件事远不止同事 ——
 你们蒸馏了罗翔、蒸馏了前任、蒸馏了自己、甚至蒸馏了虚拟角色。
 
-**所以我们决定，把 colleague.skill 进化成 dot-skill。**
+**所以我们决定，把 Colleague Skill / `colleague-skill`（原「同事 Skill」）升级为 Distilly。**
 
-任何人，都可以成为一个 `.skill`。
+任何人物，都可以被蒸馏成 `.skill`，供 AI Agent 与兼容 Bot 复用。
 
 <br>
 
@@ -64,9 +64,9 @@
 
 ---
 
-### 🌍 Phase 2 —— dot-skill：不止同事
+### 🌍 Phase 2 —— Distilly：不止同事
 
-> colleague.skill 是起点，dot-skill 是未来。
+> Colleague Skill / `colleague-skill`（原「同事 Skill」）是起点，Distilly 是未来。
 
 **核心变化：**
 
@@ -125,9 +125,9 @@
 | 方式 | 链接 |
 |------|------|
 | 提交你的 .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 讨论与提议 | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions)（即将开放） |
+| 讨论与提议 | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（即将开放） |
 | 实时交流 | [Discord](https://discord.gg/NVX66RxWZv) |
-| 报告 Bug | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| 报告 Bug | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | 贡献代码 | 看 `good-first-issue` 标签，或直接提 PR |
 
 **我们尤其需要：**

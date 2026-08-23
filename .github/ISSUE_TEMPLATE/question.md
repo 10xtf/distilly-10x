@@ -1,6 +1,6 @@
 ---
 name: Question / 提问
-about: Ask how to use colleague.skill. / 咨询如何使用 colleague.skill。
+about: Ask how to use Distilly. / 咨询如何使用 Distilly。
 title: "[Question] "
 labels: ["question"]
 assignees: []

@@ -1,4 +1,6 @@
-# dot-skill 安装说明
+# Distilly 安装说明
+
+> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。为兼容现有安装，当前创建器名称与 slash 入口仍为 `dot-skill` / `/dot-skill`。
 
 ---
 
@@ -14,10 +16,10 @@ cd $(git rev-parse --show-toplevel)
 
 # 方式 1：安装到当前项目
 mkdir -p .claude/skills
-git clone https://github.com/titanwings/colleague-skill .claude/skills/dot-skill
+git clone https://github.com/titanwings/distilly .claude/skills/dot-skill
 
 # 方式 2：安装到全局（所有项目都能用）
-git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/dot-skill
+git clone https://github.com/titanwings/distilly ~/.claude/skills/dot-skill
 ```
 
 然后在 Claude Code / Hermes 中说 `/dot-skill` 即可启动。
@@ -32,7 +34,7 @@ git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/dot-ski
 在支持 slash command 的宿主里，统一使用 `/dot-skill`。
 在 Hermes 中，把 `/dot-skill` 当作唯一稳定的 slash 入口。`colleague`、`relationship`、`celebrity` 三类兼容性仍然保留在工具层和存储层，但不建议依赖 `/create-colleague` 这类家族别名作为 Hermes 的 slash command。
 
-如果 dot-skill 已经生成了某个角色 Skill，并且你希望它在某个宿主里直接可用，再执行对应安装器：
+如果 Distilly 已经生成了某个人物 Skill，并且你希望它在某个宿主里直接可用，再执行对应安装器：
 
 ```bash
 python3 tools/install_claude_generated_skill.py --skill-dir skills/{character}/{slug} --force
@@ -70,10 +72,10 @@ python3 tools/install_openclaw_skill.py --force
 或者继续使用 clone 方式：
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill ~/.openclaw/workspace/skills/dot-skill
+git clone https://github.com/titanwings/distilly ~/.openclaw/workspace/skills/dot-skill
 ```
 
-重启 OpenClaw session，说 `/dot-skill` 启动。
+重启 OpenClaw session，用 `/dot-skill` 启动 Distilly。
 
 ---
 
@@ -111,7 +113,7 @@ python3 tools/install_codex_skill.py --force
 或者继续使用 clone 方式：
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill ~/.codex/skills/dot-skill
+git clone https://github.com/titanwings/distilly ~/.codex/skills/dot-skill
 ```
 
 Codex 没有固定 slash 入口。安装完成后，它会把 `dot-skill` 当作本地 skill 发现；生成后的角色 Skill 会以 `{character}-{slug}` 的技能名安装在 `~/.codex/skills/` 下。
@@ -125,14 +127,14 @@ DeepSeek Harness 原生发现 filesystem skill，不需要额外插件清单或�
 ```bash
 # 方式 1：安装到当前项目
 mkdir -p .dsh/skills
-git clone https://github.com/titanwings/colleague-skill .dsh/skills/dot-skill
+git clone https://github.com/titanwings/distilly .dsh/skills/dot-skill
 
 # 方式 2：安装到全局（所有项目都能用）
 mkdir -p ~/.dsh/skills
-git clone https://github.com/titanwings/colleague-skill ~/.dsh/skills/dot-skill
+git clone https://github.com/titanwings/distilly ~/.dsh/skills/dot-skill
 ```
 
-如果设置了 `DSH_HOME`，全局目录对应为 `$DSH_HOME/skills/dot-skill`。安装后在 DeepSeek Harness 中输入 `/dot-skill`，或直接要求 Agent 启动 dot-skill。
+如果设置了 `DSH_HOME`，全局目录对应为 `$DSH_HOME/skills/dot-skill`。安装后在 DeepSeek Harness 中输入 `/dot-skill`，或直接要求 Agent 启动 Distilly。
 
 生成后的角色 Skill 也无需改写：把 `skills/{character}/{slug}` 整个目录放到 `~/.dsh/skills/{character}-{slug}`，或当前项目的 `.dsh/skills/{character}-{slug}` 即可。
 
@@ -219,7 +221,7 @@ python3 tools/slack_auto_collector.py --setup
 
 1. 前往 [https://api.slack.com/apps](https://api.slack.com/apps) → **Create New App**
 2. 选择 **From scratch**
-3. 填写 App Name（如 `colleague-skill-bot`），选择目标 Workspace → **Create App**
+3. 填写 App Name（如 `distilly-bot`），选择目标 Workspace → **Create App**
 
 ---
 
@@ -271,7 +273,7 @@ python3 tools/slack_auto_collector.py --setup
 配置成功后你会看到：
 ```
 验证 Token ... OK
-  Workspace：Your Company，Bot：colleague-skill-bot
+  Workspace：Your Company，Bot：distilly-bot
 
 ✅ 配置已保存到 /Users/you/.colleague-skill/slack_config.json
 ```
@@ -349,7 +351,7 @@ python3 tools/skill_writer.py --action list --base-dir ./skills/colleague
 本项目整个 repo 就是一个 skill 目录（AgentSkills 标准格式）：
 
 ```
-colleague-skill/        ← clone 到宿主的 skills/dot-skill/（例如 .claude/skills 或 .dsh/skills）
+distilly/               ← clone 到宿主的 skills/dot-skill/（例如 .claude/skills 或 .dsh/skills）
 ├── SKILL.md            # skill 入口（官方 frontmatter）
 ├── prompts/            # 分析和生成的 Prompt 模板
 ├── tools/              # Python 工具脚本
@@ -361,7 +363,7 @@ colleague-skill/        ← clone 到宿主的 skills/dot-skill/（例如 .claud
 │   └── research/                 # celebrity research toolchain
 ├── docs/               # 文档（PRD 等）
 │
-└── skills/             # 生成的 dot-skill 产物（.gitignore 排除）
+└── skills/             # Distilly 生成的人物 Skill（.gitignore 排除）
     └── {slug}/
         ├── SKILL.md            # 完整 Skill（Persona + Work）
         ├── work.md             # 仅工作能力

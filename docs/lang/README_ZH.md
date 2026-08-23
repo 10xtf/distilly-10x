@@ -1,23 +1,27 @@
 <div align="center">
 
-<img src="../social-preview.png" alt="COLLEAGUE.SKILL — 蒸馏他们的思维方式" width="100%">
+<img src="../social-preview-distilly-v5.png" alt="Distilly — Distill how they think" width="100%">
 
 <br>
 
-# 🧬 dot-skill（同事.skill）
+# 🧬 Distilly
 
-### *"你们搞大模型的都是码圣！血肉苦弱！赛博飞升！"*
+**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+
+### 把一个人的经验、判断、表达方式和工作方法，蒸馏成可复用的 Skill，交给 Agent 或兼容 Bot 使用。
+
+**聊天 · 文档 · 访谈 · 公开资料 → Distilly → 人物 Skill → Agent / Bot**
 
 [![Discord](https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
 
 <br>
@@ -32,20 +36,21 @@
 </td></tr>
 </table>
 
-### ✨ 这些，dot-skill 都能解决。
+### ✨ 同一套蒸馏流程，适用于不同的人。
 
 <br>
 
-从 **colleague.skill** 升级成 **dot-skill** —— 不止同事，**任何人**都能蒸馏成 Skill
+Distilly 把你提供的材料整理成可移植的人物 Skill，提取其中可观察的经验、判断模式、表达习惯和工作流程；它不声称复制材料背后的真人。
 
 同事 · 伴侣 · 家人 · 老友 · 偶像 · 名人 · 小说角色，甚至你自己
 
-**原材料 + 你的描述 →  一个真正像他的 AI Skill**
-用他的方式思考，用他的口吻说话
+**原材料 + 你的描述 → 基于材料的人物 Skill → 你的 Agent 或兼容 Bot**
+
+> **兼容说明：**当前已发布的创建器仍通过 `/dot-skill` 启动，现有安装目录也继续使用 `dot-skill`。**Distilly** 是项目名称，当前可运行入口暂时不变。
 
 <br>
 
-[🆕 更新](#-这次大版本更新了什么) · [📦 数据来源](#-支持的数据来源) · [⚡ 安装](#-安装) · [🚀 使用](#-使用) · [✨ 效果示例](#-效果示例) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 Distilly 能做什么](#-distilly-现在能做什么) · [📦 数据来源](#-支持的数据来源) · [⚡ 安装](#-安装) · [🚀 使用](#-使用) · [✨ 效果示例](#-效果示例) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
 [**English**](../../README.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
 
@@ -55,17 +60,17 @@
 
 <div align="center">
 
-### 🎉 2026.08.13 里程碑 — **dot-skill 已突破 20K ⭐！**
+### 🎉 2026.08.13 里程碑 — **项目已突破 20K ⭐！**
 
 感谢每一位点星的朋友，我们会继续发版、继续蒸馏。
 
 </div>
 
-> 🔷 **2026.08.13 更新** — dot-skill 现已支持 **DeepSeek Harness** 原生文件系统 Skill 发现。可全局安装到 `~/.dsh/skills/dot-skill`，或按项目安装到 `.dsh/skills/dot-skill`，之后直接调用 `/dot-skill`。
+> 🔷 **2026.08.13 更新** — Distilly 当前的创建器已支持 **DeepSeek Harness** 原生文件系统 Skill 发现。可全局安装到 `~/.dsh/skills/dot-skill`，或按项目安装到 `.dsh/skills/dot-skill`，之后直接调用 `/dot-skill`。
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
-> 🗺️ **2026.04.13** — **dot-skill 路线图正式发布！** colleague.skill 正在进化为 **dot-skill** —— 蒸馏任何人，不止同事。 👉 **[完整路线图](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
+> 🗺️ **2026.04.13** — **Distilly 路线图正式发布！** 项目从原 Colleague Skill 走向更通用的目标：把人物蒸馏成可供 Agent 复用的 Skill。 👉 **[完整路线图](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
 > 🌐 **2026.04.07** — 社区平台上线！任何 skill / meta-skill 可直接给自己的 GitHub repo 引流，没有中间商。 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
 
@@ -77,11 +82,11 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ---
 
-## 🆕 这次大版本更新了什么？
+## 🆕 Distilly 现在能做什么？
 
-### 1️⃣ 从 colleague-skill 升级为 dot-skill
+### 1️⃣ 从 Colleague Skill 到 Distilly
 
-不再只围绕「同事」场景设计。入口统一为 `/dot-skill`，底层改成通用的 skill engine —— 同一套引擎蒸馏任何人，而不是同事专用脚本。
+项目不再只围绕「同事」场景设计。当前 `/dot-skill` 兼容入口用同一套创建流程，为三类人物生成基于材料的 Skill。
 
 ### 2️⃣ 支持三大人物类型
 
@@ -100,9 +105,9 @@ Created by [@titanwings](https://github.com/titanwings)
 <td align="center"><sub>名人 · 创作者 · 公众表达者 · 小说角色</sub></td>
 </tr>
 <tr>
-<td><sub>Work Skill + Persona 双层架构 —— 既学他的技术规范和工作流程，也学他的说话方式和职场姿态。支持飞书 / 钉钉 / Slack 自动采集。</sub></td>
-<td><sub>🆕 <b>生活照片分享功能即将上线</b> —— 让你蒸馏出的关系不只是回消息，还能像真人一样发照片、分享生活片段，告诉你 TA 今天过得怎么样。</sub></td>
-<td><sub>内置完整的 <b>六维度研究工具链</b>（字幕下载 → 文稿清洗 → 研究合并 → 质量检查）。不是模仿语气，而是复现他的心智模型和判断框架。</sub></td>
+<td><sub>从材料中整理技术规范、工作流程、表达习惯和职场行为，生成 Work Skill + Persona。支持飞书 / 钉钉 / Slack 采集。</sub></td>
+<td><sub>把材料中可观察的表达习惯、情绪触发点、冲突模式和修复模式整理成人物 Skill。</sub></td>
+<td><sub>内置 <b>六维度研究工具链</b>（字幕下载 → 文稿清洗 → 研究合并 → 质量检查），用于整理可观察的决策、表达与心智模型。</sub></td>
 </tr>
 </tbody>
 </table>
@@ -144,9 +149,9 @@ Created by [@titanwings](https://github.com/titanwings)
 
 2026 年了，你有 Agent，让它自己装。打开你用的 Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness，把下面这句丢给它：
 
-> 帮我安装 dot-skill 这个 skill：`https://github.com/titanwings/colleague-skill`
+> 帮我安装 Distilly：`https://github.com/titanwings/distilly`
 
-Agent 会自动识别当前宿主的 skills 目录、完成 clone、注册入口。完成后在任意宿主里输入 `/dot-skill` 启动。
+Agent 会自动识别当前宿主的 skills 目录、完成 clone、注册当前兼容入口。完成后在受支持的宿主里输入 `/dot-skill`，即可启动 Distilly 的创建器。
 
 <details>
 <summary><b>🛠️ 想自己手动装？点开看路径</b></summary>
@@ -154,7 +159,7 @@ Agent 会自动识别当前宿主的 skills 目录、完成 clone、注册入口
 <br>
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill <TARGET>
+git clone https://github.com/titanwings/distilly <TARGET>
 ```
 
 | 宿主 | `<TARGET>` 路径 |
@@ -175,7 +180,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 ## 🚀 使用
 
-在你装了 dot-skill 的宿主里启动它 —— 输入 `/dot-skill`，或直接和你的 Agent 说「启动 dot-skill」。
+安装 Distilly 后，用 `/dot-skill` 启动当前创建器，或直接和你的 Agent 说「启动 Distilly」。
 
 启动后会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
 
@@ -278,7 +283,7 @@ relationship.skill ❯ ……有啊，就一点点。你干嘛问这个。
 
 ### 🧱 生成的 Skill 结构
 
-dot-skill 以 **Persona** 为通用底座，不同家族按场景挂载各自的模块：
+Distilly 当前的创建器以 **Persona** 为通用底座，不同家族按场景挂载各自的模块：
 
 | 家族 | Persona 内容 | 附加模块 |
 |------|-------------|---------|
@@ -286,7 +291,7 @@ dot-skill 以 **Persona** 为通用底座，不同家族按场景挂载各自的
 | 💞 **relationship** | 表达 DNA · 情绪触发点 · 冲突模式 · 修复模式 | — |
 | 🌟 **celebrity** | 心智模型 · 决策启发式 · 表达 DNA · 外部评价对照 | ➕ 六维度 research 档案（著作 / 访谈 / 决策 / 时间线...） |
 
-> **运行逻辑**：接到任务 → Persona 判断态度与语气 → 附加模块补齐执行细节 → 用他的方式输出
+> **运行逻辑**：接到任务 → Persona 选择材料中可见的偏好与语气 → 附加模块补齐执行细节 → 生成基于材料的回答
 
 ### 🧬 进化机制
 
@@ -302,7 +307,7 @@ dot-skill 以 **Persona** 为通用底座，不同家族按场景挂载各自的
 本项目遵循 [AgentSkills](https://agentskills.io) 开放标准，整个 repo 就是一个 skill 目录：
 
 ```
-dot-skill/
+distilly/
 ├── SKILL.md                        # skill 入口（官方 frontmatter）
 ├── prompts/                        # 三大家族的 Prompt 体系
 │   ├── intake.md                   #   [colleague] 信息录入
@@ -360,17 +365,17 @@ dot-skill/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> 这是 dot-skill 的前身 **colleague.skill** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制 —— 也是今天 dot-skill `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
+> 这是 Distilly 前身 **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制，也是今天 `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
 
 ---
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
  </picture>
 </a>
 

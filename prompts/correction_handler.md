@@ -46,7 +46,7 @@
 
 输出 markdown patch，不要输出 correction JSON。要求：
 
-- 直接产出要写入 `/tmp/dot_skill_{slug}_work_patch.md` 的内容
+- 直接产出要写入 `/tmp/distilly_{slug}_work_patch.md` 的内容
 - patch 必须是可替换的二级标题章节，例如：
 
 ```md

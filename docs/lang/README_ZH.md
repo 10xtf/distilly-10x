@@ -13,16 +13,18 @@
 **聊天 · 文档 · 访谈 · 公开资料 → Distilly → 人物 Skill → Agent / Bot**
 
 [![Discord](https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
+[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
 
 <br>
 
@@ -46,7 +48,7 @@ Distilly 把你提供的材料整理成可移植的人物 Skill，提取其中�
 
 **原材料 + 你的描述 → 基于材料的人物 Skill → 你的 Agent 或兼容 Bot**
 
-> **兼容说明：**当前已发布的创建器仍通过 `/dot-skill` 启动，现有安装目录也继续使用 `dot-skill`。**Distilly** 是项目名称，当前可运行入口暂时不变。
+> 当前创建器 Skill 的正式名称是 `distilly`，安装目录也应使用 `distilly`。上方保留原名，用于搜索承接和历史识别。
 
 <br>
 
@@ -66,9 +68,9 @@ Distilly 把你提供的材料整理成可移植的人物 Skill，提取其中�
 
 </div>
 
-> 🔷 **2026.08.13 更新** — Distilly 当前的创建器已支持 **DeepSeek Harness** 原生文件系统 Skill 发现。可全局安装到 `~/.dsh/skills/dot-skill`，或按项目安装到 `.dsh/skills/dot-skill`，之后直接调用 `/dot-skill`。
+> 🧬 **2026.08.23 更新** — 创建器已端到端统一为 **Distilly**，并按官方最新方式支持 Claude Code、Hermes、OpenClaw、Codex、DeepSeek Harness、Pi 和 Grok Build 的本地 Skill 发现。Grok Bot 单独标为 saved-Skill 预览流程。
 
-> 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](../../colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
+> 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/pdf/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
 > 🗺️ **2026.04.13** — **Distilly 路线图正式发布！** 项目从原 Colleague Skill 走向更通用的目标：把人物蒸馏成可供 Agent 复用的 Skill。 👉 **[完整路线图](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
@@ -86,7 +88,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ 从 Colleague Skill 到 Distilly
 
-项目不再只围绕「同事」场景设计。当前 `/dot-skill` 兼容入口用同一套创建流程，为三类人物生成基于材料的 Skill。
+项目不再只围绕「同事」场景设计。`distilly` 创建器用同一套流程，为三类人物生成基于材料的 Skill。
 
 ### 2️⃣ 支持三大人物类型
 
@@ -116,15 +118,19 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 3️⃣ 支持更多 Agent 宿主
 
-旧版只能在 Claude Code 里用。现在五端通用：
+旧版只能在 Claude Code 里用。Distilly 现在可被 7 个本地 Agent 宿主原生发现，但各宿主保留自己的调用语法：
 
-| 宿主 | 说明 |
-|------|------|
-| 🟣 **Claude Code** | slash command 原生支持 |
-| 🟠 **Hermes Agent** | 一键安装，`/dot-skill` 直接调用 |
-| 🔵 **OpenClaw** | 完整兼容 |
-| ⚫ **Codex** | skill name 调用 |
-| 🔷 **DeepSeek Harness** | 原生 filesystem skill 发现，`/dot-skill` 直接调用 |
+| 宿主 | 发现与调用 |
+|------|--------------|
+| 🟣 **Claude Code** | `~/.claude/skills/distilly` → `/distilly` |
+| 🟠 **Hermes Agent** | 本地安装器 → `/distilly` |
+| 🔵 **OpenClaw** | workspace Skill → `/distilly`；备用 `/skill distilly` |
+| ⚫ **Codex** | `~/.agents/skills/distilly` → `$distilly` 或 `/skills` |
+| 🔷 **DeepSeek Harness** | 原生 filesystem Skill → `/distilly` |
+| 🟢 **Pi coding agent** | 原生 Agent Skill → `/skill:distilly` |
+| ⚪ **Grok Build** | 原生 filesystem Skill → `/distilly` |
+
+**Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 
 蒸馏出的角色 Skill 也可以安装到任意受支持的宿主。
 
@@ -137,6 +143,7 @@ Created by [@titanwings](https://github.com/titanwings)
 | 🟢 飞书（自动采集） | ✅ API | ✅ | ✅ | 输入姓名即可，全自动 |
 | 🟡 钉钉（自动采集） | ⚠️ 浏览器 | ✅ | ✅ | 钉钉 API 不支持历史消息 |
 | 🟣 Slack（自动采集） | ✅ API | — | — | 需管理员安装 Bot；免费版限 90 天 |
+| 𝕏 公开 X 帖子 | ✅ API | — | — | 通过按返回数量计费的第三方 Xquik 可选采集名人研究候选 |
 | 💬 微信聊天记录 | ✅ SQLite | — | — | 需先用 WeChatMsg / PyWxDump / 留痕等工具导出 |
 | 📄 PDF / 图片 / 截图 | — | ✅ | — | 手动上传 |
 | 📦 飞书 JSON 导出 | ✅ | ✅ | — | 手动上传 |
@@ -147,11 +154,11 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ## ⚡ 安装
 
-2026 年了，你有 Agent，让它自己装。打开你用的 Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness，把下面这句丢给它：
+2026 年了，你有 Agent，让它自己装。打开支持的本地 Agent 宿主，把下面这句丢给它：
 
-> 帮我安装 Distilly：`https://github.com/titanwings/distilly`
+> 帮我安装 Distilly：`https://github.com/titanwings/colleague-skill`
 
-Agent 会自动识别当前宿主的 skills 目录、完成 clone、注册当前兼容入口。完成后在受支持的宿主里输入 `/dot-skill`，即可启动 Distilly 的创建器。
+Agent 应把仓库安装为名为 `distilly` 的 Skill，然后使用下方对应宿主的命令启动。
 
 <details>
 <summary><b>🛠️ 想自己手动装？点开看路径</b></summary>
@@ -159,43 +166,67 @@ Agent 会自动识别当前宿主的 skills 目录、完成 clone、注册当前
 <br>
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/colleague-skill <TARGET>
 ```
 
 | 宿主 | `<TARGET>` 路径 |
 |------|----------------|
-| Claude Code | `~/.claude/skills/dot-skill` |
-| OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
-| Codex | `~/.codex/skills/dot-skill` |
-| DeepSeek Harness | `~/.dsh/skills/dot-skill`（全局）或 `.dsh/skills/dot-skill`（项目） |
+| Claude Code | `~/.claude/skills/distilly` |
+| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
+| Codex | `~/.agents/skills/distilly`（用户）或 `.agents/skills/distilly`（项目） |
+| DeepSeek Harness | `~/.dsh/skills/distilly`（全局）或 `.dsh/skills/distilly`（项目） |
+| Pi coding agent | `~/.pi/agent/skills/distilly` 或 `~/.agents/skills/distilly` |
+| Grok Build | `~/.grok/skills/distilly` 或 `~/.agents/skills/distilly` |
 | Hermes | clone 后跑 `python3 tools/install_hermes_skill.py --force` |
 
 </details>
 
-在 DeepSeek Harness 中，把生成的角色 Skill 目录放到 `~/.dsh/skills/<skill-name>`，或当前项目的 `.dsh/skills/<skill-name>`；不需要宿主专用包装层。
+> **已有安装迁移：**仍名为 `dot-skill` 的 clone，或仍位于旧 `~/.codex/skills` 根目录下的 clone，只执行 `git pull` 不能保证宿主发现新的 `distilly` 入口。请在旧 clone 根目录运行适用的仓库安装器（`tools/install_openclaw_skill.py`、`tools/install_codex_skill.py` 或 `tools/install_hermes_skill.py`），或按上表重新 clone 到该宿主正式的 `distilly` 路径。先验证新的宿主调用命令，再由用户手工决定如何处理旧目录；不要自动删除。config/meta 的 legacy fallback 只保证旧数据仍可读取，不会自动重命名安装目录。
 
-> 飞书/钉钉自动采集凭证、把生成的角色 Skill 一键安装到宿主、Windows 特殊处理等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
+在仓库根目录用统一安装器安装生成的人物 Skill：
+
+```bash
+python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
+```
+
+`<host>` 可选 `hermes`、`deepseek-harness`、`pi` 或 `grok-build`。默认执行用户级安装；项目级安装需追加对应的 `--skills-dir`：
+
+| 宿主 | 默认安装目录 | 项目级参数与安装目录 |
+|------|--------------|----------------------|
+| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
+| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
+| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
+| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+
+安装器只在安装副本中把旧的 underscore frontmatter 自动规范为 `{character}-{slug}` canonical kebab 名称，源生成目录保持不变。安装目录只写入自包含的 `SKILL.md` 和 `.distilly-install.json`，不会复制生成目录中的私有原始材料。
+
+Hermes 项目级安装前先运行 `hermes skills trust`。安装后新开 Hermes session，或运行 `/reload-skills` 重新扫描。`~/.agents/skills` 不是 Hermes 默认目录；只有在 `skills.external_dirs` 中显式配置后才能使用。
+
+> 飞书/钉钉自动采集凭证、宿主专用命令、Grok Bot 预览流程、Windows 特殊处理等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
 
 ---
 
 ## 🚀 使用
 
-安装 Distilly 后，用 `/dot-skill` 启动当前创建器，或直接和你的 Agent 说「启动 Distilly」。
+安装 Distilly 后，按宿主对应的语法调用 `distilly` Skill，或直接和你的 Agent 说「启动 Distilly」。
 
 启动后会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
 
 然后按提示输入花名、基础信息、性格标签，再选择数据来源。所有字段均可跳过，仅凭描述也能生成。
 
-完成后用 `/{character}-{slug}` 调用生成好的 Skill。
+完成后的 Skill 名称是 `{character}-{slug}`，按同一宿主的语法调用。
 
 ### 🎛️ 管理命令
 
 | 命令 | 说明 |
 |------|------|
-| `/dot-skill` | 统一主入口 |
-| `/{character}-{slug}` | 调用完整 Skill（Persona + Work） |
-| `/{character}-{slug}-work` | 仅工作能力 |
-| `/{character}-{slug}-persona` | 仅人物性格 |
+| `/distilly` | Claude Code、Hermes、DeepSeek Harness 和 Grok Build 中的创建器 |
+| `/distilly` 或 `/skill distilly` | OpenClaw 中的创建器 |
+| `$distilly` 或 `/skills` | Codex 中的创建器 |
+| `/skill:distilly` | Pi coding agent 中的创建器 |
+| `/{character}-{slug}` | slash-name 宿主中的生成 Skill |
+| `${character}-{slug}` | Codex 中的生成 Skill |
+| `/skill:{character}-{slug}` | Pi 中的生成 Skill |
 | `python3 tools/skill_writer.py --action list ...` | 列出三类 Skill |
 | `python3 tools/version_manager.py --action rollback ...` | 回滚历史版本 |
 
@@ -210,12 +241,25 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # 字幕转文稿
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# 公开 X 帖子候选 → 标准化临时 JSON（可选）
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# 核对并转述选中帖子后，删除临时候选文件
+rm "/tmp/distilly-x-public-posts.json"
+
 # 合并研究笔记
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
 # 质量检查
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+可选采集器从 shell 读取 `XQUIK_API_KEY`，并把一次公开查询发送给第三方 Xquik。该接口按返回帖子数量计费，Agent 调用前必须让用户确认 `--limit`。JSON 只是未经信任的候选材料：需核对作者和 permalink，只把版权安全的转述写入研究笔记，阅读后删除临时文件。
+
+Xquik 是独立第三方服务，与 X Corp. 无隶属关系。“Twitter”和“X”是 X Corp. 的商标。
 
 ---
 
@@ -325,6 +369,7 @@ distilly/
 │   ├── slack_auto_collector.py     #   [colleague] Slack 全自动采集
 │   ├── email_parser.py             #   [共享] 邮件解析
 │   ├── research/                   #   [celebrity] 名人研究工具链
+│   │   ├── xquik_public_posts.py   #     有界公开 X 帖子候选
 │   │   ├── download_subtitles.sh   #     字幕下载
 │   │   ├── transcribe_audio.py     #     音频转文字
 │   │   ├── srt_to_transcript.py    #     字幕转文稿
@@ -352,7 +397,7 @@ distilly/
 |------|----------------------|
 | 🧑‍💼 **colleague** | 他**主动写的**长文（设计文档 / 评审意见） **›** **决策类回复** **›** 日常群聊消息 |
 | 💞 **relationship** | 完整的聊天记录 **›** 往来信件 / 朋友圈 / 日记 **›** 旁人描述 |
-| 🌟 **celebrity** | 第一人称著作 / 博客 / 长访谈 **›** 决策记录（发布会、commit、采访）**›** 他人评价 |
+| 🌟 **celebrity** | 第一人称著作 / 博客 / 长访谈 **›** 决策记录（发布会、commit、采访）**›** 已核验的本人短帖 **›** 他人评价 |
 
 - **colleague** 飞书自动采集：需将 App bot 加入相关群聊
 - **relationship**：时间跨度越长越好，能覆盖冲突与和解更佳
@@ -363,7 +408,7 @@ distilly/
 
 ## 📄 技术报告
 
-> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 这是 Distilly 前身 **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制，也是今天 `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
 
@@ -371,11 +416,11 @@ distilly/
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
  </picture>
 </a>
 

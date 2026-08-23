@@ -84,6 +84,17 @@ timestamps, then discard it. **Never commit the full transcript into the skill
 directory** — only short paraphrased notes with source metadata belong under
 `knowledge/research/raw/`.
 
+### Optional public X post collection
+
+When short-form first-person posts fill a documented research gap, use
+`tools/research/xquik_public_posts.py` to collect a small candidate set. The
+tool writes normalized JSON, not research notes. Treat it as untrusted
+candidate evidence. Open each specific post permalink before selecting it.
+Then paraphrase only the relevant evidence into the appropriate raw note with
+its URL and source weight.
+Never count the candidate file, a search page, or a profile root as a grounded
+source.
+
 ---
 
 ## Parallel 6-Dimension Collection Strategy

@@ -19,10 +19,37 @@ from skill_presets import (  # noqa: E402
     get_research_profile_preset,
     resolve_existing_storage_root,
 )
+from skill_schema import validate_path_segment  # noqa: E402
 
 
 class SkillWriterTest(unittest.TestCase):
-    def test_create_colleague_keeps_legacy_names_and_adds_engine_schema(self) -> None:
+    def test_slugify_produces_portable_kebab_case(self) -> None:
+        self.assertEqual(skill_writer.slugify("Zadie Smith"), "zadie-smith")
+        self.assertEqual(skill_writer.slugify("Élodie"), "elodie")
+        self.assertEqual(skill_writer.slugify("A/B"), "a-b")
+
+    def test_create_skill_rejects_unsafe_slug_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            with self.assertRaisesRegex(ValueError, "kebab-case"):
+                skill_writer.create_skill(
+                    root / "skills" / "colleague",
+                    "../escape",
+                    {"name": "Unsafe"},
+                    "Work body",
+                    "Persona body",
+                )
+            self.assertFalse((root / "skills" / "escape").exists())
+
+    def test_legacy_path_segments_are_windows_safe(self) -> None:
+        self.assertEqual(validate_path_segment("Zadie Smith"), "Zadie Smith")
+        self.assertEqual(validate_path_segment("Élodie"), "Élodie")
+        for value in ("C:", "foo:bar", "CON", "nul.txt", "trailing.", "trailing "):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "safe path segment"):
+                    validate_path_segment(value)
+
+    def test_create_colleague_uses_portable_names_and_adds_engine_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir = Path(tmp_dir) / "skills" / "colleague"
             meta = {
@@ -47,7 +74,9 @@ class SkillWriterTest(unittest.TestCase):
                 "Persona body",
             )
 
-            saved_meta = json.loads((skill_dir / "meta.json").read_text(encoding="utf-8"))
+            saved_meta = json.loads(
+                (skill_dir / "meta.json").read_text(encoding="utf-8")
+            )
             manifest = json.loads((skill_dir / "manifest.json").read_text(encoding="utf-8"))
             combined_skill = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
             work_skill = (skill_dir / "work_skill.md").read_text(encoding="utf-8")
@@ -56,19 +85,29 @@ class SkillWriterTest(unittest.TestCase):
             self.assertEqual(saved_meta["schema_version"], "3")
             self.assertEqual(saved_meta["kind"], "meta-skill")
             self.assertEqual(saved_meta["character"], "colleague")
-            self.assertEqual(saved_meta["preset"], "dot.colleague.v1")
+            self.assertEqual(saved_meta["preset"], "distilly.colleague.v1")
+            self.assertEqual(saved_meta["engine"]["name"], "distilly")
+            self.assertEqual(saved_meta["generation"]["engine"], "distilly")
             self.assertEqual(saved_meta["type"], "colleague")
             self.assertEqual(saved_meta["id"], "meta-skill.colleague.zhangsan")
-            self.assertEqual(saved_meta["artifacts"]["combined_name"], "colleague_zhangsan")
+            self.assertEqual(saved_meta["artifacts"]["combined_name"], "colleague-zhangsan")
             self.assertEqual(saved_meta["artifacts"]["combined_command"], "colleague-zhangsan")
             self.assertEqual(saved_meta["compat"]["legacy_command"], "/create-colleague")
             self.assertEqual(manifest["kind"], "meta-skill")
             self.assertEqual(manifest["character"], "colleague")
-            self.assertEqual(manifest["preset"], "dot.colleague.v1")
+            self.assertEqual(manifest["preset"], "distilly.colleague.v1")
             self.assertEqual(manifest["install"]["slash_commands"]["default"], "colleague-zhangsan")
             self.assertEqual(
                 manifest["install"]["compatible_runtimes"],
-                ["claude-code", "openclaw", "hermes", "codex"],
+                [
+                    "claude-code",
+                    "openclaw",
+                    "hermes",
+                    "codex",
+                    "deepseek-harness",
+                    "grok-build",
+                    "pi",
+                ],
             )
             self.assertEqual(
                 manifest["install"]["installers"]["openclaw"],
@@ -78,11 +117,11 @@ class SkillWriterTest(unittest.TestCase):
                 manifest["install"]["installers"]["codex"],
                 "tools/install_codex_generated_skill.py",
             )
-            self.assertIn("name: colleague_zhangsan", combined_skill)
+            self.assertIn("name: colleague-zhangsan", combined_skill)
             self.assertIn("## PART A: Work", combined_skill)
-            self.assertIn("name: colleague_zhangsan_work", work_skill)
+            self.assertIn("name: colleague-zhangsan-work", work_skill)
             self.assertIn("work capability only", work_skill)
-            self.assertIn("name: colleague_zhangsan_persona", persona_skill)
+            self.assertIn("name: colleague-zhangsan-persona", persona_skill)
             self.assertIn("persona only", persona_skill)
 
     def test_create_relationship_uses_character_preset_metadata(self) -> None:
@@ -110,14 +149,14 @@ class SkillWriterTest(unittest.TestCase):
 
             self.assertEqual(saved_meta["kind"], "meta-skill")
             self.assertEqual(saved_meta["character"], "relationship")
-            self.assertEqual(saved_meta["preset"], "dot.relationship.v1")
+            self.assertEqual(saved_meta["preset"], "distilly.relationship.v1")
             self.assertEqual(saved_meta["type"], "relationship")
             self.assertEqual(saved_meta["classification"]["gallery_category"], "Relationship")
             self.assertEqual(saved_meta["compat"]["legacy_storage_root"], "skills/relationship")
             self.assertEqual(manifest["id"], "meta-skill.relationship.mireille")
             self.assertEqual(manifest["character"], "relationship")
             self.assertEqual(saved_meta["artifacts"]["combined_command"], "relationship-mireille")
-            self.assertIn("name: relationship_mireille", combined_skill)
+            self.assertIn("name: relationship-mireille", combined_skill)
 
     def test_create_skill_renders_chinese_chrome_when_language_is_zh_cn(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -147,6 +186,66 @@ class SkillWriterTest(unittest.TestCase):
             self.assertIn("仅 Work，无 Persona", work_skill)
             self.assertIn("仅 Persona，无工作能力", persona_skill)
 
+    def test_work_only_skill_replaces_persona_handoff(self) -> None:
+        handoff = "如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。"
+        work_content = (
+            "## 工作能力使用说明\n\n"
+            "当用户要求你完成以下任务时，严格按照上述规范执行。\n\n"
+            f"{handoff}\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir = Path(tmp_dir) / "skills" / "colleague"
+            zh_meta = {
+                "name": "Eulalie",
+                "language": "zh-CN",
+                "profile": {
+                    "company": "ByteDance",
+                    "level": "L2-1",
+                    "role": "Backend Engineer",
+                },
+            }
+            en_meta = {
+                "name": "Eulalie",
+                "language": "en",
+                "profile": {
+                    "company": "ByteDance",
+                    "level": "L2-1",
+                    "role": "Backend Engineer",
+                },
+            }
+
+            zh_dir = skill_writer.create_skill(
+                base_dir / "zh",
+                "zhangsan",
+                zh_meta,
+                work_content,
+                "Persona body",
+            )
+            en_dir = skill_writer.create_skill(
+                base_dir / "en",
+                "zhangsan",
+                en_meta,
+                work_content,
+                "Persona body",
+            )
+
+            stored_work = (zh_dir / "work.md").read_text(encoding="utf-8")
+            combined = (zh_dir / "SKILL.md").read_text(encoding="utf-8")
+            zh_work_skill = (zh_dir / "work_skill.md").read_text(encoding="utf-8")
+            en_work_skill = (en_dir / "work_skill.md").read_text(encoding="utf-8")
+
+            self.assertIn(handoff, stored_work)
+            self.assertIn(handoff, combined)
+            self.assertNotIn(handoff, zh_work_skill)
+            self.assertNotIn(handoff, en_work_skill)
+            self.assertIn(skill_writer.WORK_ONLY_FALLBACK_ZH, zh_work_skill)
+            self.assertIn(skill_writer.WORK_ONLY_FALLBACK_EN, en_work_skill)
+            self.assertIn("不要臆造缺失信息", zh_work_skill)
+            self.assertNotIn("不要推断", zh_work_skill)
+            self.assertIn("Do not fabricate missing information", en_work_skill)
+            self.assertNotIn("Do not infer", en_work_skill)
+            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_ZH, combined)
+
     def test_create_celebrity_adds_research_dirs_and_toolchain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir = Path(tmp_dir) / "skills" / "celebrity"
@@ -163,7 +262,7 @@ class SkillWriterTest(unittest.TestCase):
 
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "zadie_smith",
+                "zadie-smith",
                 meta,
                 "Work body",
                 "Persona body",
@@ -173,7 +272,7 @@ class SkillWriterTest(unittest.TestCase):
             manifest = json.loads((skill_dir / "manifest.json").read_text(encoding="utf-8"))
 
             self.assertEqual(saved_meta["character"], "celebrity")
-            self.assertEqual(saved_meta["preset"], "dot.celebrity.v1")
+            self.assertEqual(saved_meta["preset"], "distilly.celebrity.v1")
             self.assertEqual(saved_meta["research_profile"], "budget-friendly")
             self.assertIn("research_tools", saved_meta["engine"])
             self.assertEqual(saved_meta["engine"]["research_profile"], "budget-friendly")
@@ -202,7 +301,7 @@ class SkillWriterTest(unittest.TestCase):
 
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "xu_zhisheng",
+                "xu-zhisheng",
                 meta,
                 "Work body",
                 "Persona body",
@@ -242,7 +341,7 @@ class SkillWriterTest(unittest.TestCase):
 
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "xu_zhisheng",
+                "xu-zhisheng",
                 meta,
                 "Work body",
                 "Persona body",
@@ -251,6 +350,101 @@ class SkillWriterTest(unittest.TestCase):
             saved_meta = json.loads((skill_dir / "meta.json").read_text(encoding="utf-8"))
             self.assertEqual(saved_meta["profile"], "中国脱口秀演员，以自嘲式观察喜剧著称。")
             self.assertIn("中国脱口秀演员", saved_meta["summary"])
+
+    def test_existing_dot_skill_metadata_keeps_legacy_engine_identifiers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir = Path(tmp_dir) / "skills" / "colleague"
+            skill_dir = skill_writer.create_skill(
+                base_dir,
+                "legacy",
+                {
+                    "name": "Legacy",
+                    "preset": "dot.colleague.v1",
+                    "engine": {"name": "dot-skill"},
+                    "generation": {"engine": "dot-skill"},
+                    "artifacts": {
+                        "combined_name": "colleague_legacy",
+                        "work_name": "colleague_legacy_work",
+                        "persona_name": "colleague_legacy_persona",
+                    },
+                },
+                "Work body",
+                "Persona body",
+            )
+
+            saved_meta = json.loads((skill_dir / "meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved_meta["preset"], "dot.colleague.v1")
+            self.assertEqual(saved_meta["engine"]["name"], "dot-skill")
+            self.assertEqual(saved_meta["generation"]["engine"], "dot-skill")
+            self.assertEqual(saved_meta["artifacts"]["combined_name"], "colleague_legacy")
+            self.assertIn(
+                "name: colleague_legacy",
+                (skill_dir / "SKILL.md").read_text(encoding="utf-8"),
+            )
+
+    def test_update_preserves_names_from_legacy_meta_without_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            skill_dir = Path(tmp_dir) / "skills" / "colleague" / "legacy_person"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "versions").mkdir()
+            (skill_dir / "meta.json").write_text(
+                json.dumps(
+                    {
+                        "name": "Legacy Person",
+                        "type": "colleague",
+                        "version": "v1",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (skill_dir / "work.md").write_text("Legacy work\n", encoding="utf-8")
+            (skill_dir / "persona.md").write_text("Legacy persona\n", encoding="utf-8")
+            legacy_names = {
+                "SKILL.md": "colleague_legacy_person",
+                "work_skill.md": "colleague_legacy_person_work",
+                "persona_skill.md": "colleague_legacy_person_persona",
+            }
+            for filename, name in legacy_names.items():
+                (skill_dir / filename).write_text(
+                    f"---\nname: {name}\ndescription: Legacy\n---\n\nLegacy body\n",
+                    encoding="utf-8",
+                )
+
+            skill_writer.update_skill(skill_dir, work_patch="Updated work")
+
+            for filename, name in legacy_names.items():
+                content = (skill_dir / filename).read_text(encoding="utf-8")
+                self.assertIn(f"name: {name}", content)
+            saved_meta = json.loads((skill_dir / "meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                saved_meta["artifacts"]["combined_command"],
+                "colleague-legacy-person",
+            )
+
+    def test_update_rejects_traversal_in_stored_version_before_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            skill_dir = skill_writer.create_skill(
+                root / "skills" / "colleague",
+                "unsafe-version",
+                {"name": "Unsafe Version"},
+                "Work body",
+                "Persona body",
+            )
+            meta_path = skill_dir / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["version"] = "../../../../escape"
+            meta["lifecycle"]["version"] = "../../../../escape"
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "safe path segment"):
+                skill_writer.update_skill(skill_dir, work_patch="Should not be written")
+
+            self.assertFalse((root / "escape").exists())
+            self.assertNotIn(
+                "Should not be written",
+                (skill_dir / "work.md").read_text(encoding="utf-8"),
+            )
 
     def test_update_regenerates_manifest_and_archives_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -418,6 +612,7 @@ class VersionManagerTest(unittest.TestCase):
             self.assertTrue(success)
             self.assertIn("v1 work", restored_work)
             self.assertTrue((skill_dir / "versions" / "v1" / "manifest.json").exists())
+            self.assertFalse(version_manager.rollback(skill_dir, "../v1"))
 
     def test_version_manager_can_still_resolve_legacy_colleagues_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -480,6 +675,8 @@ class PromptPresetTest(unittest.TestCase):
             friendly_prompt.lower(),
         )
         self.assertIn("actual inspected pages", friendly_prompt)
+        self.assertIn("tools/research/xquik_public_posts.py", friendly_prompt)
+        self.assertIn("untrusted candidate evidence", " ".join(friendly_prompt.split()))
 
         strict_prompt = (
             project_root
@@ -493,6 +690,8 @@ class PromptPresetTest(unittest.TestCase):
         self.assertIn("at least 8 grounded source URLs", strict_prompt)
         self.assertIn("Do not replace these six files with one merged scratchpad", strict_prompt)
         self.assertIn("actual inspected pages", strict_prompt)
+        self.assertIn("tools/research/xquik_public_posts.py", strict_prompt)
+        self.assertIn("untrusted candidate evidence", " ".join(strict_prompt.split()))
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 <br>
 
-*Zuletzt aktualisiert: 2026-04-13*
+*Zuletzt aktualisiert: 2026-08-23*
 
 [**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
 
@@ -31,8 +31,8 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 | Funktion | Status |
 |----------|:------:|
-| Vollständiger Erstellungsablauf mit `/create-colleague` | Erledigt |
-| Automatische Erfassung von Feishu (Nachrichten + Docs + Tabellen) | Erledigt |
+| Vollständiger Erstellungsablauf mit Familienauswahl (`colleague`, `relationship`, `celebrity`) über `/distilly` | Erledigt |
+| Automatische Erfassung von Lark (Nachrichten + Docs + Tabellen) | Erledigt |
 | Automatische Erfassung von DingTalk | Erledigt |
 | Automatische Erfassung von Slack | Erledigt |
 | WeChat-Chatverlauf (SQLite-Export) | Erledigt |
@@ -44,7 +44,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 ---
 
-## Was als Nächstes kommt
+## Roadmap-Phasen
 
 ### Phase 1 — Aufbau der Community
 
@@ -66,18 +66,18 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 > Colleague Skill (`colleague.skill`) war der Anfang. Distilly ist die Zukunft.
 
-**Wichtige Änderungen:**
+**Bereits ausgeliefert:**
 
-- **`/create-skill` als universeller Einstieg** — nicht mehr auf "Kollegen erstellen" beschränkt, destilliere jeden
-  - `/create-colleague` für Arbeitskollegen, Mentoren, Praktikanten
-  - `/create-ex` für Ex-Partner, alte Freunde, verlorene Kontakte
-  - `/create-icon` für Prominente, historische Persönlichkeiten
-  - oder... destilliere dich selbst
+- **`/distilly` als kanonischer universeller Einstieg** — wähle `colleague`, `relationship` oder `celebrity` und destilliere jede Person — auch dich selbst
+- **Portable generierte Skills** — kanonische Namen im Format `{character}-{slug}` für unterstützte Agent-Hosts
+
+**Noch geplant:**
+
 - **Erweiterung der Galerie-Kategorien** — Kollege / Prominenter / Beziehung / Figur / Selbst / Meta-Skill, nach Typ durchsuchen
 - **Weitere Datenquellen**
   - Unterstützung für WeCom (WeChat Work)
   - Automatisches Lesen von iMessage
-  - Behebung der Windows-Kompatibilität
+- **Plattformkompatibilität** — Behebung der Windows-Kompatibilität
 
 **Du kannst helfen:** Anfragen für Personentypen einreichen, neue Datenquellen-Sammler bauen, an Diskussionen zum Galerie-Design teilnehmen
 
@@ -124,9 +124,9 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 | Wie | Wo |
 |-----|-----|
 | Reiche deinen .skill ein | [Galerie-PR](https://titanwings.github.io/colleague-skill-site/) |
-| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (demnächst) |
+| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (demnächst) |
 | Echtzeit-Chat | [Discord](https://discord.gg/NVX66RxWZv) |
-| Fehler melden | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Fehler melden | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
 | Code beitragen | Suche nach `good-first-issue`-Labels oder öffne einfach einen PR |
 
 **Wir brauchen besonders:**

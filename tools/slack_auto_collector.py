@@ -5,7 +5,7 @@ Slack 自动采集器
 输入同事的 Slack 姓名/用户名，自动：
   1. 搜索 Slack 用户，获取 user_id
   2. 找到与 Bot 共同的频道，拉取该用户发出的消息
-  3. 输出统一格式，直接进 create-colleague 分析流程
+  3. 输出统一格式，直接进入 Distilly 分析流程
 
 前置：
   python3 slack_auto_collector.py --setup   # 配置 Bot Token（一次性）
@@ -54,7 +54,8 @@ except ImportError:
 
 # ─── 常量 ──────────────────────────────────────────────────────────────────────
 
-CONFIG_PATH = Path.home() / ".colleague-skill" / "slack_config.json"
+CONFIG_PATH = Path.home() / ".distilly" / "slack_config.json"
+LEGACY_CONFIG_PATH = Path.home() / ".colleague-skill" / "slack_config.json"
 
 # Slack 频道类型（采集范围）
 CHANNEL_TYPES = "public_channel,private_channel,mpim,im"
@@ -86,22 +87,24 @@ class SlackAuthError(SlackCollectorError):
 # ─── 配置管理 ──────────────────────────────────────────────────────────────────
 
 def load_config() -> dict:
-    if not CONFIG_PATH.exists():
+    config_path = CONFIG_PATH if CONFIG_PATH.exists() else LEGACY_CONFIG_PATH
+    if not config_path.exists():
         print(
             "未找到配置，请先运行：python3 slack_auto_collector.py --setup",
             file=sys.stderr,
         )
         sys.exit(1)
     try:
-        return json.loads(CONFIG_PATH.read_text())
+        return json.loads(config_path.read_text())
     except json.JSONDecodeError:
-        print(f"配置文件损坏，请重新运行 --setup：{CONFIG_PATH}", file=sys.stderr)
+        print(f"配置文件损坏，请重新运行 --setup：{config_path}", file=sys.stderr)
         sys.exit(1)
 
 
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    CONFIG_PATH.chmod(0o600)
 
 
 def setup_config() -> None:

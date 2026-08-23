@@ -21,7 +21,7 @@ class CliLifecycleTest(unittest.TestCase):
         env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         merged_env = os.environ.copy()
-        merged_env.setdefault("DOT_SKILL_AUTO_INSTALL_CLAUDE", "0")
+        merged_env.setdefault("DISTILLY_AUTO_INSTALL_CLAUDE", "0")
         if env:
             merged_env.update(env)
         return subprocess.run(
@@ -78,6 +78,239 @@ class CliLifecycleTest(unittest.TestCase):
             self.assertIn("Created skill:", create.stdout)
             self.assertTrue((tmp_root / "skills" / "colleague" / "eulalie" / "SKILL.md").exists())
 
+    def test_claude_auto_install_is_opt_in_with_legacy_env_compatibility(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            home = root / "home"
+            base_dir = root / "skills" / "colleague"
+            home.mkdir()
+            base_dir.mkdir(parents=True)
+            meta_path = self.write_json(
+                root / "meta.json",
+                {
+                    "character": "colleague",
+                    "display_name": "Eulalie",
+                    "classification": {"language": "en"},
+                },
+            )
+            work_path = root / "work.md"
+            persona_path = root / "persona.md"
+            work_path.write_text("Work body\n", encoding="utf-8")
+            persona_path.write_text("Persona body\n", encoding="utf-8")
+
+            def create_with_env(
+                slug: str,
+                settings: dict[str, str],
+                *extra_args: str,
+            ) -> Path:
+                env = os.environ.copy()
+                env["HOME"] = str(home)
+                env.pop("DISTILLY_AUTO_INSTALL_CLAUDE", None)
+                env.pop("DOT_SKILL_AUTO_INSTALL_CLAUDE", None)
+                env.update(settings)
+                subprocess.run(
+                    [
+                        PYTHON,
+                        str(PROJECT_ROOT / "tools" / "skill_writer.py"),
+                        "--action",
+                        "create",
+                        "--character",
+                        "colleague",
+                        "--slug",
+                        slug,
+                        "--name",
+                        "Eulalie",
+                        "--meta",
+                        str(meta_path),
+                        "--work",
+                        str(work_path),
+                        "--persona",
+                        str(persona_path),
+                        "--base-dir",
+                        str(base_dir),
+                        *extra_args,
+                    ],
+                    cwd=PROJECT_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    env=env,
+                )
+                return home / ".claude" / "skills" / f"colleague-{slug}" / "SKILL.md"
+
+            self.assertFalse(create_with_env("default-off", {}).exists())
+            self.assertTrue(
+                create_with_env(
+                    "legacy-on",
+                    {"DOT_SKILL_AUTO_INSTALL_CLAUDE": "1"},
+                ).exists()
+            )
+            self.assertFalse(
+                create_with_env(
+                    "legacy-off",
+                    {"DOT_SKILL_AUTO_INSTALL_CLAUDE": "0"},
+                ).exists()
+            )
+            self.assertFalse(
+                create_with_env(
+                    "new-wins-off",
+                    {
+                        "DISTILLY_AUTO_INSTALL_CLAUDE": "0",
+                        "DOT_SKILL_AUTO_INSTALL_CLAUDE": "1",
+                    },
+                ).exists()
+            )
+            self.assertTrue(
+                create_with_env(
+                    "new-wins-on",
+                    {
+                        "DISTILLY_AUTO_INSTALL_CLAUDE": "1",
+                        "DOT_SKILL_AUTO_INSTALL_CLAUDE": "0",
+                    },
+                ).exists()
+            )
+            self.assertFalse(
+                create_with_env(
+                    "explicit-off",
+                    {"DISTILLY_AUTO_INSTALL_CLAUDE": "1"},
+                    "--no-install-claude-skill",
+                ).exists()
+            )
+
+    def test_create_name_only_normalizes_slug_and_rejects_unsafe_explicit_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            writer = str(PROJECT_ROOT / "tools" / "skill_writer.py")
+
+            self.run_cmd(
+                PYTHON,
+                writer,
+                "--action",
+                "create",
+                "--name",
+                "Zadie Smith",
+                "--base-dir",
+                "skills/colleague",
+                cwd=root,
+            )
+            generated = root / "skills" / "colleague" / "zadie-smith" / "SKILL.md"
+            self.assertIn("name: colleague-zadie-smith", generated.read_text(encoding="utf-8"))
+
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.run_cmd(
+                    PYTHON,
+                    writer,
+                    "--action",
+                    "create",
+                    "--slug",
+                    "../escape",
+                    "--base-dir",
+                    "skills/colleague",
+                    cwd=root,
+                )
+            self.assertFalse((root / "skills" / "escape").exists())
+
+    def test_update_accepts_safe_legacy_slug_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            writer = str(PROJECT_ROOT / "tools" / "skill_writer.py")
+            base_dir = root / "skills" / "colleague"
+
+            self.run_cmd(
+                PYTHON,
+                writer,
+                "--action",
+                "create",
+                "--slug",
+                "legacy",
+                "--name",
+                "Zadie Smith",
+                "--base-dir",
+                str(base_dir),
+                cwd=root,
+            )
+            legacy_dir = base_dir / "Zadie Smith"
+            (base_dir / "legacy").rename(legacy_dir)
+            work_patch = root / "work-patch.md"
+            work_patch.write_text("## Update\n\nLegacy directory remains addressable.\n", encoding="utf-8")
+
+            update = self.run_cmd(
+                PYTHON,
+                writer,
+                "--action",
+                "update",
+                "--slug",
+                "Zadie Smith",
+                "--base-dir",
+                str(base_dir),
+                "--work-patch",
+                str(work_patch),
+                cwd=root,
+            )
+
+            self.assertIn("Updated skill to v2:", update.stdout)
+            self.assertIn("Zadie Smith", update.stdout)
+            self.assertIn("Legacy directory remains addressable", (legacy_dir / "work.md").read_text(encoding="utf-8"))
+            saved_meta = json.loads(
+                (legacy_dir / "meta.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                saved_meta["artifacts"]["combined_command"],
+                "colleague-zadie-smith",
+            )
+
+    def test_version_manager_rejects_slug_and_version_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            base_dir = root / "skills" / "colleague"
+            victim_versions = root / "skills" / "victim" / "versions"
+            for index in range(11):
+                (victim_versions / f"v{index}").mkdir(parents=True)
+            manager = str(PROJECT_ROOT / "tools" / "version_manager.py")
+
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.run_cmd(
+                    PYTHON,
+                    manager,
+                    "--action",
+                    "cleanup",
+                    "--slug",
+                    "../victim",
+                    "--base-dir",
+                    str(base_dir),
+                    cwd=root,
+                )
+            self.assertEqual(len(list(victim_versions.iterdir())), 11)
+
+            self.run_cmd(
+                PYTHON,
+                str(PROJECT_ROOT / "tools" / "skill_writer.py"),
+                "--action",
+                "create",
+                "--slug",
+                "safe",
+                "--name",
+                "Safe",
+                "--base-dir",
+                str(base_dir),
+                cwd=root,
+            )
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.run_cmd(
+                    PYTHON,
+                    manager,
+                    "--action",
+                    "rollback",
+                    "--slug",
+                    "safe",
+                    "--version",
+                    "../victim",
+                    "--base-dir",
+                    str(base_dir),
+                    cwd=root,
+                )
+            self.assertTrue((base_dir / "safe" / "SKILL.md").exists())
+
     def test_character_lifecycle_via_cli(self) -> None:
         fixtures = {
             "colleague": {
@@ -92,7 +325,7 @@ class CliLifecycleTest(unittest.TestCase):
             },
             "celebrity": {
                 "name": "Zadie Smith",
-                "slug": "zadie_smith",
+                "slug": "zadie-smith",
                 "base_dir": "skills/celebrity",
             },
         }
@@ -328,7 +561,7 @@ class CliLifecycleTest(unittest.TestCase):
             claude_skills_dir = root / ".claude" / "skills"
             claude_commands_dir = root / ".claude" / "commands"
             openclaw_skills_dir = root / ".openclaw" / "workspace" / "skills"
-            codex_skills_dir = root / ".codex" / "skills"
+            codex_skills_dir = root / ".agents" / "skills"
 
             create = self.run_cmd(
                 PYTHON,
@@ -338,7 +571,7 @@ class CliLifecycleTest(unittest.TestCase):
                 "--character",
                 "celebrity",
                 "--slug",
-                "zhou_qimo",
+                "zhou-qimo",
                 "--name",
                 "周奇墨",
                 "--meta",

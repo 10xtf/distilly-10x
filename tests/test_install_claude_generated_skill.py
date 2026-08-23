@@ -26,7 +26,7 @@ class ClaudeGeneratedSkillInstallTest(unittest.TestCase):
 
             skill_dir = skill_writer.create_skill(
                 generated_root,
-                "zhou_qimo",
+                "zhou-qimo",
                 {
                     "character": "celebrity",
                     "name": "周奇墨",
@@ -43,7 +43,7 @@ class ClaudeGeneratedSkillInstallTest(unittest.TestCase):
             )
 
             installed_file = claude_skills / "celebrity-zhou-qimo" / "SKILL.md"
-            metadata_file = claude_skills / "celebrity-zhou-qimo" / ".dot-skill-install.json"
+            metadata_file = claude_skills / "celebrity-zhou-qimo" / ".distilly-install.json"
 
             self.assertEqual(result["command_name"], "celebrity-zhou-qimo")
             self.assertTrue(installed_file.exists())

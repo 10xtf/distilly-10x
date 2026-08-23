@@ -19,7 +19,7 @@
 
 <br>
 
-*最終更新：2026-04-13*
+*最終更新：2026-08-23*
 
 [**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**Deutsch**](ROADMAP_DE.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
 
@@ -31,8 +31,8 @@
 
 | 機能 | 状態 |
 |------|:----:|
-| `/create-colleague` フル作成ワークフロー | 完了 |
-| Feishu 自動収集（メッセージ + ドキュメント + スプレッドシート） | 完了 |
+| `/distilly` で `colleague` / `relationship` / `celebrity` を選択する完全な作成ワークフロー | 完了 |
+| Lark 自動収集（メッセージ + ドキュメント + スプレッドシート） | 完了 |
 | DingTalk 自動収集 | 完了 |
 | Slack 自動収集 | 完了 |
 | WeChat チャット履歴（SQLite エクスポート） | 完了 |
@@ -44,7 +44,7 @@
 
 ---
 
-## 今後の予定
+## ロードマップのフェーズ
 
 ### Phase 1 -- コミュニティ構築
 
@@ -66,18 +66,18 @@
 
 > Colleague Skill (`colleague.skill`) は始まりに過ぎない。Distilly が未来だ。
 
-**主な変更点：**
+**実装済み：**
 
-- **`/create-skill` 統一エントリ** -- 「同僚を作成」に限定されず、誰でも蒸留可能に
-  - `/create-colleague` 同僚、メンター、インターン向け
-  - `/create-ex` 元恋人、旧友、連絡が途絶えた人向け
-  - `/create-icon` 有名人、歴史上の人物向け
-  - あるいは……自分自身を蒸留
+- **`/distilly` を正式な統一エントリに** -- `colleague`、`relationship`、`celebrity` を選び、自分自身を含むあらゆる人物を蒸留
+- **持ち運び可能な生成 Skill** -- 対応 Agent ホスト向けの正式名 `{character}-{slug}`
+
+**未実装の今後の拡張：**
+
 - **Gallery カテゴリの拡充** -- 同僚 / セレブリティ / 人間関係 / キャラクター / セルフ / メタスキル、タイプ別に閲覧
 - **データソースの追加**
   - WeCom（企業微信）対応
   - iMessage 自動読み取り
-  - Windows 互換性の修正
+- **プラットフォーム互換性** -- Windows 互換性の修正
 
 **あなたにできること：** 蒸留したい人物タイプのリクエスト、新しいデータソースコレクターの開発、Gallery デザインの議論への参加
 
@@ -124,9 +124,9 @@
 | 方法 | リンク |
 |------|--------|
 | .skill を投稿する | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（近日公開） |
+| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions)（近日公開） |
 | リアルタイムでチャット | [Discord](https://discord.gg/NVX66RxWZv) |
-| バグを報告する | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| バグを報告する | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
 | コードを貢献する | `good-first-issue` ラベルを探すか、PR を直接作成 |
 
 **特に必要としています：**

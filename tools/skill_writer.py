@@ -2,7 +2,7 @@
 """
 Skill artifact writer.
 
-This module writes work/persona artifacts for the dot-skill engine while
+This module writes work/persona artifacts for the Distilly engine while
 preserving backward compatibility with the original colleague-centric layout.
 """
 
@@ -28,9 +28,13 @@ from skill_schema import (
     PRIMARY_ARTIFACTS,
     build_identity_string,
     build_manifest,
+    enrich_existing_skill_meta,
     enrich_skill_meta,
+    normalize_command_slug,
     now_iso,
+    resolve_contained_child,
     sync_legacy_fields,
+    validate_path_segment,
 )
 
 
@@ -108,6 +112,19 @@ user-invocable: true
 """
 
 
+MAX_SLUG_LENGTH = 40
+SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def validate_slug(slug: str) -> str:
+    """Require a safe kebab-case slug before using it in paths or skill names."""
+    if len(slug) > MAX_SLUG_LENGTH or not SLUG_PATTERN.fullmatch(slug):
+        raise ValueError(
+            f"slug must be 1-{MAX_SLUG_LENGTH} lowercase letters/digits in kebab-case"
+        )
+    return slug
+
+
 def slugify(name: str) -> str:
     """
     Convert a human-readable name into a stable slug.
@@ -117,18 +134,11 @@ def slugify(name: str) -> str:
     try:
         from pypinyin import lazy_pinyin
 
-        slug = "_".join(lazy_pinyin(name))
+        candidate = "-".join(lazy_pinyin(name))
     except ImportError:
-        result = []
-        for char in name.lower():
-            if char.isascii() and (char.isalnum() or char in ("-", "_")):
-                result.append(char)
-            elif char == " ":
-                result.append("_")
-        slug = "".join(result)
+        candidate = name
 
-    slug = re.sub(r"_+", "_", slug).strip("_")
-    return slug or "colleague"
+    return normalize_command_slug(candidate)
 
 
 def language_code(meta: dict) -> str:
@@ -164,18 +174,52 @@ def render_combined_skill(meta: dict, work_content: str, persona_content: str) -
     )
 
 
+_PERSONA_HANDOFF_PATTERNS = (
+    re.compile(r"如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。\s*"),
+    re.compile(
+        r"If (?:you are )?asked (?:a question )?outside (?:your|the) "
+        r"(?:recorded )?responsibilities[^.]*Persona[^.]*\.\s*",
+        re.IGNORECASE,
+    ),
+)
+
+WORK_ONLY_FALLBACK_ZH = (
+    "如果问题超出已记录的职责范围，或原材料不足以回答，请直接说明缺口。"
+    "不要臆造缺失信息，也不要引用 Persona。"
+)
+WORK_ONLY_FALLBACK_EN = (
+    "If the question is outside the recorded responsibilities or the source "
+    "material is insufficient, state the gap. Do not fabricate missing information "
+    "or refer to Persona."
+)
+
+
+def work_only_content(work_content: str, *, chinese: bool) -> str:
+    """Copy Work text for the Work-only skill, without a Persona handoff."""
+    text = work_content
+    for pattern in _PERSONA_HANDOFF_PATTERNS:
+        text = pattern.sub("", text)
+    text = text.rstrip()
+    fallback = WORK_ONLY_FALLBACK_ZH if chinese else WORK_ONLY_FALLBACK_EN
+    if fallback not in text:
+        text = f"{text}\n\n{fallback}" if text else fallback
+    return text
+
+
 def render_work_skill(meta: dict, work_content: str) -> str:
     """Render the work-only skill artifact."""
     artifacts = meta["artifacts"]
+    chinese = prefers_chinese(meta)
     description = (
         f"{meta['display_name']} 的工作能力（仅 Work，无 Persona）"
-        if prefers_chinese(meta)
+        if chinese
         else f"{meta['display_name']} work capability only (without persona)"
     )
+    body = work_only_content(work_content, chinese=chinese)
     return (
         f"---\nname: {artifacts['work_name']}\n"
         f"description: {description}\n"
-        f"user-invocable: true\n---\n\n{work_content}\n"
+        f"user-invocable: true\n---\n\n{body}\n"
     )
 
 
@@ -231,6 +275,7 @@ def create_skill(
     persona_content: str,
 ) -> Path:
     """Create a new skill directory with normalized metadata."""
+    slug = validate_slug(slug)
     normalized_meta = enrich_skill_meta(meta, slug, meta.get("character"))
     preset = get_character_preset(normalized_meta["character"])
     skill_dir = base_dir / slug
@@ -252,7 +297,12 @@ def create_skill(
 
 def backup_current_artifacts(skill_dir: Path, version_name: str) -> None:
     """Copy the current artifact set into versions/<version_name>/."""
-    version_dir = skill_dir / "versions" / version_name
+    versions_dir = resolve_contained_child(skill_dir, "versions", "versions directory")
+    version_dir = resolve_contained_child(
+        versions_dir,
+        validate_path_segment(str(version_name), "version"),
+        "version",
+    )
     version_dir.mkdir(parents=True, exist_ok=True)
 
     for filename in PRIMARY_ARTIFACTS:
@@ -349,9 +399,9 @@ def update_skill(
 ) -> str:
     """Update an existing skill, archive the previous version, and regenerate artifacts."""
     meta_path = skill_dir / "meta.json"
-    meta = enrich_skill_meta(
+    meta = enrich_existing_skill_meta(
         json.loads(meta_path.read_text(encoding="utf-8")),
-        skill_dir.name,
+        skill_dir,
     )
 
     current_version = meta.get("version", "v1")
@@ -404,9 +454,9 @@ def list_skills(base_dir: Path) -> list[dict]:
             continue
 
         try:
-            meta = enrich_skill_meta(
+            meta = enrich_existing_skill_meta(
                 json.loads(meta_path.read_text(encoding="utf-8")),
-                skill_dir.name,
+                skill_dir,
             )
         except Exception:
             continue
@@ -485,7 +535,7 @@ def install_generated_hosts(
             skill_dir,
             Path(args.codex_skills_dir).expanduser()
             if args.codex_skills_dir
-            else Path.home() / ".codex" / "skills",
+            else Path.home() / ".agents" / "skills",
             force=True,
         )
         output_lines.append(f"  Codex skill: {install_result['skill_dir']}")
@@ -495,7 +545,7 @@ def install_generated_hosts(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="dot-skill artifact writer")
+    parser = argparse.ArgumentParser(description="Distilly artifact writer")
     parser.add_argument("--action", required=True, choices=["create", "update", "list"])
     parser.add_argument("--slug", help="Skill slug used for the output directory")
     parser.add_argument("--name", help="Display name for the skill")
@@ -544,7 +594,12 @@ def main() -> None:
 
     args = parser.parse_args()
     requested_character = normalize_character(args.character or args.type)
-    auto_install_default = os.environ.get("DOT_SKILL_AUTO_INSTALL_CLAUDE", "1") != "0"
+    auto_install_setting = os.environ.get("DISTILLY_AUTO_INSTALL_CLAUDE")
+    if auto_install_setting is None:
+        auto_install_setting = os.environ.get("DOT_SKILL_AUTO_INSTALL_CLAUDE")
+    auto_install_default = (
+        auto_install_setting is not None and auto_install_setting != "0"
+    )
     install_claude_skill = (
         args.install_claude_skill or auto_install_default
     ) and not args.no_install_claude_skill
@@ -590,7 +645,12 @@ def main() -> None:
 
     if args.action == "create":
         base_dir = resolve_base_dir(args.base_dir, requested_character)
-        slug = args.slug or slugify(meta.get("display_name", meta.get("name", "colleague")))
+        try:
+            slug = validate_slug(args.slug) if args.slug else slugify(
+                meta.get("display_name", meta.get("name", "person"))
+            )
+        except ValueError as error:
+            parser.error(str(error))
         work_content = Path(args.work).read_text(encoding="utf-8") if args.work else ""
         persona_content = Path(args.persona).read_text(encoding="utf-8") if args.persona else ""
 
@@ -608,9 +668,15 @@ def main() -> None:
             print("  Host installs: skipped")
         return
 
-    slug = args.slug
+    try:
+        slug = validate_path_segment(args.slug or "", "existing slug")
+    except ValueError as error:
+        parser.error(str(error))
     base_dir = resolve_existing_storage_root(requested_character, slug=slug, base_dir_arg=args.base_dir)
-    skill_dir = base_dir / slug
+    try:
+        skill_dir = resolve_contained_child(base_dir, slug, "skill slug")
+    except ValueError:
+        parser.error("skill directory resolves outside the selected base directory")
     if not skill_dir.exists():
         print(f"error: skill directory not found: {skill_dir}", file=sys.stderr)
         sys.exit(1)

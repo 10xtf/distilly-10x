@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the current dot-skill repo into the local OpenClaw skill directory."""
+"""Install the current Distilly repo into the local OpenClaw skill directory."""
 
 from __future__ import annotations
 
@@ -16,6 +16,13 @@ def install_skill(source: Path, destination: Path, force: bool = False, dry_run:
     if not (source / "SKILL.md").exists():
         raise FileNotFoundError(f"source does not look like a skill repo: {source}")
 
+    source_root = source.resolve()
+    destination_root = destination.resolve()
+    if source_root == destination_root:
+        return destination
+    if source_root in destination_root.parents or destination_root in source_root.parents:
+        raise ValueError("source and destination must not overlap")
+
     if dry_run:
         return destination
 
@@ -30,7 +37,7 @@ def install_skill(source: Path, destination: Path, force: bool = False, dry_run:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Install dot-skill into OpenClaw")
+    parser = argparse.ArgumentParser(description="Install Distilly into OpenClaw")
     parser.add_argument(
         "--source",
         default=str(Path(__file__).resolve().parents[1]),
@@ -38,7 +45,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dest",
-        default=str(Path.home() / ".openclaw" / "workspace" / "skills" / "dot-skill"),
+        default=str(Path.home() / ".openclaw" / "workspace" / "skills" / "distilly"),
         help="Destination OpenClaw skill directory",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite the destination if needed")

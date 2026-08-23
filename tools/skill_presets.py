@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Character preset registry for the dot-skill engine.
+Character preset registry for the Distilly engine.
 
 The engine itself is a meta-skill. Character presets define which prompt family
 and rendering defaults should be used for a given distillation target.
@@ -35,7 +35,7 @@ CHARACTER_PRESETS = {
         "knowledge_dirs": COMMON_KNOWLEDGE_DIRS,
         "storage_root": "skills/colleague",
         "prompt_bundle": {
-            "preset": "dot.colleague.v1",
+            "preset": "distilly.colleague.v1",
             "intake": "prompts/intake.md",
             "work_analyzer": "prompts/work_analyzer.md",
             "persona_analyzer": "prompts/persona_analyzer.md",
@@ -62,7 +62,7 @@ CHARACTER_PRESETS = {
         "knowledge_dirs": COMMON_KNOWLEDGE_DIRS,
         "storage_root": "skills/relationship",
         "prompt_bundle": {
-            "preset": "dot.relationship.v1",
+            "preset": "distilly.relationship.v1",
             "intake": "prompts/relationship/intake.md",
             "work_analyzer": "prompts/work_analyzer.md",
             "persona_analyzer": "prompts/relationship/persona_analyzer.md",
@@ -95,7 +95,7 @@ CHARACTER_PRESETS = {
         ],
         "storage_root": "skills/celebrity",
         "prompt_bundle": {
-            "preset": "dot.celebrity.v1",
+            "preset": "distilly.celebrity.v1",
             "intake": "prompts/celebrity/intake.md",
             "research": "prompts/celebrity/research.md",
             "work_analyzer": "prompts/work_analyzer.md",
@@ -155,6 +155,7 @@ CHARACTER_PRESETS = {
             },
         },
         "research_tools": {
+            "public_x_posts": "tools/research/xquik_public_posts.py",
             "subtitle_downloader": "tools/research/download_subtitles.sh",
             "subtitle_cleaner": "tools/research/srt_to_transcript.py",
             "research_merger": "tools/research/merge_research.py",

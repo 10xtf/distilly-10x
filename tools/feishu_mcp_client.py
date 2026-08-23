@@ -42,7 +42,8 @@ from pathlib import Path
 from typing import Optional
 
 
-CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"
+CONFIG_PATH = Path.home() / ".distilly" / "feishu_config.json"
+LEGACY_CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"
 
 
 # ─── 配置管理 ────────────────────────────────────────────────────────────────
@@ -50,12 +51,15 @@ CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"
 def load_config() -> dict:
     if CONFIG_PATH.exists():
         return json.loads(CONFIG_PATH.read_text())
+    if LEGACY_CONFIG_PATH.exists():
+        return json.loads(LEGACY_CONFIG_PATH.read_text())
     return {}
 
 
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(config, indent=2))
+    CONFIG_PATH.chmod(0o600)
     print(f"配置已保存到 {CONFIG_PATH}")
 
 

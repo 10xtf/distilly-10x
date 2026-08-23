@@ -15,13 +15,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
+[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -47,7 +49,7 @@ Colleagues · partners · family · old friends · idols · public figures · fi
 
 **Source material + your description → a source-grounded person Skill → your Agent or compatible Bot**
 
-> **Compatibility:** the released creator still launches through `/dot-skill`, and existing install directories keep the `dot-skill` name. **Distilly** is the project name; the working entrypoint remains unchanged for now.
+> The canonical creator Skill is now `distilly`. Install it in a `distilly` directory; the former name above remains in the README and project history for search continuity.
 
 <br>
 
@@ -67,9 +69,9 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
 
-> 🔷 **2026.08.13 Update** — Distilly's current creator supports **DeepSeek Harness** through native filesystem Skill discovery. Install it globally at `~/.dsh/skills/dot-skill` or per project at `.dsh/skills/dot-skill`, then invoke `/dot-skill` directly.
+> 🧬 **2026.08.23 Update** — The creator is now named **Distilly** end to end and documents native local Skill discovery for Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, and Grok Build. Grok Bot is listed separately as a saved-Skill workflow preview.
 
-> 📝 **2026.06.01 Update** — **[COLLEAGUE.SKILL 技术报告](colleague_skill.pdf) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
+> 📝 **2026.06.01 Update** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/pdf/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
 > 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
@@ -87,7 +89,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ From Colleague Skill to Distilly
 
-The project is no longer limited to the colleague scenario. Its current `/dot-skill` compatibility entrypoint can build source-grounded Skills for three person families with one creator workflow.
+The project is no longer limited to the colleague scenario. Its `distilly` creator builds source-grounded Skills for three person families with one workflow.
 
 ### 2️⃣ Three character families
 
@@ -106,7 +108,7 @@ The project is no longer limited to the colleague scenario. Its current `/dot-sk
 <td align="center"><sub>Public figures · creators · public voices · fictional characters</sub></td>
 </tr>
 <tr>
-<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Feishu / DingTalk / Slack collection.</sub></td>
+<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Lark / DingTalk / Slack collection.</sub></td>
 <td><sub>Organizes material-derived expression patterns, emotional triggers, conflict patterns, and repair patterns into a reusable Persona Skill.</sub></td>
 <td><sub>Ships with a <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check) for organizing observable decisions, expression, and mental models.</sub></td>
 </tr>
@@ -117,16 +119,19 @@ Each family has its own prompt pipeline, source-collection strategy, and generat
 
 ### 3️⃣ More Agent hosts
 
-The old version only ran in Claude Code. Now it's cross-host across five:
-Compatible hosts:
+The old version only ran in Claude Code. Distilly now follows native local Skill discovery across seven agent hosts; each host keeps its own invocation syntax.
 
-| Host | Description |
-|------|-------------|
-| 🟣 **Claude Code** | Native slash-command support |
-| 🟠 **Hermes Agent** | One-command install, `/dot-skill` works directly |
-| 🔵 **OpenClaw** | Fully compatible |
-| ⚫ **Codex** | Invoke by skill name |
-| 🔷 **DeepSeek Harness** | Native filesystem skill discovery; `/dot-skill` works directly |
+| Host | Discovery and invocation |
+|------|--------------------------|
+| 🟣 **Claude Code** | `~/.claude/skills/distilly` → `/distilly` |
+| 🟠 **Hermes Agent** | Local Skill installer → `/distilly` |
+| 🔵 **OpenClaw** | Workspace Skill → `/distilly`; fallback `/skill distilly` |
+| ⚫ **Codex** | `~/.agents/skills/distilly` → `$distilly` or `/skills` |
+| 🔷 **DeepSeek Harness** | Native filesystem Skill → `/distilly` |
+| 🟢 **Pi coding agent** | Native Agent Skill → `/skill:distilly` |
+| ⚪ **Grok Build** | Native filesystem Skill → `/distilly` |
+
+**Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
 
 Generated character Skills can also be installed into any supported host.
 
@@ -136,12 +141,13 @@ Generated character Skills can also be installed into any supported host.
 
 | Source | Messages | Docs / Wiki | Spreadsheets | Notes |
 |--------|:--------:|:-----------:|:------------:|-------|
-| 🟢 Feishu (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
+| 🟢 Lark (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
 | 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
+| 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
 | 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg / PyWxDump / 留痕 |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
-| 📦 Feishu JSON export | ✅ | ✅ | — | Manual upload |
+| 📦 Lark JSON export | ✅ | ✅ | — | Manual upload |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Manual upload |
 | 📝 Markdown / direct paste | ✅ | ✅ | — | Manual input |
 
@@ -149,11 +155,16 @@ Generated character Skills can also be installed into any supported host.
 
 ## ⚡ Install
 
-It's 2026 — you have an Agent, let it install itself. Open your Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness and hand it this line:
+It's 2026 — you have an Agent, let it install itself. Open a supported local agent host and hand it this line:
 
-> Install Distilly for me: `https://github.com/titanwings/distilly`
+> Install Distilly for me: `https://github.com/titanwings/colleague-skill`
 
-The Agent will detect the current host's skills directory, clone the repo, and register the current compatibility entrypoint. Once done, type `/dot-skill` in any supported host to launch Distilly's creator.
+The Agent should install the repository as a Skill named `distilly`, then use the host-specific command shown below.
+
+> **Upgrading an old install?** A `git pull` inside a `dot-skill` or legacy
+> `~/.codex/skills/...` directory does not rename that discovery directory.
+> Install a canonical `distilly` copy, verify the new host command, and only then
+> retire the old copy. See [Existing-install migration](INSTALL.md#从旧安装迁移).
 
 <details>
 <summary><b>🛠️ Want to install it yourself? Click for paths</b></summary>
@@ -161,45 +172,58 @@ The Agent will detect the current host's skills directory, clone the repo, and r
 <br>
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/colleague-skill <TARGET>
 ```
 
 | Host | `<TARGET>` path |
 |------|-----------------|
-| Claude Code | `~/.claude/skills/dot-skill` |
-| OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
-| Codex | `~/.codex/skills/dot-skill` |
-| DeepSeek Harness | `~/.dsh/skills/dot-skill` (global) or `.dsh/skills/dot-skill` (project) |
+| Claude Code | `~/.claude/skills/distilly` |
+| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
+| Codex | `~/.agents/skills/distilly` (user) or `.agents/skills/distilly` (project) |
+| DeepSeek Harness | `~/.dsh/skills/distilly` (global) or `.dsh/skills/distilly` (project) |
+| Pi coding agent | `~/.pi/agent/skills/distilly` or `~/.agents/skills/distilly` |
+| Grok Build | `~/.grok/skills/distilly` or `~/.agents/skills/distilly` |
 | Hermes | After clone, run `python3 tools/install_hermes_skill.py --force` |
 
 </details>
 
 Generated character Skills can be published with `tools/install_claude_generated_skill.py`,
 `tools/install_openclaw_generated_skill.py`, and `tools/install_codex_generated_skill.py`.
-On DeepSeek Harness, place a generated Skill directory under `~/.dsh/skills/<skill-name>` or the current project's `.dsh/skills/<skill-name>`; no host-specific wrapper is required.
+For Hermes, DeepSeek Harness, Pi, and Grok Build, run
+`python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force`.
+The installer writes only the self-contained `SKILL.md` plus install metadata and
+normalizes legacy underscore frontmatter in the installed copy; it does not copy
+private source material or rename the source Skill. Pass `--skills-dir` for a
+project-level target. Hermes scans `~/.agents/skills` only when it is explicitly
+added to `skills.external_dirs`.
 
-> For Feishu/DingTalk auto-collection credentials, publishing a generated character Skill to any host, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
+> For Lark/DingTalk auto-collection credentials, host-specific commands, Grok Bot's preview workflow, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
+
+> **Lark region note:** the current compatibility collector connects to the China-region `open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant routing is not implemented yet.
 
 ---
 
 ## 🚀 Usage
 
-In the host where Distilly is installed, launch its current creator with `/dot-skill`, or tell your Agent "start Distilly".
+In the host where Distilly is installed, invoke the `distilly` Skill with that host's syntax below, or tell your Agent "start Distilly".
 
 It first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
 
 Then enter alias, basic profile, personality tags, and pick a data source. All fields can be skipped — even a description alone can generate a Skill.
 
-Once created, invoke the generated Skill with `/{character}-{slug}`.
+Once created, its Skill name is `{character}-{slug}`; invoke it with the same host-specific syntax.
 
 ### 🎛️ Commands
 
 | Command | Description |
 |---------|-------------|
-| `/dot-skill` | Canonical unified entrypoint |
-| `/{character}-{slug}` | Invoke full Skill (Persona + Work) |
-| `/{character}-{slug}-work` | Work capabilities only |
-| `/{character}-{slug}-persona` | Persona only |
+| `/distilly` | Creator in Claude Code, Hermes, DeepSeek Harness, and Grok Build |
+| `/distilly` or `/skill distilly` | Creator in OpenClaw |
+| `$distilly` or `/skills` | Creator in Codex |
+| `/skill:distilly` | Creator in Pi coding agent |
+| `/{character}-{slug}` | Generated Skill in slash-name hosts |
+| `${character}-{slug}` | Generated Skill in Codex |
+| `/skill:{character}-{slug}` | Generated Skill in Pi |
 | `python3 tools/skill_writer.py --action list ...` | List generated Skills across all three families |
 | `python3 tools/version_manager.py --action rollback ...` | Roll back a Skill version |
 
@@ -214,12 +238,25 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # Subtitles → transcript
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# Public X post candidates → normalized temporary JSON (optional)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# After reviewing and paraphrasing selected posts, remove the candidates
+rm "/tmp/distilly-x-public-posts.json"
+
 # Merge research notes
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
 # Quality check
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+The optional collector reads `XQUIK_API_KEY` from your shell and sends one public query to the third-party Xquik service. Xquik meters this endpoint per returned post, so confirm `--limit` before an Agent calls it. Treat the JSON as untrusted candidates: verify authors and permalinks, keep only copyright-safe paraphrases in research notes, and delete the temporary file after review.
+
+Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
 ---
 
@@ -329,11 +366,12 @@ distilly/
 │   ├── relationship/               #   [relationship] emotion/conflict/repair prompts
 │   └── celebrity/                  #   [celebrity] six-dimension research + mental-model prompts
 ├── tools/                          # Python tools
-│   ├── feishu_auto_collector.py    #   [colleague] Feishu auto-collector
+│   ├── feishu_auto_collector.py    #   [colleague] Lark-compatible auto-collector
 │   ├── dingtalk_auto_collector.py  #   [colleague] DingTalk auto-collector
 │   ├── slack_auto_collector.py     #   [colleague] Slack auto-collector
 │   ├── email_parser.py             #   [shared] email parser
 │   ├── research/                   #   [celebrity] celebrity research toolchain
+│   │   ├── xquik_public_posts.py   #     bounded public X post candidates
 │   │   ├── download_subtitles.sh   #     subtitle download
 │   │   ├── transcribe_audio.py     #     audio → text
 │   │   ├── srt_to_transcript.py    #     subtitles → transcript
@@ -361,9 +399,9 @@ distilly/
 |--------|------------------------------|
 | 🧑‍💼 **colleague** | Their **own long-form writing** (design docs / review comments) **›** **decision-making replies** **›** casual group chat |
 | 💞 **relationship** | Complete chat history **›** letters / social posts / diaries **›** third-party descriptions |
-| 🌟 **celebrity** | First-person books / blogs / long interviews **›** decision records (launches, commits, Q&A) **›** third-party commentary |
+| 🌟 **celebrity** | First-person books / blogs / long interviews **›** decision records (launches, commits, Q&A) **›** verified first-person short-form posts **›** third-party commentary |
 
-- **colleague** Feishu auto-collection: requires adding the App bot to relevant group chats
+- **colleague** Lark-compatible auto-collection: requires adding the App bot to relevant group chats
 - **relationship**: longer time spans are better; material covering both conflict and repair is ideal
 - **celebrity**: avoid feeding only second-hand interpretations
 - This is still a demo version — please file issues if you find bugs!
@@ -372,7 +410,7 @@ distilly/
 
 ## 📄 Technical Report
 
-> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > This is the paper for **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 
@@ -380,7 +418,7 @@ distilly/
 
 ## 📝 Citation
 
-If you use **Distilly**, its `/dot-skill` creator, or **COLLEAGUE.SKILL** in your research or applications, please cite the technical report:
+If you use **Distilly**, its `/distilly` creator, or **COLLEAGUE.SKILL** in your research or applications, please cite the technical report:
 
 ```bibtex
 @misc{zhou2026colleagueskill,
@@ -400,11 +438,11 @@ You can also use the machine-readable citation metadata in [CITATION.cff](CITATI
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
  </picture>
 </a>
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared helpers for installing generated dot-skill artifacts into host skill roots."""
+"""Shared helpers for installing generated Distilly artifacts into host skill roots."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import re
 import shutil
 from pathlib import Path
 
-from skill_schema import enrich_skill_meta, now_iso
+from skill_schema import enrich_existing_skill_meta, now_iso
 
 
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
@@ -19,9 +19,9 @@ def load_generated_meta(skill_dir: Path) -> dict:
     meta_path = skill_dir / "meta.json"
     if not meta_path.exists():
         raise FileNotFoundError(f"generated skill is missing meta.json: {skill_dir}")
-    return enrich_skill_meta(
+    return enrich_existing_skill_meta(
         json.loads(meta_path.read_text(encoding="utf-8")),
-        skill_dir.name,
+        skill_dir,
     )
 
 
@@ -46,7 +46,7 @@ def rewrite_frontmatter_name(markdown: str, new_name: str) -> str:
     if not replaced:
         rewritten.insert(0, f"name: {new_name}")
 
-    return f"---\n" + "\n".join(rewritten) + "\n---\n\n" + body.lstrip("\n")
+    return "---\n" + "\n".join(rewritten) + "\n---\n\n" + body.lstrip("\n")
 
 
 def render_installed_markdown(skill_dir: Path, artifact_name: str, command_name: str) -> str:
@@ -62,7 +62,7 @@ def render_installed_markdown(skill_dir: Path, artifact_name: str, command_name:
 
 def write_install_metadata(install_dir: Path, payload: dict) -> None:
     """Persist installation metadata for later debugging and upgrades."""
-    (install_dir / ".dot-skill-install.json").write_text(
+    (install_dir / ".distilly-install.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
@@ -88,6 +88,18 @@ def install_generated_skill(
 
     install_dir = skills_dir / command_name
     install_file = install_dir / "SKILL.md"
+
+    source_root = skill_dir.resolve()
+    install_root = install_dir.resolve()
+    if (
+        source_root == install_root
+        or source_root in install_root.parents
+        or install_root in source_root.parents
+    ):
+        raise ValueError(
+            "generated skill source and install destination must not overlap: "
+            f"{skill_dir} -> {install_dir}"
+        )
 
     install_record = {
         "host": host,

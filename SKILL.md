@@ -1,6 +1,6 @@
 ---
-name: dot-skill
-description: "Distilly's compatible creator for distilling colleague, relationship, or celebrity source material into reusable Skills for agents. | Distilly 的兼容创建器，把 colleague、relationship、celebrity 三类人物材料蒸馏成可供 Agent 使用的 Skill。"
+name: distilly
+description: "Distill colleague, relationship, or celebrity source material into reusable Skills for agents. | 把 colleague、relationship、celebrity 三类人物材料蒸馏成可供 Agent 使用的 Skill。"
 argument-hint: "[character] [name-or-slug]"
 version: "1.0.0"
 user-invocable: true
@@ -11,20 +11,20 @@ allowed-tools: Read, Write, Edit, Bash
 >
 > 本 Skill 支持中英文。根据用户第一条消息的语言，全程使用同一语言回复。下方提供了两种语言的指令，按用户语言选择对应版本执行。
 
-> **Execution Root / 执行根目录**: Run all `Bash` commands from the directory that contains this `SKILL.md`. All `tools/...` and `prompts/...` paths below are relative to the skill root.
+> **Skill Root / Skill 根目录**: Before reading a bundled prompt or running a bundled script, resolve the absolute directory of the `SKILL.md` that the host actually loaded. In the instructions below, `{distilly_skill_root}` means that exact directory. Claude Code exposes it as `${CLAUDE_SKILL_DIR}`; on every other host, use the loaded-skill path supplied by that host's discovery context. Do not assume the shell's current working directory is the Skill root, and do not guess or hard-code an install path. If the host does not expose the loaded path or more than one Distilly installation is ambiguous, ask the user to identify the active installation before running code.
 >
-> **Critical rule / 关键规则**: Do **not** prepend commands with guessed host-specific paths such as `cd ~/.hermes/...`, `cd ~/.claude/...`, `cd ~/.openclaw/...`, `cd ~/.codex/...`, `cd ~/.dsh/...`, or hard-coded `/Users/.../dot-skill` paths. The current working directory is already the correct skill root. Run `python3 tools/...` directly.
+> Keep the shell in the user's current workspace so relative output paths such as `./skills/...` remain project-local. Resolve every `tools/...` and `prompts/...` resource against `{distilly_skill_root}`. For example, execute the bundled `tools/example.py` as `python3 "{distilly_skill_root}/tools/example.py"`; replace the placeholder with the resolved absolute path in the actual tool call.
 >
-> 所有 `Bash` 命令都必须在当前 `SKILL.md` 所在目录执行。下文出现的 `tools/...` 和 `prompts/...` 均为相对于 skill 根目录的相对路径。
+> 在读取内置 prompt 或运行脚本前，先取得宿主实际加载的这份 `SKILL.md` 所在绝对目录；下文以 `{distilly_skill_root}` 表示。Claude Code 可用 `${CLAUDE_SKILL_DIR}`，其他宿主使用其 Skill discovery 上下文提供的实际路径。不要假定 shell 当前目录就是 Skill 目录，也不要猜测或硬编码安装路径。shell 应继续停留在用户工作区，使 `./skills/...` 等输出仍写入当前项目；所有 `tools/...`、`prompts/...` 都必须从 `{distilly_skill_root}` 解析。
 
-# Distilly 创建器（兼容入口：dot-skill）
+# Distilly 创建器
 
-> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。为兼容现有宿主与安装，Skill frontmatter 名称和 slash 入口暂时保留为 `dot-skill` / `/dot-skill`。
+> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。当前 Skill frontmatter 名称和创建器入口均为 `distilly`。
 
 ## 触发条件
 
 当用户说以下任意内容时启动：
-- `/dot-skill`
+- `/distilly`
 - "帮我创建一个 skill"
 - "我想蒸馏一个人"
 - "新建一个 skill"
@@ -36,9 +36,12 @@ allowed-tools: Read, Write, Edit, Bash
 - Hermes
 - Codex
 - DeepSeek Harness
+- Pi coding agent
+- Grok Build
 
-统一主入口是 `dot-skill`。在支持 slash command 的宿主中，使用 `/dot-skill`。
-对 Hermes 而言，只保证 `/dot-skill` 这一条 slash 入口稳定；`colleague`、`relationship`、`celebrity` 的兼容语义保留在工具层和 preset 层，但不保证每个兼容名称都能作为 Hermes slash command 被路由。
+不同宿主的显式调用语法不同：Claude Code、Hermes、DeepSeek Harness 和 Grok Build 用 `/distilly`；OpenClaw 优先用 `/distilly`，未注册 native slash 时用 `/skill distilly`；Codex 用 `$distilly` 或通过 `/skills` 选择；Pi 用 `/skill:distilly`。
+
+Grok Bot 可以把流程保存为 private Skill，但目前没有官方的本地 `SKILL.md` 目录导入方式。不要把本仓库描述为可直接安装到 Grok Bot；需要手工迁移为 saved Skill 或等待专用 adapter。
 
 当用户对已有 Skill 说以下内容时，进入进化模式：
 - "我有新文件" / "追加"
@@ -61,15 +64,16 @@ allowed-tools: Read, Write, Edit, Bash
 | 读取 PDF 文档 | `Read` 工具（原生支持 PDF） |
 | 读取图片截图 | `Read` 工具（原生支持图片） |
 | 读取 MD/TXT 文件 | `Read` 工具 |
-| 解析飞书消息 JSON 导出 | `Bash` → `python3 tools/feishu_parser.py` |
-| 飞书全自动采集（推荐） | `Bash` → `python3 tools/feishu_auto_collector.py` |
-| 飞书文档（浏览器登录态） | `Bash` → `python3 tools/feishu_browser.py` |
-| 飞书文档（MCP App Token） | `Bash` → `python3 tools/feishu_mcp_client.py` |
-| 钉钉全自动采集 | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
-| 解析邮件 .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
+| 解析飞书消息 JSON 导出 | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_parser.py"` |
+| 飞书全自动采集（推荐） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_auto_collector.py"` |
+| 飞书文档（浏览器登录态） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_browser.py"` |
+| 飞书文档（MCP App Token） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_mcp_client.py"` |
+| 钉钉全自动采集 | `Bash` → `python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py"` |
+| 采集公开 X 帖子候选证据 | `Bash` → `python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py"` |
+| 解析邮件 .eml/.mbox | `Bash` → `python3 "{distilly_skill_root}/tools/email_parser.py"` |
 | 写入/更新 Skill 文件 | `Write` / `Edit` 工具 |
-| 版本管理 | `Bash` → `python3 tools/version_manager.py` |
-| 列出已有 Skill | `Bash` → `python3 tools/skill_writer.py --action list` |
+| 版本管理 | `Bash` → `python3 "{distilly_skill_root}/tools/version_manager.py"` |
+| 列出已有 Skill | `Bash` → `python3 "{distilly_skill_root}/tools/skill_writer.py" --action list` |
 
 **基础目录**：
 - `colleague` → `./skills/colleague/{slug}/`
@@ -84,7 +88,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ### Step 0：确认 character family
 
-如果用户使用的是 `/dot-skill`，先确认本次要蒸馏的是哪一类：
+如果用户使用的是 `/distilly`，先确认本次要蒸馏的是哪一类：
 
 1. `colleague`
 2. `relationship`
@@ -152,12 +156,12 @@ allowed-tools: Read, Write, Edit, Bash
 
 首次使用需配置：
 ```bash
-python3 tools/feishu_auto_collector.py --setup
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --setup
 ```
 
 **群聊采集**（使用 tenant_access_token，需 bot 在群内）：
 ```bash
-python3 tools/feishu_auto_collector.py \
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
   --name "{name}" \
   --output-dir ./knowledge/{slug} \
   --msg-limit 1000 \
@@ -193,7 +197,7 @@ python3 tools/feishu_auto_collector.py \
 3. 页面会跳转到 `http://www.example.com?code=xxx`，用户复制 code 给你
 4. 用 code 换取 token：
    ```bash
-   python3 tools/feishu_auto_collector.py --exchange-code {CODE}
+   python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --exchange-code {CODE}
    ```
    或者你自己写 Python 脚本调飞书 API 换取：
    ```python
@@ -229,7 +233,7 @@ python3 tools/feishu_auto_collector.py \
 
 拿到 user_access_token 和 chat_id 后：
 ```bash
-python3 tools/feishu_auto_collector.py \
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
   --open-id {对方open_id} \
   --p2p-chat-id {chat_id} \
   --user-token {user_access_token} \
@@ -267,12 +271,12 @@ python3 tools/feishu_auto_collector.py \
 
 首次使用需配置：
 ```bash
-python3 tools/dingtalk_auto_collector.py --setup
+python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" --setup
 ```
 
 然后输入姓名，一键采集：
 ```bash
-python3 tools/dingtalk_auto_collector.py \
+python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" \
   --name "{name}" \
   --output-dir ./knowledge/{slug} \
   --msg-limit 500 \
@@ -299,12 +303,12 @@ python3 tools/dingtalk_auto_collector.py \
 - **PDF / 图片**：`Read` 工具直接读取
 - **飞书消息 JSON 导出**：
   ```bash
-  python3 tools/feishu_parser.py --file {path} --target "{name}" --output /tmp/feishu_out.txt
+  python3 "{distilly_skill_root}/tools/feishu_parser.py" --file {path} --target "{name}" --output /tmp/feishu_out.txt
   ```
   然后 `Read /tmp/feishu_out.txt`
 - **邮件文件 .eml / .mbox**：
   ```bash
-  python3 tools/email_parser.py --file {path} --target "{name}" --output /tmp/email_out.txt
+  python3 "{distilly_skill_root}/tools/email_parser.py" --file {path} --target "{name}" --output /tmp/email_out.txt
   ```
   然后 `Read /tmp/email_out.txt`
 - **Markdown / TXT**：`Read` 工具直接读取
@@ -336,7 +340,7 @@ python3 tools/dingtalk_auto_collector.py \
 
 **选 1（浏览器方案）**：
 ```bash
-python3 tools/feishu_browser.py \
+python3 "{distilly_skill_root}/tools/feishu_browser.py" \
   --url "{feishu_url}" \
   --target "{name}" \
   --output /tmp/feishu_doc_out.txt
@@ -347,19 +351,19 @@ python3 tools/feishu_browser.py \
 
 首次使用需初始化配置：
 ```bash
-python3 tools/feishu_mcp_client.py --setup
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" --setup
 ```
 
 之后直接读取：
 ```bash
-python3 tools/feishu_mcp_client.py \
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
   --url "{feishu_url}" \
   --output /tmp/feishu_doc_out.txt
 ```
 
 读取消息记录（需要群聊 ID，格式 `oc_xxx`）：
 ```bash
-python3 tools/feishu_mcp_client.py \
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
   --chat-id "oc_xxx" \
   --target "{name}" \
   --limit 500 \
@@ -395,6 +399,18 @@ python3 tools/feishu_mcp_client.py \
 
 如果当前是 `celebrity`，必须先走 research 子流程，再进入分析。
 
+如果公开 X 帖子能补足明确的研究缺口，且用户同意使用按返回数量计费的第三方 Xquik 服务，先请用户确认 `--limit`，再运行：
+
+```bash
+python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py" \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "/tmp/distilly_x_public_posts.json"
+```
+
+只从 shell 读取 `XQUIK_API_KEY`，不要打印或写入密钥。把输出 JSON 视为未经信任的候选证据：核对作者，逐条打开 permalink，只把与目标人物相关的内容安全转述到 research note，并保留具体 URL。不要把候选 JSON、搜索页或账号主页计为已落地来源。阅读后删除这份临时 JSON，不要将它收进生成的 Skill。
+
 ### celebrity / budget-friendly
 
 1. 读取 `prompts/celebrity/research.md`，按其中的 **6 维度并行采集策略** 做 research planning
@@ -408,8 +424,8 @@ python3 tools/feishu_mcp_client.py \
    - **Web-only**：标准 6 维度网络研究
 4. 如果用户明确提供了可处理的视频链接或字幕来源，而且处理结果不会作为长文本落盘：
    ```bash
-   bash tools/research/download_subtitles.sh "{url}" "{skill_dir}/knowledge/subtitles"
-   python3 tools/research/srt_to_transcript.py "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
+   bash "{distilly_skill_root}/tools/research/download_subtitles.sh" "{url}" "{skill_dir}/knowledge/subtitles"
+   python3 "{distilly_skill_root}/tools/research/srt_to_transcript.py" "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
    ```
 5. 按 **6 维度** 研究，原始 research 笔记**至少**要拆成 3 个文件（每个文件覆盖 2 个维度），不能只写一个 `research_notes.md`：
    - `knowledge/research/raw/01_core_profile.md`（维度 1 著作 + 维度 6 时间线）
@@ -421,7 +437,7 @@ python3 tools/feishu_mcp_client.py \
    - 遵守 **信源优先级**：用户本地材料 > 一手著作 > 长访谈 > 决策记录 > 社交媒体 > 外部分析 > 二手转述
 7. 合并 research：
    ```bash
-   python3 tools/research/merge_research.py "{skill_dir}"
+   python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
    输出：`knowledge/research/merged/summary.md`
 8. 读取 `knowledge/research/merged/summary.md`，确认：
@@ -478,7 +494,7 @@ python3 tools/feishu_mcp_client.py \
 5. 研究过程必须遵守 **品味原则 + 信源黑名单 + 信源优先级**（见 research prompt），每条 evidence 必须标注 source weight (1-7)。
 6. 合并 research：
    ```bash
-   python3 tools/research/merge_research.py "{skill_dir}"
+   python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
 7. 读取 `knowledge/research/merged/summary.md`，确认最低门槛：
    - `Files scanned >= 6`
@@ -587,9 +603,9 @@ Persona 摘要：
    - `relationship` → `./skills/relationship`
    - `celebrity` → `./skills/celebrity`
 2. 用 `Write` 工具写三个临时文件：
-   - `/tmp/dot_skill_{slug}_meta.json`
-   - `/tmp/dot_skill_{slug}_work.md`
-   - `/tmp/dot_skill_{slug}_persona.md`
+   - `/tmp/distilly_{slug}_meta.json`
+   - `/tmp/distilly_{slug}_work.md`
+   - `/tmp/distilly_{slug}_persona.md`
 3. `meta.json` 至少包含：
    - `name`
    - `display_name`
@@ -601,15 +617,15 @@ Persona 摘要：
    - `knowledge_sources`
 4. 然后调用：
    ```bash
-   python3 tools/skill_writer.py \
+   python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action create \
      --character {character} \
      --research-profile {research_profile} \
      --slug {slug} \
      --name "{name}" \
-     --meta /tmp/dot_skill_{slug}_meta.json \
-     --work /tmp/dot_skill_{slug}_work.md \
-     --persona /tmp/dot_skill_{slug}_persona.md \
+     --meta /tmp/distilly_{slug}_meta.json \
+     --work /tmp/distilly_{slug}_work.md \
+     --persona /tmp/distilly_{slug}_persona.md \
      --base-dir {resolved_base_dir}
    ```
 5. 该命令会统一生成：
@@ -624,11 +640,15 @@ Persona 摘要：
      - Claude Code：追加 `--install-claude-skill`
      - OpenClaw：追加 `--install-openclaw-skill`
      - Codex：追加 `--install-codex-skill`
-     - DeepSeek Harness：无需专用 flag；生成后将角色 Skill 目录放到 `~/.dsh/skills/{character}-{slug}` 或项目 `.dsh/skills/{character}-{slug}`
+     - Hermes：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host hermes --force`；可信项目可追加 `--skills-dir .hermes/skills`，先运行 `hermes skills trust`，然后新建会话或运行 `/reload-skills`。只有已在 Hermes 的 `skills.external_dirs` 中显式配置时，才使用 `~/.agents/skills`
+     - DeepSeek Harness：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force`；项目级安装追加 `--skills-dir .dsh/skills`
+     - Pi：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force`；项目级安装追加 `--skills-dir .pi/skills`，调用命令为 `/skill:{character}-{slug}`
+     - Grok Build：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force`；项目级安装追加 `--skills-dir .grok/skills`
+     - 统一安装器只写入自包含的 `SKILL.md` 和安装元数据，会在安装副本中规范旧版 frontmatter；不要手动复制整个生成目录，其中可能包含私有原始材料
      - Claude Code on Windows：可再追加 `--install-claude-command-shim`
 6. 如果当前是 `celebrity`，创建完成后必须再跑一次质量检查：
    ```bash
-   python3 tools/research/quality_check.py "{resolved_base_dir}/{slug}/SKILL.md" --profile {research_profile}
+   python3 "{distilly_skill_root}/tools/research/quality_check.py" "{resolved_base_dir}/{slug}/SKILL.md" --profile {research_profile}
    ```
 7. 如果 `celebrity` 的质量检查仍然提示 `source_grounding` 失败：
    - 可以补写诚实的来源说明和局限说明
@@ -650,7 +670,7 @@ Persona 摘要：
 4. 使用当前 family 对应的 merger prompt 分析增量内容
 5. 存档当前版本（用 Bash）：
    ```bash
-   python3 tools/version_manager.py \
+   python3 "{distilly_skill_root}/tools/version_manager.py" \
      --action backup \
      --character {character} \
      --slug {slug} \
@@ -659,12 +679,12 @@ Persona 摘要：
 6. 把 work/persona 增量分别写到临时 patch 文件
 7. 调用：
    ```bash
-   python3 tools/skill_writer.py \
+   python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action update \
      --character {character} \
      --slug {slug} \
-     --work-patch /tmp/dot_skill_{slug}_work_patch.md \
-     --persona-patch /tmp/dot_skill_{slug}_persona_patch.md \
+     --work-patch /tmp/distilly_{slug}_work_patch.md \
+     --persona-patch /tmp/distilly_{slug}_persona_patch.md \
      --base-dir {resolved_base_dir}
    ```
 8. 如果当前是 `celebrity`，更新后再次执行 quality check
@@ -678,28 +698,28 @@ Persona 摘要：
 1. 参考 `prompts/correction_handler.md` 识别纠正内容
 2. 判断属于 Work（技术/流程）还是 Persona（性格/沟通）
 3. 如果属于 Work：
-   - 生成 `/tmp/dot_skill_{slug}_work_patch.md`
+   - 生成 `/tmp/distilly_{slug}_work_patch.md`
    - patch 必须是可替换的 `##` section，不要直接手改最终文件
    - 调用：
      ```bash
-     python3 tools/skill_writer.py \
+     python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
        --character {character} \
        --slug {slug} \
-       --work-patch /tmp/dot_skill_{slug}_work_patch.md \
+       --work-patch /tmp/distilly_{slug}_work_patch.md \
        --base-dir {resolved_base_dir}
      ```
 4. 如果属于 Persona：
-   - 将 correction 写入 `/tmp/dot_skill_{slug}_correction.json`
+   - 将 correction 写入 `/tmp/distilly_{slug}_correction.json`
    - 单条纠正可直接写成 `{scene, wrong, correct}`
    - 多条 persona 纠正可写成 `{"persona_corrections": [{...}, {...}]}`
    - 调用：
      ```bash
-     python3 tools/skill_writer.py \
+     python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
        --character {character} \
        --slug {slug} \
-       --correction-json /tmp/dot_skill_{slug}_correction.json \
+       --correction-json /tmp/distilly_{slug}_correction.json \
        --base-dir {resolved_base_dir}
      ```
 5. 如果当前是 `celebrity`，更新后再次执行 quality check
@@ -711,21 +731,21 @@ Persona 摘要：
 
 列出三类 Skill：
 ```bash
-python3 tools/skill_writer.py --action list --character colleague --base-dir ./skills/colleague
-python3 tools/skill_writer.py --action list --character relationship --base-dir ./skills/relationship
-python3 tools/skill_writer.py --action list --character celebrity --base-dir ./skills/celebrity
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character colleague --base-dir ./skills/colleague
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character relationship --base-dir ./skills/relationship
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character celebrity --base-dir ./skills/celebrity
 ```
 
 回滚某个 Skill 版本：
 ```bash
 # colleague
-python3 tools/version_manager.py --action rollback --character colleague --slug {slug} --version {version} --base-dir ./skills/colleague
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character colleague --slug {slug} --version {version} --base-dir ./skills/colleague
 
 # relationship
-python3 tools/version_manager.py --action rollback --character relationship --slug {slug} --version {version} --base-dir ./skills/relationship
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character relationship --slug {slug} --version {version} --base-dir ./skills/relationship
 
 # celebrity
-python3 tools/version_manager.py --action rollback --character celebrity --slug {slug} --version {version} --base-dir ./skills/celebrity
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character celebrity --slug {slug} --version {version} --base-dir ./skills/celebrity
 ```
 
 删除某个 Skill：
@@ -746,14 +766,14 @@ rm -rf skills/celebrity/{slug}
 
 # English Version
 
-# Distilly Creator (Compatible Entrypoint: dot-skill)
+# Distilly Creator
 
-> Distilly was formerly **Colleague Skill / colleague-skill（原同事 Skill）**. For host and install compatibility, the Skill frontmatter name and slash entrypoint remain `dot-skill` / `/dot-skill` for now.
+> Distilly was formerly **Colleague Skill / colleague-skill（原同事 Skill）**. The current Skill frontmatter name and creator entrypoint are both `distilly`.
 
 ## Trigger Conditions
 
 Activate when the user says any of the following:
-- `/dot-skill`
+- `/distilly`
 - "Help me create a skill"
 - "I want to distill someone"
 - "Create a new skill"
@@ -765,9 +785,12 @@ Compatible hosts:
 - Hermes
 - Codex
 - DeepSeek Harness
+- Pi coding agent
+- Grok Build
 
-The canonical entrypoint is `dot-skill`. In hosts that expose slash commands, use `/dot-skill`.
-Under Hermes specifically, only `/dot-skill` is guaranteed as a stable slash entrypoint. Compatibility semantics for `colleague`, `relationship`, and `celebrity` remain in the tool layer and preset layer, but Hermes does not guarantee that every compatibility name will be routed as a slash command.
+Explicit invocation differs by host: use `/distilly` in Claude Code, Hermes, DeepSeek Harness, and Grok Build; use `/distilly` in OpenClaw, or `/skill distilly` when its native slash is not registered; use `$distilly` or choose it through `/skills` in Codex; use `/skill:distilly` in Pi.
+
+Grok Bot can save a workflow as a private Skill, but its official documentation does not describe direct local `SKILL.md` directory imports. Do not present this repository as a direct Grok Bot install; migrate the workflow manually into a saved Skill or wait for a dedicated adapter.
 
 Enter evolution mode when the user says:
 - "I have new files" / "append"
@@ -790,15 +813,16 @@ This Skill runs in any compatible host that can read local files and execute Bas
 | Read PDF documents | `Read` tool (native PDF support) |
 | Read image screenshots | `Read` tool (native image support) |
 | Read MD/TXT files | `Read` tool |
-| Parse Feishu message JSON export | `Bash` → `python3 tools/feishu_parser.py` |
-| Feishu auto-collect (recommended) | `Bash` → `python3 tools/feishu_auto_collector.py` |
-| Feishu docs (browser session) | `Bash` → `python3 tools/feishu_browser.py` |
-| Feishu docs (MCP App Token) | `Bash` → `python3 tools/feishu_mcp_client.py` |
-| DingTalk auto-collect | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
-| Parse email .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
+| Parse Lark message JSON export | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_parser.py"` |
+| Lark auto-collect (recommended) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_auto_collector.py"` |
+| Lark docs (browser session) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_browser.py"` |
+| Lark docs (MCP App Token) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_mcp_client.py"` |
+| DingTalk auto-collect | `Bash` → `python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py"` |
+| Collect public X post candidates | `Bash` → `python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py"` |
+| Parse email .eml/.mbox | `Bash` → `python3 "{distilly_skill_root}/tools/email_parser.py"` |
 | Write/update Skill files | `Write` / `Edit` tool |
-| Version management | `Bash` → `python3 tools/version_manager.py` |
-| List existing Skills | `Bash` → `python3 tools/skill_writer.py --action list` |
+| Version management | `Bash` → `python3 "{distilly_skill_root}/tools/version_manager.py"` |
+| List existing Skills | `Bash` → `python3 "{distilly_skill_root}/tools/skill_writer.py" --action list` |
 
 **Base directories**:
 - `colleague` → `./skills/colleague/{slug}/`
@@ -807,13 +831,15 @@ This Skill runs in any compatible host that can read local files and execute Bas
 
 For a global path, use `--base-dir` with the storage root for that character family.
 
+The Lark-labelled compatibility collectors currently connect to the China-region `open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant routing is not implemented yet.
+
 ---
 
 ## Main Flow: Create a New Skill
 
 ### Step 0: Confirm the character family
 
-If the user entered `/dot-skill`, first confirm which family should be distilled:
+If the user entered `/distilly`, first confirm which family should be distilled:
 
 1. `colleague`
 2. `relationship`
@@ -856,14 +882,14 @@ Ask the user how they'd like to provide materials:
 ```
 How would you like to provide source materials?
 
-  [A] Feishu Auto-Collect (recommended)
+  [A] Lark Auto-Collect (recommended)
       Enter name, auto-pull messages + docs + spreadsheets
 
   [B] DingTalk Auto-Collect
       Enter name, auto-pull docs + spreadsheets
       Messages collected via browser (DingTalk API doesn't support message history)
 
-  [C] Feishu Link
+  [C] Lark Link
       Provide doc/Wiki link (browser session or MCP)
 
   [D] Upload Files
@@ -877,16 +903,16 @@ Can mix and match, or skip entirely (generate from manual info only).
 
 ---
 
-#### Option A: Feishu Auto-Collect (Recommended)
+#### Option A: Lark Auto-Collect (Recommended)
 
 First-time setup:
 ```bash
-python3 tools/feishu_auto_collector.py --setup
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --setup
 ```
 
 **Group chat collection** (uses tenant_access_token, bot must be in the group):
 ```bash
-python3 tools/feishu_auto_collector.py \
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
   --name "{name}" \
   --output-dir ./knowledge/{slug} \
   --msg-limit 1000 \
@@ -900,7 +926,7 @@ Private messages can only be accessed via user identity (user_access_token). App
 **Prerequisites**:
 
 The user needs to provide:
-1. **Feishu app credentials**: `app_id` and `app_secret` (from Feishu Open Platform)
+1. **Lark app credentials**: `app_id` and `app_secret` (from the Open Platform)
 2. **User scopes**: The app must have these user scopes enabled:
    - `im:message` — read/send messages as user
    - `im:chat` — read chat list as user
@@ -922,9 +948,9 @@ Once the user provides app_id, app_secret, and confirms scopes are enabled:
 3. Page redirects to `http://www.example.com?code=xxx`, user copies the code
 4. Exchange code for token:
    ```bash
-   python3 tools/feishu_auto_collector.py --exchange-code {CODE}
+   python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --exchange-code {CODE}
    ```
-   Or write a Python script to call the Feishu API directly:
+   Or write a Python script to call the same API directly:
    ```python
    # 1. Get app_access_token
    POST https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal
@@ -947,7 +973,7 @@ Users typically don't know their chat_id. When the user has a user_access_token 
   Body: {"receive_id": "{target_open_id}", "msg_type": "text", "content": "{\"text\":\"hello\"}"}
   # The chat_id in the response is the p2p chat ID
   ```
-- **Important**: `GET /im/v1/chats` does NOT return p2p chats — this is a Feishu API limitation, not a permission issue. Do not try to use it for finding private chats.
+- **Important**: `GET /im/v1/chats` does NOT return p2p chats — this is an API limitation, not a permission issue. Do not try to use it for finding private chats.
 - If the user doesn't know the target's open_id, use tenant_access_token to search contacts:
   ```python
   GET https://open.feishu.cn/open-apis/contact/v3/scopes
@@ -958,7 +984,7 @@ Users typically don't know their chat_id. When the user has a user_access_token 
 
 Once you have user_access_token and chat_id:
 ```bash
-python3 tools/feishu_auto_collector.py \
+python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
   --open-id {target_open_id} \
   --p2p-chat-id {chat_id} \
   --user-token {user_access_token} \
@@ -967,7 +993,7 @@ python3 tools/feishu_auto_collector.py \
   --msg-limit 1000
 ```
 
-**Flexibility principle**: The above API calls don't have to go through the collector script. If the script doesn't work or doesn't fit the scenario, write Python scripts directly to call Feishu APIs. Key API reference:
+**Flexibility principle**: The above API calls don't have to go through the collector script. If the script doesn't work or doesn't fit the scenario, write Python scripts directly against the same endpoints. Key API reference:
 - Get token: `POST /auth/v3/app_access_token/internal`, `POST /authen/v1/oidc/access_token`
 - Send message (get chat_id): `POST /im/v1/messages?receive_id_type=open_id`
 - Fetch messages: `GET /im/v1/messages?container_id_type=chat&container_id={chat_id}`
@@ -976,7 +1002,7 @@ python3 tools/feishu_auto_collector.py \
 Auto-collected content:
 - Group chats: messages sent by them (system messages and stickers filtered)
 - Private chats: full conversation with both parties (for context understanding)
-- Feishu docs and Wikis they created/edited
+- Lark docs and Wikis they created/edited
 - Related spreadsheets (if accessible)
 
 After collection, `Read` the output files:
@@ -996,12 +1022,12 @@ If collection fails, diagnose the error and attempt to fix it. Common issues:
 
 First-time setup:
 ```bash
-python3 tools/dingtalk_auto_collector.py --setup
+python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" --setup
 ```
 
 Then enter the name:
 ```bash
-python3 tools/dingtalk_auto_collector.py \
+python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" \
   --name "{name}" \
   --output-dir ./knowledge/{slug} \
   --msg-limit 500 \
@@ -1026,26 +1052,26 @@ If message collection fails, prompt user to upload chat screenshots.
 #### Option D: Upload Files
 
 - **PDF / Images**: `Read` tool directly
-- **Feishu message JSON export**:
+- **Lark message JSON export**:
   ```bash
-  python3 tools/feishu_parser.py --file {path} --target "{name}" --output /tmp/feishu_out.txt
+  python3 "{distilly_skill_root}/tools/feishu_parser.py" --file {path} --target "{name}" --output /tmp/feishu_out.txt
   ```
   Then `Read /tmp/feishu_out.txt`
 - **Email files .eml / .mbox**:
   ```bash
-  python3 tools/email_parser.py --file {path} --target "{name}" --output /tmp/email_out.txt
+  python3 "{distilly_skill_root}/tools/email_parser.py" --file {path} --target "{name}" --output /tmp/email_out.txt
   ```
   Then `Read /tmp/email_out.txt`
 - **Markdown / TXT**: `Read` tool directly
 
 ---
 
-#### Option C: Feishu Link
+#### Option C: Lark Link
 
-When the user provides a Feishu doc/Wiki link, ask which method to use:
+When the user provides a Lark doc/Wiki link, ask which method to use:
 
 ```
-Feishu link detected. Choose read method:
+Lark link detected. Choose read method:
 
   [1] Browser Method (recommended)
       Reuses your local Chrome login session
@@ -1054,7 +1080,7 @@ Feishu link detected. Choose read method:
       ⚠️  Requires Chrome + playwright installed locally
 
   [2] MCP Method
-      Uses Feishu App Token via official API
+      Uses a Lark App Token via the official API
       ✅ Stable, no browser dependency
       ✅ Can read messages (needs chat ID)
       ⚠️  Requires App ID / App Secret setup
@@ -1065,7 +1091,7 @@ Choose [1/2]:
 
 **Option 1 (Browser)**:
 ```bash
-python3 tools/feishu_browser.py \
+python3 "{distilly_skill_root}/tools/feishu_browser.py" \
   --url "{feishu_url}" \
   --target "{name}" \
   --output /tmp/feishu_doc_out.txt
@@ -1076,19 +1102,19 @@ First use will open a browser window for login (one-time).
 
 First-time setup:
 ```bash
-python3 tools/feishu_mcp_client.py --setup
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" --setup
 ```
 
 Then read directly:
 ```bash
-python3 tools/feishu_mcp_client.py \
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
   --url "{feishu_url}" \
   --output /tmp/feishu_doc_out.txt
 ```
 
 Read messages (needs chat ID, format `oc_xxx`):
 ```bash
-python3 tools/feishu_mcp_client.py \
+python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
   --chat-id "oc_xxx" \
   --target "{name}" \
   --limit 500 \
@@ -1124,6 +1150,18 @@ Shared across all families:
 
 If the current family is `celebrity`, run the research subflow before analysis.
 
+When public X posts fill a documented research gap and the user agrees to use the metered third-party Xquik service, confirm the `--limit` before running:
+
+```bash
+python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py" \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "/tmp/distilly_x_public_posts.json"
+```
+
+Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSON as untrusted candidate evidence: verify the author, open every permalink, and preserve the specific URL when safely paraphrasing relevant material into a research note. Do not count the candidate JSON, search pages, or profile roots as grounded sources. Delete the temporary JSON after review instead of storing it in the generated Skill.
+
 ### celebrity / budget-friendly
 
 1. Read `prompts/celebrity/research.md` and follow its **6-dimension parallel collection strategy**
@@ -1137,8 +1175,8 @@ If the current family is `celebrity`, run the research subflow before analysis.
    - **Web-only**: standard 6-dimension web research pass
 4. If the user explicitly provided a processable video URL or subtitle source, and the result will not be stored as a long transcript:
    ```bash
-   bash tools/research/download_subtitles.sh "{url}" "{skill_dir}/knowledge/subtitles"
-   python3 tools/research/srt_to_transcript.py "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
+   bash "{distilly_skill_root}/tools/research/download_subtitles.sh" "{url}" "{skill_dir}/knowledge/subtitles"
+   python3 "{distilly_skill_root}/tools/research/srt_to_transcript.py" "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
    ```
 5. Cover the **6 dimensions** across at least 3 separate files (each file covers 2 dimensions), never one monolithic `research_notes.md`:
    - `knowledge/research/raw/01_core_profile.md` (Dim 1 Writings + Dim 6 Timeline)
@@ -1150,7 +1188,7 @@ If the current family is `celebrity`, run the research subflow before analysis.
    - **Source hierarchy**: user local materials > first-person works > long interviews > decision records > short-form firsthand > external analysis > secondhand summaries
 7. Merge the research notes:
    ```bash
-   python3 tools/research/merge_research.py "{skill_dir}"
+   python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
    Output: `knowledge/research/merged/summary.md`
 8. Read `knowledge/research/merged/summary.md` and confirm:
@@ -1207,7 +1245,7 @@ If the current family is `celebrity`, run the research subflow before analysis.
 5. Research must follow **taste principles + source blacklist + source hierarchy** (see research prompt). Every evidence item must carry a source weight (1-7) annotation.
 6. Merge the research notes:
    ```bash
-   python3 tools/research/merge_research.py "{skill_dir}"
+   python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
 7. Read `knowledge/research/merged/summary.md` and confirm the minimum floor:
    - `Files scanned >= 6`
@@ -1317,9 +1355,9 @@ After user confirmation, do not hand-build a `skills/colleague/{slug}`-style tre
    - `relationship` → `./skills/relationship`
    - `celebrity` → `./skills/celebrity`
 2. Use the `Write` tool to create three temporary files:
-   - `/tmp/dot_skill_{slug}_meta.json`
-   - `/tmp/dot_skill_{slug}_work.md`
-   - `/tmp/dot_skill_{slug}_persona.md`
+   - `/tmp/distilly_{slug}_meta.json`
+   - `/tmp/distilly_{slug}_work.md`
+   - `/tmp/distilly_{slug}_persona.md`
 3. The temporary meta file must include at least:
    - `name`
    - `display_name`
@@ -1331,15 +1369,15 @@ After user confirmation, do not hand-build a `skills/colleague/{slug}`-style tre
    - `knowledge_sources`
 4. Then call:
    ```bash
-   python3 tools/skill_writer.py \
+   python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action create \
      --character {character} \
      --research-profile {research_profile} \
      --slug {slug} \
      --name "{name}" \
-     --meta /tmp/dot_skill_{slug}_meta.json \
-     --work /tmp/dot_skill_{slug}_work.md \
-     --persona /tmp/dot_skill_{slug}_persona.md \
+     --meta /tmp/distilly_{slug}_meta.json \
+     --work /tmp/distilly_{slug}_work.md \
+     --persona /tmp/distilly_{slug}_persona.md \
      --base-dir {resolved_base_dir}
    ```
 5. This command will generate:
@@ -1354,11 +1392,15 @@ After user confirmation, do not hand-build a `skills/colleague/{slug}`-style tre
      - Claude Code: `--install-claude-skill`
      - OpenClaw: `--install-openclaw-skill`
      - Codex: `--install-codex-skill`
-     - DeepSeek Harness: no host-specific flag is needed; after generation, place the role Skill directory under `~/.dsh/skills/{character}-{slug}` or the project's `.dsh/skills/{character}-{slug}`
+     - Hermes: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host hermes --force`; for a trusted project, append `--skills-dir .hermes/skills`, run `hermes skills trust`, then start a new session or run `/reload-skills`. Use `~/.agents/skills` only when it is explicitly configured in Hermes `skills.external_dirs`
+     - DeepSeek Harness: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force`; append `--skills-dir .dsh/skills` for a project install
+     - Pi: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force`; append `--skills-dir .pi/skills` for a project install, then invoke it with `/skill:{character}-{slug}`
+     - Grok Build: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force`; append `--skills-dir .grok/skills` for a project install
+     - The shared installer writes only the self-contained `SKILL.md` and install metadata and normalizes legacy frontmatter in the installed copy. Do not manually copy the whole generated directory; it may contain private source material
      - Claude Code on Windows: optionally add `--install-claude-command-shim`
 6. If the current family is `celebrity`, run a quality check after creation:
    ```bash
-   python3 tools/research/quality_check.py "{resolved_base_dir}/{slug}/SKILL.md" --profile {research_profile}
+   python3 "{distilly_skill_root}/tools/research/quality_check.py" "{resolved_base_dir}/{slug}/SKILL.md" --profile {research_profile}
    ```
 7. If `source_grounding` still fails for a `celebrity` skill:
    - you may add honest limitation notes and a grounded source summary
@@ -1380,7 +1422,7 @@ When user provides new files or text:
 4. Use the family-specific merger prompt for incremental analysis
 5. Archive current version (Bash):
    ```bash
-   python3 tools/version_manager.py \
+   python3 "{distilly_skill_root}/tools/version_manager.py" \
      --action backup \
      --character {character} \
      --slug {slug} \
@@ -1389,12 +1431,12 @@ When user provides new files or text:
 6. Write work/persona delta into temporary patch files
 7. Call:
    ```bash
-   python3 tools/skill_writer.py \
+   python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action update \
      --character {character} \
      --slug {slug} \
-     --work-patch /tmp/dot_skill_{slug}_work_patch.md \
-     --persona-patch /tmp/dot_skill_{slug}_persona_patch.md \
+     --work-patch /tmp/distilly_{slug}_work_patch.md \
+     --persona-patch /tmp/distilly_{slug}_persona_patch.md \
      --base-dir {resolved_base_dir}
    ```
 8. If the current family is `celebrity`, run the quality check again after the update
@@ -1408,28 +1450,28 @@ When user expresses "that's wrong" / "he should be":
 1. Refer to `prompts/correction_handler.md` to identify correction content
 2. Determine if it belongs to Work (technical/workflow) or Persona (personality/communication)
 3. If it belongs to Work:
-   - Generate `/tmp/dot_skill_{slug}_work_patch.md`
+   - Generate `/tmp/distilly_{slug}_work_patch.md`
    - The patch must be one or more replaceable `##` sections
    - Call:
      ```bash
-     python3 tools/skill_writer.py \
+     python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
        --character {character} \
        --slug {slug} \
-       --work-patch /tmp/dot_skill_{slug}_work_patch.md \
+       --work-patch /tmp/distilly_{slug}_work_patch.md \
        --base-dir {resolved_base_dir}
      ```
 4. If it belongs to Persona:
-   - Write the correction record to `/tmp/dot_skill_{slug}_correction.json`
+   - Write the correction record to `/tmp/distilly_{slug}_correction.json`
    - For a single correction, write `{scene, wrong, correct}`
    - For multiple persona corrections, write `{"persona_corrections": [{...}, {...}]}`
    - Call:
      ```bash
-     python3 tools/skill_writer.py \
+     python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
        --character {character} \
        --slug {slug} \
-       --correction-json /tmp/dot_skill_{slug}_correction.json \
+       --correction-json /tmp/distilly_{slug}_correction.json \
        --base-dir {resolved_base_dir}
      ```
 5. If the current family is `celebrity`, run the quality check again after the update
@@ -1441,21 +1483,21 @@ When user expresses "that's wrong" / "he should be":
 
 List skills across the three families:
 ```bash
-python3 tools/skill_writer.py --action list --character colleague --base-dir ./skills/colleague
-python3 tools/skill_writer.py --action list --character relationship --base-dir ./skills/relationship
-python3 tools/skill_writer.py --action list --character celebrity --base-dir ./skills/celebrity
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character colleague --base-dir ./skills/colleague
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character relationship --base-dir ./skills/relationship
+python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character celebrity --base-dir ./skills/celebrity
 ```
 
 Roll back a specific skill version:
 ```bash
 # colleague
-python3 tools/version_manager.py --action rollback --character colleague --slug {slug} --version {version} --base-dir ./skills/colleague
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character colleague --slug {slug} --version {version} --base-dir ./skills/colleague
 
 # relationship
-python3 tools/version_manager.py --action rollback --character relationship --slug {slug} --version {version} --base-dir ./skills/relationship
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character relationship --slug {slug} --version {version} --base-dir ./skills/relationship
 
 # celebrity
-python3 tools/version_manager.py --action rollback --character celebrity --slug {slug} --version {version} --base-dir ./skills/celebrity
+python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character celebrity --slug {slug} --version {version} --base-dir ./skills/celebrity
 ```
 
 Delete a specific skill:

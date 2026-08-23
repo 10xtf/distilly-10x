@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install a generated dot-skill artifact into Codex discovery paths."""
+"""Install a generated Distilly artifact into Codex discovery paths."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from install_generated_skill_common import install_generated_skill as install_ge
 
 def default_codex_skills_dir() -> Path:
     """Return the default Codex skills directory."""
-    return Path.home() / ".codex" / "skills"
+    return Path.home() / ".agents" / "skills"
 
 
 def install_generated_skill(
@@ -32,7 +32,7 @@ def install_generated_skill(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Install a generated dot-skill into Codex")
+    parser = argparse.ArgumentParser(description="Install a generated Distilly skill into Codex")
     parser.add_argument("--skill-dir", required=True, help="Generated skill directory")
     parser.add_argument(
         "--codex-skills-dir",

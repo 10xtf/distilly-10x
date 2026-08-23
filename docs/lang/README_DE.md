@@ -6,17 +6,20 @@
 
 ![Distilly – Distill how they think](../social-preview-distilly-v5.png)
 
-### *"Ihr LLM-Bauer seid allesamt Code-Weise! Das Fleisch ist schwach! Steigt auf in den Cyberspace!"*
+### **Distill how they think.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
+[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
+[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -60,7 +63,9 @@ Riesigen Dank an alle, die einen Stern dagelassen haben — wir liefern weiter a
 
 </div>
 
-> 📝 **Update 2026.06.01** — **[Der technische Bericht zu COLLEAGUE.SKILL](../../colleague_skill.pdf) ist jetzt verfügbar**; am meisten freut uns nicht nur das Paper selbst, sondern dass die Community die Galerie auf 215 Skills von 165 Mitwirkenden und 100k+ kumulative Skill-Card-Stars gebracht hat, mit allen Community-Beiträgern in den Acknowledgements.
+> 🧬 **Update 2026.08.23** — Der Creator heißt jetzt durchgängig **Distilly**. Die lokale Skill-Erkennung für Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi und Grok Build ist nach den aktuellen Host-Konventionen dokumentiert; Grok Bot bleibt ein separater Preview-Ablauf für gespeicherte Skills.
+
+> 📝 **Update 2026.06.01** — **[Der technische Bericht zu COLLEAGUE.SKILL](https://arxiv.org/pdf/2605.31264) ist jetzt verfügbar**; am meisten freut uns nicht nur das Paper selbst, sondern dass die Community die Galerie auf 215 Skills von 165 Mitwirkenden und 100k+ kumulative Skill-Card-Stars gebracht hat, mit allen Community-Beiträgern in den Acknowledgements.
 
 > 🗺️ **2026.04.13** — **Die Distilly-Roadmap ist da!** Das als colleague.skill gestartete Projekt heißt heute **Distilly** — destilliere jede Person, nicht nur Kollegen. 👉 **[Vollständige Roadmap](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
@@ -78,7 +83,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ Von Colleague Skill zu Distilly
 
-Distilly ist nicht mehr nur auf das „Kollegen“-Szenario ausgerichtet. Eine allgemeine Skill-Engine destilliert jede Person anhand von Quellen, statt ein kollegenspezifisches Skript zu sein. Aus Kompatibilitätsgründen bleibt der aktuelle Creator-Einstiegspunkt `/dot-skill`.
+Distilly ist nicht mehr nur auf das „Kollegen“-Szenario ausgerichtet. Eine allgemeine Skill-Engine destilliert jede Person anhand von Quellen, statt ein kollegenspezifisches Skript zu sein. Der kanonische Name des Creators und seines Einstiegspunkts ist `distilly`.
 
 ### 2️⃣ Drei Charakter-Familien
 
@@ -97,7 +102,7 @@ Distilly ist nicht mehr nur auf das „Kollegen“-Szenario ausgerichtet. Eine a
 <td align="center"><sub>Personen des öffentlichen Lebens · Creator · öffentliche Stimmen · fiktive Figuren</sub></td>
 </tr>
 <tr>
-<td><sub>Zwei-Schichten-Architektur Work Skill + Persona — lernt sowohl technische Standards und Workflows als auch Sprechweise und Haltung am Arbeitsplatz. Unterstützt automatische Erfassung über Feishu / DingTalk / Slack.</sub></td>
+<td><sub>Zwei-Schichten-Architektur Work Skill + Persona — lernt sowohl technische Standards und Workflows als auch Sprechweise und Haltung am Arbeitsplatz. Unterstützt automatische Erfassung über Lark / DingTalk / Slack.</sub></td>
 <td><sub>🆕 <b>Foto-Sharing-Funktion kommt bald</b> — deine destillierte Beziehung beantwortet nicht nur Nachrichten; sie verschickt Fotos und teilt Ausschnitte aus ihrem Tag, so wie es eine echte Person tun würde.</sub></td>
 <td><sub>Wird mit einer vollständigen <b>Recherche-Toolchain über sechs Dimensionen</b> ausgeliefert (Untertitel → Transkript-Bereinigung → Recherche-Merge → Qualitätsprüfung). Nicht bloß Tonimitation, sondern eine quellengestützte Rekonstruktion beobachtbarer Denk- und Entscheidungsmuster.</sub></td>
 </tr>
@@ -108,16 +113,21 @@ Jede Familie hat ihre eigene Prompt-Pipeline, Quellsammelstrategie und Generieru
 
 ### 3️⃣ Mehr Agent-Hosts
 
-Die alte Version lief nur in Claude Code. Jetzt ist sie host-übergreifend auf vier Plattformen verfügbar:
+Distilly folgt auf sieben Agent-Hosts der lokalen, nativen Skill-Erkennung; jeder Host behält seine eigene Aufrufsyntax:
 
-| Host | Beschreibung |
-|------|--------------|
-| 🟣 **Claude Code** | Native Slash-Command-Unterstützung |
-| 🟠 **Hermes Agent** | Ein-Befehl-Installation, `/dot-skill` funktioniert direkt |
-| 🔵 **OpenClaw** | Vollständig kompatibel |
-| ⚫ **Codex** | Aufruf über Skill-Namen |
+| Host | Nativer Startbefehl |
+|------|---------------------|
+| 🟣 **Claude Code** | `/distilly` |
+| 🟠 **Hermes Agent** | `/distilly` |
+| 🔵 **OpenClaw** | `/distilly` (Fallback: `/skill distilly`) |
+| ⚫ **Codex** | `$distilly` oder `/skills` |
+| 🟡 **DeepSeek Harness** | `/distilly` |
+| 🟢 **Pi coding agent** | `/skill:distilly` |
+| 🔴 **Grok Build** | `/distilly` |
 
-Generierte Charakter-Skills lassen sich ebenfalls mit einem einzigen Befehl in jeden Host installieren.
+Generierte Charakter-Skills verwenden dasselbe Agent-Skills-Format und können in das Skill-Verzeichnis eines unterstützten Hosts gelegt werden.
+
+**Grok Bot (Preview)** ist ein separater, manueller Ablauf: Übertrage den Distilly-Workflow manuell in einen gespeicherten privaten Skill und aktiviere ihn für den gewünschten Bot. Die direkte Installation der `SKILL.md` dieses Repositories in Grok Bot ist weder offiziell dokumentiert noch verifiziert.
 
 ---
 
@@ -125,26 +135,27 @@ Generierte Charakter-Skills lassen sich ebenfalls mit einem einzigen Befehl in j
 
 | Quelle | Nachrichten | Docs / Wiki | Tabellen | Hinweise |
 |--------|:-----------:|:-----------:|:--------:|----------|
-| 🟢 Feishu (auto) | ✅ API | ✅ | ✅ | Einfach einen Namen eingeben, vollautomatisch |
+| 🟢 Lark (automatisch) | ✅ API | ✅ | ✅ | Einfach einen Namen eingeben, vollautomatisch |
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | Die DingTalk-API unterstützt keinen Nachrichtenverlauf |
 | 🟣 Slack (auto) | ✅ API | — | — | Admin muss den Bot installieren; kostenloser Plan auf 90 Tage begrenzt |
+| 𝕏 Öffentliche X-Posts | ✅ API | — | — | Optionale, begrenzte Recherchekandidaten zu öffentlichen Personen über Xquik |
 | 💬 WeChat-Chatverlauf | ✅ SQLite | — | — | Zuerst mit WeChatMsg / PyWxDump / 留痕 exportieren |
 | 📄 PDF / Bilder / Screenshots | — | ✅ | — | Manueller Upload |
-| 📦 Feishu JSON-Export | ✅ | ✅ | — | Manueller Upload |
+| 📦 Lark-JSON-Export | ✅ | ✅ | — | Manueller Upload |
 | ✉️ E-Mail `.eml` / `.mbox` | ✅ | — | — | Manueller Upload |
 | 📝 Markdown / direkt einfügen | ✅ | ✅ | — | Manuelle Eingabe |
+
+> Der aktuelle Lark-kompatible Collector verwendet die Endpunkte der China-Region. Das Routing für internationale `larksuite.com`-Tenants ist noch nicht implementiert.
 
 ---
 
 ## ⚡ Installation
 
-Der aktuelle Creator-Einstiegspunkt bleibt aus Kompatibilitätsgründen `/dot-skill`.
+Wir schreiben 2026 — du hast einen Agenten, lass ihn sich selbst installieren. Öffne deinen bevorzugten lokalen Host und gib ihm diese Zeile:
 
-Wir schreiben 2026 — du hast einen Agenten, lass ihn sich selbst installieren. Öffne deinen Claude Code / Hermes / OpenClaw / Codex und gib ihm diese Zeile:
+> Installiere Distilly für mich: `https://github.com/titanwings/colleague-skill`
 
-> Installiere Distilly für mich: `https://github.com/titanwings/distilly`
-
-Der Agent erkennt das Skills-Verzeichnis des aktuellen Hosts, klont das Repo und registriert den Einstiegspunkt. Sobald das erledigt ist, gib in einem beliebigen Host `/dot-skill` ein, um zu starten.
+Der Agent erkennt das Skills-Verzeichnis des aktuellen Hosts, klont das Repo als `distilly` und registriert den nativen Einstiegspunkt. Der genaue Startbefehl hängt vom Host ab und ist in der Nutzungstabelle unten aufgeführt.
 
 <details>
 <summary><b>🛠️ Lieber selbst installieren? Klicken für die Pfade</b></summary>
@@ -152,40 +163,89 @@ Der Agent erkennt das Skills-Verzeichnis des aktuellen Hosts, klont das Repo und
 <br>
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/colleague-skill <TARGET>
 ```
 
 | Host | `<TARGET>`-Pfad |
 |------|-----------------|
-| Claude Code | `~/.claude/skills/dot-skill` |
-| OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
-| Codex | `~/.codex/skills/dot-skill` |
+| Claude Code | `~/.claude/skills/distilly` |
+| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
+| Codex | `~/.agents/skills/distilly` |
+| DeepSeek Harness | `~/.dsh/skills/distilly` oder `<projekt>/.dsh/skills/distilly` |
+| Pi coding agent | `~/.pi/agent/skills/distilly` oder `~/.agents/skills/distilly` |
+| Grok Build | `~/.grok/skills/distilly` oder `~/.agents/skills/distilly` |
 | Hermes | Nach dem Klonen `python3 tools/install_hermes_skill.py --force` ausführen |
 
 </details>
 
-> Für Feishu/DingTalk-Zugangsdaten zur automatischen Erfassung, das Veröffentlichen eines generierten Charakter-Skills in einem beliebigen Host, Windows-spezifische Hinweise usw. siehe **[Ausführliche Installationsanleitung (INSTALL.md)](../../INSTALL.md)**
+> **Migration älterer Installationen:** Bei einem alten Clone namens `dot-skill` oder einem Clone unter dem früheren Codex-Pfad `~/.codex/skills` reicht `git pull` allein nicht aus, damit der Host den neuen Einstieg `distilly` zuverlässig erkennt. Führe im Stammverzeichnis des alten Clones den passenden Repo-Installer aus:
+>
+> ```bash
+> python3 tools/install_openclaw_skill.py --force
+> python3 tools/install_codex_skill.py --force
+> python3 tools/install_hermes_skill.py --force
+> ```
+>
+> Alternativ klonst du das Repository erneut in den oben für den Host angegebenen kanonischen `distilly`-Pfad. Prüfe zuerst mit dem neuen Host-Aufruf aus der Nutzungstabelle, dass Distilly erkannt wird, und behandle das alte Verzeichnis erst danach manuell; automatisches Löschen wird ausdrücklich nicht empfohlen. Legacy-Fallbacks für Konfiguration und Metadaten dienen nur der Kompatibilität mit alten Daten und benennen ein vorhandenes Installationsverzeichnis nicht automatisch um.
+
+> Für Lark/DingTalk-Zugangsdaten zur automatischen Erfassung, host-spezifische Befehle, den Preview-Ablauf für Grok Bot, Windows-spezifische Hinweise usw. siehe **[Ausführliche Installationsanleitung (INSTALL.md)](../../INSTALL.md)**
 
 ---
 
 ## 🚀 Nutzung
 
-In dem Host, in dem Distilly installiert ist, startest du es mit `/dot-skill` oder sagst deinem Agenten einfach „starte Distilly“.
+Starte Distilly mit der nativen Syntax deines Hosts oder sag deinem Agenten einfach „starte Distilly“:
+
+| Host | Distilly starten |
+|------|------------------|
+| Claude Code | `/distilly` |
+| Hermes Agent | `/distilly` |
+| OpenClaw | `/distilly` (Fallback: `/skill distilly`) |
+| Codex | `$distilly` oder `/skills` |
+| DeepSeek Harness | `/distilly` |
+| Pi coding agent | `/skill:distilly` |
+| Grok Build | `/distilly` |
 
 Er fragt zunächst, welche Familie du destillieren willst: `colleague` · `relationship` · `celebrity`.
 
 Danach folgen Alias, Basisprofil, Persönlichkeits-Tags und die Wahl einer Datenquelle. Alle Felder können übersprungen werden — schon eine Beschreibung allein reicht, um einen Skill zu generieren.
 
-Nach der Erstellung rufst du den generierten Skill mit `/{character}-{slug}` auf.
+Der erzeugte Skill heißt `{character}-{slug}`. Rufe ihn mit der Syntax des jeweiligen Hosts auf.
+
+#### Erzeugten Skill mit dem einheitlichen Installer installieren
+
+Führe im Stammverzeichnis dieses Repositories aus:
+
+```bash
+python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
+```
+
+Gültige Werte für `<host>` sind `hermes`, `deepseek-harness`, `pi` und `grok-build`. Standardmäßig erfolgt eine Installation auf Benutzerebene; für eine Installation im Projekt ergänze den passenden Parameter `--skills-dir`:
+
+| Host | Standard-Installationsverzeichnis | Projektparameter und Installationsverzeichnis |
+|------|-----------------------------------|-----------------------------------------------|
+| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
+| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
+| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
+| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+
+Ein Hermes-Projekt muss mit `hermes skills trust` als vertrauenswürdig markiert werden. Starte nach der Installation eine neue Hermes-Sitzung oder führe `/reload-skills` aus.
+
+Hermes durchsucht `~/.agents/skills` nicht standardmäßig. Verwende diesen Pfad mit Hermes nur, wenn du ihn ausdrücklich unter `skills.external_dirs` konfiguriert hast.
+
+Der Installer normalisiert einen alten Frontmatter-Namen mit Unterstrichen nur in der installierten Kopie auf den kanonischen Kebab-Namen `{character}-{slug}`; das Quellverzeichnis bleibt unverändert. Das Installationsverzeichnis enthält ausschließlich die eigenständige `SKILL.md` und `.distilly-install.json` — private Rohmaterialien werden nicht kopiert.
 
 ### 🎛️ Befehle
 
 | Befehl | Beschreibung |
 |--------|--------------|
-| `/dot-skill` | Kanonischer, vereinheitlichter Einstiegspunkt |
-| `/{character}-{slug}` | Vollständigen Skill aufrufen (Persona + Work) |
-| `/{character}-{slug}-work` | Nur Arbeitsfähigkeiten |
-| `/{character}-{slug}-persona` | Nur Persönlichkeit |
+| `/distilly` | Creator in Claude Code, Hermes, DeepSeek Harness und Grok Build |
+| `/distilly` oder `/skill distilly` | Creator in OpenClaw |
+| `$distilly` oder `/skills` | Creator in Codex |
+| `/skill:distilly` | Creator im Pi coding agent |
+| `/{character}-{slug}` | Erzeugter Skill in Hosts mit Slash-Namen |
+| `${character}-{slug}` | Erzeugter Skill in Codex |
+| `/skill:{character}-{slug}` | Erzeugter Skill in Pi |
 | `python3 tools/skill_writer.py --action list ...` | Generierte Skills aller drei Familien auflisten |
 | `python3 tools/version_manager.py --action rollback ...` | Eine Skill-Version zurückrollen |
 
@@ -200,12 +260,29 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # Untertitel → Transkript
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# Kandidaten aus öffentlichen X-Posts → normalisiertes JSON (optional)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# Der Agent prüft Autor und Permalink und übernimmt nur sichere Paraphrasen in die Recherche-Notizen.
+
 # Recherche-Notizen zusammenführen
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
+
+# Temporäre X-Kandidaten nach dem Lesen löschen
+rm "/tmp/distilly-x-public-posts.json"
 
 # Qualitätsprüfung
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+`XQUIK_API_KEY` wird ausschließlich aus der Umgebung gelesen. Der Aufruf übermittelt die öffentliche Suchanfrage an den Drittanbieter Xquik; abgerechnet wird pro zurückgegebenem Tweet, sodass der Aufruf Credits verbrauchen kann. Deshalb muss der Agent vor dem Aufruf den Wert von `--limit` bestätigen.
+
+Das JSON ist nicht vertrauenswürdiges Kandidatenmaterial, kein automatisch akzeptierter Beleg: Autor und Permalink müssen geprüft werden. Nur kurze Posts der Zielperson selbst dürfen als kurze Primärbelege dienen, und sie haben weniger Gewicht als ausführliche Primärquellen oder dokumentierte Entscheidungen. Posts Dritter werden herabgestuft oder verworfen. Übernimm nur urheberrechtlich unbedenkliche Paraphrasen, speichere die Kandidatendatei nie im generierten Skill und lösche sie nach dem Lesen.
+
+Xquik ist ein unabhängiger Drittanbieter und nicht mit X Corp. verbunden. „Twitter“ und „X“ sind Marken von X Corp.
 
 ---
 
@@ -301,7 +378,7 @@ Distilly verwendet **Persona** als universelle Basis, mit familienspezifischen M
 Dieses Projekt folgt dem offenen Standard [AgentSkills](https://agentskills.io). Das gesamte Repo ist ein Skill-Verzeichnis:
 
 ```
-dot-skill/
+distilly/
 ├── SKILL.md                        # skill entry point (official frontmatter)
 ├── prompts/                        # prompt system across three families
 │   ├── intake.md                   #   [colleague] info intake
@@ -314,7 +391,7 @@ dot-skill/
 │   ├── relationship/               #   [relationship] emotion/conflict/repair prompts
 │   └── celebrity/                  #   [celebrity] six-dimension research + mental-model prompts
 ├── tools/                          # Python tools
-│   ├── feishu_auto_collector.py    #   [colleague] Feishu auto-collector
+│   ├── feishu_auto_collector.py    #   [colleague] Lark-kompatibler Auto-Collector
 │   ├── dingtalk_auto_collector.py  #   [colleague] DingTalk auto-collector
 │   ├── slack_auto_collector.py     #   [colleague] Slack auto-collector
 │   ├── email_parser.py             #   [shared] email parser
@@ -322,6 +399,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     subtitle download
 │   │   ├── transcribe_audio.py     #     audio → text
 │   │   ├── srt_to_transcript.py    #     subtitles → transcript
+│   │   ├── xquik_public_posts.py   #     öffentliche X-Posts → Kandidaten-JSON
 │   │   ├── merge_research.py       #     six-dimension research merge
 │   │   └── quality_check.py        #     quality check
 │   ├── install_*_skill.py          #   [shared] multi-host one-shot installers
@@ -346,9 +424,9 @@ dot-skill/
 |---------|------------------------------------|
 | 🧑‍💼 **colleague** | **Selbst verfasste Langtexte** (Design-Docs / Review-Kommentare) **›** **Entscheidungsantworten** **›** beiläufiger Gruppenchat |
 | 💞 **relationship** | Vollständiger Chatverlauf **›** Briefe / Social-Posts / Tagebücher **›** Beschreibungen durch Dritte |
-| 🌟 **celebrity** | Bücher / Blogs / lange Interviews in der ersten Person **›** Entscheidungsaufzeichnungen (Launches, Commits, Q&A) **›** Kommentare Dritter |
+| 🌟 **celebrity** | Ausführliche Primärquellen (Bücher / Blogs / lange Interviews in der ersten Person) **›** Entscheidungsaufzeichnungen (Launches, Commits, Q&A) **›** verifizierte kurze Posts der Zielperson **›** Kommentare Dritter |
 
-- **colleague** Feishu-Auto-Erfassung: Der App-Bot muss den relevanten Gruppenchats hinzugefügt werden
+- **colleague** automatische Lark-Erfassung: Der App-Bot muss den relevanten Gruppenchats hinzugefügt werden
 - **relationship**: längere Zeiträume sind besser; Material, das sowohl Konflikt als auch Versöhnung abdeckt, ist ideal
 - **celebrity**: füttere nicht nur mit Sekundärinterpretationen
 - Dies ist noch eine Demo-Version — bitte erstelle Issues, wenn du Bugs findest!
@@ -357,7 +435,7 @@ dot-skill/
 
 ## 📄 Technischer Bericht
 
-> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > Dies ist das Paper für **colleague.skill**, den Vorgänger von Distilly. Es behandelt die Zwei-Schichten-Architektur Work Skill + Persona, die Multi-Source-Datenerfassung und die Mechanik der Skill-Generierung — die theoretische Grundlage für die heutige `colleague`-Familie. Separate Papers zu den Erweiterungen der relationship- / celebrity-Familien sind geplant.
 
@@ -365,11 +443,11 @@ dot-skill/
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
  </picture>
 </a>
 

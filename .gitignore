@@ -1,4 +1,4 @@
-# Generated dot-skill outputs (user data, not committed)
+# Generated Distilly outputs (user data, not committed)
 skills/*
 !skills/colleague/
 skills/colleague/*
@@ -18,7 +18,9 @@ venv/
 *.egg-info/
 
 # Config with credentials
-~/.colleague-skill/
+.distilly/
+# Legacy local credential path
+.colleague-skill/
 
 # Playwright browser data
 playwright-data/

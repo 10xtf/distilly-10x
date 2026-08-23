@@ -19,7 +19,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 <br>
 
-*Última actualización: 2026-04-13*
+*Última actualización: 2026-08-23*
 
 [**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Deutsch**](ROADMAP_DE.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
 
@@ -31,8 +31,8 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 | Funcionalidad | Estado |
 |---------------|:------:|
-| Flujo completo de creación con `/create-colleague` | Hecho |
-| Recopilación automática de Feishu (mensajes + docs + hojas de cálculo) | Hecho |
+| Flujo completo de creación con selección de familia (`colleague`, `relationship`, `celebrity`) mediante `/distilly` | Hecho |
+| Recopilación automática de Lark (mensajes + docs + hojas de cálculo) | Hecho |
 | Recopilación automática de DingTalk | Hecho |
 | Recopilación automática de Slack | Hecho |
 | Historial de chat de WeChat (exportación SQLite) | Hecho |
@@ -44,7 +44,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 ---
 
-## Lo que viene
+## Fases de la hoja de ruta
 
 ### Fase 1 — Construcción de la comunidad
 
@@ -66,18 +66,18 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 > Colleague Skill (`colleague.skill`) fue el comienzo. Distilly es el futuro.
 
-**Cambios clave:**
+**Ya disponible:**
 
-- **`/create-skill` como entrada universal** — ya no limitado a "crear un colega", destila a cualquier persona
-  - `/create-colleague` para compañeros de trabajo, mentores, pasantes
-  - `/create-ex` para exparejas, viejos amigos, conexiones perdidas
-  - `/create-icon` para celebridades, figuras históricas
-  - o... destílate a ti mismo
+- **`/distilly` como entrada universal canónica** — elige `colleague`, `relationship` o `celebrity` y destila a cualquier persona, incluso a ti mismo
+- **Skills generados portátiles** — nombres canónicos con el formato `{character}-{slug}` para los hosts de Agent compatibles
+
+**Aún pendiente:**
+
 - **Mejora de categorías en la Galería** — Colega / Celebridad / Relación / Personaje / Yo / Meta-Skill, navega por tipo
 - **Más fuentes de datos**
   - Soporte para WeCom (WeChat Work)
   - Lectura automática de iMessage
-  - Corrección de compatibilidad con Windows
+- **Compatibilidad de plataformas** — corrección de compatibilidad con Windows
 
 **Puedes ayudar:** enviar solicitudes de tipos de persona, crear nuevos recopiladores de fuentes de datos, participar en discusiones de diseño de la Galería
 
@@ -124,9 +124,9 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 | Cómo | Dónde |
 |------|-------|
 | Envía tu .skill | [PR a la Galería](https://titanwings.github.io/colleague-skill-site/) |
-| Discute y propone | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (próximamente) |
+| Discute y propone | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (próximamente) |
 | Chatea en tiempo real | [Discord](https://discord.gg/NVX66RxWZv) |
-| Reporta errores | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Reporta errores | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
 | Contribuye código | Busca etiquetas `good-first-issue`, o simplemente abre un PR |
 
 **Necesitamos especialmente:**

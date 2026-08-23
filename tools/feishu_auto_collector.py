@@ -9,7 +9,7 @@
   4. 搜索他创建/编辑的文档和 Wiki
   5. 拉取文档内容
   6. 拉取多维表格（如有）
-  7. 输出统一格式，直接进 create-colleague 分析流程
+  7. 输出统一格式，直接进入 Distilly 分析流程
 
 前置：
   python3 feishu_auto_collector.py --setup   # 配置 App ID / Secret（一次性）
@@ -56,22 +56,25 @@ except ImportError:
     sys.exit(1)
 
 
-CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"
+CONFIG_PATH = Path.home() / ".distilly" / "feishu_config.json"
+LEGACY_CONFIG_PATH = Path.home() / ".colleague-skill" / "feishu_config.json"
 BASE_URL = "https://open.feishu.cn/open-apis"
 
 
 # ─── 配置 ────────────────────────────────────────────────────────────────────
 
 def load_config() -> dict:
-    if not CONFIG_PATH.exists():
+    config_path = CONFIG_PATH if CONFIG_PATH.exists() else LEGACY_CONFIG_PATH
+    if not config_path.exists():
         print("未找到配置，请先运行：python3 feishu_auto_collector.py --setup", file=sys.stderr)
         sys.exit(1)
-    return json.loads(CONFIG_PATH.read_text())
+    return json.loads(config_path.read_text())
 
 
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    CONFIG_PATH.chmod(0o600)
 
 
 def setup_config() -> None:

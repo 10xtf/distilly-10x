@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install a generated dot-skill artifact into Claude Code discovery paths."""
+"""Install a generated Distilly artifact into Claude Code discovery paths."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def install_generated_skill(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Install a generated dot-skill into Claude Code")
+    parser = argparse.ArgumentParser(description="Install a generated Distilly skill into Claude Code")
     parser.add_argument("--skill-dir", required=True, help="Generated skill directory")
     parser.add_argument(
         "--claude-skills-dir",

@@ -1,6 +1,6 @@
 # Contributing to Distilly / Distilly 贡献指南
 
-> Formerly: **Colleague Skill / colleague-skill（原同事 Skill）**. The current compatible creator entrypoint remains `/dot-skill`.
+> Formerly: **Colleague Skill / colleague-skill（原同事 Skill）**. The current creator entrypoint is `/distilly` on slash-name hosts.
 
 > English first, 中文在下方。
 
@@ -24,7 +24,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 ## Development setup / 开发环境
 
 ```bash
-git clone https://github.com/titanwings/distilly.git
+git clone https://github.com/titanwings/colleague-skill.git distilly
 cd distilly
 pip3 install -r requirements.txt
 ```
@@ -35,7 +35,7 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
 
 ## Branch & PR workflow / 分支和 PR 流程
 
-1. Fork the repo and create a branch from `main`:
+1. Fork the repo and create a branch from the repository's default branch:
    - `feat/<short-name>` for new features
    - `fix/<short-name>` for bug fixes
    - `docs/<short-name>` for docs only
@@ -46,7 +46,7 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
    python -m compileall tools/
    python -m unittest discover -s tests -p 'test_*.py' -v
    ```
-4. Open a PR against `main`. Fill out the PR template.
+4. Open a PR against the repository's default branch. Fill out the PR template.
 5. CI must pass. A maintainer will review — please be patient, and feel free to ping on Discord if it's been a week.
 
 ---
@@ -92,7 +92,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 ## Security / 安全
 
 - **Never commit secrets, tokens, or personal data.** If you accidentally do, rotate the credential immediately and let a maintainer know.
-- Config files that hold credentials should be written to the user's home (e.g. `~/.colleague-skill/`) with permission `0600`.
+- Config files that hold credentials should be written to the user's home under `~/.distilly/` with permission `0600`; readers may keep a read-only fallback for legacy `~/.colleague-skill/` files.
 - If you find a security issue, **do not open a public issue.** Email the maintainer or DM on Discord.
 
 ---
@@ -108,7 +108,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 ## Community / 社区
 
 - [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
-- [GitHub Discussions](https://github.com/titanwings/distilly/discussions) — long-form Q&A and design threads
+- [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) — long-form Q&A and design threads
 - [Skill gallery](https://titanwings.github.io/colleague-skill-site/) — browse and submit skills
 
 Be kind. Assume good intent. Disagree on the idea, not the person.

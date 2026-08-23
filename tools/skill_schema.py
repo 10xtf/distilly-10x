@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Helpers for the shared dot-skill engine schema and generated artifact metadata.
+Helpers for the shared Distilly engine schema and generated artifact metadata.
 """
 
 from __future__ import annotations
 
+import hashlib
+import re
+import unicodedata
 from copy import deepcopy
 from datetime import datetime, timezone
+from pathlib import Path
 
 from skill_presets import (
     get_character_preset,
@@ -17,6 +21,7 @@ from skill_presets import (
 
 
 SCHEMA_VERSION = "3"
+PORTABLE_SLUG_MAX_LENGTH = 40
 PRIMARY_ARTIFACTS = (
     "SKILL.md",
     "work.md",
@@ -24,6 +29,17 @@ PRIMARY_ARTIFACTS = (
     "work_skill.md",
     "persona_skill.md",
     "manifest.json",
+)
+ARTIFACT_NAME_FILES = {
+    "combined_name": "SKILL.md",
+    "work_name": "work_skill.md",
+    "persona_name": "persona_skill.md",
+}
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
+FRONTMATTER_NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
+WINDOWS_RESERVED_NAME_RE = re.compile(
+    r"^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)",
+    re.IGNORECASE,
 )
 
 
@@ -100,12 +116,78 @@ def build_identity_string(meta: dict) -> str:
     return identity
 
 
+def normalize_command_slug(value: str) -> str:
+    """Convert current or legacy text into a deterministic portable command slug."""
+    ascii_value = (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_value).strip("-")
+    if not slug:
+        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:8]
+        slug = f"person-{digest}"
+    return slug[:PORTABLE_SLUG_MAX_LENGTH].rstrip("-")
+
+
+def validate_path_segment(value: str, label: str = "path segment") -> str:
+    """Accept one safe current or legacy filesystem segment."""
+    if (
+        not value
+        or value in {".", ".."}
+        or len(value) > 255
+        or value.endswith((".", " "))
+        or WINDOWS_RESERVED_NAME_RE.match(value)
+        or any(
+            character in '/\\:<>"|?*'
+            or ord(character) < 32
+            or ord(character) == 127
+            for character in value
+        )
+    ):
+        raise ValueError(f"{label} must be one safe path segment")
+    return value
+
+
+def resolve_contained_child(
+    base_dir: Path,
+    segment: str,
+    label: str = "path segment",
+) -> Path:
+    """Resolve a safe direct child and reject symlink escapes from its base."""
+    child = base_dir / validate_path_segment(segment, label)
+    child_root = child.resolve()
+    base_root = base_dir.resolve()
+    if child_root == base_root:
+        raise ValueError(f"{label} must resolve to a direct child")
+    try:
+        child_root.relative_to(base_root)
+    except ValueError as error:
+        raise ValueError(f"{label} resolves outside its base directory") from error
+    return child
+
+
+def read_existing_artifact_names(skill_dir: Path) -> dict[str, str]:
+    """Read generated frontmatter names that predate artifacts metadata."""
+    names = {}
+    for key, filename in ARTIFACT_NAME_FILES.items():
+        artifact_path = skill_dir / filename
+        if not artifact_path.exists():
+            continue
+        frontmatter = FRONTMATTER_RE.match(artifact_path.read_text(encoding="utf-8"))
+        if not frontmatter:
+            continue
+        name = FRONTMATTER_NAME_RE.search(frontmatter.group(1))
+        if name:
+            names[key] = name.group(1).strip()
+    return names
+
+
 def build_artifact_names(meta: dict) -> dict:
     """Generate artifact names from the selected character preset."""
-    preset = get_character_preset(meta.get("character"))
     slug = meta["slug"]
-    prefix = preset["skill_name_prefix"]
-    command_slug = slug.replace("_", "-")
+    command_slug = normalize_command_slug(slug)
     command_base = f"{meta['character']}-{command_slug}"
     return {
         "combined_skill": "SKILL.md",
@@ -114,9 +196,9 @@ def build_artifact_names(meta: dict) -> dict:
         "work_doc": "work.md",
         "persona_doc": "persona.md",
         "manifest": "manifest.json",
-        "combined_name": f"{prefix}_{slug}",
-        "work_name": f"{prefix}_{slug}_work",
-        "persona_name": f"{prefix}_{slug}_persona",
+        "combined_name": command_base,
+        "work_name": f"{command_base}-work",
+        "persona_name": f"{command_base}-persona",
         "combined_command": command_base,
         "work_command": f"{command_base}-work",
         "persona_command": f"{command_base}-persona",
@@ -151,7 +233,7 @@ def sync_legacy_fields(meta: dict) -> dict:
 
 
 def enrich_skill_meta(meta: dict, slug: str, character: str | None = None) -> dict:
-    """Upgrade legacy metadata to the dot-skill engine schema."""
+    """Upgrade legacy metadata to the Distilly engine schema."""
     result = deepcopy(meta)
     resolved_character = resolve_character(result, character)
     preset = get_character_preset(resolved_character)
@@ -192,12 +274,16 @@ def enrich_skill_meta(meta: dict, slug: str, character: str | None = None) -> di
     classification.setdefault("tags", flatten_legacy_tags(result))
     classification.setdefault("language", "en")
 
+    canonical_artifacts = build_artifact_names(result)
     result["artifacts"] = {
-        **build_artifact_names(result),
+        **canonical_artifacts,
         **result.get("artifacts", {}),
+        "combined_command": canonical_artifacts["combined_command"],
+        "work_command": canonical_artifacts["work_command"],
+        "persona_command": canonical_artifacts["persona_command"],
     }
 
-    engine.setdefault("name", "dot-skill")
+    engine.setdefault("name", "distilly")
     engine.setdefault("kind", "meta-skill")
     engine.setdefault("character", resolved_character)
     engine.setdefault("research_profile", resolved_research_profile)
@@ -212,7 +298,7 @@ def enrich_skill_meta(meta: dict, slug: str, character: str | None = None) -> di
     if preset.get("research_tools"):
         engine.setdefault("research_tools", preset["research_tools"])
 
-    generation.setdefault("engine", "dot-skill")
+    generation.setdefault("engine", "distilly")
     generation.setdefault("character", resolved_character)
     generation.setdefault("research_profile", resolved_research_profile)
     generation.setdefault("preset", result["preset"])
@@ -246,6 +332,22 @@ def enrich_skill_meta(meta: dict, slug: str, character: str | None = None) -> di
         result["summary"] = f"{display_name}, {identity}" if identity else display_name
 
     return sync_legacy_fields(result)
+
+
+def enrich_existing_skill_meta(
+    meta: dict,
+    skill_dir: Path,
+    character: str | None = None,
+) -> dict:
+    """Enrich stored metadata while preserving names from legacy artifacts."""
+    prepared = deepcopy(meta)
+    artifact_meta = prepared.get("artifacts")
+    artifacts = dict(artifact_meta) if isinstance(artifact_meta, dict) else {}
+    for key, name in read_existing_artifact_names(skill_dir).items():
+        artifacts.setdefault(key, name)
+    if artifacts:
+        prepared["artifacts"] = artifacts
+    return enrich_skill_meta(prepared, skill_dir.name, character)
 
 
 def build_manifest(meta: dict) -> dict:
@@ -284,7 +386,15 @@ def build_manifest(meta: dict) -> dict:
             "knowledge_dirs": meta["engine"].get("knowledge_dirs", []),
         },
         "install": {
-            "compatible_runtimes": ["claude-code", "openclaw", "hermes", "codex"],
+            "compatible_runtimes": [
+                "claude-code",
+                "openclaw",
+                "hermes",
+                "codex",
+                "deepseek-harness",
+                "grok-build",
+                "pi",
+            ],
             "min_schema_version": SCHEMA_VERSION,
             "installers": {
                 "claude-code": "tools/install_claude_generated_skill.py",

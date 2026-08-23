@@ -16,7 +16,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from skill_presets import normalize_character, resolve_existing_storage_root
-from skill_schema import PRIMARY_ARTIFACTS, enrich_skill_meta, now_iso, sync_legacy_fields
+from skill_schema import (
+    PRIMARY_ARTIFACTS,
+    enrich_existing_skill_meta,
+    now_iso,
+    resolve_contained_child,
+    sync_legacy_fields,
+    validate_path_segment,
+)
 
 MAX_VERSIONS = 10
 
@@ -26,9 +33,18 @@ def resolve_base_dir(base_dir_arg: str | None, character: str) -> Path:
     return resolve_existing_storage_root(character, base_dir_arg=base_dir_arg)
 
 
+def resolve_versions_dir(skill_dir: Path) -> Path:
+    """Resolve the versions directory without following a symlink outside the skill."""
+    return resolve_contained_child(skill_dir, "versions", "versions directory")
+
+
 def list_versions(skill_dir: Path) -> list[dict]:
     """List all archived versions for a skill directory."""
-    versions_dir = skill_dir / "versions"
+    try:
+        versions_dir = resolve_versions_dir(skill_dir)
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return []
     if not versions_dir.exists():
         return []
 
@@ -64,7 +80,12 @@ def backup_artifacts(skill_dir: Path, backup_dir: Path) -> None:
 
 def rollback(skill_dir: Path, target_version: str) -> bool:
     """Restore a previously archived version."""
-    version_dir = skill_dir / "versions" / target_version
+    try:
+        versions_dir = resolve_versions_dir(skill_dir)
+        version_dir = resolve_contained_child(versions_dir, target_version, "version")
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return False
     if not version_dir.exists():
         print(f"error: version does not exist: {target_version}", file=sys.stderr)
         return False
@@ -74,12 +95,21 @@ def rollback(skill_dir: Path, target_version: str) -> bool:
         print("error: meta.json is required for rollback", file=sys.stderr)
         return False
 
-    meta = enrich_skill_meta(
+    meta = enrich_existing_skill_meta(
         json.loads(meta_path.read_text(encoding="utf-8")),
-        skill_dir.name,
+        skill_dir,
     )
     current_version = meta.get("version", "v?")
-    backup_artifacts(skill_dir, skill_dir / "versions" / f"{current_version}_before_rollback")
+    try:
+        backup_dir = resolve_contained_child(
+            versions_dir,
+            f"{validate_path_segment(str(current_version), 'current version')}_before_rollback",
+            "rollback backup version",
+        )
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return False
+    backup_artifacts(skill_dir, backup_dir)
 
     restored_files = []
     for filename in PRIMARY_ARTIFACTS:
@@ -107,21 +137,35 @@ def backup_current_version(skill_dir: Path) -> bool:
         print("error: meta.json is required to determine the current version", file=sys.stderr)
         return False
 
-    meta = enrich_skill_meta(
+    meta = enrich_existing_skill_meta(
         json.loads(meta_path.read_text(encoding="utf-8")),
-        skill_dir.name,
+        skill_dir,
     )
     current_version = meta.get("version", "v1")
-    backup_artifacts(skill_dir, skill_dir / "versions" / current_version)
+    try:
+        versions_dir = resolve_versions_dir(skill_dir)
+        backup_dir = resolve_contained_child(
+            versions_dir,
+            validate_path_segment(str(current_version), "current version"),
+            "current version",
+        )
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return False
+    backup_artifacts(skill_dir, backup_dir)
     print(f"archived version {current_version}")
     return True
 
 
-def cleanup_old_versions(skill_dir: Path, max_versions: int = MAX_VERSIONS) -> None:
+def cleanup_old_versions(skill_dir: Path, max_versions: int = MAX_VERSIONS) -> bool:
     """Remove archived versions beyond the retention limit."""
-    versions_dir = skill_dir / "versions"
+    try:
+        versions_dir = resolve_versions_dir(skill_dir)
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return False
     if not versions_dir.exists():
-        return
+        return True
 
     version_dirs = sorted(
         [entry for entry in versions_dir.iterdir() if entry.is_dir()],
@@ -132,6 +176,7 @@ def cleanup_old_versions(skill_dir: Path, max_versions: int = MAX_VERSIONS) -> N
     for old_dir in to_delete:
         shutil.rmtree(old_dir)
         print(f"deleted old version: {old_dir.name}")
+    return True
 
 
 def main() -> None:
@@ -145,8 +190,15 @@ def main() -> None:
 
     args = parser.parse_args()
     character = normalize_character(args.character or args.type)
-    base_dir = resolve_existing_storage_root(character, slug=args.slug, base_dir_arg=args.base_dir)
-    skill_dir = base_dir / args.slug
+    try:
+        slug = validate_path_segment(args.slug, "skill slug")
+    except ValueError as error:
+        parser.error(str(error))
+    base_dir = resolve_existing_storage_root(character, slug=slug, base_dir_arg=args.base_dir)
+    try:
+        skill_dir = resolve_contained_child(base_dir, slug, "skill slug")
+    except ValueError as error:
+        parser.error(str(error))
 
     if not skill_dir.exists():
         print(f"error: skill directory not found: {skill_dir}", file=sys.stderr)
@@ -166,17 +218,20 @@ def main() -> None:
         return
 
     if args.action == "backup":
-        backup_current_version(skill_dir)
+        if not backup_current_version(skill_dir):
+            sys.exit(1)
         return
 
     if args.action == "rollback":
         if not args.version:
             print("error: rollback requires --version", file=sys.stderr)
             sys.exit(1)
-        rollback(skill_dir, args.version)
+        if not rollback(skill_dir, args.version):
+            sys.exit(1)
         return
 
-    cleanup_old_versions(skill_dir)
+    if not cleanup_old_versions(skill_dir):
+        sys.exit(1)
     print("cleanup complete")
 
 

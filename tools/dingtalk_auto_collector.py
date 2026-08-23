@@ -7,7 +7,7 @@
   2. 搜索他创建/编辑的文档和知识库内容
   3. 拉取多维表格（如有）
   4. 消息记录（API 不支持历史拉取，自动切换浏览器方案）
-  5. 输出统一格式，直接进 create-colleague 分析流程
+  5. 输出统一格式，直接进入 Distilly 分析流程
 
 钉钉限制说明：
   钉钉 Open API 不提供历史消息拉取接口，
@@ -42,22 +42,25 @@ except ImportError:
     sys.exit(1)
 
 
-CONFIG_PATH = Path.home() / ".colleague-skill" / "dingtalk_config.json"
+CONFIG_PATH = Path.home() / ".distilly" / "dingtalk_config.json"
+LEGACY_CONFIG_PATH = Path.home() / ".colleague-skill" / "dingtalk_config.json"
 API_BASE = "https://api.dingtalk.com"
 
 
 # ─── 配置 ────────────────────────────────────────────────────────────────────
 
 def load_config() -> dict:
-    if not CONFIG_PATH.exists():
+    config_path = CONFIG_PATH if CONFIG_PATH.exists() else LEGACY_CONFIG_PATH
+    if not config_path.exists():
         print("未找到配置，请先运行：python3 dingtalk_auto_collector.py --setup", file=sys.stderr)
         sys.exit(1)
-    return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    return json.loads(config_path.read_text(encoding="utf-8"))
 
 
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    CONFIG_PATH.chmod(0o600)
 
 
 def setup_config() -> None:

@@ -6,17 +6,20 @@
 
 ![Distilly — Distill how they think](../social-preview-distilly-v5.png)
 
-### *"LLM 만드는 너희는 다 코드 도사잖아! 육신은 약하다! 사이버 세계로 승천하라!"*
+### **Distill how they think.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/distilly?style=social)](https://github.com/titanwings/distilly/stargazers)
+[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/distilly)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/distilly)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/distilly)
+[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
+[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
+[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
+[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
@@ -60,7 +63,9 @@ Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 워크�
 
 </div>
 
-> 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](../../colleague_skill.pdf)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
+> 🧬 **2026.08.23 업데이트** — Creator 이름과 디렉터리, 엔트리포인트를 모두 **Distilly**로 통일했습니다. Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build의 로컬 Skill 발견 방식을 각 호스트의 현재 규칙에 맞춰 문서화했고, Grok Bot은 saved-Skill 프리뷰 흐름으로 별도 표시합니다.
+
+> 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](https://arxiv.org/pdf/2605.31264)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
 
 > 🗺️ **2026.04.13** — **Distilly 로드맵이 공개되었습니다!** colleague.skill로 시작한 프로젝트는 이제 **Distilly**라는 이름으로 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
@@ -78,7 +83,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ Colleague Skill에서 Distilly로
 
-Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니다. 범용 Skill 엔진이 동료 전용 스크립트 대신, 소스에 근거해 누구든 증류합니다. 호환성을 위해 현재 Creator 엔트리포인트는 계속 `/dot-skill`을 사용합니다.
+Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니다. 범용 Skill 엔진이 동료 전용 스크립트 대신, 소스에 근거해 누구든 증류합니다. Creator의 정식 Skill 이름과 디렉터리 이름은 모두 `distilly`입니다.
 
 ### 2️⃣ 세 가지 캐릭터 패밀리
 
@@ -97,7 +102,7 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 <td align="center"><sub>공인 · 크리에이터 · 공적 발언가 · 가상의 인물</sub></td>
 </tr>
 <tr>
-<td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Feishu / DingTalk / Slack 자동 수집을 지원합니다.</sub></td>
+<td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Lark / DingTalk / Slack 자동 수집을 지원합니다.</sub></td>
 <td><sub>🆕 <b>사진 공유 기능 곧 출시</b> — 증류된 관계가 메시지에 답장만 하는 게 아니라, 실제 사람처럼 사진을 보내고 하루의 한 조각을 공유합니다.</sub></td>
 <td><sub>완성도 높은 <b>6차원 리서치 툴체인</b> 탑재 (자막 → 트랜스크립트 정리 → 리서치 병합 → 품질 점검). 단순한 말투 모방을 넘어, 출처에서 확인되는 사고·의사결정 패턴을 재구성합니다.</sub></td>
 </tr>
@@ -108,16 +113,21 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 ### 3️⃣ 더 많은 Agent 호스트
 
-예전 버전은 Claude Code에서만 동작했지만, 이제는 네 가지 호스트에서 크로스로 사용할 수 있습니다.
+예전 버전은 Claude Code에서만 동작했지만, 이제 일곱 개의 로컬 `SKILL.md` 호스트가 Distilly를 네이티브 형식으로 탐색할 수 있습니다. 명시적 호출 문법은 호스트마다 다릅니다.
 
-| 호스트 | 설명 |
-|--------|------|
-| 🟣 **Claude Code** | 네이티브 슬래시 커맨드 지원 |
-| 🟠 **Hermes Agent** | 원커맨드 설치, `/dot-skill` 바로 동작 |
-| 🔵 **OpenClaw** | 완전 호환 |
-| ⚫ **Codex** | 스킬 이름으로 호출 |
+| 호스트 | Distilly 호출 |
+|--------|---------------|
+| 🟣 **Claude Code** | `/distilly` |
+| 🟠 **Hermes Agent** | `/distilly` |
+| 🔵 **OpenClaw** | `/distilly`, 필요하면 `/skill distilly` |
+| ⚫ **Codex** | `$distilly` 또는 `/skills`에서 선택 |
+| 🔷 **DeepSeek Harness** | `/distilly` |
+| 🟡 **Pi coding agent** | `/skill:distilly` |
+| ⚪ **Grok Build** | `/distilly` |
 
-생성된 캐릭터 Skill도 어떤 호스트에든 원커맨드로 설치할 수 있습니다.
+생성된 캐릭터 Skill도 같은 Agent Skills 형식을 사용하며, 각 호스트의 Skill 디렉터리에 설치할 수 있습니다.
+
+**Grok Bot 프리뷰:** Distilly workflow를 private saved skill로 수동 이전하고 Settings → Plugins에서 해당 Bot에 활성화한 뒤, 작성창에서 `/`를 입력해 선택합니다. 현재 저장소의 `SKILL.md`를 Grok Bot에 직접 설치하는 방식은 공식 문서에 없고 검증되지도 않았습니다.
 
 ---
 
@@ -125,26 +135,27 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 | 소스 | 메시지 | 문서 / 위키 | 스프레드시트 | 비고 |
 |------|:------:|:-----------:|:------------:|------|
-| 🟢 Feishu (자동) | ✅ API | ✅ | ✅ | 이름만 입력하면 완전 자동 |
+| 🟢 Lark (자동) | ✅ API | ✅ | ✅ | 이름만 입력하면 완전 자동 |
 | 🟡 DingTalk (자동) | ⚠️ 브라우저 | ✅ | ✅ | DingTalk API는 메시지 기록 미지원 |
 | 🟣 Slack (자동) | ✅ API | — | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
+| 𝕏 공개 X 게시물 | ✅ API | — | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
 | 💬 WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg / PyWxDump / 留痕 으로 먼저 내보내기 |
 | 📄 PDF / 이미지 / 스크린샷 | — | ✅ | — | 수동 업로드 |
-| 📦 Feishu JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
+| 📦 Lark JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
 | ✉️ 이메일 `.eml` / `.mbox` | ✅ | — | — | 수동 업로드 |
 | 📝 Markdown / 직접 붙여넣기 | ✅ | ✅ | — | 수동 입력 |
+
+> **Lark 호환성 참고:** 현재 호환 수집기는 중국 리전 API 엔드포인트를 사용합니다. 국제 `larksuite.com` 엔드포인트로 라우팅하는 기능은 아직 구현되지 않았습니다.
 
 ---
 
 ## ⚡ 설치
 
-호환성을 위해 현재 Creator 엔트리포인트는 계속 `/dot-skill`을 사용합니다.
+2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness / Pi coding agent / Grok Build를 열고 다음 한 줄을 건네세요.
 
-2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex를 열고 다음 한 줄을 건네세요.
+> Distilly를 설치해 줘: `https://github.com/titanwings/colleague-skill`
 
-> Distilly를 설치해 줘: `https://github.com/titanwings/distilly`
-
-Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 엔트리포인트를 등록합니다. 완료되면 어떤 호스트에서든 `/dot-skill`을 입력해 실행하세요.
+Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 `distilly` 엔트리포인트를 등록합니다. 완료되면 아래의 호스트별 호출 문법을 사용하세요.
 
 <details>
 <summary><b>🛠️ 직접 설치하고 싶으신가요? 경로 보기</b></summary>
@@ -152,40 +163,80 @@ Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클�
 <br>
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/colleague-skill <TARGET>
 ```
 
 | 호스트 | `<TARGET>` 경로 |
 |--------|------------------|
-| Claude Code | `~/.claude/skills/dot-skill` |
-| OpenClaw | `~/.openclaw/workspace/skills/dot-skill` |
-| Codex | `~/.codex/skills/dot-skill` |
+| Claude Code | `~/.claude/skills/distilly` |
 | Hermes | 클론 후 `python3 tools/install_hermes_skill.py --force` 실행 |
+| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
+| Codex | `~/.agents/skills/distilly` |
+| DeepSeek Harness | `~/.dsh/skills/distilly` 또는 프로젝트의 `.dsh/skills/distilly` |
+| Pi coding agent | `~/.pi/agent/skills/distilly` 또는 `~/.agents/skills/distilly` |
+| Grok Build | `~/.grok/skills/distilly` 또는 `~/.agents/skills/distilly` |
 
 </details>
 
-> Feishu/DingTalk 자동 수집 자격 증명, 생성된 캐릭터 Skill을 호스트에 배포하기, Windows 전용 처리 등은 **[상세 설치 가이드 (INSTALL.md)](../../INSTALL.md)** 를 참고하세요.
+> **기존 설치 마이그레이션:** 이름이 `dot-skill`인 이전 clone이나 예전 Codex 경로인 `~/.codex/skills` 아래의 clone은 `git pull`만으로 새 `distilly` 엔트리포인트가 호스트에 발견된다고 보장할 수 없습니다. 이전 clone 루트에서 해당 호스트에 맞는 저장소 설치 프로그램을 실행하세요.
+>
+> ```bash
+> python3 tools/install_openclaw_skill.py --force
+> python3 tools/install_codex_skill.py --force
+> python3 tools/install_hermes_skill.py --force
+> ```
+>
+> 또는 위 표에 나온 해당 호스트의 canonical `distilly` 경로로 저장소를 다시 clone하세요. 먼저 아래 사용법 표의 새 호스트 호출로 Distilly가 발견되는지 확인하고, 그 다음에만 이전 디렉터리를 사용자가 직접 처리하세요. 자동 삭제는 권장하지 않습니다. 설정과 메타데이터의 legacy fallback은 이전 데이터와의 호환성만 제공하며 기존 설치 디렉터리 이름을 자동으로 바꾸지 않습니다.
+
+> Lark/DingTalk 자동 수집 자격 증명, 호스트별 명령, Grok Bot 프리뷰 흐름, Windows 전용 처리 등은 **[상세 설치 가이드 (INSTALL.md)](../../INSTALL.md)** 를 참고하세요.
 
 ---
 
 ## 🚀 사용법
 
-Distilly가 설치된 호스트에서 `/dot-skill`을 입력하거나, Agent에게 “Distilly 시작해”라고 말하세요.
+Distilly가 설치된 호스트에서 아래 표의 문법으로 호출하거나, Agent에게 “Distilly 시작해”라고 말하세요.
 
 먼저 어떤 패밀리를 증류할지 묻습니다: `colleague` · `relationship` · `celebrity`.
 
 그 다음 별칭, 기본 프로필, 성격 태그를 입력하고 데이터 소스를 선택합니다. 모든 항목은 건너뛸 수 있습니다 — 설명 하나만으로도 Skill을 만들 수 있습니다.
 
-생성이 끝나면 `/{character}-{slug}`로 생성된 Skill을 호출하세요.
+생성이 끝나면 `{character}-{slug}`라는 이름의 Skill을 해당 호스트의 Skill 호출 문법으로 실행하세요.
+
+#### 통합 설치 프로그램으로 생성된 Skill 설치
+
+이 저장소의 루트에서 다음 명령을 실행하세요.
+
+```bash
+python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
+```
+
+`<host>`에 사용할 수 있는 값은 `hermes`, `deepseek-harness`, `pi`, `grok-build`입니다. 기본값은 사용자 범위 설치이며, 프로젝트 범위로 설치하려면 해당 `--skills-dir`을 추가하세요.
+
+| 호스트 | 기본 설치 디렉터리 | 프로젝트 매개변수와 설치 디렉터리 |
+|--------|--------------------|------------------------------------|
+| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
+| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
+| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
+| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+
+Hermes 프로젝트는 `hermes skills trust`로 trust해야 합니다. 설치 후에는 Hermes 새 세션을 시작하거나 `/reload-skills`를 실행하세요.
+
+Hermes는 기본적으로 `~/.agents/skills`를 검색하지 않습니다. Hermes에서 이 경로를 사용하려면 `skills.external_dirs`에 명시적으로 추가해야 합니다.
+
+설치 프로그램은 legacy underscore 형식의 frontmatter 이름을 설치 복사본에서만 canonical kebab 형식인 `{character}-{slug}`로 정규화하며, 원본 디렉터리는 변경하지 않습니다. 설치 디렉터리에는 자체 완결형 `SKILL.md`와 `.distilly-install.json`만 들어가며 비공개 원본 자료는 복사하지 않습니다.
 
 ### 🎛️ 명령어
 
-| 명령어 | 설명 |
-|--------|------|
-| `/dot-skill` | 통합 엔트리포인트 (정식) |
-| `/{character}-{slug}` | 전체 Skill 호출 (Persona + Work) |
-| `/{character}-{slug}-work` | 업무 역량만 |
-| `/{character}-{slug}-persona` | Persona만 |
+| 호스트 / 항목 | 호출 / 설명 |
+|---------------|-------------|
+| Claude Code | `/distilly` |
+| Hermes Agent | `/distilly` |
+| OpenClaw | `/distilly`; 대체 호출: `/skill distilly` |
+| Codex | `$distilly` 또는 `/skills` |
+| DeepSeek Harness | `/distilly` |
+| Pi coding agent | `/skill:distilly` |
+| Grok Build | `/distilly` |
+| `{character}-{slug}` | 전체 생성 Skill의 이름 (Persona + Work); 위의 호스트별 문법으로 호출 |
 | `python3 tools/skill_writer.py --action list ...` | 세 패밀리에 걸쳐 생성된 Skill 목록 보기 |
 | `python3 tools/version_manager.py --action rollback ...` | Skill 버전 롤백 |
 
@@ -193,12 +244,27 @@ Distilly가 설치된 호스트에서 `/dot-skill`을 입력하거나, Agent에�
 
 `celebrity` 패밀리는 자막부터 완성된 초안까지, 엔드 투 엔드 리서치 툴체인을 기본 제공합니다.
 
+공개 X 게시물 수집은 선택 사항입니다. API 키는 환경 변수 `XQUIK_API_KEY`에서만 읽습니다. 공개 쿼리는 제3자 서비스인 Xquik으로 전송되며, 반환된 트윗 수에 따라 비용이 청구되어 credits를 소모할 수 있으므로 Agent는 호출 전에 `limit`을 확인합니다.
+
+출력 JSON은 신뢰할 수 없는 근거 후보로 다룹니다. 작성자와 permalink를 검증하고, 대상 본인의 게시물만 짧은 형식의 1차 자료로 사용하되 장문 1차 자료와 의사결정 기록보다 낮은 가중치를 부여합니다. 제3자 게시물은 보조 자료로 격하하거나 버리고, 저작권을 침해하지 않는 범위의 요약·재서술만 남깁니다. 읽은 뒤에는 Skill 디렉터리 밖의 임시 파일을 삭제합니다.
+
+Xquik은 독립적인 제3자 서비스이며 X Corp.와 제휴 관계가 없습니다. “Twitter”와 “X”는 X Corp.의 상표입니다.
+
 ```bash
 # 동영상 자막 다운로드
 bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 
 # 자막 → 트랜스크립트
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
+
+# 공개 X 게시물 후보 → 임시 정규화 JSON (선택)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# Agent가 후보를 검증하고 재서술한 뒤 삭제
+rm "/tmp/distilly-x-public-posts.json"
 
 # 리서치 노트 병합
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
@@ -242,14 +308,14 @@ celebrity.skill ❯ 다들 데모만 하고, 아무도 eval을 안 한다.
 ```
 사용자          ❯ 이 API 설계 좀 리뷰해줄래?
 
-colleague.skill ❯ 잠깐 — 영향 범위가 뭐야? 맥락 설명이 없잖아.
+distilly ❯ 잠깐 — 영향 범위가 뭐야? 맥락 설명이 없잖아.
                   (읽은 뒤) N+1 쿼리네, 고쳐. 응답은 표준
                   {code, message, data} 형식으로 가. 그게 스펙이야,
                   이유는 묻지 마.
 
 사용자          ❯ 이 버그, 네가 넣은 거 맞지?
 
-colleague.skill ❯ 타임라인이 맞아? 그 기능은 여러 군데를 건드렸고,
+distilly ❯ 타임라인이 맞아? 그 기능은 여러 군데를 건드렸고,
                   다른 변경도 있었잖아.
 ```
 
@@ -301,7 +367,7 @@ Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 �
 이 프로젝트는 [AgentSkills](https://agentskills.io) 오픈 표준을 따릅니다. 저장소 전체가 하나의 skill 디렉터리입니다.
 
 ```
-dot-skill/
+distilly/
 ├── SKILL.md                        # skill 진입점 (공식 frontmatter)
 ├── prompts/                        # 세 패밀리를 아우르는 프롬프트 시스템
 │   ├── intake.md                   #   [colleague] 정보 수집
@@ -314,7 +380,7 @@ dot-skill/
 │   ├── relationship/               #   [relationship] 감정/갈등/회복 프롬프트
 │   └── celebrity/                  #   [celebrity] 6차원 리서치 + 멘탈 모델 프롬프트
 ├── tools/                          # Python 도구
-│   ├── feishu_auto_collector.py    #   [colleague] Feishu 자동 수집기
+│   ├── feishu_auto_collector.py    #   [colleague] Lark 자동 수집기
 │   ├── dingtalk_auto_collector.py  #   [colleague] DingTalk 자동 수집기
 │   ├── slack_auto_collector.py     #   [colleague] Slack 자동 수집기
 │   ├── email_parser.py             #   [공용] 이메일 파서
@@ -322,6 +388,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     자막 다운로드
 │   │   ├── transcribe_audio.py     #     오디오 → 텍스트
 │   │   ├── srt_to_transcript.py    #     자막 → 트랜스크립트
+│   │   ├── xquik_public_posts.py   #     공개 X 게시물 → 정규화 후보
 │   │   ├── merge_research.py       #     6차원 리서치 병합
 │   │   └── quality_check.py        #     품질 점검
 │   ├── install_*_skill.py          #   [공용] 멀티 호스트 원커맨드 설치 스크립트
@@ -346,9 +413,9 @@ dot-skill/
 |--------|------------------------------|
 | 🧑‍💼 **colleague** | **본인이 직접 쓴 장문** (설계 문서 / 리뷰 코멘트) **›** **의사결정이 드러나는 답변** **›** 가벼운 그룹 채팅 |
 | 💞 **relationship** | 완전한 대화 기록 **›** 편지 / SNS 게시물 / 일기 **›** 제3자 설명 |
-| 🌟 **celebrity** | 1인칭 책 / 블로그 / 긴 인터뷰 **›** 의사결정 기록 (출시, 코드 커밋, Q&A) **›** 제3자 해설 |
+| 🌟 **celebrity** | 장문 1차 자료 (본인 저서 / 블로그 / 장시간 인터뷰) **›** 의사결정 기록 (출시, 코드 커밋, Q&A) **›** 검증된 대상 본인의 짧은 게시물 **›** 제3자 논평 |
 
-- **colleague** Feishu 자동 수집: 관련 그룹 채팅에 App bot을 추가해야 합니다
+- **colleague** Lark 자동 수집: 관련 그룹 채팅에 App bot을 추가해야 합니다
 - **relationship**: 기간이 길수록 좋고, 갈등과 회복이 모두 담긴 자료가 이상적입니다
 - **celebrity**: 2차 해석 자료만 먹이는 건 피하세요
 - 아직 데모 버전입니다 — 버그를 발견하면 이슈를 등록해 주세요!
@@ -357,7 +424,7 @@ dot-skill/
 
 ## 📄 기술 보고서
 
-> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](../../colleague_skill.pdf)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
+> **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 이 논문은 Distilly의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
 
@@ -365,11 +432,11 @@ dot-skill/
 
 ## ⭐ Star History
 
-<a href="https://star-history.dera.page/#titanwings/distilly&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fcolleague-skill&type=date&legend=top-left" />
  </picture>
 </a>
 

@@ -23,11 +23,11 @@ class OpenClawAndCodexInstallTest(unittest.TestCase):
             tmp_root = Path(tmp_dir)
             source = tmp_root / "source"
             source.mkdir()
-            (source / "SKILL.md").write_text("name: dot-skill\n", encoding="utf-8")
-            (source / "README.md").write_text("# dot-skill\n", encoding="utf-8")
+            (source / "SKILL.md").write_text("name: distilly\n", encoding="utf-8")
+            (source / "README.md").write_text("# Distilly\n", encoding="utf-8")
 
-            openclaw_dest = tmp_root / "openclaw" / "dot-skill"
-            codex_dest = tmp_root / "codex" / "dot-skill"
+            openclaw_dest = tmp_root / "openclaw" / "distilly"
+            codex_dest = tmp_root / "agents" / "distilly"
 
             installed_openclaw = install_openclaw_skill(source, openclaw_dest)
             installed_codex = install_codex_skill(source, codex_dest)
@@ -36,6 +36,35 @@ class OpenClawAndCodexInstallTest(unittest.TestCase):
             self.assertEqual(installed_codex, codex_dest)
             self.assertTrue((openclaw_dest / "SKILL.md").exists())
             self.assertTrue((codex_dest / "SKILL.md").exists())
+
+    def test_repo_installers_do_not_delete_source_when_it_is_already_the_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source = Path(tmp_dir) / "distilly"
+            source.mkdir()
+            skill_file = source / "SKILL.md"
+            skill_file.write_text("name: distilly\n", encoding="utf-8")
+
+            self.assertEqual(install_openclaw_skill(source, source, force=True), source)
+            self.assertEqual(install_codex_skill(source, source, force=True), source)
+            self.assertTrue(skill_file.exists())
+
+    def test_repo_installers_reject_nested_or_ancestor_destinations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "parent" / "source"
+            source.mkdir(parents=True)
+            skill_file = source / "SKILL.md"
+            skill_file.write_text("name: distilly\n", encoding="utf-8")
+            nested = source / ".agents" / "skills" / "distilly"
+
+            for installer in (install_openclaw_skill, install_codex_skill):
+                with self.assertRaisesRegex(ValueError, "must not overlap"):
+                    installer(source, nested, force=True)
+                with self.assertRaisesRegex(ValueError, "must not overlap"):
+                    installer(source, source.parent, force=True)
+
+            self.assertTrue(skill_file.exists())
+            self.assertFalse(nested.exists())
 
     def test_openclaw_generated_skill_installer_writes_host_skill_folder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -61,7 +90,7 @@ class OpenClawAndCodexInstallTest(unittest.TestCase):
             )
 
             installed_file = openclaw_skills / "relationship-mireille" / "SKILL.md"
-            metadata_file = openclaw_skills / "relationship-mireille" / ".dot-skill-install.json"
+            metadata_file = openclaw_skills / "relationship-mireille" / ".distilly-install.json"
 
             self.assertEqual(result["command_name"], "relationship-mireille")
             self.assertTrue(installed_file.exists())
@@ -75,11 +104,11 @@ class OpenClawAndCodexInstallTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_root = Path(tmp_dir)
             generated_root = tmp_root / "skills" / "celebrity"
-            codex_skills = tmp_root / ".codex" / "skills"
+            codex_skills = tmp_root / ".agents" / "skills"
 
             skill_dir = skill_writer.create_skill(
                 generated_root,
-                "zhou_qimo",
+                "zhou-qimo",
                 {
                     "character": "celebrity",
                     "name": "周奇墨",
@@ -96,7 +125,7 @@ class OpenClawAndCodexInstallTest(unittest.TestCase):
             )
 
             installed_file = codex_skills / "celebrity-zhou-qimo" / "SKILL.md"
-            metadata_file = codex_skills / "celebrity-zhou-qimo" / ".dot-skill-install.json"
+            metadata_file = codex_skills / "celebrity-zhou-qimo" / ".distilly-install.json"
 
             self.assertEqual(result["command_name"], "celebrity-zhou-qimo")
             self.assertTrue(installed_file.exists())

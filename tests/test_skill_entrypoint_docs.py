@@ -1,11 +1,50 @@
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SUPPORTED_HOSTS = (
+    "Claude Code",
+    "Hermes Agent",
+    "OpenClaw",
+    "Codex",
+    "DeepSeek Harness",
+    "Pi coding agent",
+    "Grok Build",
+)
+# Slash invocations start at a text boundary; slashes inside install paths are allowed.
+README_INVOCATION_PATTERNS = (
+    re.compile(r"\$distilly\b"),
+    re.compile(r"@distilly\b"),
+    re.compile(r"(?<![\w.-])/distilly\b"),
+    re.compile(r"(?<![\w.-])/skill(?:\s+|:)distilly\b"),
+    re.compile(r"(?<![\w.-])/skills\b"),
+    re.compile(r"(?<![\w.-])/\{character\}-\{slug\}"),
+    re.compile(r"\$\{character\}-\{slug\}"),
+    re.compile(r"(?<![\w.-])/skill:\{character\}-\{slug\}"),
+)
 
 
 class SkillEntrypointDocsTest(unittest.TestCase):
+    def _assert_readme_support_contract(self, content: str, source: str) -> None:
+        self.assertIn("### 3️⃣", content, f"missing host section in {source}")
+        host_section = content.split("### 3️⃣", 1)[1].split("\n---", 1)[0]
+        host_rows = []
+        for line in host_section.splitlines():
+            match = re.search(r"\*\*([^*]+)\*\*", line)
+            if line.startswith("|") and match:
+                host_rows.append(match.group(1))
+
+        self.assertEqual(list(SUPPORTED_HOSTS), host_rows, f"wrong host list in {source}")
+        self.assertIn("Grok Bot", host_section, f"missing Grok Bot preview in {source}")
+        self.assertIn("{character}-{slug}", content, f"missing generated Skill name in {source}")
+        for pattern in README_INVOCATION_PATTERNS:
+            self.assertIsNone(
+                pattern.search(content),
+                f"invocation tutorial matching {pattern.pattern!r} remains in {source}",
+            )
+
     def test_root_skill_uses_distilly_entrypoint(self) -> None:
         content = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("name: distilly", content)
@@ -58,7 +97,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("~/.dsh/skills/distilly", readme)
         self.assertIn("~/.pi/agent/skills/distilly", readme)
         self.assertIn("~/.grok/skills/distilly", readme)
-        self.assertIn("/distilly", readme)
+        self._assert_readme_support_contract(readme, "README.md")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
         self.assertIn("https://github.com/titanwings/colleague-skill", readme)
@@ -97,16 +136,11 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertTrue((ROOT / "skills" / "colleague" / "example_jiaxiu").exists())
         self.assertFalse((ROOT / "colleagues").exists())
 
-    def test_multilingual_readmes_include_hosts_and_research_toolchain(self) -> None:
+    def test_multilingual_readmes_list_hosts_without_invocation_tutorials(self) -> None:
         for readme_path in (ROOT / "docs" / "lang").glob("README_*.md"):
             content = readme_path.read_text(encoding="utf-8")
-            self.assertIn("/distilly", content, f"missing /distilly in {readme_path.name}")
             self.assertNotIn("/dot-skill", content, f"stale /dot-skill in {readme_path.name}")
-            self.assertIn("Grok Build", content, f"missing Grok Build in {readme_path.name}")
-            self.assertIn("Grok Bot", content, f"missing Grok Bot in {readme_path.name}")
-            self.assertIn("Pi", content, f"missing Pi in {readme_path.name}")
-            self.assertIn("/skill:distilly", content, f"missing Pi command in {readme_path.name}")
-            self.assertIn("$distilly", content, f"missing Codex command in {readme_path.name}")
+            self._assert_readme_support_contract(content, readme_path.name)
             self.assertIn(
                 "https://github.com/titanwings/colleague-skill",
                 content,

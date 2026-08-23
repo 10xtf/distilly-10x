@@ -119,17 +119,17 @@ Each family has its own prompt pipeline, source-collection strategy, and generat
 
 ### 3️⃣ More Agent hosts
 
-The old version only ran in Claude Code. Distilly now follows native local Skill discovery across seven agent hosts; each host keeps its own invocation syntax.
+The old version only ran in Claude Code. Distilly now supports native local Skill discovery across seven agent hosts.
 
-| Host | Discovery and invocation |
-|------|--------------------------|
-| 🟣 **Claude Code** | `~/.claude/skills/distilly` → `/distilly` |
-| 🟠 **Hermes Agent** | Local Skill installer → `/distilly` |
-| 🔵 **OpenClaw** | Workspace Skill → `/distilly`; fallback `/skill distilly` |
-| ⚫ **Codex** | `~/.agents/skills/distilly` → `$distilly` or `/skills` |
-| 🔷 **DeepSeek Harness** | Native filesystem Skill → `/distilly` |
-| 🟢 **Pi coding agent** | Native Agent Skill → `/skill:distilly` |
-| ⚪ **Grok Build** | Native filesystem Skill → `/distilly` |
+| Supported host |
+|----------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🔷 **DeepSeek Harness** |
+| 🟢 **Pi coding agent** |
+| ⚪ **Grok Build** |
 
 **Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
 
@@ -159,11 +159,11 @@ It's 2026 — you have an Agent, let it install itself. Open a supported local a
 
 > Install Distilly for me: `https://github.com/titanwings/colleague-skill`
 
-The Agent should install the repository as a Skill named `distilly`, then use the host-specific command shown below.
+The Agent should install the repository as a Skill named `distilly`, then verify that the host discovers Distilly.
 
 > **Upgrading an old install?** A `git pull` inside a `dot-skill` or legacy
 > `~/.codex/skills/...` directory does not rename that discovery directory.
-> Install a canonical `distilly` copy, verify the new host command, and only then
+> Install a canonical `distilly` copy, verify that the host discovers Distilly, and only then
 > retire the old copy. See [Existing-install migration](INSTALL.md#从旧安装迁移).
 
 <details>
@@ -197,7 +197,7 @@ private source material or rename the source Skill. Pass `--skills-dir` for a
 project-level target. Hermes scans `~/.agents/skills` only when it is explicitly
 added to `skills.external_dirs`.
 
-> For Lark/DingTalk auto-collection credentials, host-specific commands, Grok Bot's preview workflow, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
+> For Lark/DingTalk auto-collection credentials, host-specific installation details, Grok Bot's preview workflow, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
 
 > **Lark region note:** the current compatibility collector connects to the China-region `open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant routing is not implemented yet.
 
@@ -205,27 +205,11 @@ added to `skills.external_dirs`.
 
 ## 🚀 Usage
 
-In the host where Distilly is installed, invoke the `distilly` Skill with that host's syntax below, or tell your Agent "start Distilly".
-
-It first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
+Distilly first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
 
 Then enter alias, basic profile, personality tags, and pick a data source. All fields can be skipped — even a description alone can generate a Skill.
 
-Once created, its Skill name is `{character}-{slug}`; invoke it with the same host-specific syntax.
-
-### 🎛️ Commands
-
-| Command | Description |
-|---------|-------------|
-| `/distilly` | Creator in Claude Code, Hermes, DeepSeek Harness, and Grok Build |
-| `/distilly` or `/skill distilly` | Creator in OpenClaw |
-| `$distilly` or `/skills` | Creator in Codex |
-| `/skill:distilly` | Creator in Pi coding agent |
-| `/{character}-{slug}` | Generated Skill in slash-name hosts |
-| `${character}-{slug}` | Generated Skill in Codex |
-| `/skill:{character}-{slug}` | Generated Skill in Pi |
-| `python3 tools/skill_writer.py --action list ...` | List generated Skills across all three families |
-| `python3 tools/version_manager.py --action rollback ...` | Roll back a Skill version |
+Once created, its Skill name is `{character}-{slug}`.
 
 ### 🔬 Celebrity Research Toolchain
 
@@ -418,7 +402,7 @@ distilly/
 
 ## 📝 Citation
 
-If you use **Distilly**, its `/distilly` creator, or **COLLEAGUE.SKILL** in your research or applications, please cite the technical report:
+If you use **Distilly** or **COLLEAGUE.SKILL** in your research or applications, please cite the technical report:
 
 ```bibtex
 @misc{zhou2026colleagueskill,

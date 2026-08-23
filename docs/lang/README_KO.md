@@ -113,21 +113,21 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 ### 3️⃣ 더 많은 Agent 호스트
 
-예전 버전은 Claude Code에서만 동작했지만, 이제 일곱 개의 로컬 `SKILL.md` 호스트가 Distilly를 네이티브 형식으로 탐색할 수 있습니다. 명시적 호출 문법은 호스트마다 다릅니다.
+예전 버전은 Claude Code에서만 동작했지만, 이제 Distilly는 일곱 개의 로컬 Agent 호스트를 지원합니다.
 
-| 호스트 | Distilly 호출 |
-|--------|---------------|
-| 🟣 **Claude Code** | `/distilly` |
-| 🟠 **Hermes Agent** | `/distilly` |
-| 🔵 **OpenClaw** | `/distilly`, 필요하면 `/skill distilly` |
-| ⚫ **Codex** | `$distilly` 또는 `/skills`에서 선택 |
-| 🔷 **DeepSeek Harness** | `/distilly` |
-| 🟡 **Pi coding agent** | `/skill:distilly` |
-| ⚪ **Grok Build** | `/distilly` |
+| 지원 호스트 |
+|-------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🔷 **DeepSeek Harness** |
+| 🟢 **Pi coding agent** |
+| ⚪ **Grok Build** |
 
 생성된 캐릭터 Skill도 같은 Agent Skills 형식을 사용하며, 각 호스트의 Skill 디렉터리에 설치할 수 있습니다.
 
-**Grok Bot 프리뷰:** Distilly workflow를 private saved skill로 수동 이전하고 Settings → Plugins에서 해당 Bot에 활성화한 뒤, 작성창에서 `/`를 입력해 선택합니다. 현재 저장소의 `SKILL.md`를 Grok Bot에 직접 설치하는 방식은 공식 문서에 없고 검증되지도 않았습니다.
+**Grok Bot 프리뷰:** Distilly workflow를 private saved Skill로 수동 이전할 수 있습니다. 현재 저장소의 `SKILL.md`를 Grok Bot에 직접 설치하는 방식은 공식 문서에 없고 검증되지도 않았습니다.
 
 ---
 
@@ -155,7 +155,7 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 > Distilly를 설치해 줘: `https://github.com/titanwings/colleague-skill`
 
-Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 `distilly` 엔트리포인트를 등록합니다. 완료되면 아래의 호스트별 호출 문법을 사용하세요.
+Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 `distilly` 엔트리포인트를 등록한 뒤, 호스트가 Distilly를 발견할 수 있는지 확인합니다.
 
 <details>
 <summary><b>🛠️ 직접 설치하고 싶으신가요? 경로 보기</b></summary>
@@ -186,21 +186,19 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 > python3 tools/install_hermes_skill.py --force
 > ```
 >
-> 또는 위 표에 나온 해당 호스트의 canonical `distilly` 경로로 저장소를 다시 clone하세요. 먼저 아래 사용법 표의 새 호스트 호출로 Distilly가 발견되는지 확인하고, 그 다음에만 이전 디렉터리를 사용자가 직접 처리하세요. 자동 삭제는 권장하지 않습니다. 설정과 메타데이터의 legacy fallback은 이전 데이터와의 호환성만 제공하며 기존 설치 디렉터리 이름을 자동으로 바꾸지 않습니다.
+> 또는 위 표에 나온 해당 호스트의 canonical `distilly` 경로로 저장소를 다시 clone하세요. 먼저 호스트가 Distilly를 발견할 수 있는지 확인하고, 그 다음에만 이전 디렉터리를 사용자가 직접 처리하세요. 자동 삭제는 권장하지 않습니다. 설정과 메타데이터의 legacy fallback은 이전 데이터와의 호환성만 제공하며 기존 설치 디렉터리 이름을 자동으로 바꾸지 않습니다.
 
-> Lark/DingTalk 자동 수집 자격 증명, 호스트별 명령, Grok Bot 프리뷰 흐름, Windows 전용 처리 등은 **[상세 설치 가이드 (INSTALL.md)](../../INSTALL.md)** 를 참고하세요.
+> Lark/DingTalk 자동 수집 자격 증명, 호스트별 설치 방법, Grok Bot 프리뷰 흐름, Windows 호환성 안내 등은 **[상세 설치 가이드 (INSTALL.md)](../../INSTALL.md)** 를 참고하세요.
 
 ---
 
 ## 🚀 사용법
 
-Distilly가 설치된 호스트에서 아래 표의 문법으로 호출하거나, Agent에게 “Distilly 시작해”라고 말하세요.
-
-먼저 어떤 패밀리를 증류할지 묻습니다: `colleague` · `relationship` · `celebrity`.
+Distilly 생성 흐름에서는 먼저 어떤 패밀리를 증류할지 묻습니다: `colleague` · `relationship` · `celebrity`.
 
 그 다음 별칭, 기본 프로필, 성격 태그를 입력하고 데이터 소스를 선택합니다. 모든 항목은 건너뛸 수 있습니다 — 설명 하나만으로도 Skill을 만들 수 있습니다.
 
-생성이 끝나면 `{character}-{slug}`라는 이름의 Skill을 해당 호스트의 Skill 호출 문법으로 실행하세요.
+생성이 끝나면 Skill 이름은 `{character}-{slug}`이며, 지원되는 어느 호스트에나 설치할 수 있습니다.
 
 #### 통합 설치 프로그램으로 생성된 Skill 설치
 
@@ -224,21 +222,6 @@ Hermes 프로젝트는 `hermes skills trust`로 trust해야 합니다. 설치 �
 Hermes는 기본적으로 `~/.agents/skills`를 검색하지 않습니다. Hermes에서 이 경로를 사용하려면 `skills.external_dirs`에 명시적으로 추가해야 합니다.
 
 설치 프로그램은 legacy underscore 형식의 frontmatter 이름을 설치 복사본에서만 canonical kebab 형식인 `{character}-{slug}`로 정규화하며, 원본 디렉터리는 변경하지 않습니다. 설치 디렉터리에는 자체 완결형 `SKILL.md`와 `.distilly-install.json`만 들어가며 비공개 원본 자료는 복사하지 않습니다.
-
-### 🎛️ 명령어
-
-| 호스트 / 항목 | 호출 / 설명 |
-|---------------|-------------|
-| Claude Code | `/distilly` |
-| Hermes Agent | `/distilly` |
-| OpenClaw | `/distilly`; 대체 호출: `/skill distilly` |
-| Codex | `$distilly` 또는 `/skills` |
-| DeepSeek Harness | `/distilly` |
-| Pi coding agent | `/skill:distilly` |
-| Grok Build | `/distilly` |
-| `{character}-{slug}` | 전체 생성 Skill의 이름 (Persona + Work); 위의 호스트별 문법으로 호출 |
-| `python3 tools/skill_writer.py --action list ...` | 세 패밀리에 걸쳐 생성된 Skill 목록 보기 |
-| `python3 tools/version_manager.py --action rollback ...` | Skill 버전 롤백 |
 
 ### 🔬 Celebrity 리서치 툴체인
 

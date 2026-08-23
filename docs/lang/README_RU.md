@@ -63,7 +63,7 @@ Distilly превращает подтверждённые источникам�
 
 </div>
 
-> 🧬 **Обновление 2026.08.23** — Имя creator'а, директория и точка входа теперь везде называются **Distilly**. Локальное обнаружение Skills для Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi и Grok Build описано по текущим правилам каждого хоста; Grok Bot отмечен отдельно как preview-сценарий с saved Skills.
+> 🧬 **Обновление 2026.08.23** — Имя creator'а, директория и точка входа теперь везде называются **Distilly**. Локальное обнаружение Skills поддерживается в Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi и Grok Build; Grok Bot отмечен отдельно как preview-сценарий с saved Skills.
 
 > 📝 **Обновление 2026.06.01** — **[Технический отчёт COLLEAGUE.SKILL](https://arxiv.org/pdf/2605.31264) опубликован**; больше всего нас радует не просто выход paper, а то, что сообщество вместе вырастило gallery до 215 skills от 165 контрибьюторов и 100k+ суммарных stars на skill cards, а все участники сообщества были отдельно упомянуты в Acknowledgements.
 
@@ -113,21 +113,21 @@ Distilly больше не ограничен сценарием «коллег�
 
 ### 3️⃣ Больше Agent-хостов
 
-Старая версия работала только в Claude Code. Теперь семь локальных хостов нативно обнаруживают Distilly в формате `SKILL.md`. Синтаксис явного вызова зависит от хоста:
+Старая версия работала только в Claude Code. Теперь семь локальных хостов нативно обнаруживают Distilly в формате `SKILL.md`:
 
-| Хост | Как вызвать Distilly |
-|------|----------------------|
-| 🟣 **Claude Code** | `/distilly` |
-| 🟠 **Hermes Agent** | `/distilly` |
-| 🔵 **OpenClaw** | `/distilly`; при необходимости `/skill distilly` |
-| ⚫ **Codex** | `$distilly` или выбор через `/skills` |
-| 🔷 **DeepSeek Harness** | `/distilly` |
-| 🟡 **Pi coding agent** | `/skill:distilly` |
-| ⚪ **Grok Build** | `/distilly` |
+| Поддерживаемые хосты |
+|----------------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🔷 **DeepSeek Harness** |
+| 🟡 **Pi coding agent** |
+| ⚪ **Grok Build** |
 
 Сгенерированные Skill'ы персонажей используют тот же формат Agent Skills и устанавливаются в директорию Skills соответствующего хоста.
 
-**Preview для Grok Bot:** вручную перенеси workflow Distilly в private saved skill, включи его для нужного Bot в Settings → Plugins и выбери, набрав `/` в поле ввода. Прямая установка `SKILL.md` из этого репозитория в Grok Bot не описана в официальной документации и не проверена.
+**Preview для Grok Bot:** ручная миграция в виде сохранённого приватного Skill. Прямая установка `SKILL.md` из этого репозитория в Grok Bot не описана в официальной документации и не проверена.
 
 ---
 
@@ -155,7 +155,7 @@ Distilly больше не ограничен сценарием «коллег�
 
 > Установи мне Distilly: `https://github.com/titanwings/colleague-skill`
 
-Агент сам определит директорию skill'ов текущего хоста, склонирует репозиторий и зарегистрирует точку входа `distilly`. После этого используй синтаксис своего хоста из таблицы ниже.
+Агент сам определит директорию skill'ов текущего хоста, склонирует репозиторий и зарегистрирует Distilly так, чтобы хост мог его обнаружить.
 
 <details>
 <summary><b>🛠️ Хочешь установить вручную? Жми — тут пути</b></summary>
@@ -178,7 +178,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 </details>
 
-> **Миграция существующей установки:** clone с прежним именем `dot-skill` или clone в устаревшем корне `~/.codex/skills` не гарантирует обнаружение новой точки входа `distilly` после одного лишь `git pull`. Из корня старого clone запусти подходящий установщик репозитория (`tools/install_openclaw_skill.py`, `tools/install_codex_skill.py` или `tools/install_hermes_skill.py`) либо заново клонируй репозиторий в показанный выше канонический путь `distilly` для своего хоста. Сначала проверь новый вызов для хоста, а затем вручную реши, что делать со старым каталогом; не удаляй его автоматически. Legacy fallback для config/meta сохраняет чтение старых данных, но не переименовывает установленный каталог.
+> **Миграция существующей установки:** clone с прежним именем `dot-skill` или clone в устаревшем корне `~/.codex/skills` не гарантирует обнаружение новой точки входа `distilly` после одного лишь `git pull`. Из корня старого clone запусти подходящий установщик репозитория (`tools/install_openclaw_skill.py`, `tools/install_codex_skill.py` или `tools/install_hermes_skill.py`) либо заново клонируй репозиторий в показанный выше канонический путь `distilly` для своего хоста. Сначала проверь, что хост обнаруживает Distilly, а затем вручную реши, что делать со старым каталогом; не удаляй его автоматически. Legacy fallback для config/meta сохраняет чтение старых данных, но не переименовывает установленный каталог.
 
 Устанавливай сгенерированный Skill персонажа из корня репозитория с помощью единого установщика:
 
@@ -199,34 +199,17 @@ python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}"
 
 Для проектной установки Hermes сначала отметь проект как доверенный командой `hermes skills trust`. После установки начни новую сессию Hermes или выполни `/reload-skills`. `~/.agents/skills` не является стандартной директорией Hermes; она используется только после явного добавления в `skills.external_dirs`.
 
-> Про учётные данные для автосбора Lark/DingTalk, команды конкретных хостов, preview-сценарий Grok Bot, специфику Windows и прочее — см. **[Подробное руководство по установке (INSTALL.md)](../../INSTALL.md)**
+> Про учётные данные для автосбора Lark/DingTalk, подробности установки, preview-статус Grok Bot и совместимость — см. **[Подробное руководство по установке (INSTALL.md)](../../INSTALL.md)**
 
 ---
 
 ## 🚀 Использование
 
-В хосте, где установлен Distilly, используй синтаксис из таблицы ниже или просто скажи агенту «запусти Distilly».
-
-Сначала он спросит, какое семейство ты хочешь дистиллировать: `colleague` · `relationship` · `celebrity`.
+Сначала Distilly спросит, какое семейство ты хочешь дистиллировать: `colleague` · `relationship` · `celebrity`.
 
 Дальше введи псевдоним, базовый профиль, теги личности и выбери источник данных. Все поля можно пропустить — даже одного описания достаточно, чтобы сгенерировать Skill.
 
-После создания вызывай Skill с именем `{character}-{slug}` по правилам своего хоста.
-
-### 🎛️ Команды
-
-| Хост / элемент | Вызов / описание |
-|----------------|-----------------|
-| Claude Code | `/distilly` |
-| Hermes Agent | `/distilly` |
-| OpenClaw | `/distilly`; запасной вариант: `/skill distilly` |
-| Codex | `$distilly` или `/skills` |
-| DeepSeek Harness | `/distilly` |
-| Pi coding agent | `/skill:distilly` |
-| Grok Build | `/distilly` |
-| `{character}-{slug}` | Имя полного сгенерированного Skill'а (Persona + Work); вызывай по синтаксису хоста выше |
-| `python3 tools/skill_writer.py --action list ...` | Список сгенерированных Skill'ов всех трёх семейств |
-| `python3 tools/version_manager.py --action rollback ...` | Откатить версию Skill'а |
+Готовый Skill называется `{character}-{slug}` и включает Persona + Work.
 
 ### 🔬 Celebrity Research Toolchain
 

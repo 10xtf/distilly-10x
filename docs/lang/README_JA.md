@@ -113,17 +113,17 @@ Distilly は「同僚」シナリオだけを想定した作りではありま�
 
 ### 3️⃣ 対応Agentホストの拡大
 
-Distilly は、7つの Agent ホストでローカルかつネイティブな Skill 検出方式に従い、各ホスト固有の呼び出し構文を使います：
+Distilly は、7つのローカル Agent ホストに対応しています：
 
-| ホスト | ネイティブ起動 |
-|------|----------------|
-| 🟣 **Claude Code** | `/distilly` |
-| 🟠 **Hermes Agent** | `/distilly` |
-| 🔵 **OpenClaw** | `/distilly`（代替：`/skill distilly`） |
-| ⚫ **Codex** | `$distilly` または `/skills` |
-| 🟡 **DeepSeek Harness** | `/distilly` |
-| 🟢 **Pi coding agent** | `/skill:distilly` |
-| 🔴 **Grok Build** | `/distilly` |
+| 対応ホスト |
+|------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🔷 **DeepSeek Harness** |
+| 🟢 **Pi coding agent** |
+| ⚪ **Grok Build** |
 
 生成されたキャラクター Skill も同じ Agent Skills 形式を使い、対応ホストの Skill ディレクトリに配置できます。
 
@@ -155,7 +155,7 @@ Distilly は、7つの Agent ホストでローカルかつネイティブな Sk
 
 > Distilly をインストールして：`https://github.com/titanwings/colleague-skill`
 
-Agent は現在のホストの skills ディレクトリを検出し、リポジトリを `distilly` として clone して、ネイティブのエントリポイントを登録します。起動コマンドはホストごとに異なり、下の使い方の表にまとめています。
+Agent は現在のホストの skills ディレクトリを検出し、リポジトリを `distilly` として clone して、ホストが Distilly を検出できることを確認します。
 
 <details>
 <summary><b>🛠️ 自分でインストールしたい？パスはこちら</b></summary>
@@ -186,31 +186,19 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 > python3 tools/install_hermes_skill.py --force
 > ```
 >
-> または、上の表にある対象ホストの canonical な `distilly` パスへリポジトリを clone し直します。まず使い方の表にある新しいホスト呼び出しで Distilly が検出されることを確認し、その後で古いディレクトリを手動で扱ってください。自動削除は推奨しません。設定やメタデータの legacy fallback は古いデータとの互換性だけを目的としており、既存のインストールディレクトリを自動的に改名するものではありません。
+> または、上の表にある対象ホストの canonical な `distilly` パスへリポジトリを clone し直します。まずホストが Distilly を検出できることを確認し、その後で古いディレクトリを手動で扱ってください。自動削除は推奨しません。設定やメタデータの legacy fallback は古いデータとの互換性だけを目的としており、既存のインストールディレクトリを自動的に改名するものではありません。
 
-> Lark/DingTalk 自動収集のクレデンシャル、ホスト固有のコマンド、Grok Bot の preview フロー、Windows 固有の注意点などは **[詳細インストールガイド (INSTALL.md)](../../INSTALL.md)** を参照してください。
+> Lark/DingTalk 自動収集のクレデンシャル、各ホストへのインストール方法、Grok Bot の preview フロー、Windows の互換性情報などは **[詳細インストールガイド (INSTALL.md)](../../INSTALL.md)** を参照してください。
 
 ---
 
 ## 🚀 使い方
 
-ホスト固有の構文で Distilly を起動するか、Agent に「Distilly を起動して」と伝えます：
-
-| ホスト | Distilly の起動方法 |
-|------|----------------------|
-| Claude Code | `/distilly` |
-| Hermes Agent | `/distilly` |
-| OpenClaw | `/distilly`（代替：`/skill distilly`） |
-| Codex | `$distilly` または `/skills` |
-| DeepSeek Harness | `/distilly` |
-| Pi coding agent | `/skill:distilly` |
-| Grok Build | `/distilly` |
-
-まずどのファミリーを蒸留するか聞かれます：`colleague`、`relationship`、`celebrity` のいずれか。
+Distilly の作成フローでは、まずどのファミリーを蒸留するか聞かれます：`colleague`、`relationship`、`celebrity` のいずれか。
 
 次にニックネーム、基本プロフィール、性格タグを入力し、データソースを選びます。すべての項目はスキップ可能——説明文だけでも Skill は生成できます。
 
-生成される Skill 名は `{character}-{slug}` です。各ホストの構文で呼び出します。
+生成される Skill 名は `{character}-{slug}` で、対応する任意のホストにインストールできます。
 
 #### 統一インストーラーで生成済み Skill をインストールする
 
@@ -234,20 +222,6 @@ Hermes のプロジェクトは `hermes skills trust` で trust する必要が�
 Hermes はデフォルトでは `~/.agents/skills` を検索しません。Hermes でこのパスを使うのは、`skills.external_dirs` に明示的に設定した場合だけです。
 
 インストーラーは、legacy のアンダースコア形式の frontmatter 名をインストール先のコピーだけで canonical kebab 形式の `{character}-{slug}` に正規化します。ソースディレクトリは変更しません。インストール先に入るのは自己完結型の `SKILL.md` と `.distilly-install.json` だけで、非公開の元素材はコピーされません。
-
-### 🎛️ コマンド
-
-| コマンド | 説明 |
-|---------|------|
-| `/distilly` | Claude Code、Hermes、DeepSeek Harness、Grok Build の Creator |
-| `/distilly` または `/skill distilly` | OpenClaw の Creator |
-| `$distilly` または `/skills` | Codex の Creator |
-| `/skill:distilly` | Pi coding agent の Creator |
-| `/{character}-{slug}` | slash-name ホストの生成 Skill |
-| `${character}-{slug}` | Codex の生成 Skill |
-| `/skill:{character}-{slug}` | Pi の生成 Skill |
-| `python3 tools/skill_writer.py --action list ...` | 3 ファミリー横断で生成済み Skill を一覧表示 |
-| `python3 tools/version_manager.py --action rollback ...` | Skill のバージョンをロールバック |
 
 ### 🔬 Celebrity Research Toolchain
 

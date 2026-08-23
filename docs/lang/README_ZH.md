@@ -118,17 +118,17 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 3️⃣ 支持更多 Agent 宿主
 
-旧版只能在 Claude Code 里用。Distilly 现在可被 7 个本地 Agent 宿主原生发现，但各宿主保留自己的调用语法：
+旧版只能在 Claude Code 里用。Distilly 现在支持 7 个本地 Agent 宿主：
 
-| 宿主 | 发现与调用 |
-|------|--------------|
-| 🟣 **Claude Code** | `~/.claude/skills/distilly` → `/distilly` |
-| 🟠 **Hermes Agent** | 本地安装器 → `/distilly` |
-| 🔵 **OpenClaw** | workspace Skill → `/distilly`；备用 `/skill distilly` |
-| ⚫ **Codex** | `~/.agents/skills/distilly` → `$distilly` 或 `/skills` |
-| 🔷 **DeepSeek Harness** | 原生 filesystem Skill → `/distilly` |
-| 🟢 **Pi coding agent** | 原生 Agent Skill → `/skill:distilly` |
-| ⚪ **Grok Build** | 原生 filesystem Skill → `/distilly` |
+| 支持的宿主 |
+|------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🔷 **DeepSeek Harness** |
+| 🟢 **Pi coding agent** |
+| ⚪ **Grok Build** |
 
 **Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 
@@ -158,7 +158,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 > 帮我安装 Distilly：`https://github.com/titanwings/colleague-skill`
 
-Agent 应把仓库安装为名为 `distilly` 的 Skill，然后使用下方对应宿主的命令启动。
+Agent 应把仓库安装为名为 `distilly` 的 Skill，并确认当前宿主能够发现 Distilly。
 
 <details>
 <summary><b>🛠️ 想自己手动装？点开看路径</b></summary>
@@ -181,7 +181,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 </details>
 
-> **已有安装迁移：**仍名为 `dot-skill` 的 clone，或仍位于旧 `~/.codex/skills` 根目录下的 clone，只执行 `git pull` 不能保证宿主发现新的 `distilly` 入口。请在旧 clone 根目录运行适用的仓库安装器（`tools/install_openclaw_skill.py`、`tools/install_codex_skill.py` 或 `tools/install_hermes_skill.py`），或按上表重新 clone 到该宿主正式的 `distilly` 路径。先验证新的宿主调用命令，再由用户手工决定如何处理旧目录；不要自动删除。config/meta 的 legacy fallback 只保证旧数据仍可读取，不会自动重命名安装目录。
+> **已有安装迁移：**仍名为 `dot-skill` 的 clone，或仍位于旧 `~/.codex/skills` 根目录下的 clone，只执行 `git pull` 不能保证宿主发现新的 `distilly` 入口。请在旧 clone 根目录运行适用的仓库安装器（`tools/install_openclaw_skill.py`、`tools/install_codex_skill.py` 或 `tools/install_hermes_skill.py`），或按上表重新 clone 到该宿主正式的 `distilly` 路径。先确认宿主能够发现 Distilly，再由用户手工决定如何处理旧目录；不要自动删除。config/meta 的 legacy fallback 只保证旧数据仍可读取，不会自动重命名安装目录。
 
 在仓库根目录用统一安装器安装生成的人物 Skill：
 
@@ -202,33 +202,17 @@ python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}"
 
 Hermes 项目级安装前先运行 `hermes skills trust`。安装后新开 Hermes session，或运行 `/reload-skills` 重新扫描。`~/.agents/skills` 不是 Hermes 默认目录；只有在 `skills.external_dirs` 中显式配置后才能使用。
 
-> 飞书/钉钉自动采集凭证、宿主专用命令、Grok Bot 预览流程、Windows 特殊处理等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
+> 飞书/钉钉自动采集凭证、各宿主安装方式、Grok Bot 预览流程、Windows 兼容性说明等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
 
 ---
 
 ## 🚀 使用
 
-安装 Distilly 后，按宿主对应的语法调用 `distilly` Skill，或直接和你的 Agent 说「启动 Distilly」。
-
-启动后会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
+安装 Distilly 后，创建流程会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
 
 然后按提示输入花名、基础信息、性格标签，再选择数据来源。所有字段均可跳过，仅凭描述也能生成。
 
-完成后的 Skill 名称是 `{character}-{slug}`，按同一宿主的语法调用。
-
-### 🎛️ 管理命令
-
-| 命令 | 说明 |
-|------|------|
-| `/distilly` | Claude Code、Hermes、DeepSeek Harness 和 Grok Build 中的创建器 |
-| `/distilly` 或 `/skill distilly` | OpenClaw 中的创建器 |
-| `$distilly` 或 `/skills` | Codex 中的创建器 |
-| `/skill:distilly` | Pi coding agent 中的创建器 |
-| `/{character}-{slug}` | slash-name 宿主中的生成 Skill |
-| `${character}-{slug}` | Codex 中的生成 Skill |
-| `/skill:{character}-{slug}` | Pi 中的生成 Skill |
-| `python3 tools/skill_writer.py --action list ...` | 列出三类 Skill |
-| `python3 tools/version_manager.py --action rollback ...` | 回滚历史版本 |
+完成后的 Skill 名称是 `{character}-{slug}`，可以安装到任意受支持的宿主。
 
 ### 🔬 名人研究工具链
 

@@ -63,7 +63,7 @@ Gracias enormes a todos los que nos dieron star — seguiremos publicando, segui
 
 </div>
 
-> 🧬 **Actualización 2026.08.23** — El creador ahora se llama **Distilly** de extremo a extremo. La detección local de Skills para Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi y Grok Build está documentada según las convenciones actuales de cada host; Grok Bot se mantiene aparte como preview de Skills guardados.
+> 🧬 **Actualización 2026.08.23** — El creador ahora se llama **Distilly** de extremo a extremo. La detección local de Skills es compatible con Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi y Grok Build; Grok Bot se mantiene aparte como preview de Skills guardados.
 
 > 📝 **Actualización 2026.06.01** — **[El informe técnico de COLLEAGUE.SKILL](https://arxiv.org/pdf/2605.31264) ya está disponible**; lo que más nos alegra no es solo haber publicado un paper, sino ver cómo la comunidad llevó la galería a 215 skills de 165 contribuidores y 100k+ stars acumuladas en skill cards, con todos los contribuidores reconocidos en los Acknowledgements.
 
@@ -113,21 +113,21 @@ Cada familia tiene su propio pipeline de prompts, estrategia de recolección de 
 
 ### 3️⃣ Más hosts de Agent
 
-Distilly sigue el descubrimiento local y nativo de Skills en siete hosts de Agent; cada host conserva su propia sintaxis de invocación:
+Distilly admite el descubrimiento local y nativo de Skills en siete hosts de Agent:
 
-| Host | Inicio nativo |
-|------|---------------|
-| 🟣 **Claude Code** | `/distilly` |
-| 🟠 **Hermes Agent** | `/distilly` |
-| 🔵 **OpenClaw** | `/distilly` (alternativa: `/skill distilly`) |
-| ⚫ **Codex** | `$distilly` o `/skills` |
-| 🟡 **DeepSeek Harness** | `/distilly` |
-| 🟢 **Pi coding agent** | `/skill:distilly` |
-| 🔴 **Grok Build** | `/distilly` |
+| Hosts compatibles |
+|-------------------|
+| 🟣 **Claude Code** |
+| 🟠 **Hermes Agent** |
+| 🔵 **OpenClaw** |
+| ⚫ **Codex** |
+| 🟡 **DeepSeek Harness** |
+| 🟢 **Pi coding agent** |
+| 🔴 **Grok Build** |
 
 Los Skills de personaje generados usan el mismo formato Agent Skills y pueden colocarse en el directorio de Skills de un host compatible.
 
-**Grok Bot (preview)** usa un flujo manual aparte: migra el workflow de Distilly a un Skill privado guardado y actívalo para el Bot correspondiente. La instalación directa del `SKILL.md` de este repositorio en Grok Bot no está documentada oficialmente ni verificada.
+**Grok Bot (preview):** migración manual como Skill privado guardado. La instalación directa del `SKILL.md` de este repositorio en Grok Bot no está documentada oficialmente ni verificada.
 
 ---
 
@@ -155,7 +155,7 @@ Estamos en 2026 — tienes un Agent, deja que se instale solo. Abre tu host loca
 
 > Instálame Distilly: `https://github.com/titanwings/colleague-skill`
 
-El Agent detectará el directorio de skills del host actual, clonará el repo como `distilly` y registrará su punto de entrada nativo. El comando de inicio depende del host y aparece en la tabla de uso de abajo.
+El Agent detectará el directorio de skills del host actual, clonará el repo como `distilly` y permitirá que el host descubra Distilly.
 
 <details>
 <summary><b>🛠️ ¿Quieres instalarlo tú mismo? Haz clic para ver las rutas</b></summary>
@@ -186,31 +186,19 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 > python3 tools/install_hermes_skill.py --force
 > ```
 >
-> Como alternativa, vuelve a clonar el repositorio en la ruta canónica `distilly` indicada arriba para ese host. Primero verifica que Distilly se detecte con el nuevo comando del host mostrado en la tabla de uso; solo después gestiona manualmente el directorio anterior. No se recomienda borrarlo de forma automática. Los fallbacks legacy de configuración y metadatos solo mantienen la compatibilidad con datos anteriores y no cambian automáticamente el nombre del directorio de instalación.
+> Como alternativa, vuelve a clonar el repositorio en la ruta canónica `distilly` indicada arriba para ese host. Primero verifica que el host descubra Distilly; solo después gestiona manualmente el directorio anterior. No se recomienda borrarlo de forma automática. Los fallbacks legacy de configuración y metadatos solo mantienen la compatibilidad con datos anteriores y no cambian automáticamente el nombre del directorio de instalación.
 
-> Para credenciales de recolección automática de Lark/DingTalk, comandos específicos de cada host, el preview de Grok Bot, manejo específico de Windows, etc., consulta la **[Guía de instalación detallada (INSTALL.md)](../../INSTALL.md)**
+> Para credenciales de recolección automática de Lark/DingTalk, más detalles de instalación, el estado preview de Grok Bot y notas de compatibilidad, consulta la **[Guía de instalación detallada (INSTALL.md)](../../INSTALL.md)**
 
 ---
 
 ## 🚀 Uso
 
-Inicia Distilly con la sintaxis nativa de tu host o simplemente dile a tu Agent «inicia Distilly»:
-
-| Host | Iniciar Distilly |
-|------|------------------|
-| Claude Code | `/distilly` |
-| Hermes Agent | `/distilly` |
-| OpenClaw | `/distilly` (alternativa: `/skill distilly`) |
-| Codex | `$distilly` o `/skills` |
-| DeepSeek Harness | `/distilly` |
-| Pi coding agent | `/skill:distilly` |
-| Grok Build | `/distilly` |
-
-Primero te pregunta qué familia quieres destilar: `colleague` · `relationship` · `celebrity`.
+Distilly primero te pregunta qué familia quieres destilar: `colleague` · `relationship` · `celebrity`.
 
 Luego ingresa alias, perfil básico, etiquetas de personalidad y elige una fuente de datos. Todos los campos se pueden omitir — incluso una descripción por sí sola puede generar un Skill.
 
-El Skill generado se llama `{character}-{slug}`. Invócalo con la sintaxis correspondiente a cada host.
+El Skill generado se llama `{character}-{slug}`.
 
 #### Instalar el Skill generado con el instalador unificado
 
@@ -234,20 +222,6 @@ Un proyecto de Hermes debe marcarse como confiable con `hermes skills trust`. Tr
 Hermes no busca `~/.agents/skills` de forma predeterminada. Usa esa ruta con Hermes solo si la agregaste explícitamente a `skills.external_dirs`.
 
 El instalador normaliza un nombre legacy con guiones bajos en el frontmatter únicamente en la copia instalada, usando el nombre kebab canónico `{character}-{slug}`; el directorio de origen no cambia. El directorio instalado contiene solo el `SKILL.md` autocontenido y `.distilly-install.json`: no se copia ningún material original privado.
-
-### 🎛️ Comandos
-
-| Comando | Descripción |
-|---------|-------------|
-| `/distilly` | Creador en Claude Code, Hermes, DeepSeek Harness y Grok Build |
-| `/distilly` o `/skill distilly` | Creador en OpenClaw |
-| `$distilly` o `/skills` | Creador en Codex |
-| `/skill:distilly` | Creador en Pi coding agent |
-| `/{character}-{slug}` | Skill generado en hosts con nombres slash |
-| `${character}-{slug}` | Skill generado en Codex |
-| `/skill:{character}-{slug}` | Skill generado en Pi |
-| `python3 tools/skill_writer.py --action list ...` | Listar Skills generados de las tres familias |
-| `python3 tools/version_manager.py --action rollback ...` | Revertir la versión de un Skill |
 
 ### 🔬 Cadena de herramientas de investigación de Celebrity
 

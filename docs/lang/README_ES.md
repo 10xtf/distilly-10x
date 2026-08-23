@@ -4,7 +4,7 @@
 
 **Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
 
-![Distilly – Distill how they think](../social-preview-distilly-v5.png)
+![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
 ### **Distill how they think.**
 
@@ -35,15 +35,15 @@
 </td></tr>
 </table>
 
-### ✨ Distilly convierte a las personas en Skills reutilizables.
+### ✨ Distilly convierte a las personas en Person Profiles reutilizables.
 
 <br>
 
-Distilly destila la experiencia, el criterio, la voz y los flujos de trabajo de una persona, respaldados por fuentes, en un Skill reutilizable para agentes de IA y bots compatibles.
+Distilly destila la experiencia, el criterio, la voz y las formas de trabajar de una persona, respaldados por fuentes, en un Person Profile reutilizable para agentes de IA y bots compatibles.
 
 Colegas · parejas · familia · viejos amigos · ídolos · figuras públicas · personajes ficticios — incluso tú mismo
 
-**Material fuente + tu descripción → un Skill basado en evidencias y patrones observables**
+**Material fuente + tu descripción → un Person Profile basado en evidencias → tu Agent o bot compatible**
 
 <br>
 
@@ -83,7 +83,7 @@ Creado por [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ De Colleague Skill a Distilly
 
-Distilly ya no está construido únicamente alrededor del escenario «colega». Un motor de Skills de propósito general destila a cualquier persona a partir de fuentes, en lugar de ser un script específico para colegas. El nombre canónico del creador y de su punto de entrada es `distilly`.
+Distilly ya no está construido únicamente alrededor del escenario «colega». El creador `distilly` genera Person Profiles basados en fuentes para tres familias de personas con un mismo flujo y empaqueta cada perfil como Agent Skill. El nombre canónico del Skill creador y de su punto de entrada es `distilly`.
 
 ### 2️⃣ Tres familias de personajes
 
@@ -109,7 +109,7 @@ Distilly ya no está construido únicamente alrededor del escenario «colega». 
 </tbody>
 </table>
 
-Cada familia tiene su propio pipeline de prompts, estrategia de recolección de fuentes y plantilla de generación.
+Cada familia tiene su propia estrategia de recolección de fuentes, dimensiones de análisis y estructura de Person Profile.
 
 ### 3️⃣ Más hosts de Agent
 
@@ -125,7 +125,7 @@ Distilly admite el descubrimiento local y nativo de Skills en siete hosts de Age
 | 🟢 **Pi coding agent** |
 | 🔴 **Grok Build** |
 
-Los Skills de personaje generados usan el mismo formato Agent Skills y pueden colocarse en el directorio de Skills de un host compatible.
+Cada Person Profile generado se empaqueta como Agent Skill y puede colocarse en el directorio de Skills de un host compatible.
 
 **Grok Bot (preview):** migración manual como Skill privado guardado. La instalación directa del `SKILL.md` de este repositorio en Grok Bot no está documentada oficialmente ni verificada.
 
@@ -196,9 +196,9 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 Distilly primero te pregunta qué familia quieres destilar: `colleague` · `relationship` · `celebrity`.
 
-Luego ingresa alias, perfil básico, etiquetas de personalidad y elige una fuente de datos. Todos los campos se pueden omitir — incluso una descripción por sí sola puede generar un Skill.
+Luego ingresa alias, datos básicos, etiquetas de personalidad y elige una fuente de datos. Todos los campos se pueden omitir — incluso una descripción por sí sola puede crear un Person Profile.
 
-El Skill generado se llama `{character}-{slug}`.
+El perfil se empaqueta como un Skill llamado `{character}-{slug}`.
 
 #### Instalar el Skill generado con el instalador unificado
 
@@ -392,7 +392,7 @@ distilly/
 
 ## ⚠️ Notas
 
-**Calidad del material fuente = Calidad del Skill** — y las fuentes de calidad difieren según la familia:
+**Calidad del material fuente = Calidad del Person Profile** — y las fuentes de calidad difieren según la familia:
 
 | Familia | Prioridad de fuentes (alta → baja) |
 |---------|------------------------------------|
@@ -431,6 +431,6 @@ distilly/
 
 **MIT License** © [titanwings](https://github.com/titanwings)
 
-<sub>Hecho con 🧬 para todos los que quieren destilar a una persona en un skill.</sub>
+<sub>Hecho con 🧬 para quienes quieren destilar a una persona en un Person Profile reutilizable.</sub>
 
 </div>

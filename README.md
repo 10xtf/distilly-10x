@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/social-preview-distilly-v5.png" alt="Distilly — Distill how they think" width="100%">
+<img src="docs/social-preview-distilly-v6.png" alt="Distilly — Distill how they think into Person Profiles for Agents" width="100%">
 
 <br>
 
@@ -8,9 +8,9 @@
 
 **Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
 
-### Turn a person's experience, judgment, voice, and workflows into reusable Skills for AI agents and compatible bots.
+### Distill a person's experience, judgment, voice, and ways of working into a reusable Person Profile for AI agents and compatible bots.
 
-**Messages · documents · interviews · public sources → Distilly → Agent Skill → Agent / Bot**
+**Messages · documents · interviews · public sources → Distilly → Person Profile → Agent / Bot**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
@@ -43,13 +43,13 @@
 
 <br>
 
-Distilly turns the materials you provide into a portable Skill for an Agent to use. It organizes observable experience, decision patterns, expression, and workflows; it does not claim to clone the person behind them.
+Distilly is the person-modeling layer for agents. It turns the materials you provide into a portable, source-grounded Person Profile built from observable experience, decision patterns, expression, and ways of working; it does not claim to clone the person behind them.
 
 Colleagues · partners · family · old friends · idols · public figures · fictional characters — even yourself
 
-**Source material + your description → a source-grounded person Skill → your Agent or compatible Bot**
+**Source material + your description → a source-grounded Person Profile → your Agent or compatible Bot**
 
-> The canonical creator Skill is now `distilly`. Install it in a `distilly` directory; the former name above remains in the README and project history for search continuity.
+> A Person Profile is the reusable output. The current release packages each profile as an Agent Skill so supported hosts can install and invoke it. The canonical creator Skill is named `distilly`; install it in a `distilly` directory. The former name above remains for search continuity and project history.
 
 <br>
 
@@ -89,7 +89,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ From Colleague Skill to Distilly
 
-The project is no longer limited to the colleague scenario. Its `distilly` creator builds source-grounded Skills for three person families with one workflow.
+The project is no longer limited to the colleague scenario. Its `distilly` creator builds source-grounded Person Profiles for three person families with one workflow, then packages each profile as an Agent Skill.
 
 ### 2️⃣ Three character families
 
@@ -115,7 +115,7 @@ The project is no longer limited to the colleague scenario. Its `distilly` creat
 </tbody>
 </table>
 
-Each family has its own prompt pipeline, source-collection strategy, and generation template.
+Each family has its own source-collection strategy, analysis dimensions, and Person Profile structure.
 
 ### 3️⃣ More Agent hosts
 
@@ -133,7 +133,7 @@ The old version only ran in Claude Code. Distilly now supports native local Skil
 
 **Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
 
-Generated character Skills can also be installed into any supported host.
+Each generated Person Profile is packaged as an Agent Skill and can be installed into any supported host.
 
 ---
 
@@ -207,9 +207,9 @@ added to `skills.external_dirs`.
 
 Distilly first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
 
-Then enter alias, basic profile, personality tags, and pick a data source. All fields can be skipped — even a description alone can generate a Skill.
+Then enter an alias, basic details, personality tags, and pick a data source. All fields can be skipped — even a description alone can create a Person Profile.
 
-Once created, its Skill name is `{character}-{slug}`.
+Once created, the profile is packaged as a Skill named `{character}-{slug}`.
 
 ### 🔬 Celebrity Research Toolchain
 
@@ -377,7 +377,7 @@ distilly/
 
 ## ⚠️ Notes
 
-**Source material quality = Skill quality** — and quality sources differ across families:
+**Source material quality = Person Profile quality** — and quality sources differ across families:
 
 | Family | Source priority (high → low) |
 |--------|------------------------------|

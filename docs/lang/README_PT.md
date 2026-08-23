@@ -4,7 +4,7 @@
 
 **Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
 
-![Distilly — Distill how they think](../social-preview-distilly-v5.png)
+![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
 ### **Distill how they think.**
 
@@ -35,15 +35,15 @@
 </td></tr>
 </table>
 
-### ✨ Distilly transforma pessoas em Skills reutilizáveis.
+### ✨ Distilly transforma pessoas em Person Profiles reutilizáveis.
 
 <br>
 
-A Distilly transforma a experiência, o julgamento, a voz e o fluxo de trabalho de uma pessoa, sustentados por fontes, em um Skill reutilizável por agentes de IA e bots compatíveis.
+A Distilly transforma a experiência, o julgamento, a voz e as formas de trabalhar de uma pessoa, sustentados por fontes, em um Person Profile reutilizável por agentes de IA e bots compatíveis.
 
 Colegas · parceiros · família · amigos antigos · ídolos · figuras públicas · personagens fictícios — até você mesmo
 
-**Materiais de origem + sua descrição → um Skill baseado nas fontes e em padrões observáveis**
+**Materiais de origem + sua descrição → um Person Profile baseado em evidências → seu Agent ou bot compatível**
 
 <br>
 
@@ -83,7 +83,7 @@ Criado por [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ De Colleague Skill para Distilly
 
-A Distilly não é mais construída apenas em torno do cenário de “colega”. Um motor de Skills de propósito geral destila qualquer pessoa com base em fontes, em vez de ser um script específico para colegas. O nome canônico do Skill e do diretório do criador agora é `distilly`.
+A Distilly não é mais construída apenas em torno do cenário de “colega”. O creator `distilly` cria Person Profiles baseados em fontes para três famílias de pessoas em um único fluxo e empacota cada Profile como Agent Skill. O nome canônico do Skill do creator e de seu diretório é `distilly`.
 
 ### 2️⃣ Três famílias de personagens
 
@@ -109,7 +109,7 @@ A Distilly não é mais construída apenas em torno do cenário de “colega”.
 </tbody>
 </table>
 
-Cada família tem o próprio pipeline de prompts, estratégia de coleta de fontes e template de geração.
+Cada família tem sua própria estratégia de coleta de fontes, dimensões de análise e estrutura de Person Profile.
 
 ### 3️⃣ Mais hosts de Agent
 
@@ -125,7 +125,7 @@ A versão antiga rodava só no Claude Code. Agora sete hosts locais descobrem a 
 | 🟡 **Pi coding agent** |
 | ⚪ **Grok Build** |
 
-Os Skills de personagens gerados usam o mesmo formato Agent Skills e podem ser colocados no diretório de Skills de cada host.
+Cada Person Profile gerado é empacotado como Agent Skill e pode ser colocado no diretório de Skills de cada host.
 
 **Preview no Grok Bot:** migração manual como private saved skill. A instalação direta do `SKILL.md` deste repositório no Grok Bot não está documentada oficialmente nem foi verificada.
 
@@ -207,9 +207,9 @@ Para instalar o Hermes no nível do projeto, primeiro marque o projeto como conf
 
 A Distilly primeiro pergunta qual família você quer destilar: `colleague` · `relationship` · `celebrity`.
 
-Depois, informe apelido, perfil básico, tags de personalidade e escolha uma fonte de dados. Todos os campos podem ser pulados — até mesmo só uma descrição já consegue gerar um Skill.
+Depois, informe apelido, dados básicos, tags de personalidade e escolha uma fonte de dados. Todos os campos podem ser pulados — até mesmo só uma descrição já consegue criar um Person Profile.
 
-O Skill completo gerado se chama `{character}-{slug}` (Persona + Work).
+O Profile é empacotado como um Skill chamado `{character}-{slug}` (Persona + Work).
 
 ### 🔬 Celebrity Research Toolchain
 
@@ -380,7 +380,7 @@ distilly/
 
 ## ⚠️ Observações
 
-**Qualidade do material fonte = Qualidade do Skill** — e as boas fontes variam conforme a família:
+**Qualidade do material fonte = Qualidade do Person Profile** — e as boas fontes variam conforme a família:
 
 | Família | Prioridade de fontes (alta → baixa) |
 |---------|-------------------------------------|
@@ -419,6 +419,6 @@ distilly/
 
 **MIT License** © [titanwings](https://github.com/titanwings)
 
-<sub>Feito com 🧬 para todos que querem destilar uma pessoa em um skill.</sub>
+<sub>Feito com 🧬 para quem quer destilar uma pessoa em um Person Profile reutilizável.</sub>
 
 </div>

@@ -4,7 +4,7 @@
 
 **Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
 
-![Distilly — Distill how they think](../social-preview-distilly-v5.png)
+![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
 ### **Distill how they think.**
 
@@ -35,15 +35,15 @@
 </td></tr>
 </table>
 
-### ✨ Distilly は人物を再利用可能な Skill へ蒸留します。
+### ✨ Distilly は人物を再利用可能な Person Profile へ蒸留します。
 
 <br>
 
-Distilly は、人物の根拠ある経験・判断・語り口・ワークフローを、AIエージェントや互換Botで再利用できるSkillへ蒸留します。
+Distilly は、人物の根拠ある経験・判断・語り口・仕事の進め方を、AIエージェントや互換Botで再利用できる Person Profile へ蒸留します。
 
 同僚・パートナー・家族・旧友・アイドル・著名人・架空のキャラクター——さらには自分自身まで
 
-**ソース資料 + あなたの説明 → 資料と観察可能なパターンに基づくSkill**
+**ソース資料 + あなたの説明 → 根拠に基づく Person Profile → Agent / Bot**
 
 <br>
 
@@ -83,7 +83,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ Colleague Skill から Distilly へ
 
-Distilly は「同僚」シナリオだけを想定した作りではありません。汎用スキルエンジンが、同僚専用スクリプトではなく、ソースに基づいてあらゆる人物を蒸留します。Creator とエントリポイントの正式名称は `distilly` です。
+Distilly は「同僚」シナリオだけを想定した作りではありません。`distilly` Creator は、同じワークフローで3つの人物ファミリー向けに根拠に基づく Person Profile を作成し、それぞれを Agent Skill としてパッケージ化します。Creator Skill とエントリポイントの正式名称は `distilly` です。
 
 ### 2️⃣ 3つのキャラクターファミリー
 
@@ -109,7 +109,7 @@ Distilly は「同僚」シナリオだけを想定した作りではありま�
 </tbody>
 </table>
 
-各ファミリーは独自のプロンプトパイプライン、素材収集戦略、生成テンプレートを持ちます。
+各ファミリーは独自の素材収集戦略、分析軸、Person Profile 構造を持ちます。
 
 ### 3️⃣ 対応Agentホストの拡大
 
@@ -125,7 +125,7 @@ Distilly は、7つのローカル Agent ホストに対応しています：
 | 🟢 **Pi coding agent** |
 | ⚪ **Grok Build** |
 
-生成されたキャラクター Skill も同じ Agent Skills 形式を使い、対応ホストの Skill ディレクトリに配置できます。
+生成された各 Person Profile は Agent Skill としてパッケージ化され、対応ホストの Skill ディレクトリに配置できます。
 
 **Grok Bot（preview）** は別の手動フローです。Distilly の workflow を保存済み private Skill へ手動で移行し、対象の Bot で有効にします。このリポジトリの `SKILL.md` を Grok Bot に直接インストールする方法は、公式文書になく、検証もされていません。
 
@@ -196,9 +196,9 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 
 Distilly の作成フローでは、まずどのファミリーを蒸留するか聞かれます：`colleague`、`relationship`、`celebrity` のいずれか。
 
-次にニックネーム、基本プロフィール、性格タグを入力し、データソースを選びます。すべての項目はスキップ可能——説明文だけでも Skill は生成できます。
+次にニックネーム、基本情報、性格タグを入力し、データソースを選びます。すべての項目はスキップ可能——説明文だけでも Person Profile を生成できます。
 
-生成される Skill 名は `{character}-{slug}` で、対応する任意のホストにインストールできます。
+生成後、Profile は `{character}-{slug}` という名前の Skill としてパッケージ化され、対応する任意のホストにインストールできます。
 
 #### 統一インストーラーで生成済み Skill をインストールする
 
@@ -390,7 +390,7 @@ distilly/
 
 ## ⚠️ 注意事項
 
-**ソース素材の品質 = Skill の品質** — そして質の高いソースはファミリーごとに異なります：
+**ソース素材の品質 = Person Profile の品質** — そして質の高いソースはファミリーごとに異なります：
 
 | ファミリー | ソースの優先順位（高 → 低） |
 |--------|------------------------------|
@@ -429,6 +429,6 @@ distilly/
 
 **MIT License** © [titanwings](https://github.com/titanwings)
 
-<sub>Made with 🧬 for everyone who wants to distill a person into a skill.</sub>
+<sub>Made with 🧬 for everyone who wants to distill a person into a reusable Person Profile.</sub>
 
 </div>

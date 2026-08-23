@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="../social-preview-distilly-v5.png" alt="Distilly — Distill how they think" width="100%">
+<img src="../social-preview-distilly-v6.png" alt="Distilly — Distill how they think into Person Profiles for Agents" width="100%">
 
 <br>
 
@@ -8,9 +8,9 @@
 
 **Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
 
-### 把一个人的经验、判断、表达方式和工作方法，蒸馏成可复用的 Skill，交给 Agent 或兼容 Bot 使用。
+### 把一个人的经验、判断、表达方式和工作方法，蒸馏成可复用的 Person Profile，交给 Agent 或兼容 Bot 使用。
 
-**聊天 · 文档 · 访谈 · 公开资料 → Distilly → 人物 Skill → Agent / Bot**
+**聊天 · 文档 · 访谈 · 公开资料 → Distilly → Person Profile → Agent / Bot**
 
 [![Discord](https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
@@ -42,13 +42,13 @@
 
 <br>
 
-Distilly 把你提供的材料整理成可移植的人物 Skill，提取其中可观察的经验、判断模式、表达习惯和工作流程；它不声称复制材料背后的真人。
+Distilly 是 Agent 工作流中的人物建模层。它把你提供的材料整理成可移植、基于材料的 Person Profile，提取其中可观察的经验、判断模式、表达习惯和工作方法；它不声称复制材料背后的真人。
 
 同事 · 伴侣 · 家人 · 老友 · 偶像 · 名人 · 小说角色，甚至你自己
 
-**原材料 + 你的描述 → 基于材料的人物 Skill → 你的 Agent 或兼容 Bot**
+**原材料 + 你的描述 → 基于材料的 Person Profile → 你的 Agent 或兼容 Bot**
 
-> 当前创建器 Skill 的正式名称是 `distilly`，安装目录也应使用 `distilly`。上方保留原名，用于搜索承接和历史识别。
+> Person Profile 是可复用的核心产物；当前版本把每份 Profile 封装成 Agent Skill，供支持的宿主安装和调用。创建器 Skill 的正式名称仍是 `distilly`，安装目录也应使用 `distilly`。上方保留原名，用于搜索承接和历史识别。
 
 <br>
 
@@ -88,7 +88,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 1️⃣ 从 Colleague Skill 到 Distilly
 
-项目不再只围绕「同事」场景设计。`distilly` 创建器用同一套流程，为三类人物生成基于材料的 Skill。
+项目不再只围绕「同事」场景设计。`distilly` 创建器用同一套流程，为三类人物生成基于材料的 Person Profile，再将每份 Profile 封装成 Agent Skill。
 
 ### 2️⃣ 支持三大人物类型
 
@@ -114,7 +114,7 @@ Created by [@titanwings](https://github.com/titanwings)
 </tbody>
 </table>
 
-每类人物有独立的 prompt 体系、信息采集策略和生成模板。
+每类人物有独立的信息采集策略、分析维度和 Person Profile 结构。
 
 ### 3️⃣ 支持更多 Agent 宿主
 
@@ -132,7 +132,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 **Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 
-蒸馏出的角色 Skill 也可以安装到任意受支持的宿主。
+蒸馏出的 Person Profile 会封装成 Agent Skill，并可安装到任意受支持的宿主。
 
 ---
 
@@ -210,9 +210,9 @@ Hermes 项目级安装前先运行 `hermes skills trust`。安装后新开 Herme
 
 安装 Distilly 后，创建流程会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
 
-然后按提示输入花名、基础信息、性格标签，再选择数据来源。所有字段均可跳过，仅凭描述也能生成。
+然后按提示输入花名、基础信息、性格标签，再选择数据来源。所有字段均可跳过，仅凭描述也能生成 Person Profile。
 
-完成后的 Skill 名称是 `{character}-{slug}`，可以安装到任意受支持的宿主。
+完成后，Profile 会封装成名为 `{character}-{slug}` 的 Skill，可以安装到任意受支持的宿主。
 
 ### 🔬 名人研究工具链
 
@@ -375,7 +375,7 @@ distilly/
 
 ## ⚠️ 注意事项
 
-**原材料质量决定 Skill 质量**，不同家族的优质信源不一样：
+**原材料质量决定 Person Profile 质量**，不同家族的优质信源不一样：
 
 | 家族 | 信源优先级（高 → 低） |
 |------|----------------------|
@@ -414,6 +414,6 @@ distilly/
 
 **MIT License** © [titanwings](https://github.com/titanwings)
 
-<sub>Made with 🧬 for everyone who wants to distill a person into a skill.</sub>
+<sub>Made with 🧬 for everyone who wants to distill a person into a reusable Person Profile.</sub>
 
 </div>

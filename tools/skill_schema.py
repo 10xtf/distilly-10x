@@ -394,6 +394,7 @@ def build_manifest(meta: dict) -> dict:
                 "deepseek-harness",
                 "grok-build",
                 "pi",
+                "opencode",
             ],
             "min_schema_version": SCHEMA_VERSION,
             "installers": {

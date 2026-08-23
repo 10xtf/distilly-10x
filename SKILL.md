@@ -38,8 +38,9 @@ allowed-tools: Read, Write, Edit, Bash
 - DeepSeek Harness
 - Pi coding agent
 - Grok Build
+- OpenCode
 
-不同宿主的显式调用语法不同：Claude Code、Hermes、DeepSeek Harness 和 Grok Build 用 `/distilly`；OpenClaw 优先用 `/distilly`，未注册 native slash 时用 `/skill distilly`；Codex 用 `$distilly` 或通过 `/skills` 选择；Pi 用 `/skill:distilly`。
+有显式调用语法的宿主各不相同：Claude Code、Hermes、DeepSeek Harness 和 Grok Build 用 `/distilly`；OpenClaw 优先用 `/distilly`，未注册 native slash 时用 `/skill distilly`；Codex 用 `$distilly` 或通过 `/skills` 选择；Pi 用 `/skill:distilly`。OpenCode 使用原生 Skill 发现与加载，不要臆造专用命令。
 
 Grok Bot 可以把流程保存为 private Skill，但目前没有官方的本地 `SKILL.md` 目录导入方式。不要把本仓库描述为可直接安装到 Grok Bot；需要手工迁移为 saved Skill 或等待专用 adapter。
 
@@ -644,6 +645,7 @@ Persona 摘要：
      - DeepSeek Harness：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force`；项目级安装追加 `--skills-dir .dsh/skills`
      - Pi：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force`；项目级安装追加 `--skills-dir .pi/skills`，调用命令为 `/skill:{character}-{slug}`
      - Grok Build：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force`；项目级安装追加 `--skills-dir .grok/skills`
+     - OpenCode：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host opencode --force`；项目级安装追加 `--skills-dir .opencode/skills`
      - 统一安装器只写入自包含的 `SKILL.md` 和安装元数据，会在安装副本中规范旧版 frontmatter；不要手动复制整个生成目录，其中可能包含私有原始材料
      - Claude Code on Windows：可再追加 `--install-claude-command-shim`
 6. 如果当前是 `celebrity`，创建完成后必须再跑一次质量检查：
@@ -787,8 +789,9 @@ Compatible hosts:
 - DeepSeek Harness
 - Pi coding agent
 - Grok Build
+- OpenCode
 
-Explicit invocation differs by host: use `/distilly` in Claude Code, Hermes, DeepSeek Harness, and Grok Build; use `/distilly` in OpenClaw, or `/skill distilly` when its native slash is not registered; use `$distilly` or choose it through `/skills` in Codex; use `/skill:distilly` in Pi.
+Explicit invocation differs among hosts that expose it: use `/distilly` in Claude Code, Hermes, DeepSeek Harness, and Grok Build; use `/distilly` in OpenClaw, or `/skill distilly` when its native slash is not registered; use `$distilly` or choose it through `/skills` in Codex; use `/skill:distilly` in Pi. OpenCode uses native Skill discovery and loading; do not invent a dedicated command.
 
 Grok Bot can save a workflow as a private Skill, but its official documentation does not describe direct local `SKILL.md` directory imports. Do not present this repository as a direct Grok Bot install; migrate the workflow manually into a saved Skill or wait for a dedicated adapter.
 
@@ -1396,6 +1399,7 @@ After user confirmation, do not hand-build a `skills/colleague/{slug}`-style tre
      - DeepSeek Harness: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force`; append `--skills-dir .dsh/skills` for a project install
      - Pi: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force`; append `--skills-dir .pi/skills` for a project install, then invoke it with `/skill:{character}-{slug}`
      - Grok Build: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force`; append `--skills-dir .grok/skills` for a project install
+     - OpenCode: run `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host opencode --force`; append `--skills-dir .opencode/skills` for a project install
      - The shared installer writes only the self-contained `SKILL.md` and install metadata and normalizes legacy frontmatter in the installed copy. Do not manually copy the whole generated directory; it may contain private source material
      - Claude Code on Windows: optionally add `--install-claude-command-shim`
 6. If the current family is `celebrity`, run a quality check after creation:

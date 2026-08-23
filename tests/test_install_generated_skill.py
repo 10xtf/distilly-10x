@@ -50,6 +50,7 @@ class GeneratedSkillInstallTest(unittest.TestCase):
             "deepseek-harness": home / ".dsh" / "skills",
             "pi": home / ".pi" / "agent" / "skills",
             "grok-build": home / ".grok" / "skills",
+            "opencode": home / ".config" / "opencode" / "skills",
         }
         self.assertEqual(
             {host: default_skills_dir(host, home, {}) for host in expected},

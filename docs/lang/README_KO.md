@@ -13,14 +13,6 @@
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 [![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
-[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
-
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
@@ -63,7 +55,7 @@ Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 업무 
 
 </div>
 
-> 🧬 **2026.08.23 업데이트** — Creator 이름과 디렉터리, 엔트리포인트를 모두 **Distilly**로 통일했습니다. Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build의 로컬 Skill 발견 방식을 각 호스트의 현재 규칙에 맞춰 문서화했고, Grok Bot은 saved-Skill 프리뷰 흐름으로 별도 표시합니다.
+> 🧬 **2026.08.24 업데이트** — Creator 이름과 디렉터리, 엔트리포인트를 모두 **Distilly**로 통일했습니다. Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build, OpenCode의 로컬 Skill 발견 방식을 각 호스트의 현재 규칙에 맞춰 문서화했고, Grok Bot은 saved-Skill 프리뷰 흐름으로 별도 표시합니다.
 
 > 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](https://arxiv.org/pdf/2605.31264)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
 
@@ -113,17 +105,24 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 ### 3️⃣ 더 많은 Agent 호스트
 
-예전 버전은 Claude Code에서만 동작했지만, 이제 Distilly는 일곱 개의 로컬 Agent 호스트를 지원합니다.
+예전 버전은 Claude Code에서만 동작했지만, 이제 Distilly는 여덟 개의 로컬 Agent 호스트를 지원합니다.
 
-| 지원 호스트 |
-|-------------|
-| 🟣 **Claude Code** |
-| 🟠 **Hermes Agent** |
-| 🔵 **OpenClaw** |
-| ⚫ **Codex** |
-| 🔷 **DeepSeek Harness** |
-| 🟢 **Pi coding agent** |
-| ⚪ **Grok Build** |
+<table>
+<tr>
+<td align="center" width="25%"><a href="https://claude.ai/code"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/claude-code-wordmark-dark.svg"><img src="../assets/hosts/claude-code-wordmark-light.svg" alt="Claude Code" height="28"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/NousResearch/hermes-agent"><img src="../assets/hosts/hermes-agent-wordmark.png" alt="Hermes Agent" height="32"></a></td>
+<td align="center" width="25%"><a href="https://github.com/openclaw/openclaw"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/openclaw-wordmark-dark.svg"><img src="../assets/hosts/openclaw-wordmark-light.svg" alt="OpenClaw" height="38"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/openai/codex" title="Codex"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/codex-mark-dark.png"><img src="../assets/hosts/codex-mark-light.png" alt="Codex" height="64"></picture></a></td>
+</tr>
+<tr>
+<td align="center" width="25%"><a href="https://github.com/deepseek-ai/deepseek-harness"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/deepseek-wordmark-dark.svg"><img src="../assets/hosts/deepseek-wordmark-light.svg" alt="DeepSeek Harness" height="32"></picture></a></td>
+<td align="center" width="25%"><a href="https://pi.dev/docs/latest/skills"><img src="../assets/hosts/pi-mark.svg" alt="Pi coding agent" height="46"></a></td>
+<td align="center" width="25%"><a href="https://docs.x.ai/build/features/skills-plugins-marketplaces"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/grok-build-mark-dark.png"><img src="../assets/hosts/grok-build-mark-light.png" alt="Grok Build" height="46"></picture></a></td>
+<td align="center" width="25%"><a href="https://opencode.ai/docs/skills"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/opencode-wordmark-dark.svg"><img src="../assets/hosts/opencode-wordmark-light.svg" alt="OpenCode" height="32"></picture></a></td>
+</tr>
+</table>
+
+<sub>호환성 표시는 해당 브랜드의 보증이나 제휴를 의미하지 않습니다. <a href="../assets/hosts/README.md">로고 출처</a>.</sub>
 
 생성된 각 Person Profile은 Agent Skill로 패키징되며, 각 호스트의 Skill 디렉터리에 설치할 수 있습니다.
 
@@ -151,7 +150,7 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 ## ⚡ 설치
 
-2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness / Pi coding agent / Grok Build를 열고 다음 한 줄을 건네세요.
+2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness / Pi coding agent / Grok Build / OpenCode를 열고 다음 한 줄을 건네세요.
 
 > Distilly를 설치해 줘: `https://github.com/titanwings/colleague-skill`
 
@@ -175,6 +174,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | DeepSeek Harness | `~/.dsh/skills/distilly` 또는 프로젝트의 `.dsh/skills/distilly` |
 | Pi coding agent | `~/.pi/agent/skills/distilly` 또는 `~/.agents/skills/distilly` |
 | Grok Build | `~/.grok/skills/distilly` 또는 `~/.agents/skills/distilly` |
+| OpenCode | `~/.config/opencode/skills/distilly`(사용자) 또는 `.opencode/skills/distilly`(프로젝트) |
 
 </details>
 
@@ -208,7 +208,7 @@ Distilly 생성 흐름에서는 먼저 어떤 패밀리를 증류할지 묻습�
 python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
 ```
 
-`<host>`에 사용할 수 있는 값은 `hermes`, `deepseek-harness`, `pi`, `grok-build`입니다. 기본값은 사용자 범위 설치이며, 프로젝트 범위로 설치하려면 해당 `--skills-dir`을 추가하세요.
+`<host>`에 사용할 수 있는 값은 `hermes`, `deepseek-harness`, `pi`, `grok-build`, `opencode`입니다. 기본값은 사용자 범위 설치이며, 프로젝트 범위로 설치하려면 해당 `--skills-dir`을 추가하세요.
 
 | 호스트 | 기본 설치 디렉터리 | 프로젝트 매개변수와 설치 디렉터리 |
 |--------|--------------------|------------------------------------|
@@ -216,6 +216,7 @@ python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}"
 | DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
 | Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
 | Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
 
 Hermes 프로젝트는 `hermes skills trust`로 trust해야 합니다. 설치 후에는 Hermes 새 세션을 시작하거나 `/reload-skills`를 실행하세요.
 

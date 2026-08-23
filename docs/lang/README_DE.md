@@ -13,14 +13,6 @@
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 [![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
-[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
-
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
@@ -63,7 +55,7 @@ Riesigen Dank an alle, die einen Stern dagelassen haben — wir liefern weiter a
 
 </div>
 
-> 🧬 **Update 2026.08.23** — Der Creator heißt jetzt durchgängig **Distilly**. Lokale Skill-Erkennung wird für Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi und Grok Build unterstützt; Grok Bot bleibt ein separater Preview-Ablauf für gespeicherte Skills.
+> 🧬 **Update 2026.08.24** — Der Creator heißt jetzt durchgängig **Distilly**. Lokale Skill-Erkennung wird für Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build und OpenCode unterstützt; Grok Bot bleibt ein separater Preview-Ablauf für gespeicherte Skills.
 
 > 📝 **Update 2026.06.01** — **[Der technische Bericht zu COLLEAGUE.SKILL](https://arxiv.org/pdf/2605.31264) ist jetzt verfügbar**; am meisten freut uns nicht nur das Paper selbst, sondern dass die Community die Galerie auf 215 Skills von 165 Mitwirkenden und 100k+ kumulative Skill-Card-Stars gebracht hat, mit allen Community-Beiträgern in den Acknowledgements.
 
@@ -113,17 +105,24 @@ Jede Familie hat ihre eigene Quellsammelstrategie, eigene Analysedimensionen und
 
 ### 3️⃣ Mehr Agent-Hosts
 
-Distilly unterstützt die lokale, native Skill-Erkennung auf sieben Agent-Hosts:
+Distilly unterstützt die lokale, native Skill-Erkennung auf acht Agent-Hosts:
 
-| Unterstützte Hosts |
-|--------------------|
-| 🟣 **Claude Code** |
-| 🟠 **Hermes Agent** |
-| 🔵 **OpenClaw** |
-| ⚫ **Codex** |
-| 🟡 **DeepSeek Harness** |
-| 🟢 **Pi coding agent** |
-| 🔴 **Grok Build** |
+<table>
+<tr>
+<td align="center" width="25%"><a href="https://claude.ai/code"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/claude-code-wordmark-dark.svg"><img src="../assets/hosts/claude-code-wordmark-light.svg" alt="Claude Code" height="28"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/NousResearch/hermes-agent"><img src="../assets/hosts/hermes-agent-wordmark.png" alt="Hermes Agent" height="32"></a></td>
+<td align="center" width="25%"><a href="https://github.com/openclaw/openclaw"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/openclaw-wordmark-dark.svg"><img src="../assets/hosts/openclaw-wordmark-light.svg" alt="OpenClaw" height="38"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/openai/codex" title="Codex"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/codex-mark-dark.png"><img src="../assets/hosts/codex-mark-light.png" alt="Codex" height="64"></picture></a></td>
+</tr>
+<tr>
+<td align="center" width="25%"><a href="https://github.com/deepseek-ai/deepseek-harness"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/deepseek-wordmark-dark.svg"><img src="../assets/hosts/deepseek-wordmark-light.svg" alt="DeepSeek Harness" height="32"></picture></a></td>
+<td align="center" width="25%"><a href="https://pi.dev/docs/latest/skills"><img src="../assets/hosts/pi-mark.svg" alt="Pi coding agent" height="46"></a></td>
+<td align="center" width="25%"><a href="https://docs.x.ai/build/features/skills-plugins-marketplaces"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/grok-build-mark-dark.png"><img src="../assets/hosts/grok-build-mark-light.png" alt="Grok Build" height="46"></picture></a></td>
+<td align="center" width="25%"><a href="https://opencode.ai/docs/skills"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/opencode-wordmark-dark.svg"><img src="../assets/hosts/opencode-wordmark-light.svg" alt="OpenCode" height="32"></picture></a></td>
+</tr>
+</table>
+
+<sub>Kompatibilität bedeutet keine Empfehlung. <a href="../assets/hosts/README.md">Logo-Quellen</a>.</sub>
 
 Jedes generierte Person Profile wird als Agent Skill verpackt und kann in das Skill-Verzeichnis eines unterstützten Hosts gelegt werden.
 
@@ -174,6 +173,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | DeepSeek Harness | `~/.dsh/skills/distilly` oder `<projekt>/.dsh/skills/distilly` |
 | Pi coding agent | `~/.pi/agent/skills/distilly` oder `~/.agents/skills/distilly` |
 | Grok Build | `~/.grok/skills/distilly` oder `~/.agents/skills/distilly` |
+| OpenCode | `~/.config/opencode/skills/distilly` (Benutzer) oder `.opencode/skills/distilly` (Projekt) |
 | Hermes | Nach dem Klonen `python3 tools/install_hermes_skill.py --force` ausführen |
 
 </details>
@@ -208,7 +208,7 @@ Führe im Stammverzeichnis dieses Repositories aus:
 python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
 ```
 
-Gültige Werte für `<host>` sind `hermes`, `deepseek-harness`, `pi` und `grok-build`. Standardmäßig erfolgt eine Installation auf Benutzerebene; für eine Installation im Projekt ergänze den passenden Parameter `--skills-dir`:
+Gültige Werte für `<host>` sind `hermes`, `deepseek-harness`, `pi`, `grok-build` und `opencode`. Standardmäßig erfolgt eine Installation auf Benutzerebene; für eine Installation im Projekt ergänze den passenden Parameter `--skills-dir`:
 
 | Host | Standard-Installationsverzeichnis | Projektparameter und Installationsverzeichnis |
 |------|-----------------------------------|-----------------------------------------------|
@@ -216,6 +216,7 @@ Gültige Werte für `<host>` sind `hermes`, `deepseek-harness`, `pi` und `grok-b
 | DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
 | Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
 | Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
 
 Ein Hermes-Projekt muss mit `hermes skills trust` als vertrauenswürdig markiert werden. Starte nach der Installation eine neue Hermes-Sitzung oder führe `/reload-skills` aus.
 

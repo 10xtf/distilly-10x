@@ -12,6 +12,23 @@ SUPPORTED_HOSTS = (
     "DeepSeek Harness",
     "Pi coding agent",
     "Grok Build",
+    "OpenCode",
+)
+HOST_LOGO_FILES = (
+    "claude-code-wordmark-dark.svg",
+    "claude-code-wordmark-light.svg",
+    "hermes-agent-wordmark.png",
+    "openclaw-wordmark-dark.svg",
+    "openclaw-wordmark-light.svg",
+    "codex-mark-dark.png",
+    "codex-mark-light.png",
+    "deepseek-wordmark-dark.svg",
+    "deepseek-wordmark-light.svg",
+    "pi-mark.svg",
+    "grok-build-mark-dark.png",
+    "grok-build-mark-light.png",
+    "opencode-wordmark-dark.svg",
+    "opencode-wordmark-light.svg",
 )
 # Slash invocations start at a text boundary; slashes inside install paths are allowed.
 README_INVOCATION_PATTERNS = (
@@ -31,13 +48,18 @@ class SkillEntrypointDocsTest(unittest.TestCase):
     def _assert_readme_support_contract(self, content: str, source: str) -> None:
         self.assertIn("### 3️⃣", content, f"missing host section in {source}")
         host_section = content.split("### 3️⃣", 1)[1].split("\n---", 1)[0]
-        host_rows = []
-        for line in host_section.splitlines():
-            match = re.search(r"\*\*([^*]+)\*\*", line)
-            if line.startswith("|") and match:
-                host_rows.append(match.group(1))
+        host_rows = re.findall(r'<img [^>]*alt="([^"]+)"', host_section)
 
         self.assertEqual(list(SUPPORTED_HOSTS), host_rows, f"wrong host list in {source}")
+        self.assertNotIn("🟣 **Claude Code**", host_section, f"text host rows remain in {source}")
+        self.assertNotIn(
+            "img.shields.io/badge/Claude%20Code-Skill",
+            content,
+            f"duplicate host badges remain in {source}",
+        )
+        logo_prefix = "docs/assets/hosts/" if source == "README.md" else "../assets/hosts/"
+        for logo_file in HOST_LOGO_FILES:
+            self.assertIn(logo_prefix + logo_file, host_section, f"missing {logo_file} in {source}")
         self.assertIn("Grok Bot", host_section, f"missing Grok Bot preview in {source}")
         self.assertIn("{character}-{slug}", content, f"missing generated Skill name in {source}")
         for pattern in README_INVOCATION_PATTERNS:
@@ -98,6 +120,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("~/.dsh/skills/distilly", readme)
         self.assertIn("~/.pi/agent/skills/distilly", readme)
         self.assertIn("~/.grok/skills/distilly", readme)
+        self.assertIn("~/.config/opencode/skills/distilly", readme)
+        self.assertIn(".opencode/skills/distilly", readme)
         self._assert_readme_support_contract(readme, "README.md")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
@@ -111,6 +135,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("~/.dsh/skills/distilly", install)
         self.assertIn("~/.pi/agent/skills/distilly", install)
         self.assertIn("~/.grok/skills/distilly", install)
+        self.assertIn("~/.config/opencode/skills/distilly", install)
+        self.assertIn(".opencode/skills/distilly", install)
         self.assertIn("/distilly", install)
         self.assertNotIn("/dot-skill", install)
         self.assertNotIn("skills/dot-skill", install)
@@ -128,8 +154,12 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("/{character}-{slug}", install)
         self.assertIn("./skills/colleague", skill)
         self.assertIn("DeepSeek Harness", skill)
-        self.assertIn("seven agent hosts", readme.lower())
+        self.assertIn("OpenCode", skill)
+        self.assertIn("eight agent hosts", readme.lower())
         self.assertIn("兼容宿主", install)
+
+        for logo_file in HOST_LOGO_FILES:
+            self.assertTrue((ROOT / "docs" / "assets" / "hosts" / logo_file).is_file())
 
     def test_repo_examples_live_under_skills_colleague(self) -> None:
         self.assertTrue((ROOT / "skills" / "colleague" / "example_zhangsan").exists())
@@ -142,6 +172,21 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             content = readme_path.read_text(encoding="utf-8")
             self.assertNotIn("/dot-skill", content, f"stale /dot-skill in {readme_path.name}")
             self._assert_readme_support_contract(content, readme_path.name)
+            self.assertIn(
+                "~/.config/opencode/skills/distilly",
+                content,
+                f"missing OpenCode user path in {readme_path.name}",
+            )
+            self.assertIn(
+                ".opencode/skills/distilly",
+                content,
+                f"missing OpenCode project path in {readme_path.name}",
+            )
+            self.assertIn(
+                "`opencode`",
+                content,
+                f"missing OpenCode generated-skill host in {readme_path.name}",
+            )
             self.assertIn(
                 "https://github.com/titanwings/colleague-skill",
                 content,

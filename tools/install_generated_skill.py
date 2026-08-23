@@ -19,6 +19,7 @@ HOST_DEFAULT_PARTS = {
     "deepseek-harness": (".dsh", "skills"),
     "pi": (".pi", "agent", "skills"),
     "grok-build": (".grok", "skills"),
+    "opencode": (".config", "opencode", "skills"),
 }
 
 

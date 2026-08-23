@@ -107,6 +107,7 @@ class SkillWriterTest(unittest.TestCase):
                     "deepseek-harness",
                     "grok-build",
                     "pi",
+                    "opencode",
                 ],
             )
             self.assertEqual(

@@ -17,14 +17,6 @@
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 [![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
-[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
-
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
@@ -69,7 +61,7 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 </div>
 
-> 🧬 **2026.08.23 Update** — The creator is now named **Distilly** end to end and documents native local Skill discovery for Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, and Grok Build. Grok Bot is listed separately as a saved-Skill workflow preview.
+> 🧬 **2026.08.24 Update** — The creator is now named **Distilly** end to end and documents native local Skill discovery for Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build, and OpenCode. Grok Bot is listed separately as a saved-Skill workflow preview.
 
 > 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](https://arxiv.org/pdf/2605.31264) is now available**. The most rewarding part was not simply publishing a paper, but seeing the community grow the gallery to 215 skills contributed by 165 people, with more than 100,000 stars across the skill cards. The paper's Acknowledgements explicitly recognize every community contributor.
 
@@ -119,17 +111,24 @@ Each family has its own source-collection strategy, analysis dimensions, and Per
 
 ### 3️⃣ More Agent hosts
 
-The old version only ran in Claude Code. Distilly now supports native local Skill discovery across seven agent hosts.
+The old version only ran in Claude Code. Distilly now supports native local Skill discovery across eight agent hosts.
 
-| Supported host |
-|----------------|
-| 🟣 **Claude Code** |
-| 🟠 **Hermes Agent** |
-| 🔵 **OpenClaw** |
-| ⚫ **Codex** |
-| 🔷 **DeepSeek Harness** |
-| 🟢 **Pi coding agent** |
-| ⚪ **Grok Build** |
+<table>
+<tr>
+<td align="center" width="25%"><a href="https://claude.ai/code"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/claude-code-wordmark-dark.svg"><img src="docs/assets/hosts/claude-code-wordmark-light.svg" alt="Claude Code" height="28"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/NousResearch/hermes-agent"><img src="docs/assets/hosts/hermes-agent-wordmark.png" alt="Hermes Agent" height="32"></a></td>
+<td align="center" width="25%"><a href="https://github.com/openclaw/openclaw"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/openclaw-wordmark-dark.svg"><img src="docs/assets/hosts/openclaw-wordmark-light.svg" alt="OpenClaw" height="38"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/openai/codex" title="Codex"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/codex-mark-dark.png"><img src="docs/assets/hosts/codex-mark-light.png" alt="Codex" height="64"></picture></a></td>
+</tr>
+<tr>
+<td align="center" width="25%"><a href="https://github.com/deepseek-ai/deepseek-harness"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/deepseek-wordmark-dark.svg"><img src="docs/assets/hosts/deepseek-wordmark-light.svg" alt="DeepSeek Harness" height="32"></picture></a></td>
+<td align="center" width="25%"><a href="https://pi.dev/docs/latest/skills"><img src="docs/assets/hosts/pi-mark.svg" alt="Pi coding agent" height="46"></a></td>
+<td align="center" width="25%"><a href="https://docs.x.ai/build/features/skills-plugins-marketplaces"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/grok-build-mark-dark.png"><img src="docs/assets/hosts/grok-build-mark-light.png" alt="Grok Build" height="46"></picture></a></td>
+<td align="center" width="25%"><a href="https://opencode.ai/docs/skills"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/hosts/opencode-wordmark-dark.svg"><img src="docs/assets/hosts/opencode-wordmark-light.svg" alt="OpenCode" height="32"></picture></a></td>
+</tr>
+</table>
+
+<sub>Compatibility does not imply endorsement. <a href="docs/assets/hosts/README.md">Logo sources</a>.</sub>
 
 **Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
 
@@ -183,13 +182,14 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | DeepSeek Harness | `~/.dsh/skills/distilly` (global) or `.dsh/skills/distilly` (project) |
 | Pi coding agent | `~/.pi/agent/skills/distilly` or `~/.agents/skills/distilly` |
 | Grok Build | `~/.grok/skills/distilly` or `~/.agents/skills/distilly` |
+| OpenCode | `~/.config/opencode/skills/distilly` (user) or `.opencode/skills/distilly` (project) |
 | Hermes | After clone, run `python3 tools/install_hermes_skill.py --force` |
 
 </details>
 
 Generated character Skills can be published with `tools/install_claude_generated_skill.py`,
 `tools/install_openclaw_generated_skill.py`, and `tools/install_codex_generated_skill.py`.
-For Hermes, DeepSeek Harness, Pi, and Grok Build, run
+For Hermes, DeepSeek Harness, Pi, Grok Build, and OpenCode, run
 `python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force`.
 The installer writes only the self-contained `SKILL.md` plus install metadata and
 normalizes legacy underscore frontmatter in the installed copy; it does not copy

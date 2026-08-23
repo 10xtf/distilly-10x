@@ -19,8 +19,9 @@
 | DeepSeek Harness | 重新 clone 到 `~/.dsh/skills/distilly`、`$DSH_HOME/skills/distilly` 或项目 `.dsh/skills/distilly` |
 | Pi coding agent | 重新 clone 到 `~/.pi/agent/skills/distilly` 或 `~/.agents/skills/distilly` |
 | Grok Build | 重新 clone 到 `~/.grok/skills/distilly` 或 `~/.agents/skills/distilly` |
+| OpenCode | 重新 clone 到 `~/.config/opencode/skills/distilly` 或项目 `.opencode/skills/distilly` |
 
-用下文对应命令确认 `/distilly`、`$distilly` 或 `/skill:distilly` 能调用后，再自行处理旧安装目录；安装器不会自动删除旧副本。`~/.colleague-skill/` 配置和旧人物 Skill metadata 的只读兼容回退也不会自动重命名宿主安装目录。
+用下文对应方式确认宿主已经发现 Distilly 后，再自行处理旧安装目录；安装器不会自动删除旧副本。`~/.colleague-skill/` 配置和旧人物 Skill metadata 的只读兼容回退也不会自动重命名宿主安装目录。
 
 ---
 
@@ -52,6 +53,7 @@ git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/distill
 - DeepSeek Harness
 - Pi coding agent
 - Grok Build
+- OpenCode
 
 各宿主的显式调用语法不同：
 
@@ -64,6 +66,7 @@ git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/distill
 | DeepSeek Harness | `/distilly` |
 | Pi coding agent | `/skill:distilly` |
 | Grok Build | `/distilly` |
+| OpenCode | 由原生 Skill 工具按需加载，无独立 slash 命令 |
 
 如果 Distilly 已经生成了某个人物 Skill，并且你希望它在某个宿主里直接可用，再执行对应安装器：
 
@@ -109,6 +112,7 @@ python3 tools/install_generated_skill.py \
 | DeepSeek Harness | `deepseek-harness` | `~/.dsh/skills/{character}-{slug}/SKILL.md` | `.dsh/skills` |
 | Pi coding agent | `pi` | `~/.pi/agent/skills/{character}-{slug}/SKILL.md` | `.pi/skills` |
 | Grok Build | `grok-build` | `~/.grok/skills/{character}-{slug}/SKILL.md` | `.grok/skills` |
+| OpenCode | `opencode` | `~/.config/opencode/skills/{character}-{slug}/SKILL.md` | `.opencode/skills` |
 
 ---
 
@@ -229,7 +233,24 @@ Grok Build 会发现 Skill 目录中的 `SKILL.md`，显式调用命令为 `/dis
 
 ---
 
-### H. Grok Bot（预览）
+### H. OpenCode
+
+OpenCode 原生发现用户级和项目级 Skill 目录：
+
+```bash
+# 用户级
+git clone https://github.com/titanwings/colleague-skill ~/.config/opencode/skills/distilly
+
+# 项目级
+mkdir -p .opencode/skills
+git clone https://github.com/titanwings/colleague-skill .opencode/skills/distilly
+```
+
+生成的人物 Skill 使用 `install_generated_skill.py --host opencode` 安装；项目级安装追加 `--skills-dir .opencode/skills`。目录规则见 [OpenCode Agent Skills](https://opencode.ai/docs/skills)。
+
+---
+
+### I. Grok Bot（预览）
 
 Grok Bot 支持把书面流程或演示保存为 private Skill，然后在 Settings → Plugins 中启用，通过 `/` 菜单选择。
 

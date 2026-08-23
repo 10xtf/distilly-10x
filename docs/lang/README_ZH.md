@@ -18,14 +18,6 @@
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 [![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)
 
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)
-[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://learn.chatgpt.com/docs/build-skills)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-Skill-4D6BFE)](https://github.com/topics/dsh-plugin)
-[![Pi](https://img.shields.io/badge/Pi-Agent%20Skill-7B61FF)](https://pi.dev/docs/latest/skills)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-Skill-black)](https://docs.x.ai/build/features/skills-plugins-marketplaces)
-
 <br>
 
 <table>
@@ -68,7 +60,7 @@ Distilly 是 Agent 工作流中的人物建模层。它把你提供的材料整�
 
 </div>
 
-> 🧬 **2026.08.23 更新** — 创建器已端到端统一为 **Distilly**，并按官方最新方式支持 Claude Code、Hermes、OpenClaw、Codex、DeepSeek Harness、Pi 和 Grok Build 的本地 Skill 发现。Grok Bot 单独标为 saved-Skill 预览流程。
+> 🧬 **2026.08.24 更新** — 创建器已端到端统一为 **Distilly**，并按官方最新方式支持 Claude Code、Hermes、OpenClaw、Codex、DeepSeek Harness、Pi、Grok Build 和 OpenCode 的本地 Skill 发现。Grok Bot 单独标为 saved-Skill 预览流程。
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/pdf/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
@@ -118,17 +110,24 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ### 3️⃣ 支持更多 Agent 宿主
 
-旧版只能在 Claude Code 里用。Distilly 现在支持 7 个本地 Agent 宿主：
+旧版只能在 Claude Code 里用。Distilly 现在支持 8 个本地 Agent 宿主：
 
-| 支持的宿主 |
-|------------|
-| 🟣 **Claude Code** |
-| 🟠 **Hermes Agent** |
-| 🔵 **OpenClaw** |
-| ⚫ **Codex** |
-| 🔷 **DeepSeek Harness** |
-| 🟢 **Pi coding agent** |
-| ⚪ **Grok Build** |
+<table>
+<tr>
+<td align="center" width="25%"><a href="https://claude.ai/code"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/claude-code-wordmark-dark.svg"><img src="../assets/hosts/claude-code-wordmark-light.svg" alt="Claude Code" height="28"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/NousResearch/hermes-agent"><img src="../assets/hosts/hermes-agent-wordmark.png" alt="Hermes Agent" height="32"></a></td>
+<td align="center" width="25%"><a href="https://github.com/openclaw/openclaw"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/openclaw-wordmark-dark.svg"><img src="../assets/hosts/openclaw-wordmark-light.svg" alt="OpenClaw" height="38"></picture></a></td>
+<td align="center" width="25%"><a href="https://github.com/openai/codex" title="Codex"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/codex-mark-dark.png"><img src="../assets/hosts/codex-mark-light.png" alt="Codex" height="64"></picture></a></td>
+</tr>
+<tr>
+<td align="center" width="25%"><a href="https://github.com/deepseek-ai/deepseek-harness"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/deepseek-wordmark-dark.svg"><img src="../assets/hosts/deepseek-wordmark-light.svg" alt="DeepSeek Harness" height="32"></picture></a></td>
+<td align="center" width="25%"><a href="https://pi.dev/docs/latest/skills"><img src="../assets/hosts/pi-mark.svg" alt="Pi coding agent" height="46"></a></td>
+<td align="center" width="25%"><a href="https://docs.x.ai/build/features/skills-plugins-marketplaces"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/grok-build-mark-dark.png"><img src="../assets/hosts/grok-build-mark-light.png" alt="Grok Build" height="46"></picture></a></td>
+<td align="center" width="25%"><a href="https://opencode.ai/docs/skills"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/opencode-wordmark-dark.svg"><img src="../assets/hosts/opencode-wordmark-light.svg" alt="OpenCode" height="32"></picture></a></td>
+</tr>
+</table>
+
+<sub>兼容性说明不代表品牌背书。<a href="../assets/hosts/README.md">Logo 来源</a>。</sub>
 
 **Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 
@@ -177,6 +176,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 | DeepSeek Harness | `~/.dsh/skills/distilly`（全局）或 `.dsh/skills/distilly`（项目） |
 | Pi coding agent | `~/.pi/agent/skills/distilly` 或 `~/.agents/skills/distilly` |
 | Grok Build | `~/.grok/skills/distilly` 或 `~/.agents/skills/distilly` |
+| OpenCode | `~/.config/opencode/skills/distilly`（用户）或 `.opencode/skills/distilly`（项目） |
 | Hermes | clone 后跑 `python3 tools/install_hermes_skill.py --force` |
 
 </details>
@@ -189,7 +189,7 @@ git clone https://github.com/titanwings/colleague-skill <TARGET>
 python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
 ```
 
-`<host>` 可选 `hermes`、`deepseek-harness`、`pi` 或 `grok-build`。默认执行用户级安装；项目级安装需追加对应的 `--skills-dir`：
+`<host>` 可选 `hermes`、`deepseek-harness`、`pi`、`grok-build` 或 `opencode`。默认执行用户级安装；项目级安装需追加对应的 `--skills-dir`：
 
 | 宿主 | 默认安装目录 | 项目级参数与安装目录 |
 |------|--------------|----------------------|
@@ -197,6 +197,7 @@ python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}"
 | DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
 | Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
 | Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
+| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
 
 安装器只在安装副本中把旧的 underscore frontmatter 自动规范为 `{character}-{slug}` canonical kebab 名称，源生成目录保持不变。安装目录只写入自包含的 `SKILL.md` 和 `.distilly-install.json`，不会复制生成目录中的私有原始材料。
 

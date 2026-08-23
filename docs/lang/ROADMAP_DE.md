@@ -21,7 +21,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 *Zuletzt aktualisiert: 2026-08-23*
 
-[**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
+[**Englisch**](../../ROADMAP.md) · [**Chinesisch**](ROADMAP_ZH.md) · [**Spanisch**](ROADMAP_ES.md) · [**Japanisch**](ROADMAP_JA.md) · [**Russisch**](ROADMAP_RU.md) · [**Portugiesisch**](ROADMAP_PT.md) · [**Koreanisch**](ROADMAP_KO.md)
 
 </div>
 

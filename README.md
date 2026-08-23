@@ -6,7 +6,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**Formerly: Colleague Skill / colleague-skill.**
 
 ### Distill a person's experience, judgment, voice, and ways of working into a reusable Person Profile for AI agents and compatible bots.
 
@@ -55,7 +55,7 @@ Colleagues · partners · family · old friends · idols · public figures · fi
 
 [🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [📝 Citation](#-citation) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**中文**](docs/lang/README_ZH.md) · [**Español**](docs/lang/README_ES.md) · [**Deutsch**](docs/lang/README_DE.md) · [**日本語**](docs/lang/README_JA.md) · [**Русский**](docs/lang/README_RU.md) · [**Português**](docs/lang/README_PT.md) · [**한국어**](docs/lang/README_KO.md)
+[**Chinese**](docs/lang/README_ZH.md) · [**Spanish**](docs/lang/README_ES.md) · [**German**](docs/lang/README_DE.md) · [**Japanese**](docs/lang/README_JA.md) · [**Russian**](docs/lang/README_RU.md) · [**Portuguese**](docs/lang/README_PT.md) · [**Korean**](docs/lang/README_KO.md)
 
 </div>
 
@@ -71,7 +71,7 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 > 🧬 **2026.08.23 Update** — The creator is now named **Distilly** end to end and documents native local Skill discovery for Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, and Grok Build. Grok Bot is listed separately as a saved-Skill workflow preview.
 
-> 📝 **2026.06.01 Update** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/pdf/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
+> 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](https://arxiv.org/pdf/2605.31264) is now available**. The most rewarding part was not simply publishing a paper, but seeing the community grow the gallery to 215 skills contributed by 165 people, with more than 100,000 stars across the skill cards. The paper's Acknowledgements explicitly recognize every community contributor.
 
 > 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
 
@@ -145,7 +145,7 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
 | 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
 | 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
-| 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg / PyWxDump / 留痕 |
+| 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg or PyWxDump |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
 | 📦 Lark JSON export | ✅ | ✅ | — | Manual upload |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Manual upload |
@@ -164,7 +164,7 @@ The Agent should install the repository as a Skill named `distilly`, then verify
 > **Upgrading an old install?** A `git pull` inside a `dot-skill` or legacy
 > `~/.codex/skills/...` directory does not rename that discovery directory.
 > Install a canonical `distilly` copy, verify that the host discovers Distilly, and only then
-> retire the old copy. See [Existing-install migration](INSTALL.md#从旧安装迁移).
+> retire the old copy. See the [detailed install and migration guide](INSTALL.md#existing-install-migration).
 
 <details>
 <summary><b>🛠️ Want to install it yourself? Click for paths</b></summary>
@@ -402,7 +402,7 @@ distilly/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> This is the paper for **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
+> This is the paper for **COLLEAGUE.SKILL / colleague-skill**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 
 ---
 

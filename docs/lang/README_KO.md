@@ -2,7 +2,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**이전 이름: Colleague Skill / colleague-skill.**
 
 ![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
@@ -49,7 +49,7 @@ Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 업무 
 
 [🆕 새로운 점](#-이번-메이저-릴리스의-새로운-점) · [📦 데이터 소스](#-지원-데이터-소스) · [⚡ 설치](#-설치) · [🚀 사용법](#-사용법) · [✨ 데모](#-데모) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**English**](../../README.md) · [**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md)
+[**영어**](../../README.md) · [**중국어**](README_ZH.md) · [**스페인어**](README_ES.md) · [**독일어**](README_DE.md) · [**일본어**](README_JA.md) · [**러시아어**](README_RU.md) · [**포르투갈어**](README_PT.md)
 
 </div>
 
@@ -139,7 +139,7 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 | 🟡 DingTalk (자동) | ⚠️ 브라우저 | ✅ | ✅ | DingTalk API는 메시지 기록 미지원 |
 | 🟣 Slack (자동) | ✅ API | — | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
 | 𝕏 공개 X 게시물 | ✅ API | — | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
-| 💬 WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg / PyWxDump / 留痕 으로 먼저 내보내기 |
+| 💬 WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg 또는 PyWxDump로 먼저 내보내기 |
 | 📄 PDF / 이미지 / 스크린샷 | — | ✅ | — | 수동 업로드 |
 | 📦 Lark JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
 | ✉️ 이메일 `.eml` / `.mbox` | ✅ | — | — | 수동 업로드 |

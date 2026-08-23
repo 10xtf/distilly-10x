@@ -21,7 +21,7 @@
 
 *최종 업데이트: 2026-08-23*
 
-[**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**Deutsch**](ROADMAP_DE.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md)
+[**영어**](../../ROADMAP.md) · [**중국어**](ROADMAP_ZH.md) · [**스페인어**](ROADMAP_ES.md) · [**독일어**](ROADMAP_DE.md) · [**일본어**](ROADMAP_JA.md) · [**러시아어**](ROADMAP_RU.md) · [**포르투갈어**](ROADMAP_PT.md)
 
 </div>
 

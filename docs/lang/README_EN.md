@@ -6,7 +6,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**Formerly: Colleague Skill / colleague-skill.**
 
 ### Distill a person's experience, judgment, voice, and ways of working into a reusable Person Profile for AI agents and compatible bots.
 
@@ -55,7 +55,7 @@ Colleagues · partners · family · old friends · idols · public figures · fi
 
 [🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
+[**Chinese**](README_ZH.md) · [**Spanish**](README_ES.md) · [**German**](README_DE.md) · [**Japanese**](README_JA.md) · [**Russian**](README_RU.md) · [**Portuguese**](README_PT.md) · [**Korean**](README_KO.md)
 
 </div>
 
@@ -145,7 +145,7 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
 | 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
 | 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
-| 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg / PyWxDump / 留痕 |
+| 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg or PyWxDump |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
 | 📦 Lark JSON export | ✅ | ✅ | — | Manual upload |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Manual upload |
@@ -401,7 +401,7 @@ distilly/
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> This is the paper for **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
+> This is the paper for **COLLEAGUE.SKILL / colleague-skill**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
 
 ---
 

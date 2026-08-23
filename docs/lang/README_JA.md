@@ -2,7 +2,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**旧称：Colleague Skill / colleague-skill。**
 
 ![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
@@ -49,7 +49,7 @@ Distilly は、人物の根拠ある経験・判断・語り口・仕事の進�
 
 [🆕 What's new](#-このメジャーリリースの新機能) · [📦 データソース](#-対応データソース) · [⚡ インストール](#-インストール) · [🚀 使い方](#-使い方) · [✨ デモ](#-デモ) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**English**](../../README.md) · [**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
+[**英語**](../../README.md) · [**中国語**](README_ZH.md) · [**スペイン語**](README_ES.md) · [**ドイツ語**](README_DE.md) · [**ロシア語**](README_RU.md) · [**ポルトガル語**](README_PT.md) · [**韓国語**](README_KO.md)
 
 </div>
 
@@ -139,7 +139,7 @@ Distilly は、7つのローカル Agent ホストに対応しています：
 | 🟡 DingTalk（自動） | ⚠️ ブラウザ | ✅ | ✅ | DingTalk API はメッセージ履歴に非対応 |
 | 🟣 Slack（自動） | ✅ API | — | — | 管理者による Bot 導入が必要；無料プランは 90 日制限 |
 | 𝕏 公開 X 投稿 | ✅ API | — | — | Xquik 経由の任意・件数制限付き celebrity リサーチ候補 |
-| 💬 WeChat チャット履歴 | ✅ SQLite | — | — | WeChatMsg / PyWxDump / 留痕 で先にエクスポート |
+| 💬 WeChat チャット履歴 | ✅ SQLite | — | — | WeChatMsg または PyWxDump で先にエクスポート |
 | 📄 PDF / 画像 / スクリーンショット | — | ✅ | — | 手動アップロード |
 | 📦 Lark JSON エクスポート | ✅ | ✅ | — | 手動アップロード |
 | ✉️ メール `.eml` / `.mbox` | ✅ | — | — | 手動アップロード |

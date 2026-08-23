@@ -1,16 +1,12 @@
-# Contributing to Distilly / Distilly 贡献指南
+# Contributing to Distilly
 
-> Formerly: **Colleague Skill / colleague-skill（原同事 Skill）**. The current creator entrypoint is `/distilly` on slash-name hosts.
-
-> English first, 中文在下方。
+> Formerly: **Colleague Skill / colleague-skill**. The current creator entrypoint is `/distilly` on slash-name hosts.
 
 Thank you for considering a contribution! Distilly turns source material about a person into reusable Skills for AI agents and compatible bots, and it is only as good as its community.
 
-感谢你愿意贡献。Distilly 的目标是把人物材料蒸馏成可供 Agent 和兼容 Bot 复用的 Skill，社区越活跃，它就越好。
-
 ---
 
-## Ways to contribute / 贡献方式
+## Ways to contribute
 
 - **Report bugs** — open a [bug report](.github/ISSUE_TEMPLATE/bug_report.md)
 - **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
@@ -21,7 +17,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 
 ---
 
-## Development setup / 开发环境
+## Development setup
 
 ```bash
 git clone https://github.com/titanwings/colleague-skill.git distilly
@@ -33,7 +29,7 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
 
 ---
 
-## Branch & PR workflow / 分支和 PR 流程
+## Branch & PR workflow
 
 1. Fork the repo and create a branch from the repository's default branch:
    - `feat/<short-name>` for new features
@@ -51,7 +47,7 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
 
 ---
 
-## Commit message style / 提交信息规范
+## Commit message style
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -67,7 +63,7 @@ Keep the subject under 72 characters. Use the body for the *why*, not the *what*
 
 ---
 
-## Code style / 代码风格
+## Code style
 
 - Match surrounding code — we don't enforce a formatter yet, but consistency matters
 - Python: prefer standard library where possible; add to `requirements.txt` only if necessary
@@ -76,7 +72,7 @@ Keep the subject under 72 characters. Use the body for the *why*, not the *what*
 
 ---
 
-## Tests / 测试
+## Tests
 
 New functionality should come with tests under `tests/test_*.py`. Use `unittest` (stdlib) — no extra test framework.
 
@@ -89,7 +85,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 
 ---
 
-## Security / 安全
+## Security
 
 - **Never commit secrets, tokens, or personal data.** If you accidentally do, rotate the credential immediately and let a maintainer know.
 - Config files that hold credentials should be written to the user's home under `~/.distilly/` with permission `0600`; readers may keep a read-only fallback for legacy `~/.colleague-skill/` files.
@@ -97,15 +93,15 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 
 ---
 
-## Docs / 文档
+## Docs
 
 - User-facing behavior changes → update `README.md`, `SKILL.md`, and `INSTALL.md`
 - If you add a language translation of the README, also update the language nav strip in every other `docs/lang/README_*.md`
-- Prefer English for code comments; docs can be bilingual
+- Prefer English for code comments. Keep each user-facing localized document in one language.
 
 ---
 
-## Community / 社区
+## Community
 
 - [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
 - [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) — long-form Q&A and design threads
@@ -115,6 +111,6 @@ Be kind. Assume good intent. Disagree on the idea, not the person.
 
 ---
 
-## License / 许可
+## License
 
 By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

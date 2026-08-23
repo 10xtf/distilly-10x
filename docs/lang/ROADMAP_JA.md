@@ -21,7 +21,7 @@
 
 *最終更新：2026-08-23*
 
-[**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**Deutsch**](ROADMAP_DE.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
+[**英語**](../../ROADMAP.md) · [**中国語**](ROADMAP_ZH.md) · [**スペイン語**](ROADMAP_ES.md) · [**ドイツ語**](ROADMAP_DE.md) · [**ロシア語**](ROADMAP_RU.md) · [**ポルトガル語**](ROADMAP_PT.md) · [**韓国語**](ROADMAP_KO.md)
 
 </div>
 
@@ -75,7 +75,7 @@
 
 - **Gallery カテゴリの拡充** -- 同僚 / セレブリティ / 人間関係 / キャラクター / セルフ / メタスキル、タイプ別に閲覧
 - **データソースの追加**
-  - WeCom（企業微信）対応
+  - WeCom（企業向け WeChat）対応
   - iMessage 自動読み取り
 - **プラットフォーム互換性** -- Windows 互換性の修正
 

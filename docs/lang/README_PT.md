@@ -2,7 +2,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**Anteriormente: Colleague Skill / colleague-skill.**
 
 ![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
@@ -49,7 +49,7 @@ Colegas · parceiros · família · amigos antigos · ídolos · figuras públic
 
 [🆕 Novidades](#-o-que-há-de-novo-nesta-grande-versão) · [📦 Fontes de dados](#-fontes-de-dados-suportadas) · [⚡ Instalação](#-instalação) · [🚀 Uso](#-uso) · [✨ Demo](#-demo) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**English**](../../README.md) · [**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**한국어**](README_KO.md)
+[**Inglês**](../../README.md) · [**Chinês**](README_ZH.md) · [**Espanhol**](README_ES.md) · [**Alemão**](README_DE.md) · [**Japonês**](README_JA.md) · [**Russo**](README_RU.md) · [**Coreano**](README_KO.md)
 
 </div>
 
@@ -139,7 +139,7 @@ Cada Person Profile gerado é empacotado como Agent Skill e pode ser colocado no
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | A API do DingTalk não dá acesso ao histórico de mensagens |
 | 🟣 Slack (auto) | ✅ API | — | — | Precisa que o admin instale o Bot; plano gratuito limitado a 90 dias |
 | 𝕏 Posts públicos do X | ✅ API | — | — | Candidatos opcionais e limitados para pesquisa de celebrity via Xquik |
-| 💬 Histórico do WeChat | ✅ SQLite | — | — | Exportar antes com WeChatMsg / PyWxDump / 留痕 |
+| 💬 Histórico do WeChat | ✅ SQLite | — | — | Exportar antes com WeChatMsg ou PyWxDump |
 | 📄 PDF / Imagens / Screenshots | — | ✅ | — | Upload manual |
 | 📦 Export JSON do Lark | ✅ | ✅ | — | Upload manual |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Upload manual |

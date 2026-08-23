@@ -4,6 +4,8 @@
 
 ---
 
+<a id="existing-install-migration"></a>
+
 ## 从旧安装迁移
 
 如果现有 clone 的目录仍叫 `dot-skill`，只执行 `git pull` 不会把宿主发现目录改名为 `distilly`；Codex 的旧目录 `~/.codex/skills/` 也不会自动迁移到当前的 `~/.agents/skills/`。请保留旧副本作为回退，先安装并验证新的 canonical 副本：

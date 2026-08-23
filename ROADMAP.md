@@ -21,7 +21,7 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 
 *Last updated: 2026-08-23*
 
-[**中文**](docs/lang/ROADMAP_ZH.md) · [**Español**](docs/lang/ROADMAP_ES.md) · [**Deutsch**](docs/lang/ROADMAP_DE.md) · [**日本語**](docs/lang/ROADMAP_JA.md) · [**Русский**](docs/lang/ROADMAP_RU.md) · [**Português**](docs/lang/ROADMAP_PT.md) · [**한국어**](docs/lang/ROADMAP_KO.md)
+[**Chinese**](docs/lang/ROADMAP_ZH.md) · [**Spanish**](docs/lang/ROADMAP_ES.md) · [**German**](docs/lang/ROADMAP_DE.md) · [**Japanese**](docs/lang/ROADMAP_JA.md) · [**Russian**](docs/lang/ROADMAP_RU.md) · [**Portuguese**](docs/lang/ROADMAP_PT.md) · [**Korean**](docs/lang/ROADMAP_KO.md)
 
 </div>
 

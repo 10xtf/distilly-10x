@@ -2,7 +2,7 @@
 
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill（原同事 Skill）**
+**Прежнее название: Colleague Skill / colleague-skill.**
 
 ![Distilly — Distill how they think into Person Profiles for Agents](../social-preview-distilly-v6.png)
 
@@ -49,7 +49,7 @@ Distilly превращает подтверждённые источникам�
 
 [🆕 Что нового](#-что-нового-в-этом-крупном-релизе) · [📦 Источники данных](#-поддерживаемые-источники-данных) · [⚡ Установка](#-установка) · [🚀 Использование](#-использование) · [✨ Демо](#-демо) · [💬 Discord](https://discord.gg/NVX66RxWZv)
 
-[**English**](../../README.md) · [**中文**](README_ZH.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
+[**Английский**](../../README.md) · [**Китайский**](README_ZH.md) · [**Испанский**](README_ES.md) · [**Немецкий**](README_DE.md) · [**Японский**](README_JA.md) · [**Португальский**](README_PT.md) · [**Корейский**](README_KO.md)
 
 </div>
 
@@ -139,7 +139,7 @@ Distilly больше не ограничен сценарием «коллег�
 | 🟡 DingTalk (авто) | ⚠️ Браузер | ✅ | ✅ | API DingTalk не даёт доступ к истории сообщений |
 | 🟣 Slack (авто) | ✅ API | — | — | Нужна установка бота админом; бесплатный план — 90 дней |
 | 𝕏 Публичные посты X | ✅ API | — | — | Необязательные ограниченные кандидаты для celebrity-исследования через Xquik |
-| 💬 История чатов WeChat | ✅ SQLite | — | — | Сначала экспортируй через WeChatMsg / PyWxDump / 留痕 |
+| 💬 История чатов WeChat | ✅ SQLite | — | — | Сначала экспортируй через WeChatMsg или PyWxDump |
 | 📄 PDF / Изображения / Скриншоты | — | ✅ | — | Ручная загрузка |
 | 📦 JSON-экспорт Lark | ✅ | ✅ | — | Ручная загрузка |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Ручная загрузка |

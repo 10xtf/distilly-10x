@@ -21,7 +21,7 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 
 *Ultima atualizacao: 2026-08-23*
 
-[**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Español**](ROADMAP_ES.md) · [**Deutsch**](ROADMAP_DE.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**한국어**](ROADMAP_KO.md)
+[**Inglês**](../../ROADMAP.md) · [**Chinês**](ROADMAP_ZH.md) · [**Espanhol**](ROADMAP_ES.md) · [**Alemão**](ROADMAP_DE.md) · [**Japonês**](ROADMAP_JA.md) · [**Russo**](ROADMAP_RU.md) · [**Coreano**](ROADMAP_KO.md)
 
 </div>
 

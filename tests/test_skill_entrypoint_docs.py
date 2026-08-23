@@ -24,6 +24,7 @@ README_INVOCATION_PATTERNS = (
     re.compile(r"\$\{character\}-\{slug\}"),
     re.compile(r"(?<![\w.-])/skill:\{character\}-\{slug\}"),
 )
+HAN_CHARACTER = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
 class SkillEntrypointDocsTest(unittest.TestCase):
@@ -185,6 +186,54 @@ class SkillEntrypointDocsTest(unittest.TestCase):
 
         chinese = (ROOT / "docs" / "lang" / "README_ZH.md").read_text(encoding="utf-8")
         self.assertIn("飞书", chinese)
+
+    def test_non_chinese_surfaces_do_not_mix_chinese_copy(self) -> None:
+        single_language_paths = [
+            ROOT / "README.md",
+            ROOT / "ROADMAP.md",
+            ROOT / "CONTRIBUTING.md",
+            ROOT / "CITATION.cff",
+            ROOT / "docs" / "lang" / "README_EN.md",
+            ROOT / "prompts" / "celebrity" / "research.md",
+            ROOT / "prompts" / "celebrity" / "budget_unfriendly" / "research.md",
+            ROOT / "references" / "celebrity_budget_unfriendly_framework.md",
+            ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md",
+        ]
+        single_language_paths.extend(
+            ROOT / "docs" / "lang" / f"{stem}_{language}.md"
+            for stem in ("README", "ROADMAP")
+            for language in ("DE", "ES", "KO", "PT", "RU")
+        )
+        single_language_paths.extend(
+            ROOT / ".github" / "ISSUE_TEMPLATE" / name
+            for name in (
+                "bug_report.md",
+                "config.yml",
+                "feature_request.md",
+                "question.md",
+            )
+        )
+
+        for path in single_language_paths:
+            content = path.read_text(encoding="utf-8")
+            self.assertIsNone(
+                HAN_CHARACTER.search(content),
+                f"Chinese copy remains in {path.relative_to(ROOT)}",
+            )
+
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        frontmatter = skill.split("---", 2)[1]
+        chinese_skill = skill.split("# English Version", 1)[0]
+        english_skill = skill.split("# English Version", 1)[1]
+        self.assertIsNone(HAN_CHARACTER.search(frontmatter))
+        self.assertIsNone(HAN_CHARACTER.search(english_skill))
+        self.assertIn("本 Skill 支持中英文", chinese_skill)
+        self.assertIsNotNone(HAN_CHARACTER.search(chinese_skill))
+
+        for name in ("README_JA.md", "ROADMAP_JA.md"):
+            content = (ROOT / "docs" / "lang" / name).read_text(encoding="utf-8")
+            for stale_phrase in ("原同事", "留痕", "企業微信"):
+                self.assertNotIn(stale_phrase, content, f"Chinese phrase in {name}")
 
     def test_code_uses_new_names_with_explicit_legacy_fallbacks(self) -> None:
         writer = (ROOT / "tools" / "skill_writer.py").read_text(encoding="utf-8")

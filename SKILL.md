@@ -1,6 +1,6 @@
 ---
 name: distilly
-description: "Distill colleague, relationship, or celebrity source material into reusable Skills for agents. | 把 colleague、relationship、celebrity 三类人物材料蒸馏成可供 Agent 使用的 Skill。"
+description: "Distill colleague, relationship, or celebrity source material into reusable Person Profiles for agents."
 argument-hint: "[character] [name-or-slug]"
 version: "1.0.0"
 user-invocable: true
@@ -768,7 +768,7 @@ rm -rf skills/celebrity/{slug}
 
 # Distilly Creator
 
-> Distilly was formerly **Colleague Skill / colleague-skill（原同事 Skill）**. The current Skill frontmatter name and creator entrypoint are both `distilly`.
+> Distilly was formerly **Colleague Skill / colleague-skill**. The current Skill frontmatter name and creator entrypoint are both `distilly`.
 
 ## Trigger Conditions
 
@@ -1184,7 +1184,7 @@ Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSO
    - `knowledge/research/raw/03_expression_and_reception.md` (Dim 3 Expression DNA + Dim 5 External Views)
 6. Research must follow **taste principles** (see research prompt):
    - Long-form > snippets, controversy > consensus, change > fixity, firsthand > secondhand
-   - **Source blacklist** — never cite: 知乎, 微信公众号, 百度百科, content farms, AI-generated bios
+   - **Source blacklist** — never cite: Zhihu, WeChat official accounts, Baidu Baike, content farms, AI-generated bios
    - **Source hierarchy**: user local materials > first-person works > long interviews > decision records > short-form firsthand > external analysis > secondhand summaries
 7. Merge the research notes:
    ```bash

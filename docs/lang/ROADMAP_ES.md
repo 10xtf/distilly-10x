@@ -21,7 +21,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 *Última actualización: 2026-08-23*
 
-[**English**](../../ROADMAP.md) · [**中文**](ROADMAP_ZH.md) · [**Deutsch**](ROADMAP_DE.md) · [**日本語**](ROADMAP_JA.md) · [**Русский**](ROADMAP_RU.md) · [**Português**](ROADMAP_PT.md) · [**한국어**](ROADMAP_KO.md)
+[**Inglés**](../../ROADMAP.md) · [**Chino**](ROADMAP_ZH.md) · [**Alemán**](ROADMAP_DE.md) · [**Japonés**](ROADMAP_JA.md) · [**Ruso**](ROADMAP_RU.md) · [**Portugués**](ROADMAP_PT.md) · [**Coreano**](ROADMAP_KO.md)
 
 </div>
 

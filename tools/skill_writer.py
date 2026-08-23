@@ -168,18 +168,19 @@ _PERSONA_HANDOFF_PATTERNS = (
     re.compile(r"如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。\s*"),
     re.compile(
         r"If (?:you are )?asked (?:a question )?outside (?:your|the) "
-        r"(?:recorded )?responsibilities[^.]*Persona[^.]*\.\s*",
+        r"(?:recorded )?responsibilities[^.\n]*Persona[^.\n]*\.\s*",
         re.IGNORECASE,
     ),
 )
 
 WORK_ONLY_FALLBACK_ZH = (
     "如果问题超出已记录的职责范围，或原材料不足以回答，请直接说明缺口。"
-    "不要推断，也不要引用 Persona。"
+    "不要臆造缺失信息，也不要引用 Persona。"
 )
 WORK_ONLY_FALLBACK_EN = (
     "If the question is outside the recorded responsibilities or the source "
-    "material is insufficient, state the gap. Do not infer or refer to Persona."
+    "material is insufficient, state the gap. Do not fabricate missing information "
+    "or refer to Persona."
 )
 
 

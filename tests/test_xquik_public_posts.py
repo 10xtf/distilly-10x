@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -216,6 +217,25 @@ class CollectionTest(unittest.TestCase):
 
             write_collection(output, {"messages": [1]}, force=True)
             self.assertEqual(json.loads(output.read_text(encoding="utf-8")), {"messages": [1]})
+            self.assertEqual([path.name for path in output.parent.iterdir()], ["x.json"])
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
+    def test_write_collection_rejects_dangling_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output = Path(tmp_dir) / "candidates" / "x.json"
+            target = Path(tmp_dir) / "outside.json"
+            output.parent.mkdir()
+            try:
+                output.symlink_to(target)
+            except OSError as error:
+                self.skipTest(f"cannot create symbolic links: {error}")
+
+            with self.assertRaisesRegex(CollectorError, "symbolic link"):
+                write_collection(output, {"messages": []}, force=False)
+            with self.assertRaisesRegex(CollectorError, "symbolic link"):
+                write_collection(output, {"messages": []}, force=True)
+
+            self.assertFalse(target.exists())
 
 
 if __name__ == "__main__":

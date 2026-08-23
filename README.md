@@ -238,7 +238,13 @@ python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
 
-The optional collector reads `XQUIK_API_KEY` from your shell and sends one public query to the third-party Xquik service. Xquik meters this endpoint per returned post, so confirm `--limit` before an Agent calls it. Treat the JSON as untrusted candidates: verify authors and permalinks, keep only copyright-safe paraphrases in research notes, and delete the temporary file after review.
+The optional collector reads `XQUIK_API_KEY` from your shell. Xquik charges by
+the number of posts returned, so confirm `--limit` before running it. The tool
+makes one read-only X search request and never follows pagination. Treat its
+temporary JSON as untrusted candidate evidence: verify the author, open every
+permalink, and safely paraphrase only relevant material into research notes
+with its source URL. Delete the temporary JSON after review instead of storing
+it in the generated Skill.
 
 Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 

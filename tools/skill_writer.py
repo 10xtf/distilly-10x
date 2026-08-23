@@ -178,7 +178,7 @@ _PERSONA_HANDOFF_PATTERNS = (
     re.compile(r"如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。\s*"),
     re.compile(
         r"If (?:you are )?asked (?:a question )?outside (?:your|the) "
-        r"(?:recorded )?responsibilities[^.]*Persona[^.]*\.\s*",
+        r"(?:recorded )?responsibilities[^.\n]*Persona[^.\n]*\.\s*",
         re.IGNORECASE,
     ),
 )

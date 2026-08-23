@@ -187,11 +187,23 @@ class SkillWriterTest(unittest.TestCase):
             self.assertIn("仅 Persona，无工作能力", persona_skill)
 
     def test_work_only_skill_replaces_persona_handoff(self) -> None:
-        handoff = "如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。"
-        work_content = (
+        zh_handoff = "如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。"
+        en_handoff = (
+            "If you are asked a question outside your recorded responsibilities, "
+            "respond in this colleague's style (see the Persona section)."
+        )
+        zh_work_content = (
             "## 工作能力使用说明\n\n"
             "当用户要求你完成以下任务时，严格按照上述规范执行。\n\n"
-            f"{handoff}\n"
+            f"{zh_handoff}\n"
+        )
+        en_work_content = (
+            "## Scope rule\n\n"
+            "If asked outside your recorded responsibilities:\n"
+            "- State the evidence gap\n\n"
+            "## Persona naming note\n\n"
+            "Keep this documentation sentence.\n\n"
+            f"{en_handoff}\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir = Path(tmp_dir) / "skills" / "colleague"
@@ -218,33 +230,41 @@ class SkillWriterTest(unittest.TestCase):
                 base_dir / "zh",
                 "zhangsan",
                 zh_meta,
-                work_content,
+                zh_work_content,
                 "Persona body",
             )
             en_dir = skill_writer.create_skill(
                 base_dir / "en",
                 "zhangsan",
                 en_meta,
-                work_content,
+                en_work_content,
                 "Persona body",
             )
 
-            stored_work = (zh_dir / "work.md").read_text(encoding="utf-8")
-            combined = (zh_dir / "SKILL.md").read_text(encoding="utf-8")
+            zh_stored_work = (zh_dir / "work.md").read_text(encoding="utf-8")
+            zh_combined = (zh_dir / "SKILL.md").read_text(encoding="utf-8")
+            en_stored_work = (en_dir / "work.md").read_text(encoding="utf-8")
+            en_combined = (en_dir / "SKILL.md").read_text(encoding="utf-8")
             zh_work_skill = (zh_dir / "work_skill.md").read_text(encoding="utf-8")
             en_work_skill = (en_dir / "work_skill.md").read_text(encoding="utf-8")
 
-            self.assertIn(handoff, stored_work)
-            self.assertIn(handoff, combined)
-            self.assertNotIn(handoff, zh_work_skill)
-            self.assertNotIn(handoff, en_work_skill)
+            self.assertIn(zh_handoff, zh_stored_work)
+            self.assertIn(zh_handoff, zh_combined)
+            self.assertIn(en_handoff, en_stored_work)
+            self.assertIn(en_handoff, en_combined)
+            self.assertNotIn(zh_handoff, zh_work_skill)
+            self.assertNotIn(en_handoff, en_work_skill)
+            self.assertIn("If asked outside your recorded responsibilities:", en_work_skill)
+            self.assertIn("## Persona naming note", en_work_skill)
+            self.assertIn("Keep this documentation sentence.", en_work_skill)
             self.assertIn(skill_writer.WORK_ONLY_FALLBACK_ZH, zh_work_skill)
             self.assertIn(skill_writer.WORK_ONLY_FALLBACK_EN, en_work_skill)
             self.assertIn("不要臆造缺失信息", zh_work_skill)
             self.assertNotIn("不要推断", zh_work_skill)
             self.assertIn("Do not fabricate missing information", en_work_skill)
             self.assertNotIn("Do not infer", en_work_skill)
-            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_ZH, combined)
+            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_ZH, zh_combined)
+            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_EN, en_combined)
 
     def test_create_celebrity_adds_research_dirs_and_toolchain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

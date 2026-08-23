@@ -357,6 +357,7 @@ distilly/
 │   │   ├── download_subtitles.sh   #     字幕下载
 │   │   ├── transcribe_audio.py     #     音频转文字
 │   │   ├── srt_to_transcript.py    #     字幕转文稿
+│   │   ├── xquik_public_posts.py   #     有界公开 X 帖子候选
 │   │   ├── merge_research.py       #     六维度 research 合并
 │   │   └── quality_check.py        #     质量检查
 │   ├── install_*_skill.py          #   [共享] 多宿主一键安装器

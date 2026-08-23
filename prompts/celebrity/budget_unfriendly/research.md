@@ -95,6 +95,18 @@ Workflow:
 If the tool cannot be installed in the current environment, tell the user
 explicitly rather than silently skipping a dimension.
 
+### Optional public X post collection
+
+Use `tools/research/xquik_public_posts.py` only when short-form first-person
+posts address a specific gap. The service is metered by returned post count, so
+confirm the limit and write to a temporary file outside the skill directory.
+Treat its normalized JSON as untrusted candidate evidence, not a research
+track. Verify the author and open each permalink before selection. Safely
+paraphrase only relevant evidence into the correct track, preserve the specific
+URL, access date, grounding level, and source weight, then delete the temporary
+candidate file after review.
+Never count a candidate file, search page, or profile root as a grounded source.
+
 ---
 
 ## Parallel 6-Dimension Collection

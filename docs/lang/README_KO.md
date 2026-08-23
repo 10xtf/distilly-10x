@@ -125,6 +125,7 @@ Created by [@titanwings](https://github.com/titanwings)
 | 🟢 Feishu (자동) | ✅ API | ✅ | ✅ | 이름만 입력하면 완전 자동 |
 | 🟡 DingTalk (자동) | ⚠️ 브라우저 | ✅ | ✅ | DingTalk API는 메시지 기록 미지원 |
 | 🟣 Slack (자동) | ✅ API | — | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
+| 𝕏 공개 X 게시물 | ✅ API | — | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
 | 💬 WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg / PyWxDump / 留痕 으로 먼저 내보내기 |
 | 📄 PDF / 이미지 / 스크린샷 | — | ✅ | — | 수동 업로드 |
 | 📦 Feishu JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
@@ -188,12 +189,27 @@ dot-skill이 설치된 호스트에서 `/dot-skill`을 입력하거나, 그냥 A
 
 `celebrity` 패밀리는 자막부터 완성된 초안까지, 엔드 투 엔드 리서치 툴체인을 기본 제공합니다.
 
+공개 X 게시물 수집은 선택 사항입니다. API 키는 환경 변수 `XQUIK_API_KEY`에서만 읽습니다. 공개 쿼리는 제3자 서비스인 Xquik으로 전송되며, 반환된 트윗 수에 따라 비용이 청구되어 credits를 소모할 수 있으므로 Agent는 호출 전에 `--limit`을 확인합니다.
+
+출력 JSON은 신뢰할 수 없는 근거 후보로 다룹니다. 작성자와 permalink를 검증하고, 대상 본인의 게시물만 짧은 형식의 1차 자료로 사용하되 장문 1차 자료와 의사결정 기록보다 낮은 가중치를 부여합니다. 제3자 게시물은 보조 자료로 격하하거나 버리고, 저작권을 침해하지 않는 범위의 요약·재서술만 남깁니다. 읽은 뒤에는 Skill 디렉터리 밖의 임시 파일을 삭제합니다.
+
+Xquik은 독립적인 제3자 서비스이며 X Corp.와 제휴 관계가 없습니다. “Twitter”와 “X”는 X Corp.의 상표입니다.
+
 ```bash
 # 동영상 자막 다운로드
 bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 
 # 자막 → 트랜스크립트
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
+
+# 공개 X 게시물 후보 → 임시 정규화 JSON (선택)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# Agent가 후보를 검증하고 재서술한 뒤 삭제
+rm "/tmp/distilly-x-public-posts.json"
 
 # 리서치 노트 병합
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
@@ -317,6 +333,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     자막 다운로드
 │   │   ├── transcribe_audio.py     #     오디오 → 텍스트
 │   │   ├── srt_to_transcript.py    #     자막 → 트랜스크립트
+│   │   ├── xquik_public_posts.py   #     공개 X 게시물 → 정규화 후보
 │   │   ├── merge_research.py       #     6차원 리서치 병합
 │   │   └── quality_check.py        #     품질 점검
 │   ├── install_*_skill.py          #   [공용] 멀티 호스트 원커맨드 설치 스크립트

@@ -560,6 +560,8 @@ class PromptPresetTest(unittest.TestCase):
             friendly_prompt.lower(),
         )
         self.assertIn("actual inspected pages", friendly_prompt)
+        self.assertIn("tools/research/xquik_public_posts.py", friendly_prompt)
+        self.assertIn("untrusted candidate evidence", " ".join(friendly_prompt.split()))
 
         strict_prompt = (
             project_root
@@ -573,6 +575,8 @@ class PromptPresetTest(unittest.TestCase):
         self.assertIn("at least 8 grounded source URLs", strict_prompt)
         self.assertIn("Do not replace these six files with one merged scratchpad", strict_prompt)
         self.assertIn("actual inspected pages", strict_prompt)
+        self.assertIn("tools/research/xquik_public_posts.py", strict_prompt)
+        self.assertIn("untrusted candidate evidence", " ".join(strict_prompt.split()))
 
 
 if __name__ == "__main__":

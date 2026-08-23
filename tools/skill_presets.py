@@ -155,6 +155,7 @@ CHARACTER_PRESETS = {
             },
         },
         "research_tools": {
+            "public_x_posts": "tools/research/xquik_public_posts.py",
             "subtitle_downloader": "tools/research/download_subtitles.sh",
             "subtitle_cleaner": "tools/research/srt_to_transcript.py",
             "research_merger": "tools/research/merge_research.py",

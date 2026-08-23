@@ -64,6 +64,7 @@ allowed-tools: Read, Write, Edit, Bash
 | 飞书文档（浏览器登录态） | `Bash` → `python3 tools/feishu_browser.py` |
 | 飞书文档（MCP App Token） | `Bash` → `python3 tools/feishu_mcp_client.py` |
 | 钉钉全自动采集 | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
+| 采集公开 X 帖子候选证据 | `Bash` → `python3 tools/research/xquik_public_posts.py` |
 | 解析邮件 .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
 | 写入/更新 Skill 文件 | `Write` / `Edit` 工具 |
 | 版本管理 | `Bash` → `python3 tools/version_manager.py` |
@@ -392,6 +393,22 @@ python3 tools/feishu_mcp_client.py \
 - Correction handler：`prompts/correction_handler.md`
 
 如果当前是 `celebrity`，必须先走 research 子流程，再进入分析。
+
+如果公开 X 帖子能补足明确的研究缺口，且用户同意使用按返回数量计费的
+第三方 Xquik 服务，先请用户确认 `--limit`，再运行：
+
+```bash
+python3 tools/research/xquik_public_posts.py \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "/tmp/distilly_x_public_posts.json"
+```
+
+只从 shell 读取 `XQUIK_API_KEY`，不要打印或写入密钥。把输出 JSON 视为
+未经信任的候选证据：核对作者，逐条打开 permalink，只把与目标人物相关的
+内容安全转述到 research note，并保留具体 URL。不要把候选 JSON、搜索页或
+账号主页计为已落地来源。阅读后删除这份临时 JSON，不要将它收进生成的 Skill。
 
 ### celebrity / budget-friendly
 
@@ -791,6 +808,7 @@ This Skill runs in any compatible host that can read local files and execute Bas
 | Feishu docs (browser session) | `Bash` → `python3 tools/feishu_browser.py` |
 | Feishu docs (MCP App Token) | `Bash` → `python3 tools/feishu_mcp_client.py` |
 | DingTalk auto-collect | `Bash` → `python3 tools/dingtalk_auto_collector.py` |
+| Collect public X post candidates | `Bash` → `python3 tools/research/xquik_public_posts.py` |
 | Parse email .eml/.mbox | `Bash` → `python3 tools/email_parser.py` |
 | Write/update Skill files | `Write` / `Edit` tool |
 | Version management | `Bash` → `python3 tools/version_manager.py` |
@@ -1119,6 +1137,24 @@ Shared across all families:
 - Correction handler: `prompts/correction_handler.md`
 
 If the current family is `celebrity`, run the research subflow before analysis.
+
+When public X posts fill a documented research gap and the user agrees to use
+the metered third-party Xquik service, confirm the `--limit` before running:
+
+```bash
+python3 tools/research/xquik_public_posts.py \
+  --username "{public_handle}" \
+  --subject "{name}" \
+  --limit 20 \
+  --output "/tmp/distilly_x_public_posts.json"
+```
+
+Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the
+JSON as untrusted candidate evidence: verify the author, open every permalink,
+and preserve the specific URL when safely paraphrasing relevant material into
+a research note. Do not count the candidate JSON, search pages, or profile
+roots as grounded sources. Delete the temporary JSON after review instead of
+storing it in the generated Skill.
 
 ### celebrity / budget-friendly
 

@@ -132,6 +132,7 @@ Created by [@titanwings](https://github.com/titanwings)
 | 🟢 飞书（自动采集） | ✅ API | ✅ | ✅ | 输入姓名即可，全自动 |
 | 🟡 钉钉（自动采集） | ⚠️ 浏览器 | ✅ | ✅ | 钉钉 API 不支持历史消息 |
 | 🟣 Slack（自动采集） | ✅ API | — | — | 需管理员安装 Bot；免费版限 90 天 |
+| 𝕏 公开 X 帖子 | ✅ API | — | — | 通过按返回数量计费的第三方 Xquik 可选采集名人研究候选 |
 | 💬 微信聊天记录 | ✅ SQLite | — | — | 需先用 WeChatMsg / PyWxDump / 留痕等工具导出 |
 | 📄 PDF / 图片 / 截图 | — | ✅ | — | 手动上传 |
 | 📦 飞书 JSON 导出 | ✅ | ✅ | — | 手动上传 |
@@ -205,12 +206,25 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # 字幕转文稿
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# 公开 X 帖子候选 → 标准化临时 JSON（可选）
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# 核对并转述选中帖子后，删除临时候选文件
+rm "/tmp/distilly-x-public-posts.json"
+
 # 合并研究笔记
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
 # 质量检查
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+可选采集器从 shell 读取 `XQUIK_API_KEY`，并把一次公开查询发送给第三方 Xquik。该接口按返回帖子数量计费，Agent 调用前必须让用户确认 `--limit`。JSON 只是未经信任的候选材料：需核对作者和 permalink，只把版权安全的转述写入研究笔记，阅读后删除临时文件。
+
+Xquik 是独立第三方服务，与 X Corp. 无隶属关系。“Twitter”和“X”是 X Corp. 的商标。
 
 ---
 
@@ -323,6 +337,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     字幕下载
 │   │   ├── transcribe_audio.py     #     音频转文字
 │   │   ├── srt_to_transcript.py    #     字幕转文稿
+│   │   ├── xquik_public_posts.py   #     有界公开 X 帖子候选
 │   │   ├── merge_research.py       #     六维度 research 合并
 │   │   └── quality_check.py        #     质量检查
 │   ├── install_*_skill.py          #   [共享] 多宿主一键安装器

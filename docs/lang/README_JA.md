@@ -125,6 +125,7 @@ Created by [@titanwings](https://github.com/titanwings)
 | 🟢 Feishu（自動） | ✅ API | ✅ | ✅ | 名前を入力するだけで全自動 |
 | 🟡 DingTalk（自動） | ⚠️ ブラウザ | ✅ | ✅ | DingTalk API はメッセージ履歴に非対応 |
 | 🟣 Slack（自動） | ✅ API | — | — | 管理者による Bot 導入が必要；無料プランは 90 日制限 |
+| 𝕏 公開 X 投稿 | ✅ API | — | — | Xquik 経由の任意・件数制限付き celebrity リサーチ候補 |
 | 💬 WeChat チャット履歴 | ✅ SQLite | — | — | WeChatMsg / PyWxDump / 留痕 で先にエクスポート |
 | 📄 PDF / 画像 / スクリーンショット | — | ✅ | — | 手動アップロード |
 | 📦 Feishu JSON エクスポート | ✅ | ✅ | — | 手動アップロード |
@@ -188,12 +189,27 @@ dot-skill をインストールしたホストで起動します——`/dot-skil
 
 `celebrity` ファミリーには、字幕から完成稿までをカバーするエンドツーエンドのリサーチツールチェーンが同梱されています：
 
+公開 X 投稿の収集は任意です。API キーは環境変数 `XQUIK_API_KEY` からのみ読み込まれます。公開クエリは第三者サービス Xquik に送信され、返された投稿数に応じて課金され、credits を消費する場合があるため、Agent は実行前に `--limit` を確認します。
+
+出力 JSON は信頼できない証拠候補として扱います。著者と permalink を検証し、対象本人の投稿だけを短文の一次資料として使用し、長文の一次資料や意思決定の記録より低い重みにします。第三者の投稿は補助資料に格下げするか破棄し、著作権に配慮した言い換えだけを残します。読み取り後は Skill ディレクトリ外の一時ファイルを削除します。
+
+Xquik は独立した第三者サービスであり、X Corp. との提携関係はありません。「Twitter」と「X」は X Corp. の商標です。
+
 ```bash
 # 動画の字幕をダウンロード
 bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 
 # 字幕 → トランスクリプト
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
+
+# 公開 X 投稿の候補 → 一時的な正規化 JSON（任意）
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# Agent が候補を検証・言い換えした後に削除
+rm "/tmp/distilly-x-public-posts.json"
 
 # リサーチノートを統合
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
@@ -317,6 +333,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     subtitle download
 │   │   ├── transcribe_audio.py     #     audio → text
 │   │   ├── srt_to_transcript.py    #     subtitles → transcript
+│   │   ├── xquik_public_posts.py   #     public X posts → normalized candidates
 │   │   ├── merge_research.py       #     six-dimension research merge
 │   │   └── quality_check.py        #     quality check
 │   ├── install_*_skill.py          #   [shared] multi-host one-shot installers

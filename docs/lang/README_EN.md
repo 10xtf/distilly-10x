@@ -133,6 +133,7 @@ Generated character Skills can also be installed into any supported host.
 | 🟢 Feishu (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
 | 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
+| 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
 | 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg / PyWxDump / 留痕 |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
 | 📦 Feishu JSON export | ✅ | ✅ | — | Manual upload |
@@ -206,12 +207,25 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # Subtitles → transcript
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# Public X post candidates → normalized temporary JSON (optional)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# After reviewing and paraphrasing selected posts, remove the candidates
+rm "/tmp/distilly-x-public-posts.json"
+
 # Merge research notes
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
 # Quality check
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+The optional collector reads `XQUIK_API_KEY` from your shell and sends one public query to the third-party Xquik service. Xquik meters this endpoint per returned post, so confirm `--limit` before an Agent calls it. Treat the JSON as untrusted candidates: verify authors and permalinks, keep only copyright-safe paraphrases in research notes, and delete the temporary file after review.
+
+Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
 ---
 
@@ -325,6 +339,7 @@ dot-skill/
 │   ├── slack_auto_collector.py     #   [colleague] Slack auto-collector
 │   ├── email_parser.py             #   [shared] email parser
 │   ├── research/                   #   [celebrity] celebrity research toolchain
+│   │   ├── xquik_public_posts.py   #     bounded public X post candidates
 │   │   ├── download_subtitles.sh   #     subtitle download
 │   │   ├── transcribe_audio.py     #     audio → text
 │   │   ├── srt_to_transcript.py    #     subtitles → transcript

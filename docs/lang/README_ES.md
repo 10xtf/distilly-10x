@@ -125,6 +125,7 @@ Los Skills de personaje generados también se pueden instalar con un solo comand
 | 🟢 Feishu (auto) | ✅ API | ✅ | ✅ | Solo ingresa un nombre, totalmente automático |
 | 🟡 DingTalk (auto) | ⚠️ Navegador | ✅ | ✅ | La API de DingTalk no soporta historial de mensajes |
 | 🟣 Slack (auto) | ✅ API | — | — | Requiere que el admin instale el Bot; plan gratuito limitado a 90 días |
+| 𝕏 Publicaciones públicas de X | ✅ API | — | — | Candidatos de investigación opcionales y acotados sobre figuras públicas mediante Xquik |
 | 💬 Historial de chat de WeChat | ✅ SQLite | — | — | Exportar primero con WeChatMsg / PyWxDump / 留痕 |
 | 📄 PDF / Imágenes / Capturas | — | ✅ | — | Subida manual |
 | 📦 Exportación JSON de Feishu | ✅ | ✅ | — | Subida manual |
@@ -195,12 +196,29 @@ bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
 # Subtítulos → transcripción
 python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 
+# Candidatos de publicaciones públicas de X → JSON normalizado (opcional)
+python3 tools/research/xquik_public_posts.py \
+  --username "<public-handle>" \
+  --limit 20 \
+  --output "/tmp/distilly-x-public-posts.json"
+
+# El Agent verifica autor y permalink y solo incorpora paráfrasis seguras a las notas de investigación.
+
 # Fusionar notas de investigación
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
+
+# Eliminar los candidatos temporales de X después de leerlos
+rm "/tmp/distilly-x-public-posts.json"
 
 # Control de calidad
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
+
+`XQUIK_API_KEY` se lee exclusivamente del entorno. La solicitud envía la consulta pública al proveedor externo Xquik; se factura por cada tweet devuelto y puede consumir créditos. Por eso, el Agent debe confirmar el valor de `--limit` antes de ejecutar la herramienta.
+
+El JSON contiene evidencia candidata no confiable, no evidencia aceptada automáticamente: hay que verificar el autor y el permalink. Solo las publicaciones breves de la propia persona objetivo pueden tratarse como evidencia primaria de formato corto, y siempre pesan menos que las fuentes primarias extensas o los registros de decisiones. Las publicaciones de terceros se degradan o descartan. Conserva únicamente paráfrasis respetuosas con los derechos de autor, nunca guardes el archivo candidato dentro del Skill generado y elimínalo después de leerlo.
+
+Xquik es un proveedor externo independiente y no está afiliado con X Corp. «Twitter» y «X» son marcas comerciales de X Corp.
 
 ---
 
@@ -317,6 +335,7 @@ dot-skill/
 │   │   ├── download_subtitles.sh   #     descarga de subtítulos
 │   │   ├── transcribe_audio.py     #     audio → texto
 │   │   ├── srt_to_transcript.py    #     subtítulos → transcripción
+│   │   ├── xquik_public_posts.py   #     publicaciones públicas de X → JSON candidato
 │   │   ├── merge_research.py       #     fusión de investigación de seis dimensiones
 │   │   └── quality_check.py        #     control de calidad
 │   ├── install_*_skill.py          #   [shared] instaladores multi-host de un solo paso

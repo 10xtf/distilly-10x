@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -203,9 +204,12 @@ def request_posts(
         },
         params={"limit": limit, "q": query, "queryType": query_type},
         timeout=REQUEST_TIMEOUT_SECONDS,
+        allow_redirects=False,
     )
 
     status = getattr(response, "status_code", 500)
+    if 300 <= status < 400:
+        raise CollectorError("Xquik redirected the request. Refusing to forward the API key.")
     if status >= 400:
         messages = {
             400: "Xquik rejected the search query. Check it and retry.",
@@ -302,8 +306,8 @@ def collect_public_posts(
             "has_more": has_more,
             "pagination_followed": False,
             "content_policy": (
-                "Review every candidate. Open its permalink before citing or "
-                "paraphrasing it."
+                "Review every candidate. Verify its author and open its permalink "
+                "before safely paraphrasing it."
             ),
             "provider": "Xquik",
         },
@@ -312,16 +316,43 @@ def collect_public_posts(
 
 def write_collection(path: Path, collection: dict[str, Any], force: bool) -> None:
     """Write UTF-8 JSON without overwriting an existing collection by default."""
-    if path.exists() and not force:
-        raise CollectorError(f"Output already exists: {path}. Pass --force to replace it.")
+    contents = json.dumps(collection, ensure_ascii=False, indent=2) + "\n"
+    temporary_path: Optional[Path] = None
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(collection, ensure_ascii=False, indent=2) + "\n",
+        if path.is_symlink():
+            raise CollectorError(f"Refusing to write through symbolic link: {path}.")
+        if not force:
+            with path.open("x", encoding="utf-8") as output:
+                output.write(contents)
+            return
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
             encoding="utf-8",
-        )
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as output:
+            temporary_path = Path(output.name)
+            output.write(contents)
+        os.replace(temporary_path, path)
+        temporary_path = None
+    except CollectorError:
+        raise
+    except FileExistsError as error:
+        raise CollectorError(
+            f"Output already exists: {path}. Pass --force to replace it."
+        ) from error
     except OSError as error:
         raise CollectorError(f"Could not write output: {path}.") from error
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except OSError:
+                pass
 
 
 def main() -> None:

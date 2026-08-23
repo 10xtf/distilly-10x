@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from research.xquik_public_posts import (
+from research.xquik_public_posts import (  # noqa: E402
     API_CONTRACT,
     API_URL,
     MAX_CONTENT_CHARS,
@@ -141,6 +142,7 @@ class CollectionTest(unittest.TestCase):
         self.assertEqual(calls[0][1]["headers"]["x-api-key"], "test-key")
         self.assertEqual(calls[0][1]["headers"]["xquik-api-contract"], API_CONTRACT)
         self.assertEqual(calls[0][1]["params"]["limit"], 20)
+        self.assertFalse(calls[0][1]["allow_redirects"])
         self.assertEqual(len(collection["messages"]), 2)
         self.assertEqual(collection["subject_candidates"], ["Example User", "example_user"])
         self.assertTrue(collection["metadata"]["has_more"])
@@ -193,6 +195,18 @@ class CollectionTest(unittest.TestCase):
         self.assertNotIn("secret-key", str(raised.exception))
         self.assertNotIn("body", str(raised.exception))
 
+    def test_collect_public_posts_refuses_redirects_without_exposing_key(self) -> None:
+        with self.assertRaisesRegex(CollectorError, "Refusing to forward") as raised:
+            collect_public_posts(
+                api_key="secret-key",
+                query="from:example_user",
+                limit=20,
+                query_type="Latest",
+                request_get=lambda *args, **kwargs: FakeResponse({}, 302),
+            )
+
+        self.assertNotIn("secret-key", str(raised.exception))
+
     def test_write_collection_requires_force_to_replace_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = Path(tmp_dir) / "candidates" / "x.json"
@@ -203,6 +217,25 @@ class CollectionTest(unittest.TestCase):
 
             write_collection(output, {"messages": [1]}, force=True)
             self.assertEqual(json.loads(output.read_text(encoding="utf-8")), {"messages": [1]})
+            self.assertEqual([path.name for path in output.parent.iterdir()], ["x.json"])
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
+    def test_write_collection_rejects_dangling_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output = Path(tmp_dir) / "candidates" / "x.json"
+            target = Path(tmp_dir) / "outside.json"
+            output.parent.mkdir()
+            try:
+                output.symlink_to(target)
+            except OSError as error:
+                self.skipTest(f"cannot create symbolic links: {error}")
+
+            with self.assertRaisesRegex(CollectorError, "symbolic link"):
+                write_collection(output, {"messages": []}, force=False)
+            with self.assertRaisesRegex(CollectorError, "symbolic link"):
+                write_collection(output, {"messages": []}, force=True)
+
+            self.assertFalse(target.exists())
 
 
 if __name__ == "__main__":

@@ -205,19 +205,21 @@ python3 tools/slack_auto_collector.py --setup
 ### X 公开帖子候选采集（可选）
 
 此工具仅用于 celebrity research。先在当前 shell 中安全设置
-`XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。
+`XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。Xquik 按返回帖子数量
+计费，运行前必须让用户确认 `--limit`。
 
 ```bash
 python3 tools/research/xquik_public_posts.py \
   --username "<公开账号>" \
   --subject "<人物名称>" \
   --limit 20 \
-  --output "./skills/celebrity/<slug>/knowledge/research/candidates/x_public_posts.json"
+  --output "/tmp/distilly-x-public-posts.json"
 ```
 
-工具只发起 1 次只读搜索请求，不自动翻页。输出遵循标准 collector JSON
-结构。它是未经信任的候选证据，不是 research note。逐条打开 permalink，
-只把相关内容转述到 `knowledge/research/raw/`，并保留具体来源 URL。
+工具只发起 1 次只读搜索请求，不自动翻页。输出是未经信任的候选证据，
+不是 research note。逐条核对作者、打开 permalink，只把相关内容做版权
+安全的转述后写入 `knowledge/research/raw/`，并保留具体来源 URL。阅读后
+删除临时 JSON，不要把它收进生成的 Skill。
 
 Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 

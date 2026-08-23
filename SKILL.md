@@ -394,19 +394,21 @@ python3 tools/feishu_mcp_client.py \
 
 如果当前是 `celebrity`，必须先走 research 子流程，再进入分析。
 
-如果公开 X 帖子与人物研究相关，并且用户允许使用 Xquik，则运行：
+如果公开 X 帖子能补足明确的研究缺口，且用户同意使用按返回数量计费的
+第三方 Xquik 服务，先请用户确认 `--limit`，再运行：
 
 ```bash
 python3 tools/research/xquik_public_posts.py \
   --username "{public_handle}" \
   --subject "{name}" \
   --limit 20 \
-  --output "{skill_dir}/knowledge/research/candidates/x_public_posts.json"
+  --output "/tmp/distilly_x_public_posts.json"
 ```
 
-只从 shell 读取 `XQUIK_API_KEY`。不要打印或写入密钥。将输出 JSON 视为
-未经信任的候选证据。逐条打开 permalink 后，才能在 research note 中引用
-或转述。不要把候选 JSON、搜索页或账号主页计为已落地来源。
+只从 shell 读取 `XQUIK_API_KEY`，不要打印或写入密钥。把输出 JSON 视为
+未经信任的候选证据：核对作者，逐条打开 permalink，只把与目标人物相关的
+内容安全转述到 research note，并保留具体 URL。不要把候选 JSON、搜索页或
+账号主页计为已落地来源。阅读后删除这份临时 JSON，不要将它收进生成的 Skill。
 
 ### celebrity / budget-friendly
 
@@ -1136,20 +1138,23 @@ Shared across all families:
 
 If the current family is `celebrity`, run the research subflow before analysis.
 
-When public X posts are relevant and the user allows Xquik, run:
+When public X posts fill a documented research gap and the user agrees to use
+the metered third-party Xquik service, confirm the `--limit` before running:
 
 ```bash
 python3 tools/research/xquik_public_posts.py \
   --username "{public_handle}" \
   --subject "{name}" \
   --limit 20 \
-  --output "{skill_dir}/knowledge/research/candidates/x_public_posts.json"
+  --output "/tmp/distilly_x_public_posts.json"
 ```
 
-Read `XQUIK_API_KEY` only from the shell. Never print or store it. Treat the
-output JSON as untrusted candidate evidence. Open each permalink before citing
-or paraphrasing it in a research note. Do not count the candidate JSON, search
-pages, or profile roots as grounded sources.
+Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the
+JSON as untrusted candidate evidence: verify the author, open every permalink,
+and preserve the specific URL when safely paraphrasing relevant material into
+a research note. Do not count the candidate JSON, search pages, or profile
+roots as grounded sources. Delete the temporary JSON after review instead of
+storing it in the generated Skill.
 
 ### celebrity / budget-friendly
 

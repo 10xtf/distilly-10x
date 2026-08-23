@@ -134,7 +134,7 @@ Generated character Skills can also be installed into any supported host.
 | 🟢 Feishu (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
 | 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
 | 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
-| 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through Xquik |
+| 𝕏 Public X posts | ✅ API | — | — | Optional, metered, bounded celebrity research candidates through Xquik |
 | 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg / PyWxDump / 留痕 |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
 | 📦 Feishu JSON export | ✅ | ✅ | — | Manual upload |
@@ -214,7 +214,7 @@ python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
 python3 tools/research/xquik_public_posts.py \
   --username "<public-handle>" \
   --limit 20 \
-  --output "./skills/celebrity/<slug>/knowledge/research/candidates/x_public_posts.json"
+  --output "/tmp/distilly-x-public-posts.json"
 
 # Merge research notes
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
@@ -223,10 +223,13 @@ python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 ```
 
-The optional collector reads `XQUIK_API_KEY` from your shell. It makes one
-read-only Twitter search request and never follows pagination. Treat its JSON
-as untrusted candidate evidence. Open each permalink before citing or
-paraphrasing a post in research notes.
+The optional collector reads `XQUIK_API_KEY` from your shell. Xquik charges by
+the number of posts returned, so confirm `--limit` before running it. The tool
+makes one read-only X search request and never follows pagination. Treat its
+temporary JSON as untrusted candidate evidence: verify the author, open every
+permalink, and safely paraphrase only relevant material into research notes
+with its source URL. Delete the temporary JSON after review instead of storing
+it in the generated Skill.
 
 Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 

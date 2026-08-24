@@ -148,102 +148,35 @@ Cada Person Profile gerado é empacotado como Agent Skill e pode ser colocado no
 
 ## ⚡ Instalação
 
-É 2026 — você tem um Agent, deixa ele se instalar sozinho. Abra seu Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness / Pi coding agent / Grok Build / OpenCode e mande esta linha para ele:
+### 🤖 Para Agents
 
-> Instala a Distilly pra mim: `https://github.com/titanwings/distilly`
+Abra um host local de Agent compatível e envie:
 
-O Agent vai detectar o diretório de skills do host atual, clonar o repositório e permitir que o host descubra a Distilly.
+> Instale a Distilly a partir de https://github.com/titanwings/distilly e depois verifique se este host consegue detectá-la.
 
-<details>
-<summary><b>🛠️ Quer instalar na mão? Clique para ver os caminhos</b></summary>
+O Agent instalará o repositório no diretório de Skills correto do host com o nome `distilly`.
 
-<br>
-
-```bash
-git clone https://github.com/titanwings/distilly <TARGET>
-```
-
-| Host | Caminho `<TARGET>` |
-|------|--------------------|
-| Claude Code | `~/.claude/skills/distilly` |
-| Hermes | Depois de clonar, rode `python3 tools/install_hermes_skill.py --force` |
-| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
-| Codex | `~/.agents/skills/distilly` |
-| DeepSeek Harness | `~/.dsh/skills/distilly` ou `.dsh/skills/distilly` no projeto |
-| Pi coding agent | `~/.pi/agent/skills/distilly` ou `~/.agents/skills/distilly` |
-| Grok Build | `~/.grok/skills/distilly` ou `~/.agents/skills/distilly` |
-| OpenCode | `~/.config/opencode/skills/distilly` (usuário) ou `.opencode/skills/distilly` (projeto) |
-
-</details>
-
-> **Migração de uma instalação existente:** um clone que ainda se chama `dot-skill`, ou que permanece na raiz legada `~/.codex/skills`, não tem garantia de expor a nova entrada `distilly` após apenas um `git pull`. Na raiz do clone antigo, execute o instalador de repositório aplicável (`tools/install_openclaw_skill.py`, `tools/install_codex_skill.py` ou `tools/install_hermes_skill.py`) ou clone novamente no caminho canônico `distilly` do host mostrado acima. Primeiro verifique se o host descobre a Distilly; depois decida manualmente como tratar o diretório antigo, sem apagá-lo automaticamente. Os fallbacks legados de config/meta mantêm os dados antigos legíveis, mas não renomeiam um diretório instalado.
-
-Instale um Skill de personagem gerado a partir da raiz do repositório com o instalador unificado:
+### 👤 Para pessoas
 
 ```bash
-python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
+git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
 ```
 
-Os valores válidos de `<host>` são `hermes`, `deepseek-harness`, `pi`, `grok-build` e `opencode`. O padrão é uma instalação no nível do usuário; para instalar no projeto, adicione o `--skills-dir` correspondente:
-
-| Host | Diretório instalado por padrão | Override e diretório instalado no projeto |
-|------|--------------------------------|-------------------------------------------|
-| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
-| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
-| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
-| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
-| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
-
-O instalador normaliza o frontmatter legado com underscores para o nome canônico em kebab case `{character}-{slug}` somente na cópia instalada e mantém o diretório de origem inalterado. O diretório instalado contém apenas o `SKILL.md` autocontido e `.distilly-install.json`; os materiais de origem privados do diretório gerado não são copiados.
-
-Para instalar o Hermes no nível do projeto, primeiro marque o projeto como confiável com `hermes skills trust`. Depois da instalação, inicie uma nova sessão do Hermes ou execute `/reload-skills`. `~/.agents/skills` não é um diretório padrão do Hermes; ele só é usado quando adicionado explicitamente a `skills.external_dirs`.
-
-> Para credenciais de coleta automática do Lark/DingTalk, mais detalhes de instalação, o status de preview do Grok Bot e notas de compatibilidade, veja o **[Guia de Instalação Detalhado (INSTALL.md)](../../INSTALL.md)**
+Para ver os caminhos de cada host, migração, Windows, instalação de Profiles gerados e credenciais, consulte o **[guia detalhado de instalação (INSTALL_EN.md)](../../INSTALL_EN.md)**.
 
 ---
 
 ## 🚀 Uso
 
-A Distilly primeiro pergunta qual família você quer destilar: `colleague` · `relationship` · `celebrity`.
+> Use a Distilly para criar um Person Profile de `<person>`.
 
-Depois, informe apelido, dados básicos, tags de personalidade e escolha uma fonte de dados. Todos os campos podem ser pulados — até mesmo só uma descrição já consegue criar um Person Profile.
+1. Escolha `colleague`, `relationship` ou `celebrity`.
+2. Forneça uma descrição ou materiais; todos os campos podem ser ignorados.
+3. Revise o Person Profile e confirme a geração.
 
-O Profile é empacotado como um Skill chamado `{character}-{slug}` (Persona + Work).
+O resultado é empacotado como um Agent Skill chamado `{character}-{slug}`.
 
-### 🔬 Celebrity Research Toolchain
-
-A família `celebrity` vem com uma cadeia de pesquisa fim-a-fim, das legendas até o rascunho finalizado:
-
-```bash
-# Baixar legendas de vídeo
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# Legendas → transcrição
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# Candidatos de posts públicos do X → JSON normalizado (opcional)
-python3 tools/research/xquik_public_posts.py \
-  --username "<public-handle>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
-# O Agent verifica autor e permalink e leva apenas paráfrases seguras para as notas de pesquisa.
-
-# Merge das notas de pesquisa
-python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
-
-# Apagar os candidatos temporários do X depois da leitura
-rm "/tmp/distilly-x-public-posts.json"
-
-# Checagem de qualidade
-python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-```
-
-`XQUIK_API_KEY` é lida somente do ambiente. A requisição envia a consulta pública ao provedor terceiro Xquik; a cobrança é feita por tweet retornado e pode consumir créditos. Por isso, o Agent deve confirmar o valor de `--limit` antes de executar a ferramenta.
-
-O JSON contém evidência candidata não confiável, e não evidência aceita automaticamente: verifique o autor e o permalink. Somente posts curtos da própria pessoa-alvo podem servir como evidência primária de formato curto, sempre com peso menor que fontes primárias longas ou registros de decisões. Posts de terceiros devem ser rebaixados ou descartados. Mantenha apenas paráfrases seguras do ponto de vista de direitos autorais, nunca salve o arquivo candidato dentro do Skill gerado e apague-o depois da leitura.
-
-Xquik é um serviço independente de terceiros e não é afiliado à X Corp. “Twitter” e “X” são marcas registradas da X Corp.
+Consulte o **[guia detalhado de instalação (INSTALL_EN.md)](../../INSTALL_EN.md)** para pesquisa com `celebrity` e ferramentas avançadas.
 
 ---
 

@@ -151,98 +151,39 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ## ⚡ 安装
 
-2026 年了，你有 Agent，让它自己装。打开支持的本地 Agent 宿主，把下面这句丢给它：
+### 🤖 For Agents
 
-> 帮我安装 Distilly：`https://github.com/titanwings/distilly`
+在任意支持的本地 Agent 宿主中发送：
 
-Agent 应把仓库安装为名为 `distilly` 的 Skill，并确认当前宿主能够发现 Distilly。
+> 从 `https://github.com/titanwings/distilly` 安装 Distilly，并确认当前宿主可以发现它。
 
-<details>
-<summary><b>🛠️ 想自己手动装？点开看路径</b></summary>
+Agent 会把 Distilly 作为名为 `distilly` 的 Skill 安装到正确的宿主目录。
 
-<br>
+### 👤 For Humans
 
-```bash
-git clone https://github.com/titanwings/distilly <TARGET>
-```
-
-| 宿主 | `<TARGET>` 路径 |
-|------|----------------|
-| Claude Code | `~/.claude/skills/distilly` |
-| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
-| Codex | `~/.agents/skills/distilly`（用户）或 `.agents/skills/distilly`（项目） |
-| DeepSeek Harness | `~/.dsh/skills/distilly`（全局）或 `.dsh/skills/distilly`（项目） |
-| Pi coding agent | `~/.pi/agent/skills/distilly` 或 `~/.agents/skills/distilly` |
-| Grok Build | `~/.grok/skills/distilly` 或 `~/.agents/skills/distilly` |
-| OpenCode | `~/.config/opencode/skills/distilly`（用户）或 `.opencode/skills/distilly`（项目） |
-| Hermes | clone 后跑 `python3 tools/install_hermes_skill.py --force` |
-
-</details>
-
-> **已有安装迁移：**仍名为 `dot-skill` 的 clone，或仍位于旧 `~/.codex/skills` 根目录下的 clone，只执行 `git pull` 不能保证宿主发现新的 `distilly` 入口。请在旧 clone 根目录运行适用的仓库安装器（`tools/install_openclaw_skill.py`、`tools/install_codex_skill.py` 或 `tools/install_hermes_skill.py`），或按上表重新 clone 到该宿主正式的 `distilly` 路径。先确认宿主能够发现 Distilly，再由用户手工决定如何处理旧目录；不要自动删除。config/meta 的 legacy fallback 只保证旧数据仍可读取，不会自动重命名安装目录。
-
-在仓库根目录用统一安装器安装生成的人物 Skill：
+把 Distilly clone 到当前宿主使用的 Skills 目录：
 
 ```bash
-python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
+git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
 ```
 
-`<host>` 可选 `hermes`、`deepseek-harness`、`pi`、`grok-build` 或 `opencode`。默认执行用户级安装；项目级安装需追加对应的 `--skills-dir`：
-
-| 宿主 | 默认安装目录 | 项目级参数与安装目录 |
-|------|--------------|----------------------|
-| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
-| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
-| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
-| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
-| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
-
-安装器只在安装副本中把旧的 underscore frontmatter 自动规范为 `{character}-{slug}` canonical kebab 名称，源生成目录保持不变。安装目录只写入自包含的 `SKILL.md` 和 `.distilly-install.json`，不会复制生成目录中的私有原始材料。
-
-Hermes 项目级安装前先运行 `hermes skills trust`。安装后新开 Hermes session，或运行 `/reload-skills` 重新扫描。`~/.agents/skills` 不是 Hermes 默认目录；只有在 `skills.external_dirs` 中显式配置后才能使用。
-
-> 飞书/钉钉自动采集凭证、各宿主安装方式、Grok Bot 预览流程、Windows 兼容性说明等，见 **[详细安装说明 INSTALL.md](../../INSTALL.md)**
+各宿主路径、旧版本迁移、Windows、生成 Profile 的安装方式和凭证配置，统一放在 **[详细安装说明](../../INSTALL.md)**。
 
 ---
 
 ## 🚀 使用
 
-安装 Distilly 后，创建流程会先让你选择蒸馏类型：`colleague` · `relationship` · `celebrity`。
+在 Agent 中说：
 
-然后按提示输入花名、基础信息、性格标签，再选择数据来源。所有字段均可跳过，仅凭描述也能生成 Person Profile。
+> 用 Distilly 为 `<人物>` 创建一个 Person Profile。
 
-完成后，Profile 会封装成名为 `{character}-{slug}` 的 Skill，可以安装到任意受支持的宿主。
+接下来只需：
 
-### 🔬 名人研究工具链
+1. 选择 `colleague`、`relationship` 或 `celebrity`。
+2. 提供一段描述或相关材料；所有字段都可以跳过。
+3. 审核结果，让 Distilly 生成 Profile。
 
-`celebrity` 类型内置了一套研究工具链，从字幕到成品一条龙：
-
-```bash
-# 下载视频字幕
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# 字幕转文稿
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# 公开 X 帖子候选 → 标准化临时 JSON（可选）
-python3 tools/research/xquik_public_posts.py \
-  --username "<public-handle>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
-# 核对并转述选中帖子后，删除临时候选文件
-rm "/tmp/distilly-x-public-posts.json"
-
-# 合并研究笔记
-python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
-
-# 质量检查
-python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-```
-
-可选采集器从 shell 读取 `XQUIK_API_KEY`，并把一次公开查询发送给第三方 Xquik。该接口按返回帖子数量计费，Agent 调用前必须让用户确认 `--limit`。JSON 只是未经信任的候选材料：需核对作者和 permalink，只把版权安全的转述写入研究笔记，阅读后删除临时文件。
-
-Xquik 是独立第三方服务，与 X Corp. 无隶属关系。“Twitter”和“X”是 X Corp. 的商标。
+结果会封装成名为 `{character}-{slug}` 的 Agent Skill。可选的名人研究流程和高级工具见 **[详细安装说明](../../INSTALL.md)**。
 
 ---
 

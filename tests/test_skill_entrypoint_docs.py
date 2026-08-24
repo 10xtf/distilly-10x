@@ -68,6 +68,33 @@ class SkillEntrypointDocsTest(unittest.TestCase):
                 f"invocation tutorial matching {pattern.pattern!r} remains in {source}",
             )
 
+    def _assert_readme_quick_start(
+        self, content: str, source: str, install_link: str
+    ) -> None:
+        self.assertIn("## ⚡", content, f"missing install section in {source}")
+        quick_start = content.split("## ⚡", 1)[1].split("\n## ✨", 1)[0]
+        self.assertIn("### 🤖", quick_start, f"missing Agent path in {source}")
+        self.assertIn("### 👤", quick_start, f"missing human path in {source}")
+        self.assertIn(
+            "git clone https://github.com/titanwings/distilly "
+            "<DISTILLY_SKILL_DIR>",
+            quick_start,
+            f"missing short clone command in {source}",
+        )
+        self.assertIn(install_link, quick_start, f"missing install guide link in {source}")
+        self.assertIn("{character}-{slug}", quick_start)
+        self.assertNotIn("<details>", quick_start, f"collapsed install table remains in {source}")
+        self.assertNotIn(
+            "tools/install_generated_skill.py",
+            quick_start,
+            f"generated Skill installer detail remains in {source}",
+        )
+        self.assertNotIn(
+            "tools/research/",
+            quick_start,
+            f"celebrity research commands remain in {source}",
+        )
+
     def test_root_skill_uses_distilly_entrypoint(self) -> None:
         content = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("name: distilly", content)
@@ -109,20 +136,14 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertNotIn("`/list-skills`", content)
         self.assertNotIn("Compatibility aliases:", content)
 
-    def test_readme_and_install_use_current_host_paths(self) -> None:
+    def test_readme_quick_start_and_install_detail_contract(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         install = (ROOT / "INSTALL.md").read_text(encoding="utf-8")
+        install_en = (ROOT / "INSTALL_EN.md").read_text(encoding="utf-8")
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn(".claude/skills/distilly", readme)
-        self.assertIn("~/.openclaw/workspace/skills/distilly", readme)
-        self.assertIn("~/.agents/skills/distilly", readme)
-        self.assertIn("~/.dsh/skills/distilly", readme)
-        self.assertIn("~/.pi/agent/skills/distilly", readme)
-        self.assertIn("~/.grok/skills/distilly", readme)
-        self.assertIn("~/.config/opencode/skills/distilly", readme)
-        self.assertIn(".opencode/skills/distilly", readme)
         self._assert_readme_support_contract(readme, "README.md")
+        self._assert_readme_quick_start(readme, "README.md", "(INSTALL_EN.md)")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
         self.assertIn("https://github.com/titanwings/distilly", readme)
@@ -143,14 +164,32 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("https://github.com/titanwings/distilly", install)
         self.assertNotIn("https://github.com/titanwings/colleague-skill", install)
         self.assertIn("./skills/colleague", install)
-        self.assertIn("install_claude_generated_skill.py", readme)
         self.assertIn("install_claude_generated_skill.py", install)
-        self.assertIn("install_openclaw_generated_skill.py", readme)
         self.assertIn("install_openclaw_generated_skill.py", install)
-        self.assertIn("install_codex_generated_skill.py", readme)
         self.assertIn("install_codex_generated_skill.py", install)
         self.assertIn("install_openclaw_skill.py", install)
         self.assertIn("install_codex_skill.py", install)
+        self.assertIn("tools/research/quality_check.py", install)
+        self.assertIn("tools/research/xquik_public_posts.py", install)
+        self.assertIn("tools/research/download_subtitles.sh", install)
+        self.assertIn("tools/research/merge_research.py", install)
+        self.assertIn("pip3 install -r requirements.txt", install)
+        self.assertIn("pip3 install yt-dlp", install)
+        self.assertIn("~/.claude/skills/distilly", install_en)
+        self.assertIn("~/.openclaw/workspace/skills/distilly", install_en)
+        self.assertIn("~/.hermes/skills/openclaw-imports/distilly", install_en)
+        self.assertIn("~/.agents/skills/distilly", install_en)
+        self.assertIn("~/.dsh/skills/distilly", install_en)
+        self.assertIn("~/.pi/agent/skills/distilly", install_en)
+        self.assertIn("~/.grok/skills/distilly", install_en)
+        self.assertIn("~/.config/opencode/skills/distilly", install_en)
+        self.assertIn("tools/install_generated_skill.py", install_en)
+        self.assertIn("tools/research/download_subtitles.sh", install_en)
+        self.assertIn("tools/research/srt_to_transcript.py", install_en)
+        self.assertIn("tools/research/merge_research.py", install_en)
+        self.assertIn("tools/research/quality_check.py", install_en)
+        self.assertIn("pip3 install -r requirements.txt", install_en)
+        self.assertIn("pip3 install yt-dlp", install_en)
         self.assertIn("/{character}-{slug}", install)
         self.assertIn("./skills/colleague", skill)
         self.assertIn("DeepSeek Harness", skill)
@@ -172,20 +211,12 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             content = readme_path.read_text(encoding="utf-8")
             self.assertNotIn("/dot-skill", content, f"stale /dot-skill in {readme_path.name}")
             self._assert_readme_support_contract(content, readme_path.name)
-            self.assertIn(
-                "~/.config/opencode/skills/distilly",
+            self._assert_readme_quick_start(
                 content,
-                f"missing OpenCode user path in {readme_path.name}",
-            )
-            self.assertIn(
-                ".opencode/skills/distilly",
-                content,
-                f"missing OpenCode project path in {readme_path.name}",
-            )
-            self.assertIn(
-                "`opencode`",
-                content,
-                f"missing OpenCode generated-skill host in {readme_path.name}",
+                readme_path.name,
+                "(../../INSTALL.md)"
+                if readme_path.name == "README_ZH.md"
+                else "(../../INSTALL_EN.md)",
             )
             self.assertIn(
                 "https://github.com/titanwings/distilly",
@@ -196,21 +227,6 @@ class SkillEntrypointDocsTest(unittest.TestCase):
                 "https://github.com/titanwings/colleague-skill",
                 content,
                 f"stale repository URL in {readme_path.name}",
-            )
-            self.assertIn(
-                "tools/install_hermes_skill.py --force",
-                content,
-                f"missing Hermes installer in {readme_path.name}",
-            )
-            self.assertIn(
-                "tools/research/quality_check.py",
-                content,
-                f"missing celebrity research toolchain in {readme_path.name}",
-            )
-            self.assertIn(
-                "tools/research/xquik_public_posts.py",
-                content,
-                f"missing X collector in {readme_path.name}",
             )
             self.assertNotIn(
                 "colleague_skill.pdf",
@@ -238,6 +254,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             ROOT / "ROADMAP.md",
             ROOT / "CONTRIBUTING.md",
             ROOT / "CITATION.cff",
+            ROOT / "INSTALL_EN.md",
             ROOT / "docs" / "lang" / "README_EN.md",
             ROOT / "prompts" / "celebrity" / "research.md",
             ROOT / "prompts" / "celebrity" / "budget_unfriendly" / "research.md",

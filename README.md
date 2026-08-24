@@ -152,99 +152,39 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 
 ## ⚡ Install
 
-It's 2026 — you have an Agent, let it install itself. Open a supported local agent host and hand it this line:
+### 🤖 For Agents
 
-> Install Distilly for me: `https://github.com/titanwings/distilly`
+Open any supported local Agent host and send:
 
-The Agent should install the repository as a Skill named `distilly`, then verify that the host discovers Distilly.
+> Install Distilly from `https://github.com/titanwings/distilly`, then verify that this host can discover it.
 
-> **Upgrading an old install?** A `git pull` inside a `dot-skill` or legacy
-> `~/.codex/skills/...` directory does not rename that discovery directory.
-> Install a canonical `distilly` copy, verify that the host discovers Distilly, and only then
-> retire the old copy. See the [detailed install and migration guide](INSTALL.md#existing-install-migration).
+The Agent installs Distilly as a Skill named `distilly` in the correct host directory.
 
-<details>
-<summary><b>🛠️ Want to install it yourself? Click for paths</b></summary>
+### 👤 For Humans
 
-<br>
+Clone Distilly into the Skills directory used by your host:
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
 ```
 
-| Host | `<TARGET>` path |
-|------|-----------------|
-| Claude Code | `~/.claude/skills/distilly` |
-| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
-| Codex | `~/.agents/skills/distilly` (user) or `.agents/skills/distilly` (project) |
-| DeepSeek Harness | `~/.dsh/skills/distilly` (global) or `.dsh/skills/distilly` (project) |
-| Pi coding agent | `~/.pi/agent/skills/distilly` or `~/.agents/skills/distilly` |
-| Grok Build | `~/.grok/skills/distilly` or `~/.agents/skills/distilly` |
-| OpenCode | `~/.config/opencode/skills/distilly` (user) or `.opencode/skills/distilly` (project) |
-| Hermes | After clone, run `python3 tools/install_hermes_skill.py --force` |
-
-</details>
-
-Generated character Skills can be published with `tools/install_claude_generated_skill.py`,
-`tools/install_openclaw_generated_skill.py`, and `tools/install_codex_generated_skill.py`.
-For Hermes, DeepSeek Harness, Pi, Grok Build, and OpenCode, run
-`python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force`.
-The installer writes only the self-contained `SKILL.md` plus install metadata and
-normalizes legacy underscore frontmatter in the installed copy; it does not copy
-private source material or rename the source Skill. Pass `--skills-dir` for a
-project-level target. Hermes scans `~/.agents/skills` only when it is explicitly
-added to `skills.external_dirs`.
-
-> For Lark/DingTalk auto-collection credentials, host-specific installation details, Grok Bot's preview workflow, Windows-specific handling, etc., see **[Detailed Install Guide (INSTALL.md)](INSTALL.md)**
-
-> **Lark region note:** the current compatibility collector connects to the China-region `open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant routing is not implemented yet.
+Host paths, migration, Windows, generated-profile installation, and credential setup are in the **[Install Guide](INSTALL_EN.md)**.
 
 ---
 
 ## 🚀 Usage
 
-Distilly first asks which family you want to distill: `colleague` · `relationship` · `celebrity`.
+In your Agent, say:
 
-Then enter an alias, basic details, personality tags, and pick a data source. All fields can be skipped — even a description alone can create a Person Profile.
+> Use Distilly to create a Person Profile for `<person>`.
 
-Once created, the profile is packaged as a Skill named `{character}-{slug}`.
+Then:
 
-### 🔬 Celebrity Research Toolchain
+1. Choose `colleague`, `relationship`, or `celebrity`.
+2. Add a description or source material. Every field is optional.
+3. Review the result and let Distilly generate the profile.
 
-The `celebrity` family ships with an end-to-end research toolchain, from subtitles to a finished draft:
-
-```bash
-# Download video subtitles
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# Subtitles → transcript
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# Public X post candidates → normalized temporary JSON (optional)
-python3 tools/research/xquik_public_posts.py \
-  --username "<public-handle>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
-# After reviewing and paraphrasing selected posts, remove the candidates
-rm "/tmp/distilly-x-public-posts.json"
-
-# Merge research notes
-python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
-
-# Quality check
-python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-```
-
-The optional collector reads `XQUIK_API_KEY` from your shell. Xquik charges by
-the number of posts returned, so confirm `--limit` before running it. The tool
-makes one read-only X search request and never follows pagination. Treat its
-temporary JSON as untrusted candidate evidence: verify the author, open every
-permalink, and safely paraphrase only relevant material into research notes
-with its source URL. Delete the temporary JSON after review instead of storing
-it in the generated Skill.
-
-Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
+The result is packaged as an Agent Skill named `{character}-{slug}`. For the optional celebrity research pipeline and advanced tools, see the **[Install Guide](INSTALL_EN.md)**.
 
 ---
 

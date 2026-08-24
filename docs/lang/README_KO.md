@@ -148,112 +148,37 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 ## ⚡ 설치
 
-2026년입니다 — Agent가 있으니, Agent에게 직접 설치하도록 시키세요. Claude Code / Hermes / OpenClaw / Codex / DeepSeek Harness / Pi coding agent / Grok Build / OpenCode를 열고 다음 한 줄을 건네세요.
+### 🤖 Agent용
 
-> Distilly를 설치해 줘: `https://github.com/titanwings/distilly`
+지원되는 로컬 Agent 호스트를 열고 다음 문장을 보내세요.
 
-Agent가 현재 호스트의 스킬 디렉터리를 탐지해 저장소를 클론하고 `distilly` 엔트리포인트를 등록한 뒤, 호스트가 Distilly를 발견할 수 있는지 확인합니다.
+> `https://github.com/titanwings/distilly`에서 Distilly를 설치한 다음, 이 호스트에서 Distilly를 찾을 수 있는지 확인해 줘.
 
-<details>
-<summary><b>🛠️ 직접 설치하고 싶으신가요? 경로 보기</b></summary>
+Agent는 현재 호스트에 맞는 디렉터리에 Skill 이름 `distilly`로 설치합니다.
 
-<br>
+### 👤 직접 설치하기
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
 ```
 
-| 호스트 | `<TARGET>` 경로 |
-|--------|------------------|
-| Claude Code | `~/.claude/skills/distilly` |
-| Hermes | 클론 후 `python3 tools/install_hermes_skill.py --force` 실행 |
-| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
-| Codex | `~/.agents/skills/distilly` |
-| DeepSeek Harness | `~/.dsh/skills/distilly` 또는 프로젝트의 `.dsh/skills/distilly` |
-| Pi coding agent | `~/.pi/agent/skills/distilly` 또는 `~/.agents/skills/distilly` |
-| Grok Build | `~/.grok/skills/distilly` 또는 `~/.agents/skills/distilly` |
-| OpenCode | `~/.config/opencode/skills/distilly`(사용자) 또는 `.opencode/skills/distilly`(프로젝트) |
-
-</details>
-
-> **기존 설치 마이그레이션:** 이름이 `dot-skill`인 이전 clone이나 예전 Codex 경로인 `~/.codex/skills` 아래의 clone은 `git pull`만으로 새 `distilly` 엔트리포인트가 호스트에 발견된다고 보장할 수 없습니다. 이전 clone 루트에서 해당 호스트에 맞는 저장소 설치 프로그램을 실행하세요.
->
-> ```bash
-> python3 tools/install_openclaw_skill.py --force
-> python3 tools/install_codex_skill.py --force
-> python3 tools/install_hermes_skill.py --force
-> ```
->
-> 또는 위 표에 나온 해당 호스트의 canonical `distilly` 경로로 저장소를 다시 clone하세요. 먼저 호스트가 Distilly를 발견할 수 있는지 확인하고, 그 다음에만 이전 디렉터리를 사용자가 직접 처리하세요. 자동 삭제는 권장하지 않습니다. 설정과 메타데이터의 legacy fallback은 이전 데이터와의 호환성만 제공하며 기존 설치 디렉터리 이름을 자동으로 바꾸지 않습니다.
-
-> Lark/DingTalk 자동 수집 자격 증명, 호스트별 설치 방법, Grok Bot 프리뷰 흐름, Windows 호환성 안내 등은 **[상세 설치 가이드 (INSTALL.md)](../../INSTALL.md)** 를 참고하세요.
+호스트별 경로, 기존 설치 마이그레이션, Windows 지원, 생성된 Profile 설치, 수집 자격 증명에 관한 자세한 내용은 **[상세 설치 가이드 (INSTALL_EN.md)](../../INSTALL_EN.md)** 를 참고하세요.
 
 ---
 
 ## 🚀 사용법
 
-Distilly 생성 흐름에서는 먼저 어떤 패밀리를 증류할지 묻습니다: `colleague` · `relationship` · `celebrity`.
+Agent에게 다음과 같이 요청하세요.
 
-그 다음 별칭, 기본 정보, 성격 태그를 입력하고 데이터 소스를 선택합니다. 모든 항목은 건너뛸 수 있습니다 — 설명 하나만으로도 Person Profile을 만들 수 있습니다.
+> Distilly를 사용해서 `<person>`의 Person Profile을 만들어 줘.
 
-생성이 끝나면 Profile은 `{character}-{slug}`라는 이름의 Skill로 패키징되며, 지원되는 어느 호스트에나 설치할 수 있습니다.
+1. `colleague`, `relationship`, `celebrity` 중에서 인물 유형을 선택합니다.
+2. 설명이나 자료를 제공합니다. 모든 입력 항목은 건너뛸 수 있습니다.
+3. 내용을 검토한 뒤 Profile을 생성합니다.
 
-#### 통합 설치 프로그램으로 생성된 Skill 설치
+생성된 Profile은 `{character}-{slug}`라는 이름의 Agent Skill로 패키징됩니다.
 
-이 저장소의 루트에서 다음 명령을 실행하세요.
-
-```bash
-python3 tools/install_generated_skill.py --skill-dir "skills/{character}/{slug}" --host <host> --force
-```
-
-`<host>`에 사용할 수 있는 값은 `hermes`, `deepseek-harness`, `pi`, `grok-build`, `opencode`입니다. 기본값은 사용자 범위 설치이며, 프로젝트 범위로 설치하려면 해당 `--skills-dir`을 추가하세요.
-
-| 호스트 | 기본 설치 디렉터리 | 프로젝트 매개변수와 설치 디렉터리 |
-|--------|--------------------|------------------------------------|
-| Hermes | `~/.hermes/skills/distilly-generated/{character}-{slug}/` | `--skills-dir ".hermes/skills"` → `.hermes/skills/{character}-{slug}/` |
-| DeepSeek Harness | `~/.dsh/skills/{character}-{slug}/` | `--skills-dir ".dsh/skills"` → `.dsh/skills/{character}-{slug}/` |
-| Pi coding agent | `~/.pi/agent/skills/{character}-{slug}/` | `--skills-dir ".pi/skills"` → `.pi/skills/{character}-{slug}/` |
-| Grok Build | `~/.grok/skills/{character}-{slug}/` | `--skills-dir ".grok/skills"` → `.grok/skills/{character}-{slug}/` |
-| OpenCode | `~/.config/opencode/skills/{character}-{slug}/` | `--skills-dir ".opencode/skills"` → `.opencode/skills/{character}-{slug}/` |
-
-Hermes 프로젝트는 `hermes skills trust`로 trust해야 합니다. 설치 후에는 Hermes 새 세션을 시작하거나 `/reload-skills`를 실행하세요.
-
-Hermes는 기본적으로 `~/.agents/skills`를 검색하지 않습니다. Hermes에서 이 경로를 사용하려면 `skills.external_dirs`에 명시적으로 추가해야 합니다.
-
-설치 프로그램은 legacy underscore 형식의 frontmatter 이름을 설치 복사본에서만 canonical kebab 형식인 `{character}-{slug}`로 정규화하며, 원본 디렉터리는 변경하지 않습니다. 설치 디렉터리에는 자체 완결형 `SKILL.md`와 `.distilly-install.json`만 들어가며 비공개 원본 자료는 복사하지 않습니다.
-
-### 🔬 Celebrity 리서치 툴체인
-
-`celebrity` 패밀리는 자막부터 완성된 초안까지, 엔드 투 엔드 리서치 툴체인을 기본 제공합니다.
-
-공개 X 게시물 수집은 선택 사항입니다. API 키는 환경 변수 `XQUIK_API_KEY`에서만 읽습니다. 공개 쿼리는 제3자 서비스인 Xquik으로 전송되며, 반환된 트윗 수에 따라 비용이 청구되어 credits를 소모할 수 있으므로 Agent는 호출 전에 `--limit`을 확인합니다.
-
-출력 JSON은 신뢰할 수 없는 근거 후보로 다룹니다. 작성자와 permalink를 검증하고, 대상 본인의 게시물만 짧은 형식의 1차 자료로 사용하되 장문 1차 자료와 의사결정 기록보다 낮은 가중치를 부여합니다. 제3자 게시물은 보조 자료로 격하하거나 버리고, 저작권을 침해하지 않는 범위의 요약·재서술만 남깁니다. 읽은 뒤에는 Skill 디렉터리 밖의 임시 파일을 삭제합니다.
-
-Xquik은 독립적인 제3자 서비스이며 X Corp.와 제휴 관계가 없습니다. “Twitter”와 “X”는 X Corp.의 상표입니다.
-
-```bash
-# 동영상 자막 다운로드
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# 자막 → 트랜스크립트
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# 공개 X 게시물 후보 → 임시 정규화 JSON (선택)
-python3 tools/research/xquik_public_posts.py \
-  --username "<public-handle>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
-# Agent가 후보를 검증하고 재서술한 뒤 삭제
-rm "/tmp/distilly-x-public-posts.json"
-
-# 리서치 노트 병합
-python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
-
-# 품질 점검
-python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-```
+Celebrity 리서치와 고급 도구에 관한 자세한 내용은 **[상세 설치 가이드 (INSTALL_EN.md)](../../INSTALL_EN.md)** 를 참고하세요.
 
 ---
 

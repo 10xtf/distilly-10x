@@ -108,7 +108,10 @@ python3 tools/install_generated_skill.py \
 
 | 宿主 | `<host>` | 默认用户级目标 | 项目级 `--skills-dir` |
 |------|----------|----------------|----------------------|
+| Claude Code | `claude-code` | `~/.claude/skills/{character}-{slug}/SKILL.md` | `.claude/skills` |
+| OpenClaw | `openclaw` | `~/.openclaw/workspace/skills/{character}-{slug}/SKILL.md` | 自定义 Skills 目录 |
 | Hermes | `hermes` | `~/.hermes/skills/distilly-generated/{character}-{slug}/SKILL.md` | `.hermes/skills`（可信项目） |
+| Codex | `codex` | `~/.agents/skills/{character}-{slug}/SKILL.md` | `.agents/skills` |
 | DeepSeek Harness | `deepseek-harness` | `~/.dsh/skills/{character}-{slug}/SKILL.md` | `.dsh/skills` |
 | Pi coding agent | `pi` | `~/.pi/agent/skills/{character}-{slug}/SKILL.md` | `.pi/skills` |
 | Grok Build | `grok-build` | `~/.grok/skills/{character}-{slug}/SKILL.md` | `.grok/skills` |
@@ -263,19 +266,14 @@ Grok Bot 支持把书面流程或演示保存为 private Skill，然后在 Setti
 新配置统一写入 `~/.distilly/`。为了不破坏既有安装，当新配置不存在时，飞书、钉钉和 Slack 采集器仍会只读回退到 `~/.colleague-skill/`；之后再运行 `--setup` 会写入新目录。
 
 ```bash
-# 基础（Python 3.9+）
-pip3 install pypinyin        # 中文姓名转拼音 slug（可选但推荐）
+# 安装 requirements.txt 中声明的 Python 依赖（Python 3.9+）
+pip3 install -r requirements.txt
 
 # 飞书浏览器方案（内部文档/需要登录权限的文档）
-pip3 install playwright
 playwright install chromium  # 仅需安装 chromium，不需要完整 Chrome
 
 # 飞书 MCP 方案（公司授权文档，通过 App Token 读取）
 npm install -g feishu-mcp    # 需要 Node.js 16+
-
-# 其他格式支持（可选）
-pip3 install python-docx     # Word .docx 转文本
-pip3 install openpyxl        # Excel .xlsx 转 CSV
 ```
 
 ### 平台方案选择指南
@@ -326,17 +324,38 @@ python3 tools/slack_auto_collector.py --setup
 
 ---
 
-### X 公开帖子候选采集（可选）
+### 名人研究工具链（可选）
 
-此工具仅用于 `celebrity` research。先在当前 shell 中安全设置 `XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。Xquik 按返回帖子数量计费，运行前必须让用户确认 `--limit`。
+`celebrity` 类型可以从字幕、公开帖子候选和研究笔记一路整理到最终质量检查：
 
 ```bash
+# 首次使用先安装字幕下载器
+pip3 install yt-dlp
+
+# 下载视频字幕
+bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
+
+# 字幕转文稿
+python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
+
+# 公开 X 帖子候选（可选）
 python3 tools/research/xquik_public_posts.py \
   --username "<公开账号>" \
   --subject "<人物名称>" \
   --limit 20 \
   --output "/tmp/distilly-x-public-posts.json"
+
+# 合并已经核对过的研究笔记
+python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
+
+# 质量检查
+python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
+
+# 阅读后删除临时候选文件
+rm "/tmp/distilly-x-public-posts.json"
 ```
+
+`xquik_public_posts.py` 从当前 shell 读取 `XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。Xquik 按返回帖子数量计费，运行前必须让用户确认 `--limit`。
 
 工具只发起 1 次只读搜索请求，不自动翻页。输出是未经信任的候选证据，不是 research note。逐条核对作者、打开 permalink，只把相关内容做版权安全的转述后写入 `knowledge/research/raw/`，并保留具体来源 URL。阅读后删除临时 JSON，不要把它收进生成的 Skill。
 

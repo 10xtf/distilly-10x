@@ -122,8 +122,6 @@ Distilly unterstützt die lokale, native Skill-Erkennung auf acht Agent-Hosts:
 </tr>
 </table>
 
-<sub>Kompatibilität bedeutet keine Empfehlung. <a href="../assets/hosts/README.md">Logo-Quellen</a>.</sub>
-
 Jedes generierte Person Profile wird als Agent Skill verpackt und kann in das Skill-Verzeichnis eines unterstützten Hosts gelegt werden.
 
 **Grok Bot (Preview):** manuelle Migration als gespeicherter privater Skill. Die direkte Installation der `SKILL.md` dieses Repositories in Grok Bot ist weder offiziell dokumentiert noch verifiziert.

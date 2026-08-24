@@ -122,8 +122,6 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 </tr>
 </table>
 
-<sub>호환성 표시는 해당 브랜드의 보증이나 제휴를 의미하지 않습니다. <a href="../assets/hosts/README.md">로고 출처</a>.</sub>
-
 생성된 각 Person Profile은 Agent Skill로 패키징되며, 각 호스트의 Skill 디렉터리에 설치할 수 있습니다.
 
 **Grok Bot 프리뷰:** Distilly workflow를 private saved Skill로 수동 이전할 수 있습니다. 현재 저장소의 `SKILL.md`를 Grok Bot에 직접 설치하는 방식은 공식 문서에 없고 검증되지도 않았습니다.

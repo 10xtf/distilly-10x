@@ -122,8 +122,6 @@ A versão antiga rodava só no Claude Code. Agora oito hosts locais descobrem a 
 </tr>
 </table>
 
-<sub>Compatibilidade não implica endosso. <a href="../assets/hosts/README.md">Fontes dos logotipos</a>.</sub>
-
 Cada Person Profile gerado é empacotado como Agent Skill e pode ser colocado no diretório de Skills de cada host.
 
 **Preview no Grok Bot:** migração manual como private saved skill. A instalação direta do `SKILL.md` deste repositório no Grok Bot não está documentada oficialmente nem foi verificada.

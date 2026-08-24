@@ -128,8 +128,6 @@ The old version only ran in Claude Code. Distilly now supports native local Skil
 </tr>
 </table>
 
-<sub>Compatibility does not imply endorsement. <a href="docs/assets/hosts/README.md">Logo sources</a>.</sub>
-
 **Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
 
 Each generated Person Profile is packaged as an Agent Skill and can be installed into any supported host.

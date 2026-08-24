@@ -125,9 +125,9 @@
 | 方式 | 链接 |
 |------|------|
 | 提交你的 .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 讨论与提议 | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions)（即将开放） |
+| 讨论与提议 | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（即将开放） |
 | 实时交流 | [Discord](https://discord.gg/NVX66RxWZv) |
-| 报告 Bug | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| 报告 Bug | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | 贡献代码 | 看 `good-first-issue` 标签，或直接提 PR |
 
 **我们尤其需要：**

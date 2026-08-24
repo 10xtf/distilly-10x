@@ -37,10 +37,10 @@ cd $(git rev-parse --show-toplevel)
 
 # 方式 1：安装到当前项目
 mkdir -p .claude/skills
-git clone https://github.com/titanwings/colleague-skill .claude/skills/distilly
+git clone https://github.com/titanwings/distilly .claude/skills/distilly
 
 # 方式 2：安装到全局（所有项目都能用）
-git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.claude/skills/distilly
 ```
 
 然后在 Claude Code 中输入 `/distilly` 即可启动。
@@ -125,7 +125,7 @@ python3 tools/install_openclaw_skill.py --force
 或者继续使用 clone 方式：
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill ~/.openclaw/workspace/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.openclaw/workspace/skills/distilly
 ```
 
 重启 OpenClaw session，用 `/distilly` 启动 Distilly；如果当前 channel 没有注册 native slash，使用 `/skill distilly`。
@@ -168,7 +168,7 @@ python3 tools/install_codex_skill.py --force
 或者继续使用 clone 方式：
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill ~/.agents/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
 Codex 当前从 `~/.agents/skills/` 发现用户 Skill。安装后用 `$distilly` 显式调用，或通过 `/skills` 选择。生成后的人物 Skill 会以 `{character}-{slug}` 的技能名安装在 `~/.agents/skills/` 下。
@@ -182,11 +182,11 @@ DeepSeek Harness 原生发现 filesystem skill，不需要额外插件清单或�
 ```bash
 # 方式 1：安装到当前项目
 mkdir -p .dsh/skills
-git clone https://github.com/titanwings/colleague-skill .dsh/skills/distilly
+git clone https://github.com/titanwings/distilly .dsh/skills/distilly
 
 # 方式 2：安装到全局（所有项目都能用）
 mkdir -p ~/.dsh/skills
-git clone https://github.com/titanwings/colleague-skill ~/.dsh/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.dsh/skills/distilly
 ```
 
 如果设置了 `DSH_HOME`，全局目录对应为 `$DSH_HOME/skills/distilly`。安装后在 DeepSeek Harness 中输入 `/distilly`，或直接要求 Agent 启动 Distilly。
@@ -202,11 +202,11 @@ git clone https://github.com/titanwings/colleague-skill ~/.dsh/skills/distilly
 ```bash
 # Pi 专用的用户目录
 mkdir -p ~/.pi/agent/skills
-git clone https://github.com/titanwings/colleague-skill ~/.pi/agent/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.pi/agent/skills/distilly
 
 # 或使用多宿主共享目录
 mkdir -p ~/.agents/skills
-git clone https://github.com/titanwings/colleague-skill ~/.agents/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
 显式调用命令是 `/skill:distilly`，不是 `/distilly`。
@@ -220,11 +220,11 @@ git clone https://github.com/titanwings/colleague-skill ~/.agents/skills/distill
 ```bash
 # Grok 专用的用户目录
 mkdir -p ~/.grok/skills
-git clone https://github.com/titanwings/colleague-skill ~/.grok/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.grok/skills/distilly
 
 # 或使用多宿主共享目录
 mkdir -p ~/.agents/skills
-git clone https://github.com/titanwings/colleague-skill ~/.agents/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
 Grok Build 会发现 Skill 目录中的 `SKILL.md`，显式调用命令为 `/distilly`。当前机器仍需安装 Python 和 Distilly 所需依赖。
@@ -239,11 +239,11 @@ OpenCode 原生发现用户级和项目级 Skill 目录：
 
 ```bash
 # 用户级
-git clone https://github.com/titanwings/colleague-skill ~/.config/opencode/skills/distilly
+git clone https://github.com/titanwings/distilly ~/.config/opencode/skills/distilly
 
 # 项目级
 mkdir -p .opencode/skills
-git clone https://github.com/titanwings/colleague-skill .opencode/skills/distilly
+git clone https://github.com/titanwings/distilly .opencode/skills/distilly
 ```
 
 生成的人物 Skill 使用 `install_generated_skill.py --host opencode` 安装；项目级安装追加 `--skills-dir .opencode/skills`。目录规则见 [OpenCode Agent Skills](https://opencode.ai/docs/skills)。

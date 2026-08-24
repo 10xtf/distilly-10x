@@ -124,9 +124,9 @@
 | Способ | Где |
 |--------|-----|
 | Отправить свой .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Обсуждать и предлагать | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (скоро) |
+| Обсуждать и предлагать | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (скоро) |
 | Общаться в реальном времени | [Discord](https://discord.gg/NVX66RxWZv) |
-| Сообщить об ошибке | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Сообщить об ошибке | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Внести код | Ищите метки `good-first-issue` или просто откройте PR |
 
 **Особенно нужны:**

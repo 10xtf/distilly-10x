@@ -125,8 +125,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self._assert_readme_support_contract(readme, "README.md")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
-        self.assertIn("https://github.com/titanwings/colleague-skill", readme)
-        self.assertNotIn("https://github.com/titanwings/distilly", readme)
+        self.assertIn("https://github.com/titanwings/distilly", readme)
+        self.assertNotIn("https://github.com/titanwings/colleague-skill", readme)
         self.assertIn("./skills/colleague", readme)
 
         self.assertIn(".claude/skills/distilly", install)
@@ -140,8 +140,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("/distilly", install)
         self.assertNotIn("/dot-skill", install)
         self.assertNotIn("skills/dot-skill", install)
-        self.assertIn("https://github.com/titanwings/colleague-skill", install)
-        self.assertNotIn("https://github.com/titanwings/distilly", install)
+        self.assertIn("https://github.com/titanwings/distilly", install)
+        self.assertNotIn("https://github.com/titanwings/colleague-skill", install)
         self.assertIn("./skills/colleague", install)
         self.assertIn("install_claude_generated_skill.py", readme)
         self.assertIn("install_claude_generated_skill.py", install)
@@ -188,14 +188,14 @@ class SkillEntrypointDocsTest(unittest.TestCase):
                 f"missing OpenCode generated-skill host in {readme_path.name}",
             )
             self.assertIn(
-                "https://github.com/titanwings/colleague-skill",
+                "https://github.com/titanwings/distilly",
                 content,
                 f"missing published repository URL in {readme_path.name}",
             )
             self.assertNotIn(
-                "https://github.com/titanwings/distilly",
+                "https://github.com/titanwings/colleague-skill",
                 content,
-                f"unpublished repository URL in {readme_path.name}",
+                f"stale repository URL in {readme_path.name}",
             )
             self.assertIn(
                 "tools/install_hermes_skill.py --force",

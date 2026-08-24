@@ -124,9 +124,9 @@
 | 方法 | リンク |
 |------|--------|
 | .skill を投稿する | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions)（近日公開） |
+| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（近日公開） |
 | リアルタイムでチャット | [Discord](https://discord.gg/NVX66RxWZv) |
-| バグを報告する | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| バグを報告する | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | コードを貢献する | `good-first-issue` ラベルを探すか、PR を直接作成 |
 
 **特に必要としています：**

@@ -124,9 +124,9 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 | Como | Onde |
 |------|------|
 | Envie seu .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Discuta e proponha | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (em breve) |
+| Discuta e proponha | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (em breve) |
 | Converse em tempo real | [Discord](https://discord.gg/NVX66RxWZv) |
-| Reporte bugs | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Reporte bugs | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Contribua com codigo | Procure labels `good-first-issue` ou simplesmente abra um PR |
 
 **Precisamos especialmente de:**

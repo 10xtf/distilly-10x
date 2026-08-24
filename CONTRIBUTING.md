@@ -20,7 +20,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 ## Development setup
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill.git distilly
+git clone https://github.com/titanwings/distilly.git distilly
 cd distilly
 pip3 install -r requirements.txt
 ```
@@ -104,7 +104,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 ## Community
 
 - [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
-- [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) — long-form Q&A and design threads
+- [GitHub Discussions](https://github.com/titanwings/distilly/discussions) — long-form Q&A and design threads
 - [Skill gallery](https://titanwings.github.io/colleague-skill-site/) — browse and submit skills
 
 Be kind. Assume good intent. Disagree on the idea, not the person.

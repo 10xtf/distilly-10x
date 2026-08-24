@@ -124,9 +124,9 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 | Cómo | Dónde |
 |------|-------|
 | Envía tu .skill | [PR a la Galería](https://titanwings.github.io/colleague-skill-site/) |
-| Discute y propone | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (próximamente) |
+| Discute y propone | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (próximamente) |
 | Chatea en tiempo real | [Discord](https://discord.gg/NVX66RxWZv) |
-| Reporta errores | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Reporta errores | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Contribuye código | Busca etiquetas `good-first-issue`, o simplemente abre un PR |
 
 **Necesitamos especialmente:**

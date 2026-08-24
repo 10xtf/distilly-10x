@@ -124,9 +124,9 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 | How | Where |
 |-----|-------|
 | Submit your .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Discuss & propose | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (coming soon) |
+| Discuss & propose | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (coming soon) |
 | Chat in real time | [Discord](https://discord.gg/NVX66RxWZv) |
-| Report bugs | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Report bugs | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Contribute code | Look for `good-first-issue` labels, or just open a PR |
 
 **We especially need:**

@@ -124,9 +124,9 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 | Wie | Wo |
 |-----|-----|
 | Reiche deinen .skill ein | [Galerie-PR](https://titanwings.github.io/colleague-skill-site/) |
-| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) (demnächst) |
+| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (demnächst) |
 | Echtzeit-Chat | [Discord](https://discord.gg/NVX66RxWZv) |
-| Fehler melden | [Issue](https://github.com/titanwings/colleague-skill/issues/new) |
+| Fehler melden | [Issue](https://github.com/titanwings/distilly/issues/new) |
 | Code beitragen | Suche nach `good-first-issue`-Labels oder öffne einfach einen PR |
 
 **Wir brauchen besonders:**

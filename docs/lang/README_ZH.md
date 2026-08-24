@@ -127,8 +127,6 @@ Created by [@titanwings](https://github.com/titanwings)
 </tr>
 </table>
 
-<sub>兼容性说明不代表品牌背书。<a href="../assets/hosts/README.md">Logo 来源</a>。</sub>
-
 **Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 
 蒸馏出的 Person Profile 会封装成 Agent Skill，并可安装到任意受支持的宿主。

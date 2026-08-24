@@ -122,8 +122,6 @@ Distilly admite el descubrimiento local y nativo de Skills en ocho hosts de Agen
 </tr>
 </table>
 
-<sub>La compatibilidad no implica respaldo. <a href="../assets/hosts/README.md">Fuentes de los logotipos</a>.</sub>
-
 Cada Person Profile generado se empaqueta como Agent Skill y puede colocarse en el directorio de Skills de un host compatible.
 
 **Grok Bot (preview):** migración manual como Skill privado guardado. La instalación directa del `SKILL.md` de este repositorio en Grok Bot no está documentada oficialmente ni verificada.

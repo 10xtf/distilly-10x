@@ -122,8 +122,6 @@ Distilly は、8つのローカル Agent ホストに対応しています：
 </tr>
 </table>
 
-<sub>互換性の記載は、各社による推奨・承認を意味しません。<a href="../assets/hosts/README.md">Logo の出典</a>。</sub>
-
 生成された各 Person Profile は Agent Skill としてパッケージ化され、対応ホストの Skill ディレクトリに配置できます。
 
 **Grok Bot（preview）** は別の手動フローです。Distilly の workflow を保存済み private Skill へ手動で移行し、対象の Bot で有効にします。このリポジトリの `SKILL.md` を Grok Bot に直接インストールする方法は、公式文書になく、検証もされていません。

@@ -267,49 +267,6 @@ Distilly verwendet **Persona** als universelle Basis, mit familienspezifischen M
 
 ---
 
-## 📂 Projektstruktur
-
-Dieses Projekt folgt dem offenen Standard [AgentSkills](https://agentskills.io). Das gesamte Repo ist ein Skill-Verzeichnis:
-
-```
-distilly/
-├── SKILL.md                        # skill entry point (official frontmatter)
-├── prompts/                        # prompt system across three families
-│   ├── intake.md                   #   [colleague] info intake
-│   ├── work_analyzer.md            #   [colleague] work capability extraction
-│   ├── persona_analyzer.md         #   [colleague] personality extraction
-│   ├── work_builder.md             #   [colleague] work.md generation
-│   ├── persona_builder.md          #   [colleague] persona.md 6-layer structure
-│   ├── merger.md                   #   [shared] incremental merge logic
-│   ├── correction_handler.md       #   [shared] conversation correction
-│   ├── relationship/               #   [relationship] emotion/conflict/repair prompts
-│   └── celebrity/                  #   [celebrity] six-dimension research + mental-model prompts
-├── tools/                          # Python tools
-│   ├── feishu_auto_collector.py    #   [colleague] Lark-kompatibler Auto-Collector
-│   ├── dingtalk_auto_collector.py  #   [colleague] DingTalk auto-collector
-│   ├── slack_auto_collector.py     #   [colleague] Slack auto-collector
-│   ├── email_parser.py             #   [shared] email parser
-│   ├── research/                   #   [celebrity] celebrity research toolchain
-│   │   ├── download_subtitles.sh   #     subtitle download
-│   │   ├── transcribe_audio.py     #     audio → text
-│   │   ├── srt_to_transcript.py    #     subtitles → transcript
-│   │   ├── xquik_public_posts.py   #     öffentliche X-Posts → Kandidaten-JSON
-│   │   ├── merge_research.py       #     six-dimension research merge
-│   │   └── quality_check.py        #     quality check
-│   ├── install_*_skill.py          #   [shared] multi-host one-shot installers
-│   ├── skill_writer.py             #   [shared] skill file management
-│   └── version_manager.py          #   [shared] version archive & rollback
-├── skills/                         # generated Skills (gitignored)
-│   ├── colleague/                  #   colleagues
-│   ├── relationship/               #   close relationships
-│   └── celebrity/                  #   public figures
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
-```
-
----
-
 ## ⚠️ Hinweise
 
 **Qualität des Quellmaterials = Qualität des Person Profiles** — und gute Quellen unterscheiden sich zwischen den Familien:

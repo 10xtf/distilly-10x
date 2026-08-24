@@ -62,6 +62,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             self.assertIn(logo_prefix + logo_file, host_section, f"missing {logo_file} in {source}")
         self.assertIn("Grok Bot", host_section, f"missing Grok Bot preview in {source}")
         self.assertIn("{character}-{slug}", content, f"missing generated Skill name in {source}")
+        self.assertNotIn("## 📂", content, f"project structure section remains in {source}")
         for pattern in README_INVOCATION_PATTERNS:
             self.assertIsNone(
                 pattern.search(content),
@@ -148,7 +149,6 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertNotIn("skills/dot-skill", readme)
         self.assertIn("https://github.com/titanwings/distilly", readme)
         self.assertNotIn("https://github.com/titanwings/colleague-skill", readme)
-        self.assertIn("./skills/colleague", readme)
 
         self.assertIn(".claude/skills/distilly", install)
         self.assertIn("~/.openclaw/workspace/skills/distilly", install)

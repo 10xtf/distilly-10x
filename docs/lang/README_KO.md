@@ -269,49 +269,6 @@ Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 �
 
 ---
 
-## 📂 프로젝트 구조
-
-이 프로젝트는 [AgentSkills](https://agentskills.io) 오픈 표준을 따릅니다. 저장소 전체가 하나의 skill 디렉터리입니다.
-
-```
-distilly/
-├── SKILL.md                        # skill 진입점 (공식 frontmatter)
-├── prompts/                        # 세 패밀리를 아우르는 프롬프트 시스템
-│   ├── intake.md                   #   [colleague] 정보 수집
-│   ├── work_analyzer.md            #   [colleague] 업무 역량 추출
-│   ├── persona_analyzer.md         #   [colleague] 성격 추출
-│   ├── work_builder.md             #   [colleague] work.md 생성
-│   ├── persona_builder.md          #   [colleague] persona.md 6단계 구조
-│   ├── merger.md                   #   [공용] 증분 병합 로직
-│   ├── correction_handler.md       #   [공용] 대화 기반 수정
-│   ├── relationship/               #   [relationship] 감정/갈등/회복 프롬프트
-│   └── celebrity/                  #   [celebrity] 6차원 리서치 + 멘탈 모델 프롬프트
-├── tools/                          # Python 도구
-│   ├── feishu_auto_collector.py    #   [colleague] Lark 자동 수집기
-│   ├── dingtalk_auto_collector.py  #   [colleague] DingTalk 자동 수집기
-│   ├── slack_auto_collector.py     #   [colleague] Slack 자동 수집기
-│   ├── email_parser.py             #   [공용] 이메일 파서
-│   ├── research/                   #   [celebrity] celebrity 리서치 툴체인
-│   │   ├── download_subtitles.sh   #     자막 다운로드
-│   │   ├── transcribe_audio.py     #     오디오 → 텍스트
-│   │   ├── srt_to_transcript.py    #     자막 → 트랜스크립트
-│   │   ├── xquik_public_posts.py   #     공개 X 게시물 → 정규화 후보
-│   │   ├── merge_research.py       #     6차원 리서치 병합
-│   │   └── quality_check.py        #     품질 점검
-│   ├── install_*_skill.py          #   [공용] 멀티 호스트 원커맨드 설치 스크립트
-│   ├── skill_writer.py             #   [공용] skill 파일 관리
-│   └── version_manager.py          #   [공용] 버전 아카이브 및 롤백
-├── skills/                         # 생성된 Skill (gitignored)
-│   ├── colleague/                  #   동료
-│   ├── relationship/               #   가까운 관계
-│   └── celebrity/                  #   공인
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
-```
-
----
-
 ## ⚠️ 참고 사항
 
 **소스 자료 품질 = Person Profile 품질** — 그리고 품질 높은 소스는 패밀리마다 다릅니다:

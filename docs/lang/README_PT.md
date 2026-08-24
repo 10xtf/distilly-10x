@@ -267,49 +267,6 @@ A Distilly usa **Persona** como a base universal, com módulos específicos de c
 
 ---
 
-## 📂 Estrutura do projeto
-
-Este projeto segue o padrão aberto [AgentSkills](https://agentskills.io). O repositório inteiro é um diretório de skill:
-
-```
-distilly/
-├── SKILL.md                        # ponto de entrada do skill (frontmatter oficial)
-├── prompts/                        # sistema de prompts através das três famílias
-│   ├── intake.md                   #   [colleague] intake de informação
-│   ├── work_analyzer.md            #   [colleague] extração de capacidade de trabalho
-│   ├── persona_analyzer.md         #   [colleague] extração de personalidade
-│   ├── work_builder.md             #   [colleague] geração de work.md
-│   ├── persona_builder.md          #   [colleague] estrutura em 6 camadas do persona.md
-│   ├── merger.md                   #   [shared] lógica de merge incremental
-│   ├── correction_handler.md       #   [shared] correção por conversa
-│   ├── relationship/               #   [relationship] prompts de emoção/conflito/reparo
-│   └── celebrity/                  #   [celebrity] pesquisa em seis dimensões + prompts de modelo mental
-├── tools/                          # ferramentas Python
-│   ├── feishu_auto_collector.py    #   [colleague] coletor automático do Lark
-│   ├── dingtalk_auto_collector.py  #   [colleague] coletor automático do DingTalk
-│   ├── slack_auto_collector.py     #   [colleague] coletor automático do Slack
-│   ├── email_parser.py             #   [shared] parser de email
-│   ├── research/                   #   [celebrity] cadeia de pesquisa de celebrity
-│   │   ├── download_subtitles.sh   #     download de legendas
-│   │   ├── transcribe_audio.py     #     áudio → texto
-│   │   ├── srt_to_transcript.py    #     legendas → transcrição
-│   │   ├── xquik_public_posts.py   #     posts públicos do X → JSON candidato
-│   │   ├── merge_research.py       #     merge de pesquisa em seis dimensões
-│   │   └── quality_check.py        #     checagem de qualidade
-│   ├── install_*_skill.py          #   [shared] instaladores one-shot multi-host
-│   ├── skill_writer.py             #   [shared] gestão de arquivos de skill
-│   └── version_manager.py          #   [shared] arquivamento e rollback de versões
-├── skills/                         # Skills gerados (gitignored)
-│   ├── colleague/                  #   colegas
-│   ├── relationship/               #   relações próximas
-│   └── celebrity/                  #   figuras públicas
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
-```
-
----
-
 ## ⚠️ Observações
 
 **Qualidade do material fonte = Qualidade do Person Profile** — e as boas fontes variam conforme a família:

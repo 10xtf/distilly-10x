@@ -269,49 +269,6 @@ Distilly использует **Persona** как универсальную ба
 
 ---
 
-## 📂 Структура проекта
-
-Этот проект следует открытому стандарту [AgentSkills](https://agentskills.io). Весь репозиторий — это директория skill'а:
-
-```
-distilly/
-├── SKILL.md                        # точка входа skill'а (официальный frontmatter)
-├── prompts/                        # система промптов для трёх семейств
-│   ├── intake.md                   #   [colleague] сбор информации
-│   ├── work_analyzer.md            #   [colleague] извлечение рабочих компетенций
-│   ├── persona_analyzer.md         #   [colleague] извлечение личности
-│   ├── work_builder.md             #   [colleague] генерация work.md
-│   ├── persona_builder.md          #   [colleague] 6-слойная структура persona.md
-│   ├── merger.md                   #   [shared] логика инкрементального мержа
-│   ├── correction_handler.md       #   [shared] коррекция через диалог
-│   ├── relationship/               #   [relationship] промпты эмоций/конфликтов/восстановления
-│   └── celebrity/                  #   [celebrity] шестимерное исследование + промпты ментальных моделей
-├── tools/                          # Python-инструменты
-│   ├── feishu_auto_collector.py    #   [colleague] автосборщик Lark
-│   ├── dingtalk_auto_collector.py  #   [colleague] автосборщик DingTalk
-│   ├── slack_auto_collector.py     #   [colleague] автосборщик Slack
-│   ├── email_parser.py             #   [shared] парсер писем
-│   ├── research/                   #   [celebrity] исследовательский тулчейн
-│   │   ├── download_subtitles.sh   #     скачивание субтитров
-│   │   ├── transcribe_audio.py     #     аудио → текст
-│   │   ├── srt_to_transcript.py    #     субтитры → транскрипт
-│   │   ├── xquik_public_posts.py   #     публичные посты X → нормализованные кандидаты
-│   │   ├── merge_research.py       #     мерж шестимерного исследования
-│   │   └── quality_check.py        #     проверка качества
-│   ├── install_*_skill.py          #   [shared] установщики для разных хостов в одну команду
-│   ├── skill_writer.py             #   [shared] управление файлами skill'а
-│   └── version_manager.py          #   [shared] версионный архив и откат
-├── skills/                         # сгенерированные Skill'ы (в gitignore)
-│   ├── colleague/                  #   коллеги
-│   ├── relationship/               #   близкие отношения
-│   └── celebrity/                  #   публичные фигуры
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
-```
-
----
-
 ## ⚠️ Примечания
 
 **Качество исходников = качество Person Profile** — и что считается качественным источником, у семейств разное:

@@ -270,50 +270,6 @@ Distilly 当前的创建器以 **Persona** 为通用底座，不同家族按场�
 
 ---
 
-## 📂 项目结构
-
-本项目遵循 [AgentSkills](https://agentskills.io) 开放标准，整个 repo 就是一个 skill 目录：
-
-```
-distilly/
-├── SKILL.md                        # skill 入口（官方 frontmatter）
-├── prompts/                        # 三大家族的 Prompt 体系
-│   ├── intake.md                   #   [colleague] 信息录入
-│   ├── work_analyzer.md            #   [colleague] 工作能力提取
-│   ├── persona_analyzer.md         #   [colleague] 性格行为提取
-│   ├── work_builder.md             #   [colleague] work.md 生成
-│   ├── persona_builder.md          #   [colleague] persona.md 六层结构
-│   ├── merger.md                   #   [共享] 增量 merge 逻辑
-│   ├── correction_handler.md       #   [共享] 对话纠正处理
-│   ├── relationship/               #   [relationship] 情感/冲突/修复模式专属 prompt
-│   └── celebrity/                  #   [celebrity] 六维度研究 + 心智模型专属 prompt
-├── tools/                          # Python 工具
-│   ├── feishu_auto_collector.py    #   [colleague] 飞书全自动采集
-│   ├── dingtalk_auto_collector.py  #   [colleague] 钉钉全自动采集
-│   ├── slack_auto_collector.py     #   [colleague] Slack 全自动采集
-│   ├── email_parser.py             #   [共享] 邮件解析
-│   ├── research/                   #   [celebrity] 名人研究工具链
-│   │   ├── xquik_public_posts.py   #     有界公开 X 帖子候选
-│   │   ├── download_subtitles.sh   #     字幕下载
-│   │   ├── transcribe_audio.py     #     音频转文字
-│   │   ├── srt_to_transcript.py    #     字幕转文稿
-│   │   ├── xquik_public_posts.py   #     有界公开 X 帖子候选
-│   │   ├── merge_research.py       #     六维度 research 合并
-│   │   └── quality_check.py        #     质量检查
-│   ├── install_*_skill.py          #   [共享] 多宿主一键安装器
-│   ├── skill_writer.py             #   [共享] Skill 文件管理
-│   └── version_manager.py          #   [共享] 版本存档与回滚
-├── skills/                         # 生成的 Skill（gitignored）
-│   ├── colleague/                  #   同事
-│   ├── relationship/               #   亲近关系
-│   └── celebrity/                  #   名人 / 公众人物
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
-```
-
----
-
 ## ⚠️ 注意事项
 
 **原材料质量决定 Person Profile 质量**，不同家族的优质信源不一样：

@@ -130,17 +130,17 @@ Distilly больше не ограничен сценарием «коллег�
 
 ## 📦 Поддерживаемые источники данных
 
-| Источник | Сообщения | Документы / Wiki | Таблицы | Примечания |
-|----------|:---------:|:----------------:|:-------:|------------|
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (авто) | ✅ API | ✅ | ✅ | Просто введи имя — полная автоматизация |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (авто) | ⚠️ Браузер | ✅ | ✅ | API DingTalk не даёт доступ к истории сообщений |
-| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (авто) | ✅ API | — | — | Нужна установка бота админом; бесплатный план — 90 дней |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Публичные посты X | ✅ API | — | — | Необязательные ограниченные кандидаты для celebrity-исследования через Xquik |
-| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> История чатов WeChat | ✅ SQLite | — | — | Сначала экспортируй через WeChatMsg или PyWxDump |
-| 📄 PDF / Изображения / Скриншоты | — | ✅ | — | Ручная загрузка |
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> JSON-экспорт Lark | ✅ | ✅ | — | Ручная загрузка |
-| ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Ручная загрузка |
-| 📝 Markdown / прямая вставка | ✅ | ✅ | — | Ручной ввод |
+| Логотип | Источник | Сообщения | Документы / Wiki | Примечания |
+|:-------:|----------|:---------:|:----------------:|------------|
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark (авто) | ✅ API | ✅ | Просто введи имя — полная автоматизация |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk (авто) | ⚠️ Браузер | ✅ | API DingTalk не даёт доступ к истории сообщений |
+| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack (авто) | ✅ API | — | Нужна установка бота админом; бесплатный план — 90 дней |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | Публичные посты X | ✅ API | — | Необязательные ограниченные кандидаты для celebrity-исследования через Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | История чатов WeChat | ✅ SQLite | — | Сначала экспортируй через WeChatMsg или PyWxDump |
+| 📄 | PDF / Изображения / Скриншоты | — | ✅ | Ручная загрузка |
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | JSON-экспорт Lark | ✅ | ✅ | Ручная загрузка |
+| ✉️ | Email `.eml` / `.mbox` | ✅ | — | Ручная загрузка |
+| 📝 | Markdown / прямая вставка | ✅ | ✅ | Ручной ввод |
 
 > **Примечание о совместимости с Lark:** текущий совместимый сборщик использует API-эндпоинты китайского региона. Маршрутизация через международные эндпоинты `larksuite.com` ещё не реализована.
 

@@ -130,17 +130,17 @@ Distilly は、8つのローカル Agent ホストに対応しています：
 
 ## 📦 対応データソース
 
-| ソース | メッセージ | ドキュメント / Wiki | スプレッドシート | 備考 |
-|--------|:--------:|:-----------:|:------------:|------|
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark（自動） | ✅ API | ✅ | ✅ | 名前を入力するだけで全自動 |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk（自動） | ⚠️ ブラウザ | ✅ | ✅ | DingTalk API はメッセージ履歴に非対応 |
-| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack（自動） | ✅ API | — | — | 管理者による Bot 導入が必要；無料プランは 90 日制限 |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> 公開 X 投稿 | ✅ API | — | — | Xquik 経由の任意・件数制限付き celebrity リサーチ候補 |
-| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> WeChat チャット履歴 | ✅ SQLite | — | — | WeChatMsg または PyWxDump で先にエクスポート |
-| 📄 PDF / 画像 / スクリーンショット | — | ✅ | — | 手動アップロード |
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark JSON エクスポート | ✅ | ✅ | — | 手動アップロード |
-| ✉️ メール `.eml` / `.mbox` | ✅ | — | — | 手動アップロード |
-| 📝 Markdown / 直接貼り付け | ✅ | ✅ | — | 手動入力 |
+| ロゴ | ソース | メッセージ | ドキュメント / Wiki | 備考 |
+|:----:|--------|:--------:|:-------------------:|------|
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark（自動） | ✅ API | ✅ | 名前を入力するだけで全自動 |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk（自動） | ⚠️ ブラウザ | ✅ | DingTalk API はメッセージ履歴に非対応 |
+| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack（自動） | ✅ API | — | 管理者による Bot 導入が必要；無料プランは 90 日制限 |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | 公開 X 投稿 | ✅ API | — | Xquik 経由の任意・件数制限付き celebrity リサーチ候補 |
+| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | WeChat チャット履歴 | ✅ SQLite | — | WeChatMsg または PyWxDump で先にエクスポート |
+| 📄 | PDF / 画像 / スクリーンショット | — | ✅ | 手動アップロード |
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark JSON エクスポート | ✅ | ✅ | 手動アップロード |
+| ✉️ | メール `.eml` / `.mbox` | ✅ | — | 手動アップロード |
+| 📝 | Markdown / 直接貼り付け | ✅ | ✅ | 手動入力 |
 
 > 現在の Lark 互換 collector は中国リージョンのエンドポイントを使用しています。国際版 `larksuite.com` テナントへのルーティングはまだ実装されていません。
 

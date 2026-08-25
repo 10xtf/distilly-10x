@@ -130,17 +130,17 @@ Cada Person Profile generado se empaqueta como Agent Skill y puede colocarse en 
 
 ## 📦 Fuentes de datos soportadas
 
-| Fuente | Mensajes | Docs / Wiki | Hojas de cálculo | Notas |
-|--------|:--------:|:-----------:|:----------------:|-------|
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (automática) | ✅ API | ✅ | ✅ | Solo ingresa un nombre, totalmente automático |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (auto) | ⚠️ Navegador | ✅ | ✅ | La API de DingTalk no soporta historial de mensajes |
-| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (auto) | ✅ API | — | — | Requiere que el admin instale el Bot; plan gratuito limitado a 90 días |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Publicaciones públicas de X | ✅ API | — | — | Candidatos de investigación opcionales y acotados sobre figuras públicas mediante Xquik |
-| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> Historial de chat de WeChat | ✅ SQLite | — | — | Exportar primero con WeChatMsg o PyWxDump |
-| 📄 PDF / Imágenes / Capturas | — | ✅ | — | Subida manual |
-| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Exportación JSON de Lark | ✅ | ✅ | — | Subida manual |
-| ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Subida manual |
-| 📝 Markdown / pegar directamente | ✅ | ✅ | — | Entrada manual |
+| Logo | Fuente | Mensajes | Docs / Wiki | Notas |
+|:----:|--------|:--------:|:-----------:|-------|
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark (automática) | ✅ API | ✅ | Solo ingresa un nombre, totalmente automático |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk (auto) | ⚠️ Navegador | ✅ | La API de DingTalk no soporta historial de mensajes |
+| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack (auto) | ✅ API | — | Requiere que el admin instale el Bot; plan gratuito limitado a 90 días |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | Publicaciones públicas de X | ✅ API | — | Candidatos de investigación opcionales y acotados sobre figuras públicas mediante Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | Historial de chat de WeChat | ✅ SQLite | — | Exportar primero con WeChatMsg o PyWxDump |
+| 📄 | PDF / Imágenes / Capturas | — | ✅ | Subida manual |
+| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Exportación JSON de Lark | ✅ | ✅ | Subida manual |
+| ✉️ | Email `.eml` / `.mbox` | ✅ | — | Subida manual |
+| 📝 | Markdown / pegar directamente | ✅ | ✅ | Entrada manual |
 
 > El collector actual compatible con Lark usa los endpoints de la región de China. El routing para tenants internacionales de `larksuite.com` todavía no está implementado.
 

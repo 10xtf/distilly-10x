@@ -132,13 +132,13 @@ Jedes generierte Person Profile wird als Agent Skill verpackt und kann in das Sk
 
 | Quelle | Nachrichten | Docs / Wiki | Tabellen | Hinweise |
 |--------|:-----------:|:-----------:|:--------:|----------|
-| 🟢 Lark (automatisch) | ✅ API | ✅ | ✅ | Einfach einen Namen eingeben, vollautomatisch |
-| 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | Die DingTalk-API unterstützt keinen Nachrichtenverlauf |
-| 🟣 Slack (auto) | ✅ API | — | — | Admin muss den Bot installieren; kostenloser Plan auf 90 Tage begrenzt |
-| 𝕏 Öffentliche X-Posts | ✅ API | — | — | Optionale, begrenzte Recherchekandidaten zu öffentlichen Personen über Xquik |
-| 💬 WeChat-Chatverlauf | ✅ SQLite | — | — | Zuerst mit WeChatMsg oder PyWxDump exportieren |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (automatisch) | ✅ API | ✅ | ✅ | Einfach einen Namen eingeben, vollautomatisch |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | Die DingTalk-API unterstützt keinen Nachrichtenverlauf |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (auto) | ✅ API | — | — | Admin muss den Bot installieren; kostenloser Plan auf 90 Tage begrenzt |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Öffentliche X-Posts | ✅ API | — | — | Optionale, begrenzte Recherchekandidaten zu öffentlichen Personen über Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> WeChat-Chatverlauf | ✅ SQLite | — | — | Zuerst mit WeChatMsg oder PyWxDump exportieren |
 | 📄 PDF / Bilder / Screenshots | — | ✅ | — | Manueller Upload |
-| 📦 Lark-JSON-Export | ✅ | ✅ | — | Manueller Upload |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark-JSON-Export | ✅ | ✅ | — | Manueller Upload |
 | ✉️ E-Mail `.eml` / `.mbox` | ✅ | — | — | Manueller Upload |
 | 📝 Markdown / direkt einfügen | ✅ | ✅ | — | Manuelle Eingabe |
 

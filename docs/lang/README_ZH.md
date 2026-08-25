@@ -137,13 +137,13 @@ Created by [@titanwings](https://github.com/titanwings)
 
 | 来源 | 消息记录 | 文档 / Wiki | 多维表格 | 备注 |
 |------|:-------:|:-----------:|:-------:|------|
-| 🟢 飞书（自动采集） | ✅ API | ✅ | ✅ | 输入姓名即可，全自动 |
-| 🟡 钉钉（自动采集） | ⚠️ 浏览器 | ✅ | ✅ | 钉钉 API 不支持历史消息 |
-| 🟣 Slack（自动采集） | ✅ API | — | — | 需管理员安装 Bot；免费版限 90 天 |
-| 𝕏 公开 X 帖子 | ✅ API | — | — | 通过按返回数量计费的第三方 Xquik 可选采集名人研究候选 |
-| 💬 微信聊天记录 | ✅ SQLite | — | — | 需先用 WeChatMsg / PyWxDump / 留痕等工具导出 |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> 飞书（自动采集） | ✅ API | ✅ | ✅ | 输入姓名即可，全自动 |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> 钉钉（自动采集） | ⚠️ 浏览器 | ✅ | ✅ | 钉钉 API 不支持历史消息 |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack（自动采集） | ✅ API | — | — | 需管理员安装 Bot；免费版限 90 天 |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> 公开 X 帖子 | ✅ API | — | — | 通过按返回数量计费的第三方 Xquik 可选采集名人研究候选 |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> 微信聊天记录 | ✅ SQLite | — | — | 需先用 WeChatMsg / PyWxDump / 留痕等工具导出 |
 | 📄 PDF / 图片 / 截图 | — | ✅ | — | 手动上传 |
-| 📦 飞书 JSON 导出 | ✅ | ✅ | — | 手动上传 |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> 飞书 JSON 导出 | ✅ | ✅ | — | 手动上传 |
 | ✉️ 邮件 `.eml` / `.mbox` | ✅ | — | — | 手动上传 |
 | 📝 Markdown / 直接粘贴 | ✅ | ✅ | — | 手动输入 |
 

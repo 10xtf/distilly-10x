@@ -132,13 +132,13 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 | 소스 | 메시지 | 문서 / 위키 | 스프레드시트 | 비고 |
 |------|:------:|:-----------:|:------------:|------|
-| 🟢 Lark (자동) | ✅ API | ✅ | ✅ | 이름만 입력하면 완전 자동 |
-| 🟡 DingTalk (자동) | ⚠️ 브라우저 | ✅ | ✅ | DingTalk API는 메시지 기록 미지원 |
-| 🟣 Slack (자동) | ✅ API | — | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
-| 𝕏 공개 X 게시물 | ✅ API | — | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
-| 💬 WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg 또는 PyWxDump로 먼저 내보내기 |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (자동) | ✅ API | ✅ | ✅ | 이름만 입력하면 완전 자동 |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (자동) | ⚠️ 브라우저 | ✅ | ✅ | DingTalk API는 메시지 기록 미지원 |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (자동) | ✅ API | — | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> 공개 X 게시물 | ✅ API | — | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> WeChat 대화 기록 | ✅ SQLite | — | — | WeChatMsg 또는 PyWxDump로 먼저 내보내기 |
 | 📄 PDF / 이미지 / 스크린샷 | — | ✅ | — | 수동 업로드 |
-| 📦 Lark JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark JSON 내보내기 | ✅ | ✅ | — | 수동 업로드 |
 | ✉️ 이메일 `.eml` / `.mbox` | ✅ | — | — | 수동 업로드 |
 | 📝 Markdown / 직접 붙여넣기 | ✅ | ✅ | — | 수동 입력 |
 

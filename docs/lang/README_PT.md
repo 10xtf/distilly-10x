@@ -132,13 +132,13 @@ Cada Person Profile gerado é empacotado como Agent Skill e pode ser colocado no
 
 | Fonte | Mensagens | Docs / Wiki | Planilhas | Notas |
 |-------|:---------:|:-----------:|:---------:|-------|
-| 🟢 Lark (auto) | ✅ API | ✅ | ✅ | Basta digitar um nome, totalmente automático |
-| 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | A API do DingTalk não dá acesso ao histórico de mensagens |
-| 🟣 Slack (auto) | ✅ API | — | — | Precisa que o admin instale o Bot; plano gratuito limitado a 90 dias |
-| 𝕏 Posts públicos do X | ✅ API | — | — | Candidatos opcionais e limitados para pesquisa de celebrity via Xquik |
-| 💬 Histórico do WeChat | ✅ SQLite | — | — | Exportar antes com WeChatMsg ou PyWxDump |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (auto) | ✅ API | ✅ | ✅ | Basta digitar um nome, totalmente automático |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | A API do DingTalk não dá acesso ao histórico de mensagens |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (auto) | ✅ API | — | — | Precisa que o admin instale o Bot; plano gratuito limitado a 90 dias |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Posts públicos do X | ✅ API | — | — | Candidatos opcionais e limitados para pesquisa de celebrity via Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> Histórico do WeChat | ✅ SQLite | — | — | Exportar antes com WeChatMsg ou PyWxDump |
 | 📄 PDF / Imagens / Screenshots | — | ✅ | — | Upload manual |
-| 📦 Export JSON do Lark | ✅ | ✅ | — | Upload manual |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Export JSON do Lark | ✅ | ✅ | — | Upload manual |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Upload manual |
 | 📝 Markdown / colar direto | ✅ | ✅ | — | Entrada manual |
 

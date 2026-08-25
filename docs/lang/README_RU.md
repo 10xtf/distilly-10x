@@ -132,13 +132,13 @@ Distilly больше не ограничен сценарием «коллег�
 
 | Источник | Сообщения | Документы / Wiki | Таблицы | Примечания |
 |----------|:---------:|:----------------:|:-------:|------------|
-| 🟢 Lark (авто) | ✅ API | ✅ | ✅ | Просто введи имя — полная автоматизация |
-| 🟡 DingTalk (авто) | ⚠️ Браузер | ✅ | ✅ | API DingTalk не даёт доступ к истории сообщений |
-| 🟣 Slack (авто) | ✅ API | — | — | Нужна установка бота админом; бесплатный план — 90 дней |
-| 𝕏 Публичные посты X | ✅ API | — | — | Необязательные ограниченные кандидаты для celebrity-исследования через Xquik |
-| 💬 История чатов WeChat | ✅ SQLite | — | — | Сначала экспортируй через WeChatMsg или PyWxDump |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (авто) | ✅ API | ✅ | ✅ | Просто введи имя — полная автоматизация |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (авто) | ⚠️ Браузер | ✅ | ✅ | API DingTalk не даёт доступ к истории сообщений |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (авто) | ✅ API | — | — | Нужна установка бота админом; бесплатный план — 90 дней |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Публичные посты X | ✅ API | — | — | Необязательные ограниченные кандидаты для celebrity-исследования через Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> История чатов WeChat | ✅ SQLite | — | — | Сначала экспортируй через WeChatMsg или PyWxDump |
 | 📄 PDF / Изображения / Скриншоты | — | ✅ | — | Ручная загрузка |
-| 📦 JSON-экспорт Lark | ✅ | ✅ | — | Ручная загрузка |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> JSON-экспорт Lark | ✅ | ✅ | — | Ручная загрузка |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Ручная загрузка |
 | 📝 Markdown / прямая вставка | ✅ | ✅ | — | Ручной ввод |
 

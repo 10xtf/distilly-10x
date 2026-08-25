@@ -138,13 +138,13 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 
 | Source | Messages | Docs / Wiki | Spreadsheets | Notes |
 |--------|:--------:|:-----------:|:------------:|-------|
-| 🟢 Lark (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
-| 🟡 DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
-| 🟣 Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
-| 𝕏 Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
-| 💬 WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg or PyWxDump |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark (auto) | ✅ API | ✅ | ✅ | Just enter a name, fully automatic |
+| <img src="../assets/sources/dingtalk-mark.jpg" alt="" width="18" height="18"> DingTalk (auto) | ⚠️ Browser | ✅ | ✅ | DingTalk API doesn't support message history |
+| <img src="../assets/sources/slack-mark.png" alt="" width="18" height="18"> Slack (auto) | ✅ API | — | — | Requires admin to install Bot; free plan limited to 90 days |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="" width="18" height="18"></picture> Public X posts | ✅ API | — | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
+| <img src="../assets/sources/wechat-mark.jpg" alt="" width="18" height="18"> WeChat chat history | ✅ SQLite | — | — | Export first with WeChatMsg or PyWxDump |
 | 📄 PDF / Images / Screenshots | — | ✅ | — | Manual upload |
-| 📦 Lark JSON export | ✅ | ✅ | — | Manual upload |
+| <img src="../assets/sources/lark-mark.png" alt="" width="18" height="18"> Lark JSON export | ✅ | ✅ | — | Manual upload |
 | ✉️ Email `.eml` / `.mbox` | ✅ | — | — | Manual upload |
 | 📝 Markdown / direct paste | ✅ | ✅ | — | Manual input |
 

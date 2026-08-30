@@ -55,7 +55,7 @@ description 永不参与唯一性、already_exists 或合并。space/locator/nam
 
 create target 在 normalization 后预分配 candidate SubjectId；只有 transaction 成功才可见。相同 RequestId 的重试由 operations row 返回同一个 SubjectId；失败或 conflict 不产生空主体。private capture 的 subject fallback 可以在 blob/MaterialId 计算前使用这个 candidate id，而数据库仍原子提交“主体 + 第一批材料”。
 
-独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；ingest(create) 永不先调用 subjects.create 产生空主体。
+SQLite create/ingest foundation 同时落地独立 `subjects.create` 与 `materials.ingest`。两者复用 package-private、transaction-local 的 space / identity create primitive；`materials.ingest(create)` 永不经 EngineClient 或公开 `subjects.create` 串联第二个 mutation，而是在自己的单一 transaction 内直接创建主体与第一批材料，因此任何失败都不会留下空主体。
 
 `canonicalizeIngestSubjectTarget` 负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
 ### 9.5 生命周期

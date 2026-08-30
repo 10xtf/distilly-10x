@@ -1292,7 +1292,7 @@ description 永不参与唯一性、already_exists 或合并。space/locator/nam
 
 create target 在 normalization 后预分配 candidate SubjectId；只有 transaction 成功才可见。相同 RequestId 的重试由 operations row 返回同一个 SubjectId；失败或 conflict 不产生空主体。private capture 的 subject fallback 可以在 blob/MaterialId 计算前使用这个 candidate id，而数据库仍原子提交“主体 + 第一批材料”。
 
-独立 subjects.create 与 SDK 空主体创建显式推迟到 ingest 核心之后的独立 feature；ingest(create) 永不先调用 subjects.create 产生空主体。
+SQLite create/ingest foundation 同时落地独立 `subjects.create` 与 `materials.ingest`。两者复用 package-private、transaction-local 的 space / identity create primitive；`materials.ingest(create)` 永不经 EngineClient 或公开 `subjects.create` 串联第二个 mutation，而是在自己的单一 transaction 内直接创建主体与第一批材料，因此任何失败都不会留下空主体。
 
 `canonicalizeIngestSubjectTarget` 负责把省略的 space 解释为内置 people、对 aliases / identityHints 去重并按 canonical bytes 排序，再生成授权 session 内存中的 target snapshot。capture grant 后 displayName、space、aliases、domainPack 或任一 locator 的语义变化都必须重新授权；数组顺序变化不算变化。
 ### 9.5 生命周期
@@ -1822,7 +1822,7 @@ Production `ParseContext.maximumOutputBytes` 固定为 `WIRE_LIMITS.materialCont
 1. 在 wire 边界解析并规范化整批输入；create target 预分配本次成功时使用的 SubjectId。整批任一材料非法时，数据库和产品可见 blob reference 都不变。
 2. 绑定可信 capture context，计算 canonical content、ContentDigest、ProvenanceDigest、source identity 与 MaterialId，并通过通用 BlobStore put 保存正文。相同 digest 的 blob 幂等复用。
 3. 打开唯一 SQLite write transaction，先做 RequestId replay/conflict，再按 §9.4 重新解析主体/空间/identity，并读取当前 generation、material membership、current version 与 pending job。
-4. 对已存在 MaterialId 校验 content/provenance/source semantics；完全相同是 duplicate，任何 hash collision 或不一致是 storage_corrupt。新材料插入 metadata 与 blob reference。
+4. 对已存在 MaterialId 校验 content bytes/digest、provenance digest、source identity 与所有进入 identity 的 source semantics；完全相同是 duplicate，任何 hash collision 或 identity-bearing 不一致是 storage_corrupt。`title` 与 `capturedAt` 是明确不进入 MaterialId 的 first-seen display metadata：新的 RequestId 只改变这些字段时仍是 duplicate，不改写最初已存 row，也不升级为 corruption。新材料插入 metadata 与 blob reference。
 5. 计算完整 material-set identity、generation 与 enqueue policy。需要作业时插入或替换 authoritative pending job；同 transaction 写 stable operation result 与 subject/material/job events。
 6. commit 后发布 watch invalidation，并让 profile/Library/export worker按 LSN 追赶。projection 失败不改变 IngestResult 或已经提交的 generation。
 
@@ -5249,15 +5249,15 @@ wire major 3 内允许：
 已经落地的 Protocol、deterministic core、injected Facade/MCP、capability bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
 
 1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
-2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest` 实际需要的 storage schema、transaction runner、operations/events rows 与 BlobStore，并迁移这两条真实方法；同 commit 删除 create/ingest 的 file stores、request/space/identity locks、journal/recovery 与 queue dirty 路径。没有当前消费者的 outbox、projection、doctor、backup abstraction 不提前出现。
-3. **Brief + lease migration**：pending/job/lease 成为 authoritative rows，brief/renew/release 各一个 transaction；删除 lease journal、queue sibling database 与相关 recovery。
+2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest(existing|create)` 所需的 spaces、subjects、aliases、identity hints、material metadata/blob references、current subject material membership、authoritative pending-job、operations 与 events 逻辑关系，以及一个短 write-transaction runner 和 ContentAddressedBlobStore。Blob put lease 保持到引用它的 transaction commit 或 rollback；两条方法共享 transaction-local create primitive，但 ingest(create) 不调用公开 create。该 commit 删除 live create/ingest 的 IngestTransactionRecord、staging、mutation-specific recovery、space catalog/identity locks 与旧 composition；仍被未迁移 brief/commit/review 测试使用的 shared file stores、request/subject locks 和 disposable queue 只能留在显式 test-only legacy fixture，不能被 SQLite composition import、不能 dual-write，也不是兼容路径，并由各自 owner migration 删除。没有当前消费者的 outbox、projection、doctor、backup 或 GC task abstraction 不提前出现。
+3. **Brief + lease migration**：pending-job rows 已由 Step 2 成为权威；本步迁移 `distill.pending` / brief / renew / release，为同库 authoritative job 增加 lease 状态并让每个 mutation 各用一个 transaction；随后删除 legacy queue sibling database、dirty marker、lease journal 与相关 recovery。
 4. **Commit migration**：保留 evidence/claim/quality/rendering 纯逻辑，把 immutable version、claims、memberships、pointers、operation/events 在一个 transaction 中提交；删除 version staging、state file swap 与 commit recovery。
 5. **Review migration**：promote/reject 进入普通 SQLite transaction，rollback 创建新 immutable version；删除 review/rollback journal、staging 与 recovery。
 6. **Correction migration**：保留 normalization/provenance/replacement/reason 纯逻辑，correction body 进 blob、metadata/version transition 进一个 transaction；不采用暂停的 Step 11a CorrectionTransactionRecord、staging 或 recovery。
-7. **Projection generation/rebuild**：在第一个真实 projection 消费者出现时加入统一 outbox/source LSN/watermark builder；profile/prompt/Library/search/graph/export 共用它，并删除 Library intent/dirty/reservation 与 queue transaction simulation。
+7. **Projection generation/rebuild**：在第一个真实 projection 消费者出现时加入统一 outbox/source LSN/watermark builder；profile/prompt/Library/search/graph/export 共用它，并删除 Library intent/dirty/reservation 与其它 projection-specific transaction simulation；legacy queue database/dirty 已在 Step 3 删除，不留到本步。
 8. **Verified read 与 doctor 分离**：普通 read 只验证所用 rows/blobs；此时才加入有真实调用者的 doctor 全 lineage/evidence/blob/renderer 审计，并删除每次公开读取的全历史扫描。
 9. **Blob GC + backup/restore**：通用 unreferenced-blob GC、backup pin、SQLite snapshot + reachable blobs、sibling-root restore与真实 admin methods/CLI；不为 mutation 做 abort cleanup。
-10. **旧 authority 删除与 Protocol 收口**：删除剩余 file journals/locks/recovery/checksum envelopes，持久化结构退出公共 Protocol；证明没有 dual-write 或旧 reader。
+10. **旧 authority 与 Protocol 收口验证**：验证各 owner migration 已删除全部 file journals/locks/recovery/checksum envelopes、test-only legacy fixture 与 queue database；任何残留都阻塞本步。随后让持久化结构退出公共 Protocol，并证明没有 dual-write 或旧 reader。
 11. **剩余产品方法 closure**：按 subject lifecycle、raw/file ingest、redistill、bundle、host install/export 等真实用户路径继续拆独立 feature；不把无关 methods 塞进 runtime。
 12. **Built-in adapters 与 parsers**：建立 `@distilly/adapters`，按 §10.6 的白名单逐个交付 Lark、DingTalk、Slack、Xquik 与本地 parser；每个 provider 是独立 feature，使用离线 fixture，secret 只走 refs，DingTalk message history 与全部 browser private-chat capture 保持 unavailable。加入 composition-owned user collection service，但不增加 EngineMethodMap 或 MCP tool。
 13. **Single-writer production runtime**：全部方法已有真 handler后，交付 root-scoped connect-or-start/attach service、actor-bound clients、production MCP/Panel/CLI/setup、user collection service 与 teardown ownership；第二 writer fail closed。

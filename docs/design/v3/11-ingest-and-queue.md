@@ -7,7 +7,7 @@
 1. 在 wire 边界解析并规范化整批输入；create target 预分配本次成功时使用的 SubjectId。整批任一材料非法时，数据库和产品可见 blob reference 都不变。
 2. 绑定可信 capture context，计算 canonical content、ContentDigest、ProvenanceDigest、source identity 与 MaterialId，并通过通用 BlobStore put 保存正文。相同 digest 的 blob 幂等复用。
 3. 打开唯一 SQLite write transaction，先做 RequestId replay/conflict，再按 §9.4 重新解析主体/空间/identity，并读取当前 generation、material membership、current version 与 pending job。
-4. 对已存在 MaterialId 校验 content/provenance/source semantics；完全相同是 duplicate，任何 hash collision 或不一致是 storage_corrupt。新材料插入 metadata 与 blob reference。
+4. 对已存在 MaterialId 校验 content bytes/digest、provenance digest、source identity 与所有进入 identity 的 source semantics；完全相同是 duplicate，任何 hash collision 或 identity-bearing 不一致是 storage_corrupt。`title` 与 `capturedAt` 是明确不进入 MaterialId 的 first-seen display metadata：新的 RequestId 只改变这些字段时仍是 duplicate，不改写最初已存 row，也不升级为 corruption。新材料插入 metadata 与 blob reference。
 5. 计算完整 material-set identity、generation 与 enqueue policy。需要作业时插入或替换 authoritative pending job；同 transaction 写 stable operation result 与 subject/material/job events。
 6. commit 后发布 watch invalidation，并让 profile/Library/export worker按 LSN 追赶。projection 失败不改变 IngestResult 或已经提交的 generation。
 

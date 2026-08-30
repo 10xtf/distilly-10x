@@ -13,6 +13,10 @@ distilly uninstall --host <host>
 distilly mcp
 distilly panel [--port <n>]
 
+distilly source list
+distilly source configure <adapter>
+distilly source collect <adapter> <subject> [--limit <n>] [--confirm-billable-limit <n>]
+
 distilly create --name <name> [--space <space>]
 distilly ingest <subject> <path...> [--enqueue auto|now]
 distilly pending [--subject <id>]
@@ -35,6 +39,8 @@ distilly migrate --from <legacy-skill-dir>
 ~~~
 
 CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
+
+`source configure` 只保存非敏感配置与 secret reference；需要新建 keychain secret 时使用 TTY 隐藏输入，不接受明文 secret flag。`source collect` 先显示 adapter、resolved subject、resource、time range 与 limit，再由直接用户动作执行；非交互 Xquik 调用还必须给出与 `--limit` 数值相同的 `--confirm-billable-limit`，缺失或不一致时在解析 secret 或发网络请求前失败。source 子命令不注册成 MCP tool，也不允许 canonical skill 用 shell 权限替用户绕过确认。
 
 `backup` / `restore` 只通过 `LocalRuntime.administration()` 取得同一 root owner 的 `EngineAdministrationClient`，不是复制内部目录的 shell shortcut。backup destination 默认 create-exclusive，只有显式 `--overwrite` 才可替换一个已验证为 Distilly backup 的目标；restore 的 confirmation 必须逐字等于先检查所得 manifest digest。restore 进入 maintenance、让普通 client 停止新调用、在 sibling root 完成验证与切换，CLI 只在新 authority 已重新打开后报告成功和保留的 previousRootPath。
 

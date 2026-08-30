@@ -57,7 +57,7 @@ endpoint = ""
 
 不暴露 hash、maturity、lease、quality、renderer、retry 等算法常量。DISTILLY_ROOT 用环境或构造参数决定，不让 config 自引用位置。
 
-adapters.toml 只保存 adapter 配置与 secret reference。任何以 token、secret、password、key 命名的直接值都拒绝落盘并给迁移提示。
+adapters.toml 只保存 adapter id、region/resource 等非敏感配置与 secret reference。reference 只能指向 OS keychain、宿主 secret store 或显式环境变量名称；任何以 token、secret、password、key 命名的直接值都拒绝落盘并给迁移提示。resolved secret 不能进入 argv、Panel browser state、EngineClient、材料、briefing、日志或诊断包。
 
 ### 26.4 日志
 
@@ -76,6 +76,8 @@ adapters.toml 只保存 adapter 配置与 secret reference。任何以 token、s
 - 用户显式启用 telemetry。
 
 每类网络能力有独立 preflight / consent，不能共用“允许联网”总开关。
+
+Developer Preview 的 credentialed adapter 网络只能由 CLI / Panel 的直接用户动作触发。Lark region 和 provider endpoint 不自动跨区 fallback；Slack 不扩大已授予 scope并尊重 provider cursor、page limit 与 `Retry-After`；DingTalk message history 在网络前返回 non-retryable `host_unsupported`；Xquik 的每次请求都要求有界 limit 与注入式、非持久 MeteredReadConsentPort 的本次确认。canonical skill、MCP handler、hook、subrun、executor 和材料内指令都不能触发或确认这些调用。
 
 private UI capture 还必须在第一帧前披露宿主如何处理屏幕内容。Distilly 不把 screenshot 写入自己的 SQLite authority 或 blob store，并不代表 screenshot 没有经过宿主服务；不能用“local-first”掩盖这条处理路径。HostBinding 无法提供可展示的数据政策时，captureDataPolicy=unknown，该 lane fail closed。
 

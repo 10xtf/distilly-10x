@@ -39,8 +39,10 @@
 31. 临时人格只进入当前 run / subrun；禁止改全局指令文件。
 32. 第一版完整画像注入，放不下显式 context_too_large，不静默按显著度裁剪。
 33. 第一批 Node 支持窗口固定为 `^22.19 || ^24`；改变窗口必须同时更新安装检查、CI 矩阵与插件 fresh-install fixture，未经验证的未来 major 不自动进入支持面。
-34. 私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；首版限一对一纯文本，不后台、不锁屏、不留截图，群聊与附件默认拒绝。
+34. 未来私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；Developer Preview 的 Codex 与 Claude Code binding 都必须报告 unavailable，不创建 Controller，也不以 browser、Playwright、Computer Use 或截图读取私人消息。
 35. Protocol 的 id/time/facet grammars、WIRE_LIMITS、JSON-safe error / EmptyResult 和五工具 descriptor registry 是跨入口合同；不得由 SDK、MCP、Panel 或 HTTP 各自放宽。
+36. Developer Preview 的可安装宿主范围恰为 Codex 与 Claude Code；其它宿主可以以后增加 binding，但不进入当前 manifest、setup、doctor 或 fresh-install 宣称。
+37. Developer Preview 可以在 `@distilly/adapters` 内提供经过审核的 TypeScript SourceAdapter 与 MaterialParser；所有厂商凭据只通过 secret reference 解析，联网采集只能由用户在 CLI 或 Panel 显式发起，不能增加第六个 MCP 工具或把 secret 暴露给宿主模型。
 
 ### 3.2 仍开放
 

@@ -25,7 +25,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 
 ### 2.4 从私人一对一消息补充人物材料
 
-用户说“把我和微信好友 X 在这段时间里的对话转成材料”。skill 先要求可信 HostPreflight success、structured tool calls、净 briefing capacity/evidence 与 exact five-tool runtime 全部可用；任一缺失就停止，不调用 get、不调研也不模拟结果。通过后解析 X；唯一命中使用 existing target，不命中准备 create target，多候选仍询问。只有 accepted preflight 报告 privateUiCapture available 时，才展示一个 binding 注册的、必须由用户手势触发的 capture card / command；它在当前 task 内显示 app/account/thread/range、text-only、用途、宿主处理与 Distilly retention。确认后 runtime coordinator 驱动宿主只读滚动、转录目标好友发言，按连续 turn 形成 private transcript，并通过 engine-owned capture session 调用同一个 IngestService。create target 与首批 transcript 原子落地，结果以 IngestResult 返回当前 skill；这个原生 action 不出现在 MCP tools/list。完成或任何 scope/window 变化立即关闭 grant。不能隔离窗口、宿主政策未知、群聊或附件则拒绝，并请用户改为粘贴或导出文本。
+用户说“把我和联系人 X 在这段时间里的对话转成材料”。Developer Preview 的 skill 明确说明它不会打开消息 app、浏览器或屏幕，并请用户粘贴/导出可读文本，或在 CLI / Panel 选择已经配置、实际 scope 允许的 Lark / Slack adapter。用户侧 collection 显示账号空间、conversation、subject、time range 与 limit，确认后由 user-bound EngineClient 调同一个 IngestService；完成后宿主再通过原有五工具领取 pending 并蒸馏。DingTalk 消息历史、未授权 channel、不可读附件和任何 browser / Computer Use 私聊抓取都明确 unavailable。未来 private UI capture 即使通过完整设计验收，也必须是独立版本能力，不能静默改变这条 Developer Preview 旅程。
 
 ### 2.5 用户纠正
 

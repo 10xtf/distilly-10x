@@ -163,7 +163,7 @@ provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 c
 
 HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。
 
-private UI capture 是 Binding 的可选受信能力，不是模型可直接 new 的 adapter：
+以下 private UI capture 类型只保留为未来 Binding 的可选受信能力，不属于 Developer Preview 的任何可安装路径，也不是模型可直接 new 的 adapter：
 
 ~~~ts
 export type PrivateUiCaptureRange =

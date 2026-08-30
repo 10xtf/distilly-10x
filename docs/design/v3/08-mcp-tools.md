@@ -14,7 +14,7 @@ distilly_commit
 distilly_correct
 ~~~
 
-不能为了内部 API 更“优雅”增加 create、flush、research、collect 或 briefing 工具。create 是 ingest 的 subject target；flush 是 enqueue now；briefing 是 pending 的 action。
+不能为了内部 API 更“优雅”增加 create、flush、research、collect 或 briefing 工具。create 是 ingest 的 subject target；flush 是 enqueue now；briefing 是 pending 的 action。需要凭据的 SourceAdapter collection 是 CLI / Panel 的直接用户动作，模型可以提示用户打开该入口，但不能代替用户确认、取得 secret 或调用一个隐藏的 collect 工具。
 
 模型工具只覆盖当前人物闭环，不承担全库管理、市场浏览、批量 purge、关系图编辑或安装器管理。那些能力属于 SDK、CLI 或 Panel。
 

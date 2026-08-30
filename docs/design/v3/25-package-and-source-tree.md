@@ -43,7 +43,7 @@ protocol
 └── panel/web
 
 runtime → protocol + engine + bindings + adapters
-panel/server → protocol + mcp
+panel/server → protocol + mcp + adapters
 cli → runtime + distilly + mcp + panel/server
 plugins → CLI launcher (process boundary)
 ~~~
@@ -53,7 +53,7 @@ plugins → CLI launcher (process boundary)
 - runtime是唯一production composition owner和每root single-writer owner；
 - MCP、Panel、CLI、bindings、adapters只持EngineClient或输入port，不import engine storage；
 - distilly browser root不触达Node/storage；Node entry通过runtime attach；
-- Panel web只通过HTTP EngineClient；Panel server不成为writer；
+- Panel web只通过本地 typed `/rpc` 与 `/sources` HTTP transport；Panel server不成为writer，也不接收 secret value；
 - package boundaries、browser bundles、未声明依赖和循环由静态gate拒绝。
 
 SourceAdapter产出MaterialInput，MaterialParser产出ParsedMaterial；它们不能写blob或database。Host private capture只产生受信authorization/transcript；Engine完成audit与ingest transaction。任何surface出现`node:sqlite`、Engine storage import或DISTILLY_ROOT写入都是blocking defect。

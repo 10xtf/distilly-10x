@@ -74,7 +74,7 @@
 
 ### 1.2 首个可用版本的六个承诺
 
-1. **零额外 LLM key。** 调研与蒸馏默认使用 Codex / Claude Code 等宿主已有模型；Distilly 引擎本身不调用模型。
+1. **零额外 LLM key。** Developer Preview 只支持 Codex 与 Claude Code，并使用宿主已有模型完成调研与蒸馏；Distilly 引擎本身不调用模型。用户显式启用的来源适配器可以需要其来源系统凭据，但那不是模型 key，也不能进入模型上下文。
 2. **本地事实。** 材料、画像、证据、版本与 correction 默认只在用户明确选择的 DISTILLY_ROOT。
 3. **聊天发起。** 用户只需说“调研并蒸馏 X”；不先学习队列、哈希或 schema。
 4. **证据可见。** 每条人物判断都能从面板回到确切材料和原文 quote。
@@ -110,7 +110,7 @@
 
 ### 1.6 首发成立的定义
 
-在干净机器上，不登录 Distilly、不给额外 LLM key，用户通过一个受支持宿主对一个公开人物完成：
+在干净机器上，不登录 Distilly、不给额外 LLM key，用户通过 Codex 或 Claude Code 对一个公开人物完成：
 
 research → ingest(enqueue now) → pending brief → host distill → commit → panel evidence review → next-chat get。
 
@@ -143,7 +143,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 
 ### 2.4 从私人一对一消息补充人物材料
 
-用户说“把我和微信好友 X 在这段时间里的对话转成材料”。skill 先要求可信 HostPreflight success、structured tool calls、净 briefing capacity/evidence 与 exact five-tool runtime 全部可用；任一缺失就停止，不调用 get、不调研也不模拟结果。通过后解析 X；唯一命中使用 existing target，不命中准备 create target，多候选仍询问。只有 accepted preflight 报告 privateUiCapture available 时，才展示一个 binding 注册的、必须由用户手势触发的 capture card / command；它在当前 task 内显示 app/account/thread/range、text-only、用途、宿主处理与 Distilly retention。确认后 runtime coordinator 驱动宿主只读滚动、转录目标好友发言，按连续 turn 形成 private transcript，并通过 engine-owned capture session 调用同一个 IngestService。create target 与首批 transcript 原子落地，结果以 IngestResult 返回当前 skill；这个原生 action 不出现在 MCP tools/list。完成或任何 scope/window 变化立即关闭 grant。不能隔离窗口、宿主政策未知、群聊或附件则拒绝，并请用户改为粘贴或导出文本。
+用户说“把我和联系人 X 在这段时间里的对话转成材料”。Developer Preview 的 skill 明确说明它不会打开消息 app、浏览器或屏幕，并请用户粘贴/导出可读文本，或在 CLI / Panel 选择已经配置、实际 scope 允许的 Lark / Slack adapter。用户侧 collection 显示账号空间、conversation、subject、time range 与 limit，确认后由 user-bound EngineClient 调同一个 IngestService；完成后宿主再通过原有五工具领取 pending 并蒸馏。DingTalk 消息历史、未授权 channel、不可读附件和任何 browser / Computer Use 私聊抓取都明确 unavailable。未来 private UI capture 即使通过完整设计验收，也必须是独立版本能力，不能静默改变这条 Developer Preview 旅程。
 
 ### 2.5 用户纠正
 
@@ -225,8 +225,10 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 31. 临时人格只进入当前 run / subrun；禁止改全局指令文件。
 32. 第一版完整画像注入，放不下显式 context_too_large，不静默按显著度裁剪。
 33. 第一批 Node 支持窗口固定为 `^22.19 || ^24`；改变窗口必须同时更新安装检查、CI 矩阵与插件 fresh-install fixture，未经验证的未来 major 不自动进入支持面。
-34. 私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；首版限一对一纯文本，不后台、不锁屏、不留截图，群聊与附件默认拒绝。
+34. 未来私人 UI capture 只能由可信 HostBinding 在第一帧前取得一次性、前台、精确范围授权；Developer Preview 的 Codex 与 Claude Code binding 都必须报告 unavailable，不创建 Controller，也不以 browser、Playwright、Computer Use 或截图读取私人消息。
 35. Protocol 的 id/time/facet grammars、WIRE_LIMITS、JSON-safe error / EmptyResult 和五工具 descriptor registry 是跨入口合同；不得由 SDK、MCP、Panel 或 HTTP 各自放宽。
+36. Developer Preview 的可安装宿主范围恰为 Codex 与 Claude Code；其它宿主可以以后增加 binding，但不进入当前 manifest、setup、doctor 或 fresh-install 宣称。
+37. Developer Preview 可以在 `@distilly/adapters` 内提供经过审核的 TypeScript SourceAdapter 与 MaterialParser；所有厂商凭据只通过 secret reference 解析，联网采集只能由用户在 CLI 或 Panel 显式发起，不能增加第六个 MCP 工具或把 secret 暴露给宿主模型。
 
 ### 3.2 仍开放
 
@@ -878,7 +880,7 @@ distilly_commit
 distilly_correct
 ~~~
 
-不能为了内部 API 更“优雅”增加 create、flush、research、collect 或 briefing 工具。create 是 ingest 的 subject target；flush 是 enqueue now；briefing 是 pending 的 action。
+不能为了内部 API 更“优雅”增加 create、flush、research、collect 或 briefing 工具。create 是 ingest 的 subject target；flush 是 enqueue now；briefing 是 pending 的 action。需要凭据的 SourceAdapter collection 是 CLI / Panel 的直接用户动作，模型可以提示用户打开该入口，但不能代替用户确认、取得 secret 或调用一个隐藏的 collect 工具。
 
 模型工具只覆盖当前人物闭环，不承担全库管理、市场浏览、批量 purge、关系图编辑或安装器管理。那些能力属于 SDK、CLI 或 Panel。
 
@@ -1305,7 +1307,7 @@ self 只是在首次 setup 时可选创建的普通主体；不能用它绕过�
 
 ### 10.1 Research 是宿主工作流，不是引擎能力
 
-引擎不提供 research()，也不内置网页搜索。canonical skill 按用户目标生成调研问题，使用宿主已有的 browser/search/files/text-extraction 能力；私人界面另走经授权的 capture lane。得到文本后逐来源 ingest。
+引擎不提供 research()，也不内置网页搜索。canonical skill 按用户目标生成调研问题，使用宿主已有的 browser/search/files/text-extraction 能力；用户也可以在 CLI / Panel 显式运行经过审核的 SourceAdapter，再由 user-bound EngineClient ingest 其规范化文本。Developer Preview 不提供私人 UI capture；私人消息只接受用户粘贴/导出，或经用户明确配置和发起的官方 API adapter 能力。得到文本后逐来源 ingest。
 
 这样做不是把系统交给提示词：skill 只负责编排和语义工作；真正的材料边界、证据、版本与写入仍由引擎强制。
 
@@ -1407,7 +1409,7 @@ deriveSourceIdentity 的优先级不同：先用规范化 retrieval URI，缺失
 |---|---|---|---|
 | 公众人物 | 官方主页/本人公开表达、主流编辑机构的报道、长访谈或演讲；争议事实再找与原始 artifact 不同的报道 | 原生正文或发布者文字稿 → 内嵌/官方字幕 → 自动字幕/转写 → 对扫描件 OCR | 只有搜索摘要、聚合页、粉丝转载或同一采访的多个镜像 |
 | 视频创作者 / UP 主 / 博主 | 本人跨时间的代表视频、公开 post、简介与直播/播客文字稿；需要判断外部事实时再加编辑报道或他人访谈 | 原生 post → 官方字幕/章节稿 → 自动字幕/转写；按时间和内容类型取样，不只拿爆款 | 把同一视频的字幕、OCR、转写当成三份来源，或由一条 post 推断长期人格 |
-| 私人联系人 | 用户明确选择的一对一消息片段、对方直接提供的文本或用户导出；默认不做公网身份扩展 | 用户粘贴/导出 → 宿主受支持的一次性前台私有 UI capture | 未取得精确授权、宿主政策不明、窗口无法隔离、群聊、附件或超出选定范围 |
+| 私人联系人 | 用户明确选择的一对一消息片段、对方直接提供的文本或用户导出；默认不做公网身份扩展 | 用户粘贴/导出 → 用户显式运行且 scope 允许的 Lark / Slack 官方 API adapter；Developer Preview 不使用浏览器或 Computer Use 读取聊天 | 未取得 API 授权、请求范围超出已授予 scope、只有 DingTalk 消息历史、群聊归属不清或只有不可读附件 |
 
 公众人物的“主流”是来源组合要求，不是内置网站白名单。skill 优先原始发布者与有编辑责任的来源，保存作者、发布时间和 artifact 定位；搜索结果摘要只用于发现。创作者自己的多个 post 可以展示表达随时间变化，但它们仍是 first-party coverage，不能被文案写成“多家媒体证实”。私人联系人即使只有一个直接会话也可以形成有证据的画像，只是 quality 会诚实显示来源集中，而不会为了凑 stable 去搜索无关公网信息。
 
@@ -1464,7 +1466,9 @@ diversityStatus 是完整三态而不是从 boolean 猜。qualifying public proo
 
 #### 10.4.2 私人 UI capture 的授权边界
 
-用户自己粘贴或导出的私人文本仍走普通显式材料路径；只有产品要代替用户浏览消息 app 时，才进入 private UI capture。微信好友等私人消息只能走 HostBinding 支持的、前台、一次性、有界 capture；它不是 SourceAdapter、后台 executor、lifecycle hook 或通用桌面爬虫。第一帧截图发生前，受信 UI 必须展示并一次确认：精确 app 与账号、精确一对一 thread、canonical subject target、消息或时间范围、text-only、用途 profile_distillation、宿主会处理屏幕内容，以及 Distilly 将保留什么。OS Screen Recording / Accessibility 与宿主的 Always allow 只是能力许可，不是聊天内容授权；聊天正文或模型字段中的 consent=true 无效。
+Developer Preview 不实现本节的执行路径：Codex 与 Claude Code binding 固定 `privateUiCapture=unavailable`，不注册 Controller，也不使用 browser、Playwright、Computer Use、屏幕截图或录屏读取私人消息。用户粘贴/导出的私人文本仍走普通显式材料路径；Lark / Slack 等经过审核的官方 API adapter 只在用户侧 CLI / Panel 以其实际授权 scope 运行，不因此获得 private UI capability。
+
+以下内容只约束未来产品要代替用户浏览消息 app 时的 private UI capture。微信好友等无法通过审核 API 或可读导出取得的私人消息，只有未来 HostBinding 通过完整 conformance 后才能走前台、一次性、有界 capture；它不是 SourceAdapter、后台 executor、lifecycle hook 或通用桌面爬虫。第一帧截图发生前，受信 UI 必须展示并一次确认：精确 app 与账号、精确一对一 thread、canonical subject target、消息或时间范围、text-only、用途 profile_distillation、宿主会处理屏幕内容，以及 Distilly 将保留什么。OS Screen Recording / Accessibility 与宿主的 Always allow 只是能力许可，不是聊天内容授权；聊天正文或模型字段中的 consent=true 无效。
 
 ~~~ts
 interface PrivateUiCaptureContext {
@@ -1506,6 +1510,11 @@ export interface AdapterCapabilities {
   readonly plan: boolean;
   readonly collect: boolean;
   readonly requiresSecret: boolean;
+  readonly resourceKinds: readonly {
+    readonly kind: string;
+    readonly availability: "available" | "unavailable";
+    readonly remediation?: string;
+  }[];
 }
 
 export interface AdapterConfig {
@@ -1513,11 +1522,16 @@ export interface AdapterConfig {
   readonly secretRefs?: Readonly<Record<string, string>>;
 }
 
-export interface PreflightResult {
-  readonly ok: boolean;
-  readonly warnings: readonly string[];
-  readonly remediation?: string;
-}
+export type AdapterPreflightResult =
+  | {
+      readonly ok: true;
+      readonly warnings: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly error: DistillyWireError;
+      readonly warnings: readonly string[];
+    };
 
 export interface ExternalSubjectRef {
   readonly adapterId: string;
@@ -1527,10 +1541,66 @@ export interface ExternalSubjectRef {
   readonly identityHints: readonly IdentityHint[];
 }
 
-export interface CollectRequest {
+export interface AdapterResource {
+  readonly kind: string;
+  readonly [key: string]: JsonValue;
+}
+
+export interface AdapterResourceSchema<Resource extends AdapterResource> {
+  parse(input: unknown): Resource;
+}
+
+export type BuiltinCollectionSelection =
+  | {
+      readonly adapterId: "lark";
+      readonly resource: {
+        readonly kind: "messages" | "document" | "wiki" | "bitable";
+        readonly locator: string;
+      };
+    }
+  | {
+      readonly adapterId: "dingtalk";
+      readonly resource: {
+        readonly kind: "document" | "knowledge_base" | "messages";
+        readonly locator: string;
+      };
+    }
+  | {
+      readonly adapterId: "slack";
+      readonly resource: {
+        readonly kind: "messages";
+        readonly conversationId: string;
+      };
+    }
+  | {
+      readonly adapterId: "xquik";
+      readonly resource: {
+        readonly kind: "public_posts";
+      };
+    };
+
+export interface CollectRequest<Resource extends AdapterResource> {
+  readonly resource: Resource;
   readonly objective: string;
   readonly since?: IsoDateTime;
   readonly limit?: number;
+}
+
+export interface MeteredReadConsentInput {
+  readonly adapterId: "xquik";
+  readonly subjectExternalId: string;
+  readonly resource: Extract<
+    BuiltinCollectionSelection,
+    { readonly adapterId: "xquik" }
+  >["resource"];
+  readonly objectiveDigest: `sha256_${string}`;
+  readonly maximumItems: number;
+}
+
+export interface MeteredReadConsentPort {
+  confirm(
+    input: MeteredReadConsentInput,
+  ): Promise<{ readonly kind: "confirmed" } | { readonly kind: "declined" }>;
 }
 
 export interface AgentPlan {
@@ -1548,6 +1618,10 @@ export interface RawMaterial {
 export interface ParseContext {
   readonly subjectId: SubjectId;
   readonly requestId: RequestId;
+  readonly subject?: Pick<
+    SubjectSummary,
+    "displayName" | "aliases" | "identityHints"
+  >;
   readonly maximumOutputBytes: number;
 }
 
@@ -1568,40 +1642,136 @@ export interface ParsedMaterial {
   readonly warnings: readonly string[];
 }
 
-export interface SourceAdapterBase {
+export interface SourceAdapterBase<Resource extends AdapterResource> {
   readonly id: string;
+  readonly resourceSchema: AdapterResourceSchema<Resource>;
   capabilities(): AdapterCapabilities;
-  preflight(config: AdapterConfig): Promise<PreflightResult>;
+  preflight(
+    request: CollectRequest<Resource>,
+    config: AdapterConfig,
+  ): Promise<AdapterPreflightResult>;
   resolveSubject(
     query: string,
     config: AdapterConfig,
   ): Promise<ExternalSubjectRef[]>;
 }
 
-export interface DelegatedSourceAdapter extends SourceAdapterBase {
+export interface DelegatedSourceAdapter<Resource extends AdapterResource>
+  extends SourceAdapterBase<Resource> {
   readonly mode: "delegated";
   plan(
     subject: ExternalSubjectRef,
-    request: CollectRequest,
+    request: CollectRequest<Resource>,
   ): Promise<AgentPlan>;
 }
 
-export interface DirectSourceAdapter extends SourceAdapterBase {
+export interface DirectSourceAdapter<Resource extends AdapterResource>
+  extends SourceAdapterBase<Resource> {
   readonly mode: "direct";
   collect(
     subject: ExternalSubjectRef,
-    request: CollectRequest,
+    request: CollectRequest<Resource>,
     config: AdapterConfig,
   ): AsyncIterable<MaterialInput>;
 }
 
-export type SourceAdapter = DelegatedSourceAdapter | DirectSourceAdapter;
+export type SourceAdapter<Resource extends AdapterResource> =
+  | DelegatedSourceAdapter<Resource>
+  | DirectSourceAdapter<Resource>;
+
+export interface SourceAdapterRegistration {
+  readonly id: string;
+  readonly mode: "delegated" | "direct";
+  readonly capabilities: AdapterCapabilities;
+}
 
 export declare class AdapterRegistry {
-  register(adapter: SourceAdapter): void;
-  get(id: string): SourceAdapter | undefined;
-  list(): readonly SourceAdapter[];
+  register<Resource extends AdapterResource>(
+    adapter: SourceAdapter<Resource>,
+  ): void;
+  list(): readonly SourceAdapterRegistration[];
 }
+
+export interface UserCollectionSelection<
+  Resource extends AdapterResource = AdapterResource,
+> {
+  readonly adapterId: string;
+  readonly resource: Resource;
+}
+
+export interface SourceStatus {
+  readonly registration: SourceAdapterRegistration;
+  readonly configured: boolean;
+  readonly warnings: readonly string[];
+}
+
+export interface SourceConfigureInput {
+  readonly adapterId: string;
+  readonly config: AdapterConfig;
+}
+
+export interface SourceActionInput {
+  readonly selection: UserCollectionSelection;
+  readonly subject: SubjectRef;
+  readonly externalSubjectQuery?: string;
+  readonly objective: string;
+  readonly since?: IsoDateTime;
+  readonly limit?: number;
+}
+
+export interface SourcePreflightResult {
+  readonly adapter: AdapterPreflightResult;
+  readonly subjects: readonly ExternalSubjectRef[];
+}
+
+export interface SourceCollectResult {
+  readonly materialCount: number;
+  readonly ingestResults: readonly IngestResult[];
+}
+
+export interface UserCollectionMethodMap {
+  readonly "source.list": {
+    readonly params: EmptyResult;
+    readonly result: readonly SourceStatus[];
+  };
+  readonly "source.configure": {
+    readonly params: SourceConfigureInput;
+    readonly result: SourceStatus;
+  };
+  readonly "source.preflight": {
+    readonly params: SourceActionInput;
+    readonly result: SourcePreflightResult;
+  };
+  readonly "source.collect": {
+    readonly params: SourceActionInput;
+    readonly result: SourceCollectResult;
+  };
+}
+
+export type SourceQueryActionName = "source.list";
+export type SourceMutationActionName = Exclude<
+  keyof UserCollectionMethodMap,
+  SourceQueryActionName
+>;
+
+export interface UserCollectionClient {
+  call<M extends SourceQueryActionName>(
+    method: M,
+    params: UserCollectionMethodMap[M]["params"],
+  ): Promise<UserCollectionMethodMap[M]["result"]>;
+  call<M extends SourceMutationActionName>(
+    method: M,
+    params: UserCollectionMethodMap[M]["params"],
+    context: { readonly requestId: RequestId },
+  ): Promise<UserCollectionMethodMap[M]["result"]>;
+}
+
+export declare const userCollectionMethodSchemas: {
+  readonly [M in keyof UserCollectionMethodMap]: {
+    readonly params: RuntimeSchema<UserCollectionMethodMap[M]["params"]>;
+    readonly result: RuntimeSchema<UserCollectionMethodMap[M]["result"]>;
+  };
+};
 
 export declare class ParserRegistry {
   register(parser: MaterialParser): void;
@@ -1618,7 +1788,30 @@ export interface MaterialParser {
 
 两者都只能产出 MaterialInput / ParsedMaterialDraft，不能写 authority 或 blob store，也不能声称 raw 已保存；raw blob 是否保存并与 RawId 绑定由 engine 的 IngestService 决定。parser 返回 extraction metadata，engine 在 raw 成功持久化后才把它转换成 TextDerivation.kind=raw_extract。没有 adapter 或 parser 时，宿主直接 ingest 的主路径仍然完整。
 
-首发仓库不实现厂商官方 API；最多提供 delegated adapter fixture 证明注册缝。Parser 失败或只保存 raw 时返回 unparsed RawId，不改变 MaterialSetHash / generation、不 enqueue，也不让 LLM 看不到内容却照样蒸馏。一份 raw 首版最多产生一份 canonical text；以后允许多份字幕/OCR 产物时，它们必须共享 raw derivation root，并落入同一 source group。
+Developer Preview 在 `@distilly/adapters` 内提供以下经过审核的 TypeScript builtins；它们是明确白名单，不代表任意 provider package 会随 Plugin 获得网络或 secret 权限：
+
+| adapter id | Developer Preview collection contract | credential / bound |
+|---|---|---|
+| `lark` | `region=china` 固定使用 Feishu 中国 endpoint，`region=international` 固定使用 Lark 国际 endpoint；按实际 tenant scope 采集消息、文档、Wiki 与 Bitable，不根据 credential、locale 或失败重试猜 region | app / tenant credential 只由 secret refs 解析；每次 collect 显示 region、resource、subject、time range 与 limit |
+| `dingtalk` | 只采集已授权的文档与知识库；消息历史能力在任何配置下都 absent，调用在发网前以 non-retryable `host_unsupported` 和导出/粘贴 remediation 结束 | secret refs；禁止降级为 browser、Playwright 或 Computer Use 抓取消息 |
+| `slack` | 只采集已授权且 bot 已加入的 channel / conversation 中可见消息，保留 workspace/channel/message provenance；不扩大 OAuth scope，不读取未加入的 channel | bot credential secret ref；按当前 provider response 协商 page size / cursor 并尊重 `Retry-After`，不硬编码旧的 200 items/page 假设 |
+| `xquik` | 只取得公开 X post 候选，结果仍是不可信材料，写入前保留 author / permalink 并按版权安全方式处理 | API key secret ref；`limit` 必填，CLI / Panel 必须先显示最大计费条数并取得与 adapter、subject、objective、limit 绑定的一次确认，缺失、过期或不匹配时零网络请求 |
+
+`AdapterConfig.secretRefs` 的 value 是 OS keychain、宿主 secret store 或显式环境变量名称中的 opaque reference，不是 secret value。配置文件、命令参数、Panel payload、EngineClient、MaterialInput、briefing、日志和诊断包都不得出现解析后的值。production composition 在 adapter 调用边界注入 resolver，secret 只在 preflight / collect 期间存在内存中；doctor 只报告 ref 是否可解析及 scope 是否够用。CLI 的隐藏输入可以把值写入 OS keychain，但没有把 secret value 写进 `adapters.toml` 或 shell history 的 flag。
+
+`BuiltinCollectionSelection` 只给内置 UI / CLI 提供精确类型，不封闭通用扩展缝。每个 `SourceAdapter<Resource>` 必须随注册提供该 adapter 自己的 strict `resourceSchema`；user collection service 先按 `selection.adapterId` 找注册项，再用其 schema 把未知 JSON 解析成 `CollectRequest<Resource>`。因此社区 adapter 可以定义自己的 resource，而 adapter id 不匹配、resource unknown key、locator 非法或未注册 adapter 都在解析 secret 或发网前失败。Registry 的泛型只在注册和内部 validated dispatch 间擦除；公开的 `list` 不泄漏一个可绕过 schema 的 untyped adapter handle。
+
+DingTalk 的 builtin resource schema 故意接受 `kind="messages"`，但 capabilities 把它标为 unavailable。它的 resource-bound `preflight` 和任何直接 `collect` 都在解析 secret 或发网前返回 non-retryable `host_unsupported` 与导出/粘贴 remediation；这样“已知但不支持”不会伪装成 invalid input，也不会产生隐藏 browser fallback。
+
+Credentialed collection 由 composition-owned user collection service 编排，并通过 `UserCollectionClient` 绑定 user actor。CLI 直接借用该 client；Panel 通过 §15.4 的独立、strict `/sources` transport 和 action nonce 调用同一 client。该 service 解析 secret、调用 adapter、规范化结果，再调用它持有的 user-bound EngineClient ingest；它不进入 Protocol、CoreEngineClient、EngineMethodMap 或 MCP descriptor registry。`userCollectionMethodSchemas` 由 `@distilly/adapters` 提供 closed action envelope 与结果 schema；具体 resource 还必须通过当前注册 adapter 的 strict schema。Panel browser 只发送非敏感 values 与 secret refs，永远收不到 secret value 或 provider raw response；新建 keychain secret value 只走 CLI 的 TTY 隐藏输入。模型只能在 collection 完成后通过既有 `distilly_pending` / briefing 看见已入库材料。
+
+Xquik factory 额外注入一个 `MeteredReadConsentPort`；它不是 AdapterConfig、Protocol value、Panel payload 或可序列化 grant。每次 collect 都以 exact adapter、subject external id、typed resource、objective digest 与 positive bounded maximumItems 调 `confirm`，只有本次直接 CLI / Panel 用户动作返回 confirmed 后才解析 API key 并发出一次查询；port 不缓存确认、不持久化输入或结果，下一次查询必须重新确认。declined、throw 或 tuple 变化都是零 secret resolution、零 network。
+
+内置 MaterialParser 只做本地、确定性解析：UTF-8 TXT / Markdown、JSON、Lark export、EML / MBOX、SRT / VTT 与字幕清洗，以及带 embedded text 的 PDF。一份 raw 在 Developer Preview 仍最多产生一份 canonical text。MBOX 与 Lark export parser 必须先使用只读 `ParseContext.subject` 的 displayName、aliases 与 identityHints 做 exact normalized target filtering，再按稳定的时间/record locator 顺序把匹配邮件或消息聚合为一份带明确 record separators 的正文；无法取得 subject hints、候选歧义或只能 fuzzy 命中时返回无 material + warning，绝不把多人导出整份挂到该主体。
+
+Production `ParseContext.maximumOutputBytes` 固定为 `WIRE_LIMITS.materialContentBytes=1_048_576`。输出超过上限不是分页或静默裁剪：恰好 1,048,576 bytes 仍合法，1,048,577 bytes 时 parser 返回 typed `context_too_large`，该 raw 保持 unparsed，零 ParsedMaterialDraft 进入 ingest，并提示用户缩小时间/会话范围。Parser types 与 limits 属于 adapters/runtime internal boundary；engine 对 draft 再跑 MaterialInput schema与 provenance checks，公开 FileIngestResult 只返回已经被 engine 接受的 material。
+
+扫描 PDF 与图片不在 parser 内偷偷调用远程 OCR；只有宿主 capability preflight 已验证 imageOcr / vision 且用户选择该宿主提取路径时才接收带 `host_extract` provenance 的文本，否则返回 unparsed / unavailable。Parser 失败或只保存 raw 时返回 unparsed RawId，不改变 MaterialSetHash / generation、不 enqueue，也不让 LLM 看不到内容却照样蒸馏。以后允许同一 raw 的字幕/OCR 等不同表示时，它们必须共享 raw derivation root，并落入同一 source group。
 
 ---
 
@@ -2447,7 +2640,7 @@ privacy purge 可以删除受影响的 authoritative rows/references并保留con
 
 ### 15.1 产品职责
 
-Panel 首版只做四件事：看本地人物、看一份画像、看证据、处理风险。它不自己浏览网页、不调用 LLM、不直接发布 Profile Catalog，也不成为第二个事实编辑器。
+Panel 首版的主体工作仍是看本地人物、看一份画像、看证据和处理风险。它不调用 LLM、不自主浏览网页、不直接发布 Profile Catalog，也不成为第二个事实编辑器；唯一联网采集入口是用户在 Settings / Subject 中显式运行经过审核的 SourceAdapter，且由本地 server 而不是浏览器持有 secret。
 
 Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生成或复制一条宿主 prompt，不偷偷启动模型。
 
@@ -2466,6 +2659,7 @@ Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生�
 - Claims：active / contested / superseded，按 facet 过滤；
 - Evidence：claim、quote、来源 URI、capture time、source group / basis / diversity caution 与材料正文并排；
 - Materials：载体、source role、artifact / representation、文本派生方法、raw 是否可用、capture audit、sensitivity、source group / caution 与是否参与当前 generation；
+- Sources：选择已配置 adapter，预览 subject / resource / time range / limit，显式发起 collection；Xquik 在请求前另显示并确认最大计费条数；
 - Versions：current / suspended / historical / rejected、diff、lineage。
 
 **Review**
@@ -2480,7 +2674,7 @@ Chat 是发起 research 的主入口；Panel 的“继续调研”按钮只生�
 - DISTILLY_ROOT、runtime / plugin / protocol 版本；
 - HostBinding capability 与 MCP handshake；
 - Panel 监听地址和安全状态；
-- adapter / parser / optional executor preflight；
+- adapter / parser / optional executor preflight，以及只保存公开配置与 secret reference 的 adapter configure；
 - telemetry 明确 off / on，不显示虚假使用量。
 
 这是完整产品的页面信息架构，不授权 injected Panel slice 伪造尚未落地的 handler。当前 UI 只启用注入 client 已真实实现并经双向 schema 验证的 read methods，以及 promote/reject/rollback；correct、install、archive 与 production doctor 可以显示 disabled 的未来说明或只读文案，但不能返回假成功、写 fixture authority 或调用占位 handler。测试注入的 full EngineClient 若真实实现 system.doctor，可渲染其 DoctorSnapshot；production system.doctor handler 与 full binding 结论属于 production runtime feature。injected Panel 不创建 runtime、不提供 CLI executable 或用户可运行的 `distilly panel` command。
@@ -2617,12 +2811,14 @@ distilly panel --port <n>
   GET  /health            不含人物数据的版本与 readiness
   POST /action-nonces     mutation 的短期一次性 transport nonce
   POST /rpc               完整 EngineMethodMap 的类型化 JSON 调用
+  POST /sources           UserCollectionMethodMap 的本地连接器调用
   POST /events            带认证 header 的 fetch SSE 字节流
 ~~~
 
 ~~~ts
 export interface PanelServerOptions {
   readonly client: EngineClient;
+  readonly sources?: UserCollectionClient;
   readonly assetsDir: string;
   readonly port: number;
 }
@@ -2662,14 +2858,55 @@ export type PanelRpcResponse<M extends keyof EngineMethodMap> =
   | WireSuccess<EngineMethodMap[M]["result"]>
   | WireFailure;
 
-export type PanelActionNonceRequest = {
+export type PanelSourceQueryRequest = {
+  readonly wireVersion: typeof WIRE_VERSION;
+  readonly method: SourceQueryActionName;
+  readonly params: UserCollectionMethodMap[SourceQueryActionName]["params"];
+  readonly requestId?: never;
+  readonly actionNonce?: never;
+};
+
+export type PanelSourceMutationRequest = {
+  [M in SourceMutationActionName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly method: M;
+    readonly params: UserCollectionMethodMap[M]["params"];
+    readonly requestId: RequestId;
+    readonly actionNonce: PanelActionNonce;
+  };
+}[SourceMutationActionName];
+
+export type PanelSourceRequest =
+  | PanelSourceQueryRequest
+  | PanelSourceMutationRequest;
+
+export type PanelSourceResponse<M extends keyof UserCollectionMethodMap> =
+  | WireSuccess<UserCollectionMethodMap[M]["result"]>
+  | WireFailure;
+
+export type PanelEngineActionNonceRequest = {
   [M in MutationMethodName]: {
     readonly wireVersion: typeof WIRE_VERSION;
+    readonly route: "rpc";
     readonly method: M;
     readonly requestId: RequestId;
     readonly params: EngineMethodMap[M]["params"];
   };
 }[MutationMethodName];
+
+export type PanelSourceActionNonceRequest = {
+  [M in SourceMutationActionName]: {
+    readonly wireVersion: typeof WIRE_VERSION;
+    readonly route: "sources";
+    readonly method: M;
+    readonly requestId: RequestId;
+    readonly params: UserCollectionMethodMap[M]["params"];
+  };
+}[SourceMutationActionName];
+
+export type PanelActionNonceRequest =
+  | PanelEngineActionNonceRequest
+  | PanelSourceActionNonceRequest;
 
 export interface PanelActionNonceGrant {
   readonly actionNonce: PanelActionNonce;
@@ -2687,7 +2924,9 @@ export declare function startPanelServer(
 
 `/rpc` 覆盖 exact、完整的 EngineMethodMap，不能只注册当前 UI 用到的子集。query object 严格禁止 requestId/actionNonce；mutation object 必须同时带 requestId/actionNonce。handler 先按 method 对 unknown params 做 `engineMethodSchemas[M].params.parse`，再调用 query 或 mutation overload；mutation 只把 requestId 放入 MutationContext，绝不把 actionNonce 传给 engine 或纳入 operations authority row 的 trusted preimage digest。成功结果在序列化前再经 `engineMethodSchemas[M].result.parse`；成功与 domain/validation failure 最后都解析成 strict `WireSuccess | WireFailure`，wireVersion 固定为 `"3"`，没有第三种 JSON 或未校验 passthrough。
 
-PanelServer 只借用注入的完整 EngineClient，不创建 runtime、不读取 DISTILLY_ROOT，也不拥有 client。production composition 为本次 Panel 会话创建单独、kind=user 的 client；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭该 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
+`/sources` 只覆盖 exact `UserCollectionMethodMap`，不接受 EngineMethodMap 名称。top-level envelope 先按 source action strict schema 解析，params 再经 `userCollectionMethodSchemas[M].params` 和当前注册 adapter 的 `resourceSchema` 解析，成功 result 也反向 parse。`source.list` 不需要 nonce；`source.configure`、`source.preflight` 与 `source.collect` 都是需要直接用户动作的 mutation-shaped call，必须携带 requestId 与绑定 `route="sources"` 的一次性 action nonce。configure payload 只能含公开 values 与 opaque secret refs；Panel 不提供 secret-value 字段。没有注入 `sources` client 的 injected Panel slice 禁用 Sources UI，并让合法 `/sources` 请求返回 non-retryable `host_unsupported`，不能伪造空成功。
+
+PanelServer 只借用注入的完整 EngineClient 与可选 UserCollectionClient，不创建 runtime、不读取 DISTILLY_ROOT，也不拥有任一 client。production composition 为本次 Panel 会话创建单独、kind=user 的 EngineClient，并用该 user actor 组合 UserCollectionClient；即使由 MCP ReviewPresenter 启动也不能复用 kind=host client。startPanelServer 借用而不关闭这些 client；PanelHandle.close 只停止 HTTP/SSE transport、拒绝新请求、清理订阅与 nonce store。测试需要的 clock/random/listen seam 保持 package-private，不进入 PanelServerOptions 或 public export。
 
 `GET /health` 的成功 value 是 exact、closed `{ "status": "ready", "panelVersion": "<@distilly/panel package semver>", "wireVersion": "3" }`；HTTP 200 body bytes 固定为 canonical key ordering 的 `{"panelVersion":"<semver>","status":"ready","wireVersion":"3"}\n`，`Content-Type: application/json; charset=utf-8`。panelVersion 只来自该 package 的 build version source。它不调用 EngineClient，也不包含 root/path/token/nonce、主体、projection 计数或环境字段。
 
@@ -2698,17 +2937,17 @@ Fragment 不发给服务器；前端在发起任何网络请求、加载任何�
 ### 15.5 安全不变量
 
 1. Server 只调用 literal `127.0.0.1` listen，不接受可配置 host、`0.0.0.0`、IPv6、LAN address 或 hostname 解析。port 必须是 1..65535 且不等于 HTTP 默认端口 80 的 safe integer，确保浏览器不会把显式端口从 origin/Host 规范化掉；占用就以 busy 失败，不在已生成 URL 后换端口。每个请求必须恰有一个 Host header，value 逐字节等于 `127.0.0.1:<actual-port>`。
-2. `/rpc`、`/events`、`/action-nonces` 必须同时满足 exact Host、`Origin: http://127.0.0.1:<actual-port>` 和 timing-safe 比较成功的 exact Bearer token；Authorization 必须是恰好一个 header，value 精确为 `Bearer ` 加 64 lowercase hex，无前后空白或其它 auth parameter。Origin 缺失、`null`、多值、大小写/默认端口变体或跨站都拒绝。静态 GET 与 `/health` 只允许 Origin 缺失或同一个 exact Origin；任意其它 Origin 拒绝。服务不发 CORS allow headers。
-3. 三个 POST endpoint 必须恰有一个 Content-Type header，value 逐字节为 `application/json` 或 `application/json; charset=utf-8`，并只接收严格单个 JSON value 与对应 closed schema。累计 request headers 不得超过 16,384 bytes；raw body 最多 4,194,304 bytes，读到第 4,194,305 byte 立即停止并返回 HTTP 413 + strict、retryable=false 的 invalid_input WireFailure，不调用 client、nonce store 或业务 parser。
+2. `/rpc`、`/sources`、`/events`、`/action-nonces` 必须同时满足 exact Host、`Origin: http://127.0.0.1:<actual-port>` 和 timing-safe 比较成功的 exact Bearer token；Authorization 必须是恰好一个 header，value 精确为 `Bearer ` 加 64 lowercase hex，无前后空白或其它 auth parameter。Origin 缺失、`null`、多值、大小写/默认端口变体或跨站都拒绝。静态 GET 与 `/health` 只允许 Origin 缺失或同一个 exact Origin；任意其它 Origin 拒绝。服务不发 CORS allow headers。
+3. 四个 POST endpoint 必须恰有一个 Content-Type header，value 逐字节为 `application/json` 或 `application/json; charset=utf-8`，并只接收严格单个 JSON value 与对应 closed schema。累计 request headers 不得超过 16,384 bytes；raw body 最多 4,194,304 bytes，读到第 4,194,305 byte 立即停止并返回 HTTP 413 + strict、retryable=false 的 invalid_input WireFailure，不调用 EngineClient、UserCollectionClient、nonce store 或业务 parser。
 4. 非 streaming response 必须先完整构造、result-parse、bounded serialize 并确认 UTF-8 bytes 不超过 16,777,216，再一次写出；不能先发 headers/部分 JSON。超限改成 retryable=false、无内容的 context_too_large WireFailure，details 只可包含数字 size/limit；该 failure 本身也必须在限额内。日志只记 content-free method/status/size，不记 body、params/result、材料正文、token、nonce 或 secret。
 5. 静态文件只从 build-time 固定 allowlist 提供。router 对 percent-decode failure、NUL、反斜线、编码后或解码后的 `/`、`.`、`..` path segment、重复 separator、query/fragment 与非 allowlist 路径 fail closed；assetsDir 的每个祖先与最终文件都必须拒绝 symlink，并验证 real path 仍在 exact assets root。不能把 URL path 直接 join 到磁盘。`/health` 只返回版本/readiness，不含人物、路径、token 或 nonce。
 6. 所有 document/static response 固定发送 `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'; worker-src 'none'`、`Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff`、`Cross-Origin-Resource-Policy: same-origin` 与 `Cache-Control: no-store`。不允许 data/inline/eval/remote script、remote connect、frame 或 service worker。
-7. 所有 MutationMethodName 都需要 transport nonce，不只 purge/publish 等危险子集。Panel 只有在用户明确确认一次动作后，才向 `/action-nonces` 发送 exact method/requestId/params；服务先用对应 method params schema 校验，生成 `panel_action_` + 64 lowercase hex，再用 `WireSuccess<PanelActionNonceGrant>` 返回并对整个 result schema 做最终 parse。nonce 绑定当前 panel token、method、requestId 与 `SHA-256("panel-action-params-v1\0" + canonicalJson(params))`，expiresAt 精确为签发时刻 +60 秒，只驻内存。RPC 在 `now >= expiresAt`、任一 binding 不同或 nonce 不存在时返回 invalid_input；通过全部 envelope/params/binding 校验后、进入 client.call 前原子 consume，一经 consume 即使 client failure、response 超限或连接中断也不能重用。并发相同 nonce 恰有一个调用能进入 client。
+7. 所有 MutationMethodName 与 SourceMutationActionName 都需要 transport nonce，不只 purge/publish 等危险子集。Panel 只有在用户明确确认一次动作后，才向 `/action-nonces` 发送 exact route/method/requestId/params；服务先按 route 选择对应 method params schema 校验，生成 `panel_action_` + 64 lowercase hex，再用 `WireSuccess<PanelActionNonceGrant>` 返回并对整个 result schema 做最终 parse。nonce 绑定当前 panel token、route、method、requestId 与 `SHA-256("panel-action-params-v1\0" + route + "\0" + canonicalJson(params))`，expiresAt 精确为签发时刻 +60 秒，只驻内存。RPC / source action 在 `now >= expiresAt`、任一 binding 不同或 nonce 不存在时返回 invalid_input；通过全部 envelope/params/binding 校验后、进入对应 client.call 前原子 consume，一经 consume 即使 client failure、response 超限或连接中断也不能重用。并发相同 nonce 恰有一个调用能进入任一 client。
 8. `/events` body 必须逐字段等于 `{ "wireVersion": "3" }`。服务完成 auth/body 校验后先注册 `client.watch`，缓冲注册与 ready 之间的 EngineEvent，再以 HTTP 200、`Content-Type: text/event-stream; charset=utf-8`、`Cache-Control: no-store` 且无 compression 写恰好 `event: ready\ndata:{"wireVersion":"3"}\n\n`；Panel 收到 ready 后才启动初始全量 reads，随后处理已缓冲与新 frame，后者 bytes 精确为 `event: engine\ndata:` + `canonicalJson(engineEvent)` + `\n\n`。每个 SSE response header block 和每个完整 frame 各自最多 16,384 UTF-8 bytes；单个 EngineEvent 仍过大、socket backpressure 造成 bounded queue 溢出或任意流断开时，server 取消订阅并断流，client 丢弃 cursor、重新连接并全量重读。流没有 id/Last-Event-ID/replay 语义，不能把丢失事件猜成连续。
 
-HTTP status 不留给 handler 自选：未知 path=404，已知 path 的错误 method=405，header 超限=431，Bearer 缺失/错误=401，Host/Origin 规则失败=403，不支持的 Content-Type=415，body 超限=413，malformed JSON 或 strict top-level envelope/wire/method shape 失败=400。经过这些 transport checks 后，合法 `/rpc` method 的 params invalid_input、engine domain error、result validation归一失败、unexpected internal_error 和 16 MiB context_too_large replacement 都以 HTTP 200 承载 strict WireFailure；合法 nonce request 的 expired/replayed/rebound nonce不会调用 client并以 HTTP 400 invalid_input WireFailure 返回。除 static 404 外，JSON endpoint 的 4xx body 仍须是 bounded strict WireFailure，统一使用现有 invalid_input、retryable=false，不新增 auth code；401/403 使用同一个无 details 的 generic message且不回显 token、Origin 或 Host，405 只列该 route 的 exact Allow method。
+HTTP status 不留给 handler 自选：未知 path=404，已知 path 的错误 method=405，header 超限=431，Bearer 缺失/错误=401，Host/Origin 规则失败=403，不支持的 Content-Type=415，body 超限=413，malformed JSON 或 strict top-level envelope/wire/method shape 失败=400。经过这些 transport checks 后，合法 `/rpc` 或 `/sources` method 的 params invalid_input、domain error、result validation归一失败、unexpected internal_error 和 16 MiB context_too_large replacement 都以 HTTP 200 承载 strict WireFailure；合法 nonce request 的 expired/replayed/rebound nonce不会调用 client并以 HTTP 400 invalid_input WireFailure 返回。除 static 404 外，JSON endpoint 的 4xx body 仍须是 bounded strict WireFailure，统一使用现有 invalid_input、retryable=false，不新增 auth code；401/403 使用同一个无 details 的 generic message且不回显 token、Origin 或 Host，405 只列该 route 的 exact Allow method。
 
-无 token、错 token、跨站/缺失 Origin、错误 Host、oversized header/body/response/event、nonce expiry/replay/rebinding、端口占用、symlink 与各种 path decode/traversal 各有拒绝测试；每条测试同时断言零 EngineClient call 或按规定最多一次 call。
+无 token、错 token、跨站/缺失 Origin、错误 Host、oversized header/body/response/event、nonce expiry/replay/rebinding、端口占用、symlink 与各种 path decode/traversal 各有拒绝测试；每条测试同时断言零 EngineClient / UserCollectionClient call 或按规定最多一次 call。
 
 ### 15.6 生命周期与宿主打开方式
 
@@ -3005,7 +3244,7 @@ provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 c
 
 HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。
 
-private UI capture 是 Binding 的可选受信能力，不是模型可直接 new 的 adapter：
+以下 private UI capture 类型只保留为未来 Binding 的可选受信能力，不属于 Developer Preview 的任何可安装路径，也不是模型可直接 new 的 adapter：
 
 ~~~ts
 export type PrivateUiCaptureRange =
@@ -3789,6 +4028,10 @@ distilly uninstall --host <host>
 distilly mcp
 distilly panel [--port <n>]
 
+distilly source list
+distilly source configure <adapter>
+distilly source collect <adapter> <subject> [--limit <n>] [--confirm-billable-limit <n>]
+
 distilly create --name <name> [--space <space>]
 distilly ingest <subject> <path...> [--enqueue auto|now]
 distilly pending [--subject <id>]
@@ -3811,6 +4054,8 @@ distilly migrate --from <legacy-skill-dir>
 ~~~
 
 CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
+
+`source configure` 只保存非敏感配置与 secret reference；需要新建 keychain secret 时使用 TTY 隐藏输入，不接受明文 secret flag。`source collect` 先显示 adapter、resolved subject、resource、time range 与 limit，再由直接用户动作执行；非交互 Xquik 调用还必须给出与 `--limit` 数值相同的 `--confirm-billable-limit`，缺失或不一致时在解析 secret 或发网络请求前失败。source 子命令不注册成 MCP tool，也不允许 canonical skill 用 shell 权限替用户绕过确认。
 
 `backup` / `restore` 只通过 `LocalRuntime.administration()` 取得同一 root owner 的 `EngineAdministrationClient`，不是复制内部目录的 shell shortcut。backup destination 默认 create-exclusive，只有显式 `--overwrite` 才可替换一个已验证为 Distilly backup 的目标；restore 的 confirmation 必须逐字等于先检查所得 manifest digest。restore 进入 maintenance、让普通 client 停止新调用、在 sibling root 完成验证与切换，CLI 只在新 authority 已重新打开后报告成功和保留的 previousRootPath。
 
@@ -4504,7 +4749,7 @@ protocol
 └── panel/web
 
 runtime → protocol + engine + bindings + adapters
-panel/server → protocol + mcp
+panel/server → protocol + mcp + adapters
 cli → runtime + distilly + mcp + panel/server
 plugins → CLI launcher (process boundary)
 ~~~
@@ -4514,7 +4759,7 @@ plugins → CLI launcher (process boundary)
 - runtime是唯一production composition owner和每root single-writer owner；
 - MCP、Panel、CLI、bindings、adapters只持EngineClient或输入port，不import engine storage；
 - distilly browser root不触达Node/storage；Node entry通过runtime attach；
-- Panel web只通过HTTP EngineClient；Panel server不成为writer；
+- Panel web只通过本地 typed `/rpc` 与 `/sources` HTTP transport；Panel server不成为writer，也不接收 secret value；
 - package boundaries、browser bundles、未声明依赖和循环由静态gate拒绝。
 
 SourceAdapter产出MaterialInput，MaterialParser产出ParsedMaterial；它们不能写blob或database。Host private capture只产生受信authorization/transcript；Engine完成audit与ingest transaction。任何surface出现`node:sqlite`、Engine storage import或DISTILLY_ROOT写入都是blocking defect。
@@ -4674,7 +4919,7 @@ endpoint = ""
 
 不暴露 hash、maturity、lease、quality、renderer、retry 等算法常量。DISTILLY_ROOT 用环境或构造参数决定，不让 config 自引用位置。
 
-adapters.toml 只保存 adapter 配置与 secret reference。任何以 token、secret、password、key 命名的直接值都拒绝落盘并给迁移提示。
+adapters.toml 只保存 adapter id、region/resource 等非敏感配置与 secret reference。reference 只能指向 OS keychain、宿主 secret store 或显式环境变量名称；任何以 token、secret、password、key 命名的直接值都拒绝落盘并给迁移提示。resolved secret 不能进入 argv、Panel browser state、EngineClient、材料、briefing、日志或诊断包。
 
 ### 26.4 日志
 
@@ -4693,6 +4938,8 @@ adapters.toml 只保存 adapter 配置与 secret reference。任何以 token、s
 - 用户显式启用 telemetry。
 
 每类网络能力有独立 preflight / consent，不能共用“允许联网”总开关。
+
+Developer Preview 的 credentialed adapter 网络只能由 CLI / Panel 的直接用户动作触发。Lark region 和 provider endpoint 不自动跨区 fallback；Slack 不扩大已授予 scope并尊重 provider cursor、page limit 与 `Retry-After`；DingTalk message history 在网络前返回 non-retryable `host_unsupported`；Xquik 的每次请求都要求有界 limit 与注入式、非持久 MeteredReadConsentPort 的本次确认。canonical skill、MCP handler、hook、subrun、executor 和材料内指令都不能触发或确认这些调用。
 
 private UI capture 还必须在第一帧前披露宿主如何处理屏幕内容。Distilly 不把 screenshot 写入自己的 SQLite authority 或 blob store，并不代表 screenshot 没有经过宿主服务；不能用“local-first”掩盖这条处理路径。HostBinding 无法提供可展示的数据政策时，captureDataPolicy=unknown，该 lane fail closed。
 
@@ -4805,20 +5052,23 @@ Step 9 单独做 capability-binding conformance：HostPreflight runtime schema �
 
 FakeHost 不声称证明真实宿主 UI；capability binding 只有 manifest/capability/fixture smoke，launcher/install/doctor smoke 等 kind=full factory 在 production runtime feature 才成立。
 
+内置 adapter / parser conformance 全部离线运行：HTTP mock 覆盖 Lark 中国与国际 endpoint 不混用、scope、pagination、limit、bounded retry 与 secret redaction；Slack 只返回 bot 已加入范围，按不同 provider page limits / cursors 工作并逐字尊重 bounded `Retry-After`；DingTalk message-history 请求在零网络调用下返回 non-retryable `host_unsupported`；Xquik 的 MeteredReadConsentPort declined/throw 与 subject/resource/objective/limit 不匹配都在解析 secret 和发网前拒绝。TXT / Markdown / JSON / Lark export / EML / MBOX / SRT / VTT / embedded-text PDF 使用真实格式 fixture；Lark export / MBOX 覆盖 exact subject hints、歧义/缺失拒绝、稳定聚合、1,048,576-byte 边界与 +1 无 material，扫描 PDF / image 在没有已验证宿主提取能力时明确 unparsed / unavailable。CLI 与 Panel 的等价 collect fixture 产生相同规范化 MaterialInput、provenance 与 ingest 结果，并断言配置、payload、日志、错误和诊断中没有 secret。Codex / Claude Code 全流程断言没有 browser、Playwright、Computer Use、截图或 private-capture Controller 路径。
+
 未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。Step 9 的两个 capability binding 不运行这套 available-lane fixture，只验证 unavailable 与 paste/export fallback。
 
 ### 27.6 Panel
 
 - `/rpc` 对 EngineMethodMap exact 35 keys 做 query/mutation envelope、params-before-call/result-after-call 与 final WireSuccess/WireFailure round-trip；query 的 requestId/actionNonce、mutation 缺任一字段和所有 unknown key 都拒绝且零 call；
-- `/action-nonces` 覆盖 `panel_action_<64hex>`、token/method/requestId/canonical-params digest binding、60 秒前/边界 expiry、原子 single consume、并发 replay 与 client/connection/oversize failure 后不可复用；所有 MutationMethodName 都走 nonce；
-- 三个 POST endpoint 都覆盖 exact Bearer、literal Host/Origin，static/health 只允许无 Origin 或 exact Origin；无 token、错 token、Origin 缺失/null/多值/跨站、错 Host 与 CORS preflight 全部拒绝；token 在首个 fetch/subresource 前从 fragment 移除并只以 header 发送；
+- `/sources` 对 UserCollectionMethodMap exact 四个 action 做 envelope、adapter registration/resource schema、params-before-call/result-after-call 与 final WireSuccess/WireFailure round-trip；未注入 UserCollectionClient 时返回 non-retryable `host_unsupported`，零 fake success；
+- `/action-nonces` 覆盖 `panel_action_<64hex>`、token/route/method/requestId/canonical-params digest binding、60 秒前/边界 expiry、原子 single consume、并发 replay 与 client/connection/oversize failure 后不可复用；所有 MutationMethodName 与 SourceMutationActionName 都走 nonce，跨 `/rpc` / `/sources` 不能重放；
+- 四个 POST endpoint 都覆盖 exact Bearer、literal Host/Origin，static/health 只允许无 Origin 或 exact Origin；无 token、错 token、Origin 缺失/null/多值/跨站、错 Host 与 CORS preflight 全部拒绝；token 在首个 fetch/subresource 前从 fragment 移除并只以 header 发送；
 - `/health` exact canonical JSON+LF bytes、package-semver source、200/content-type 与零 EngineClient call；404/405/431/401/403/415/413/400 transport matrix固定，合法 method/domain WireFailure 保持 HTTP 200；
 - request header 16 KiB、body 4 MiB/+1→HTTP 413 invalid_input、nonstream response 16 MiB/+1→一次性 context_too_large failure，证明 oversized 路径不半写且 EngineClient call 数符合 §15.5；
 - build allowlist、percent-decode/NUL/dot/repeated separator/backslash/encoded separator/query、symlink ancestor/file、realpath containment 与占用端口拒绝；CSP/Referrer-Policy/nosniff/CORP/no-store exact snapshot且没有远程资源或 service worker；
 - `POST /events` strict body 与 fetch streaming 覆盖 watch subscribe→ready→initial reads 次序、ready 前 buffer、无 id/replay、慢消费者、断线和单 frame/header 16 KiB/+1；断流都取消订阅并触发 cursor discard + full reread；不用 EventSource；
 - SSE unknown event 由 decoder 产生 schema_unsupported、不调 UI handler 并触发全库 re-read；
 - PanelLauncher 覆盖 new/starting/running/closing/closed、并发 present single-flight、start failure retry、invalid handle URL、close-vs-start、handle.close exactly once、close failure sharing、closed 后不重启与 borrowed client 不关闭；
-- Panel action 与等价 CLI action 产出相同 version / event；
+- Panel engine action 与等价 CLI action 产出相同 version / event；Panel source configure/preflight/collect 与等价 CLI source action 产出相同 status、规范化 MaterialInput、provenance 与 ingest result，浏览器 payload/result 不含 secret value 或 provider raw response；
 - UI 显示的 privacy/quality/pending/suspended/new-material/lastChangedAt 字段全部来自 protocol，同 snapshot 聚合且排序/cursor 语义固定；review route 只从 subject-filtered ReviewPage 找 exact candidate，再由 mutation CAS fail closed，不存在 reviews.get；
 - Evidence / Materials 显示 medium、role、derivation、raw/capture provenance 与 engine source-group basis，不在前端重算 eligibility；
 - atVersionId 只从该版本 authoritative material membership 重建 source group；新增 bridge material不改变历史展示，旧 grouping 实现不可用时明确 schema_unsupported；当前 native_text/host_extract 返回 rawAvailable=false，raw_extract 在其 blob reader 落地前返回 schema_unsupported；
@@ -5009,9 +5259,10 @@ wire major 3 内允许：
 9. **Blob GC + backup/restore**：通用 unreferenced-blob GC、backup pin、SQLite snapshot + reachable blobs、sibling-root restore与真实 admin methods/CLI；不为 mutation 做 abort cleanup。
 10. **旧 authority 删除与 Protocol 收口**：删除剩余 file journals/locks/recovery/checksum envelopes，持久化结构退出公共 Protocol；证明没有 dual-write 或旧 reader。
 11. **剩余产品方法 closure**：按 subject lifecycle、raw/file ingest、redistill、bundle、host install/export 等真实用户路径继续拆独立 feature；不把无关 methods 塞进 runtime。
-12. **Single-writer production runtime**：全部方法已有真 handler后，交付 root-scoped connect-or-start/attach service、actor-bound clients、production MCP/Panel/CLI/setup 与 teardown ownership；第二 writer fail closed。
-13. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 host reopen。
-14. **关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径。
+12. **Built-in adapters 与 parsers**：建立 `@distilly/adapters`，按 §10.6 的白名单逐个交付 Lark、DingTalk、Slack、Xquik 与本地 parser；每个 provider 是独立 feature，使用离线 fixture，secret 只走 refs，DingTalk message history 与全部 browser private-chat capture 保持 unavailable。加入 composition-owned user collection service，但不增加 EngineMethodMap 或 MCP tool。
+13. **Single-writer production runtime**：全部方法已有真 handler后，交付 root-scoped connect-or-start/attach service、actor-bound clients、production MCP/Panel/CLI/setup、user collection service 与 teardown ownership；第二 writer fail closed。
+14. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 Codex / Claude Code host reopen。
+15. **其它宿主、关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径或扩大 Developer Preview 的宿主宣称。
 
 前一 feature 未完成本地 commit、专属 Note、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
 
@@ -5063,12 +5314,15 @@ wire major 3 内允许：
 ### 29.5 宿主与安全验收
 
 - no web、no extraction、no file、subrun no MCP 都走明确 fallback；
+- Developer Preview 的 setup / doctor / fresh-install host matrix 恰为 Codex 与 Claude Code；其它宿主不出现在可安装或已验证列表；
 - 公开人物、创作者与私人联系人三种 source portfolio 都到达 traceable text、用户显式 file-ingest 的 raw-only、或 unavailable 之一；五工具路径不得声称自己保存 raw；
+- CLI / Panel credentialed collection 只从 secret refs 解析凭据，Lark 中国/国际不跨区、DingTalk 消息历史零网络返回 `host_unsupported`、Slack 不越过 bot scope且尊重 provider limits / `Retry-After`、Xquik 每次使用有界 limit 和非持久 MeteredReadConsentPort 的直接用户确认；
 - 同一 artifact 的多个表示不提高 eligible source count，unknown provenance 也不提高 stable；
 - Step 9 Codex / Claude Code private UI capture 明确 unavailable 并走粘贴/导出；未来 full binding 只有通过 §27.5 的授权、隔离、只读、前台与零截图留存拒绝矩阵后才可报告 available；
+- Developer Preview 的源树与运行依赖不包含 browser / Playwright 私聊抓取，Codex / Claude Code full binding 也不注册 private-capture Controller；
 - 恶意材料不能改变工具序列或获得 secret；
 - actor、version id、claim id 与 quality 不能由模型输入；
-- Panel 的 `/rpc` 覆盖完整 EngineMethodMap并双向 parse，所有 mutation 使用 token/method/requestId/params-bound 60-second one-use nonce；三个 POST endpoint 都要求 exact Bearer/Host/Origin；4 MiB request、16 MiB bounded response、16 KiB header/SSE frame、fixed static allowlist/symlink 与 CSP 拒绝全部通过；
+- Panel 的 `/rpc` 覆盖完整 EngineMethodMap，`/sources` 覆盖 UserCollectionMethodMap，二者都双向 parse；所有 mutation 使用 token/route/method/requestId/params-bound 60-second one-use nonce；四个 POST endpoint 都要求 exact Bearer/Host/Origin；4 MiB request、16 MiB bounded response、16 KiB header/SSE frame、fixed static allowlist/symlink 与 CSP 拒绝全部通过；
 - `POST /events` fetch stream 先 subscribe 再 ready/initial reads，无 replay；慢消费者、未知/超大 event 或断线都取消订阅并全量重读；
 - plugin fresh install 不依赖 PATH 或 npx latest；
 - canonical skill 两宿主内容 digest 相同；

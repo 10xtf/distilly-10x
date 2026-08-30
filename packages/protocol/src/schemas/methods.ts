@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 import { WIRE_LIMITS } from "../json.js";
-import type { EngineMethodMap, MethodSchemas } from "../methods.js";
+import type { EngineMethodMap, Method, MethodSchemas } from "../methods.js";
+import type {
+  SystemBackupInput,
+  SystemBackupResult,
+  SystemRestoreInput,
+  SystemRestoreResult,
+} from "../values/hosts.js";
 import { enforceToolInputBytes, exactOptionalRuntimeSchema } from "./common.js";
 import type { MatchingSchema } from "./common.js";
 import {
@@ -17,6 +23,10 @@ import {
   hostExportInputSchema,
   installInputSchema,
   installRefSchema,
+  systemBackupInputSchema,
+  systemBackupResultSchema,
+  systemRestoreInputSchema,
+  systemRestoreResultSchema,
   uninstallInputSchema,
 } from "./hosts.js";
 import {
@@ -51,6 +61,7 @@ import {
 } from "./profiles.js";
 import {
   createSubjectInputSchema,
+  purgeResultSchema,
   purgeSubjectInputSchema,
   resolveSubjectInputSchema,
   resolveSubjectResultSchema,
@@ -103,7 +114,7 @@ export const engineMethodSchemas: {
     resolveSubjectResultSchema,
   ),
   "subjects.archive": schemasFor<"subjects.archive">()(subjectRefSchema, emptyResultSchema),
-  "subjects.purge": schemasFor<"subjects.purge">()(purgeSubjectInputSchema, emptyResultSchema),
+  "subjects.purge": schemasFor<"subjects.purge">()(purgeSubjectInputSchema, purgeResultSchema),
 
   "materials.ingest": schemasFor<"materials.ingest">()(ingestInputSchema, ingestResultSchema),
   "materials.ingestFiles": schemasFor<"materials.ingestFiles">()(
@@ -157,4 +168,29 @@ export const engineMethodSchemas: {
   ),
 
   "system.doctor": schemasFor<"system.doctor">()(doctorInputSchema, doctorSnapshotSchema),
+};
+
+const administrationSchemasFor =
+  <M extends Method<unknown, unknown>>() =>
+  <P extends z.ZodType, R extends z.ZodType>(
+    params: P & MatchingSchema<P, M["params"]>,
+    result: R & MatchingSchema<R, M["result"]>,
+  ): MethodSchemas<M> => ({
+    params: exactOptionalRuntimeSchema(enforceToolInputBytes(params)),
+    result: exactOptionalRuntimeSchema(result),
+  });
+
+/** Strict maintenance validators intentionally excluded from EngineMethodMap. */
+export const engineAdministrationSchemas: {
+  readonly backup: MethodSchemas<Method<SystemBackupInput, SystemBackupResult>>;
+  readonly restore: MethodSchemas<Method<SystemRestoreInput, SystemRestoreResult>>;
+} = {
+  backup: administrationSchemasFor<Method<SystemBackupInput, SystemBackupResult>>()(
+    systemBackupInputSchema,
+    systemBackupResultSchema,
+  ),
+  restore: administrationSchemasFor<Method<SystemRestoreInput, SystemRestoreResult>>()(
+    systemRestoreInputSchema,
+    systemRestoreResultSchema,
+  ),
 };

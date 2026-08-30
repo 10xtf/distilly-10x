@@ -38,7 +38,7 @@ export interface ReviewService {
     input: RejectVersionInput,
     actor: ActorContext,
     context: MutationContext,
-  ): Promise<EmptyResult>;
+  ): Promise<VersionSummary>;
   rollback(
     input: RollbackVersionInput,
     actor: ActorContext,

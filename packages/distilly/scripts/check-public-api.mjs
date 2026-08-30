@@ -30,6 +30,7 @@ PendingFilter
 PendingJob
 Profile
 ProfileDiff
+PurgeResult
 PurgeSubjectInput
 RedistillInput
 ReleaseLeaseInput

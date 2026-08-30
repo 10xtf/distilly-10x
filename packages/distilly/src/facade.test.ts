@@ -75,6 +75,11 @@ const host = "codex" as HostName;
 const requestId = (digit: string): RequestId => `req_${digit.repeat(32)}` as RequestId;
 const subject = { id: subjectId } as SubjectSummary;
 const commitResult = { kind: "current" } as CommitResult;
+const purgeResult = {
+  subjectId,
+  logicalDeletion: "complete",
+  physicalDeletion: "complete",
+} as const;
 
 describe("Distilly", () => {
   it("maps every query and creates Person handles without I/O", async () => {
@@ -168,14 +173,14 @@ describe("Distilly", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("purges only through the explicit management method and discards null", async () => {
+  it("purges only through the explicit management method and preserves deletion status", async () => {
     const client = new RecordingClient();
-    client.setResult("subjects.purge", null);
+    client.setResult("subjects.purge", purgeResult);
     const distilly = new Distilly({ client });
 
     await expect(
       distilly.purge({ subjectId, confirmation: "Ada Lovelace" }, { requestId: requestId("9") }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual(purgeResult);
 
     expect(client.calls).toEqual([
       {

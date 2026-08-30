@@ -17,8 +17,13 @@ const client = {
       case "subjects.list":
         return { items: [] };
       case "subjects.archive":
-      case "subjects.purge":
         return null;
+      case "subjects.purge":
+        return {
+          subjectId,
+          logicalDeletion: "complete",
+          physicalDeletion: "complete",
+        };
       default:
         throw new Error(`Unexpected built-smoke method ${method}.`);
     }
@@ -40,12 +45,16 @@ const person = await distilly.create(
 assert.ok(person instanceof facade.Person);
 assert.equal(person.id, subjectId);
 assert.equal(await person.archive(), undefined);
-assert.equal(
+assert.deepEqual(
   await distilly.purge(
     { subjectId, confirmation: "Ada Lovelace" },
     { requestId: `req_${"3".repeat(32)}` },
   ),
-  undefined,
+  {
+    subjectId,
+    logicalDeletion: "complete",
+    physicalDeletion: "complete",
+  },
 );
 await distilly.close();
 

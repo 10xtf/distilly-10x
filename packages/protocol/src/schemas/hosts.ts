@@ -396,12 +396,35 @@ export const doctorSnapshotSchema = z.strictObject({
     writable: z.boolean(),
     schemaSupported: z.boolean(),
     projectionsDirty: z.boolean(),
+    pendingBlobGcCount: safeNonNegativeIntegerSchema,
   }),
   panel: z.strictObject({
     loopbackOnly: z.boolean(),
     authentication: z.enum(["enabled", "unavailable"]),
   }),
   extensions: z.array(extensionStatusSchema).max(WIRE_LIMITS.smallArrayItems),
+});
+
+export const systemBackupInputSchema = z.strictObject({
+  destination: uriStringSchema,
+  overwrite: z.boolean().optional(),
+});
+
+export const systemBackupResultSchema = z.strictObject({
+  path: uriStringSchema,
+  manifestDigest: contentDigestSchema,
+  createdAt: isoDateTimeSchema,
+});
+
+export const systemRestoreInputSchema = z.strictObject({
+  source: uriStringSchema,
+  confirmation: contentDigestSchema,
+});
+
+export const systemRestoreResultSchema = z.strictObject({
+  manifestDigest: contentDigestSchema,
+  restoredAt: isoDateTimeSchema,
+  previousRootPath: uriStringSchema,
 });
 
 export const bundleInspectInputSchema = z.strictObject({

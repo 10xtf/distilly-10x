@@ -4,7 +4,7 @@ import { FACT_LIMITS, WIRE_LIMITS } from "./json.js";
 import type { EngineMethodMap } from "./methods.js";
 import { utf8ByteLength } from "./schemas/common.js";
 import { ingestResultSchema, materialRecordSchema } from "./schemas/materials.js";
-import { engineMethodSchemas } from "./schemas/methods.js";
+import { engineAdministrationSchemas, engineMethodSchemas } from "./schemas/methods.js";
 
 const HEX_32 = "0".repeat(32);
 const ALT_HEX_32 = "1".repeat(32);
@@ -462,7 +462,11 @@ const fixtures = {
   "subjects.archive": { params: { subjectId }, result: null },
   "subjects.purge": {
     params: { subjectId, confirmation: "Purge Ada" },
-    result: null,
+    result: {
+      subjectId,
+      logicalDeletion: "complete",
+      physicalDeletion: "complete",
+    },
   },
   "materials.ingest": { params: ingestParams, result: ingestResult },
   "materials.ingestFiles": {
@@ -656,6 +660,7 @@ const fixtures = {
         writable: true,
         schemaSupported: true,
         projectionsDirty: false,
+        pendingBlobGcCount: 0,
       },
       panel: { loopbackOnly: true, authentication: "enabled" },
       extensions: [
@@ -700,6 +705,114 @@ describe("engine method runtime schemas", () => {
   it("publishes exactly the 35 EngineMethodMap keys", () => {
     expect(Object.keys(engineMethodSchemas).sort()).toEqual([...methodNames].sort());
     expect(Object.hasOwn(engineMethodSchemas, "future.method")).toBe(false);
+    expect(Object.keys(engineAdministrationSchemas)).toEqual(["backup", "restore"]);
+    expect(Object.hasOwn(engineMethodSchemas, "backup")).toBe(false);
+    expect(Object.hasOwn(engineMethodSchemas, "restore")).toBe(false);
+  });
+
+  it("keeps purge completion and live GC diagnostics strict", () => {
+    const purgeResult = engineMethodSchemas["subjects.purge"].result;
+    expect(
+      purgeResult.parse({
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "complete",
+      }),
+    ).toEqual({ subjectId, logicalDeletion: "complete", physicalDeletion: "complete" });
+    expect(
+      purgeResult.parse({
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "pending",
+        pendingBlobCount: Number.MAX_SAFE_INTEGER,
+      }),
+    ).toMatchObject({ physicalDeletion: "pending", pendingBlobCount: Number.MAX_SAFE_INTEGER });
+
+    const invalidPurgeResults = [
+      {
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "complete",
+        pendingBlobCount: 1,
+      },
+      { subjectId, logicalDeletion: "complete", physicalDeletion: "pending" },
+      {
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "pending",
+        pendingBlobCount: 0,
+      },
+      {
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "pending",
+        pendingBlobCount: 1.5,
+      },
+      {
+        subjectId,
+        logicalDeletion: "complete",
+        physicalDeletion: "pending",
+        pendingBlobCount: Number.MAX_SAFE_INTEGER + 1,
+      },
+    ];
+    for (const result of invalidPurgeResults) expect(() => purgeResult.parse(result)).toThrow();
+
+    const doctorResult = engineMethodSchemas["system.doctor"].result;
+    expect(() =>
+      doctorResult.parse({
+        ...fixtures["system.doctor"].result,
+        storage: {
+          ...fixtures["system.doctor"].result.storage,
+          pendingBlobGcCount: Number.MAX_SAFE_INTEGER,
+        },
+      }),
+    ).not.toThrow();
+    for (const pendingBlobGcCount of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() =>
+        doctorResult.parse({
+          ...fixtures["system.doctor"].result,
+          storage: { ...fixtures["system.doctor"].result.storage, pendingBlobGcCount },
+        }),
+      ).toThrow();
+    }
+    const storageWithoutGcCount = {
+      rootLabel: "distilly-home",
+      writable: true,
+      schemaSupported: true,
+      projectionsDirty: false,
+    };
+    expect(() =>
+      doctorResult.parse({
+        ...fixtures["system.doctor"].result,
+        storage: storageWithoutGcCount,
+      }),
+    ).toThrow();
+  });
+
+  it("round-trips strict root-owner backup and restore contracts", () => {
+    const backupInput = { destination: "/tmp/distilly-backup", overwrite: false };
+    const backupResult = {
+      path: "/tmp/distilly-backup",
+      manifestDigest: contentDigest,
+      createdAt: at,
+    };
+    const restoreInput = { source: "/tmp/distilly-backup", confirmation: contentDigest };
+    const restoreResult = {
+      manifestDigest: contentDigest,
+      restoredAt: at,
+      previousRootPath: "/tmp/distilly-previous",
+    };
+
+    parseRoundTrip(engineAdministrationSchemas.backup.params, backupInput);
+    parseRoundTrip(engineAdministrationSchemas.backup.result, backupResult);
+    parseRoundTrip(engineAdministrationSchemas.restore.params, restoreInput);
+    parseRoundTrip(engineAdministrationSchemas.restore.result, restoreResult);
+    expect(() =>
+      engineAdministrationSchemas.backup.params.parse({ ...backupInput, unexpected: true }),
+    ).toThrow();
+    expect(() =>
+      engineAdministrationSchemas.restore.result.parse({ ...restoreResult, unexpected: true }),
+    ).toThrow();
   });
 
   it.each(methodNames)("round-trips valid %s params and result", (method) => {
@@ -1396,13 +1509,8 @@ describe("engine method runtime schemas", () => {
     ).toThrow();
   });
 
-  it("encodes all four no-payload method results as null", () => {
-    const methods = [
-      "subjects.archive",
-      "subjects.purge",
-      "distill.release",
-      "hosts.uninstall",
-    ] as const;
+  it("encodes all three no-payload method results as null", () => {
+    const methods = ["subjects.archive", "distill.release", "hosts.uninstall"] as const;
     for (const method of methods) {
       expect(engineMethodSchemas[method].result.parse(null)).toBeNull();
       expect(() => engineMethodSchemas[method].result.parse(undefined)).toThrow();

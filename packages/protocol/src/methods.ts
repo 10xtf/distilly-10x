@@ -44,6 +44,7 @@ import type {
 } from "./values/profiles.js";
 import type {
   CreateSubjectInput,
+  PurgeResult,
   PurgeSubjectInput,
   ResolveSubjectInput,
   ResolveSubjectResult,
@@ -81,7 +82,7 @@ export type EngineMethodMap = Readonly<{
   readonly "subjects.list": Method<SubjectQuery, SubjectPage>;
   readonly "subjects.resolve": Method<ResolveSubjectInput, ResolveSubjectResult>;
   readonly "subjects.archive": Method<SubjectRef, EmptyResult>;
-  readonly "subjects.purge": Method<PurgeSubjectInput, EmptyResult>;
+  readonly "subjects.purge": Method<PurgeSubjectInput, PurgeResult>;
 
   readonly "materials.ingest": Method<IngestInput, IngestResult>;
   readonly "materials.ingestFiles": Method<IngestFilesInput, IngestFilesResult>;

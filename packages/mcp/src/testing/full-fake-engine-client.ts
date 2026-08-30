@@ -264,7 +264,11 @@ export const FULL_FAKE_ENGINE_RESULTS: FullFakeEngineResults = {
   "subjects.list": { items: [subject] },
   "subjects.resolve": { kind: "found", subject },
   "subjects.archive": null,
-  "subjects.purge": null,
+  "subjects.purge": {
+    subjectId: SUBJECT_ID,
+    logicalDeletion: "complete",
+    physicalDeletion: "complete",
+  },
   "materials.ingest": ingestResult,
   "materials.ingestFiles": {
     subject,
@@ -342,6 +346,7 @@ export const FULL_FAKE_ENGINE_RESULTS: FullFakeEngineResults = {
       writable: true,
       schemaSupported: true,
       projectionsDirty: false,
+      pendingBlobGcCount: 0,
     },
     panel: { loopbackOnly: true, authentication: "enabled" },
     extensions: [],

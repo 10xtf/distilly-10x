@@ -34,6 +34,7 @@ const doctorSnapshot = {
     writable: true,
     schemaSupported: true,
     projectionsDirty: false,
+    pendingBlobGcCount: 0,
   },
   panel: { loopbackOnly: true, authentication: "enabled" },
   extensions: [],

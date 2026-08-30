@@ -8,6 +8,7 @@ import type {
   JobLease,
   PendingFilter,
   PendingJob,
+  PurgeResult,
   PurgeSubjectInput,
   RequestId,
   ResolveSubjectInput,
@@ -186,10 +187,10 @@ export class Distilly {
    *
    * @param input - Subject identity and confirmation required by the engine.
    * @param mutation - Optional request identity for replay.
-   * @returns Completion after the engine returns its null wire result.
+   * @returns Stable logical and physical deletion status.
    */
-  async purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<void> {
-    await this.#client.call("subjects.purge", input, mutationContext(mutation?.requestId));
+  async purge(input: PurgeSubjectInput, mutation?: MutationOptions): Promise<PurgeResult> {
+    return this.#client.call("subjects.purge", input, mutationContext(mutation?.requestId));
   }
 
   /**

@@ -266,12 +266,39 @@ export interface DoctorSnapshot {
     readonly writable: boolean;
     readonly schemaSupported: boolean;
     readonly projectionsDirty: boolean;
+    readonly pendingBlobGcCount: number;
   };
   readonly panel: {
     readonly loopbackOnly: boolean;
     readonly authentication: "enabled" | "unavailable";
   };
   readonly extensions: readonly ExtensionStatus[];
+}
+
+/** Requests an atomic backup at an explicit local destination. */
+export interface SystemBackupInput {
+  readonly destination: string;
+  readonly overwrite?: boolean;
+}
+
+/** Published backup directory and its verified manifest identity. */
+export interface SystemBackupResult {
+  readonly path: string;
+  readonly manifestDigest: ContentDigest;
+  readonly createdAt: IsoDateTime;
+}
+
+/** Requests a restore after confirming the inspected backup manifest. */
+export interface SystemRestoreInput {
+  readonly source: string;
+  readonly confirmation: ContentDigest;
+}
+
+/** Restored manifest and retained previous root after an atomic switch. */
+export interface SystemRestoreResult {
+  readonly manifestDigest: ContentDigest;
+  readonly restoredAt: IsoDateTime;
+  readonly previousRootPath: string;
 }
 
 /** Local path to a bundle that must be inspected before import. */

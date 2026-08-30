@@ -288,7 +288,14 @@ export const PANEL_RPC_FIXTURES = {
     result: { kind: "found", subject },
   },
   "subjects.archive": { params: { subjectId }, result: null },
-  "subjects.purge": { params: { subjectId, confirmation: "Purge Ada" }, result: null },
+  "subjects.purge": {
+    params: { subjectId, confirmation: "Purge Ada" },
+    result: {
+      subjectId,
+      logicalDeletion: "complete",
+      physicalDeletion: "complete",
+    },
+  },
   "materials.ingest": {
     params: {
       subject: { kind: "existing", subjectId },
@@ -460,6 +467,7 @@ export const PANEL_RPC_FIXTURES = {
         writable: true,
         schemaSupported: true,
         projectionsDirty: false,
+        pendingBlobGcCount: 0,
       },
       panel: { loopbackOnly: true, authentication: "enabled" },
       extensions: [],

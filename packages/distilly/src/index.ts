@@ -30,6 +30,7 @@ export type {
   PendingJob,
   Profile,
   ProfileDiff,
+  PurgeResult,
   PurgeSubjectInput,
   RedistillInput,
   ReleaseLeaseInput,

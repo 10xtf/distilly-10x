@@ -69,7 +69,12 @@ import {
   rebuildResultSchema,
   renderedPromptSchema,
 } from "./profiles.js";
-import { identityHintSchema, subjectLifecycleSchema, subjectSummarySchema } from "./subjects.js";
+import {
+  identityHintSchema,
+  purgeResultSchema,
+  subjectLifecycleSchema,
+  subjectSummarySchema,
+} from "./subjects.js";
 import {
   commitResultSchema,
   createdDispositionSchema,
@@ -464,7 +469,7 @@ export const operationScopeSchema = schemaFor<OperationScope>()(
 const operationRecordVariants = {
   "subjects.create": operationRecordVariant("subjects.create", subjectSummarySchema),
   "subjects.archive": operationRecordVariant("subjects.archive", emptyResultSchema),
-  "subjects.purge": operationRecordVariant("subjects.purge", emptyResultSchema),
+  "subjects.purge": operationRecordVariant("subjects.purge", purgeResultSchema),
   "materials.ingest": operationRecordVariant("materials.ingest", ingestResultSchema),
   "materials.ingestFiles": operationRecordVariant("materials.ingestFiles", ingestFilesResultSchema),
   "distill.brief": operationRecordVariant("distill.brief", hostDistillBriefingSchema),
@@ -537,13 +542,14 @@ const operationResultSubjectIds = (record: ParsedOperationRecord): readonly stri
     case "subjects.create":
       return [record.result.id];
     case "subjects.archive":
-    case "subjects.purge":
     case "distill.renew":
     case "distill.release":
     case "hosts.uninstall":
     case "library.rebuild":
     case "bundles.export":
       return [];
+    case "subjects.purge":
+      return [record.result.subjectId];
     case "materials.ingest":
     case "materials.ingestFiles":
       return [record.result.subject.id];

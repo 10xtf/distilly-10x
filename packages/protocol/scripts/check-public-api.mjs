@@ -61,6 +61,7 @@ DistillyWireError
 DoctorInput
 DoctorSnapshot
 EmptyResult
+EngineAdministrationClient
 EngineClient
 EngineEvent
 EngineEventDecodeHandlers
@@ -168,6 +169,7 @@ Profile
 ProfileDiff
 ProvenanceDigest
 PublicJobState
+PurgeResult
 PurgeSubjectInput
 QualitySummary
 QueryMethodName
@@ -219,6 +221,10 @@ SubjectSelector
 SubjectStateRecord
 SubjectStatus
 SubjectSummary
+SystemBackupInput
+SystemBackupResult
+SystemRestoreInput
+SystemRestoreResult
 TextDerivation
 TextDerivationInput
 TransactionRecord
@@ -297,6 +303,7 @@ distillyMcpTools
 distillyWireErrorSchema
 doctorInputSchema
 doctorSnapshotSchema
+engineAdministrationSchemas
 engineEventSchema
 engineMethodSchemas
 eventIdSchema
@@ -383,6 +390,7 @@ profileDiffWithBaselineSchema
 profileSchema
 provenanceDigestSchema
 publicJobStateSchema
+purgeResultSchema
 purgeSubjectInputSchema
 qualitySummarySchema
 rawIdSchema
@@ -428,6 +436,10 @@ subjectSelectorSchema
 subjectStateRecordSchema
 subjectStatusSchema
 subjectSummarySchema
+systemBackupInputSchema
+systemBackupResultSchema
+systemRestoreInputSchema
+systemRestoreResultSchema
 textDerivationInputSchema
 textDerivationSchema
 transactionRecordSchema

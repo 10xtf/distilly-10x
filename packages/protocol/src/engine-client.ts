@@ -1,8 +1,20 @@
 import type { EngineEvent } from "./events.js";
 import type { EngineMethodMap, MutationMethodName, QueryMethodName } from "./methods.js";
 import type { MutationContext } from "./values.js";
+import type {
+  SystemBackupInput,
+  SystemBackupResult,
+  SystemRestoreInput,
+  SystemRestoreResult,
+} from "./values/hosts.js";
 
 export type Unsubscribe = () => void;
+
+/** Root-owner maintenance client kept outside ordinary business methods. */
+export interface EngineAdministrationClient {
+  backup(input: SystemBackupInput): Promise<SystemBackupResult>;
+  restore(input: SystemRestoreInput): Promise<SystemRestoreResult>;
+}
 
 /** Typed client shared by SDK, MCP, CLI, panel, and runtime dispatchers. */
 export interface EngineClient {

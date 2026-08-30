@@ -73,6 +73,7 @@ export type {
   AmbiguousSubjectCandidates,
   CreateSubjectInput,
   IdentityHint,
+  PurgeResult,
   PurgeSubjectInput,
   ResolveSubjectInput,
   ResolveSubjectResult,
@@ -220,6 +221,10 @@ export type {
   PrivateUiCaptureRefused,
   PrivateUiCaptureScope,
   PrivateUiCaptureStopReason,
+  SystemBackupInput,
+  SystemBackupResult,
+  SystemRestoreInput,
+  SystemRestoreResult,
   UninstallInput,
 } from "./values/hosts.js";
 
@@ -234,6 +239,7 @@ export type {
 export type {
   CoreEngineClient,
   CoreMethodName,
+  EngineAdministrationClient,
   EngineClient,
   RuntimeOwnedMethodName,
   Unsubscribe,
@@ -326,6 +332,7 @@ export {
   createSubjectInputSchema,
   identityHintSchema,
   maturitySchema,
+  purgeResultSchema,
   purgeSubjectInputSchema,
   resolveSubjectInputSchema,
   resolveSubjectResultSchema,
@@ -467,10 +474,14 @@ export {
   privateUiCaptureRefusedSchema,
   privateUiCaptureScopeSchema,
   privateUiCaptureStopReasonSchema,
+  systemBackupInputSchema,
+  systemBackupResultSchema,
+  systemRestoreInputSchema,
+  systemRestoreResultSchema,
   uninstallInputSchema,
 } from "./schemas/hosts.js";
 export { decodeEngineEvent, engineEventSchema } from "./schemas/events.js";
-export { engineMethodSchemas } from "./schemas/methods.js";
+export { engineAdministrationSchemas, engineMethodSchemas } from "./schemas/methods.js";
 export {
   distillyErrorCodeSchema,
   distillyWireErrorSchema,

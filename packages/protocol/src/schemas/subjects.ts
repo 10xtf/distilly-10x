@@ -16,6 +16,7 @@ import {
   listLimitSchema,
   queryStringSchema,
   safeNonNegativeIntegerSchema,
+  safePositiveIntegerSchema,
 } from "./common.js";
 
 export const subjectLifecycleSchema = z.enum(["active", "archived"]);
@@ -117,6 +118,20 @@ export const purgeSubjectInputSchema = z.strictObject({
   subjectId: subjectIdSchema,
   confirmation: labelStringSchema,
 });
+
+export const purgeResultSchema = z.discriminatedUnion("physicalDeletion", [
+  z.strictObject({
+    subjectId: subjectIdSchema,
+    logicalDeletion: z.literal("complete"),
+    physicalDeletion: z.literal("complete"),
+  }),
+  z.strictObject({
+    subjectId: subjectIdSchema,
+    logicalDeletion: z.literal("complete"),
+    physicalDeletion: z.literal("pending"),
+    pendingBlobCount: safePositiveIntegerSchema,
+  }),
+]);
 
 export const createSubjectInputSchema = z
   .strictObject({

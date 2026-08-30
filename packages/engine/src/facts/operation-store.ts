@@ -62,13 +62,14 @@ const resultSubjectIds = (record: OperationRecord): readonly SubjectId[] => {
     case "subjects.create":
       return [record.result.id];
     case "subjects.archive":
-    case "subjects.purge":
     case "distill.renew":
     case "distill.release":
     case "hosts.uninstall":
     case "library.rebuild":
     case "bundles.export":
       return [];
+    case "subjects.purge":
+      return [record.result.subjectId];
     case "materials.ingest":
     case "materials.ingestFiles":
       return [record.result.subject.id];

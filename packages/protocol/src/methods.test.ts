@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   CoreEngineClient,
   CoreMethodName,
+  EngineAdministrationClient,
   EngineClient,
   RuntimeOwnedMethodName,
 } from "./engine-client.js";
@@ -46,6 +47,10 @@ import type {
   PrivateUiCaptureRefusalReason,
   PrivateUiCaptureScope,
   PrivateUiCaptureStopReason,
+  SystemBackupInput,
+  SystemBackupResult,
+  SystemRestoreInput,
+  SystemRestoreResult,
   UninstallInput,
 } from "./values/hosts.js";
 import type {
@@ -82,6 +87,7 @@ import type {
 } from "./values/profiles.js";
 import type {
   CreateSubjectInput,
+  PurgeResult,
   PurgeSubjectInput,
   ResolveSubjectInput,
   ResolveSubjectResult,
@@ -195,7 +201,7 @@ type ExpectedEngineMethodMap = Readonly<{
   readonly "subjects.list": Method<SubjectQuery, SubjectPage>;
   readonly "subjects.resolve": Method<ResolveSubjectInput, ResolveSubjectResult>;
   readonly "subjects.archive": Method<SubjectRef, EmptyResult>;
-  readonly "subjects.purge": Method<PurgeSubjectInput, EmptyResult>;
+  readonly "subjects.purge": Method<PurgeSubjectInput, PurgeResult>;
   readonly "materials.ingest": Method<IngestInput, IngestResult>;
   readonly "materials.ingestFiles": Method<IngestFilesInput, IngestFilesResult>;
   readonly "materials.list": Method<MaterialQuery, MaterialPage>;
@@ -248,6 +254,16 @@ describe("engine method contracts", () => {
     expectTypeOf<CoreMethodName>().toEqualTypeOf<
       Exclude<ExpectedMethodName, ExpectedRuntimeOwnedMethodName>
     >();
+  });
+
+  it("keeps root administration separate from EngineMethodMap", () => {
+    expectTypeOf<EngineAdministrationClient["backup"]>().toEqualTypeOf<
+      (input: SystemBackupInput) => Promise<SystemBackupResult>
+    >();
+    expectTypeOf<EngineAdministrationClient["restore"]>().toEqualTypeOf<
+      (input: SystemRestoreInput) => Promise<SystemRestoreResult>
+    >();
+    expectTypeOf<Extract<"backup" | "restore", keyof EngineMethodMap>>().toEqualTypeOf<never>();
   });
 
   it("uses branded facet paths across public claim and review values", () => {

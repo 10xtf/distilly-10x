@@ -314,6 +314,7 @@ const mutationMethods = [
 
 const methodsWithVisibleSubjectResults = [
   "subjects.create",
+  "subjects.purge",
   "materials.ingest",
   "materials.ingestFiles",
   "distill.brief",
@@ -331,7 +332,11 @@ const methodsWithVisibleSubjectResults = [
 const mutationResults = {
   "subjects.create": subject,
   "subjects.archive": null,
-  "subjects.purge": null,
+  "subjects.purge": {
+    subjectId,
+    logicalDeletion: "complete",
+    physicalDeletion: "complete",
+  },
   "materials.ingest": ingestResult,
   "materials.ingestFiles": {
     subject,

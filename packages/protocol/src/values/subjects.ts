@@ -94,6 +94,20 @@ export interface PurgeSubjectInput extends SubjectRef {
   readonly confirmation: string;
 }
 
+/** Stable logical and physical deletion result for an idempotent purge. */
+export type PurgeResult =
+  | {
+      readonly subjectId: SubjectId;
+      readonly logicalDeletion: "complete";
+      readonly physicalDeletion: "complete";
+    }
+  | {
+      readonly subjectId: SubjectId;
+      readonly logicalDeletion: "complete";
+      readonly physicalDeletion: "pending";
+      readonly pendingBlobCount: number;
+    };
+
 /** User-supplied fields for creating an engine-owned subject identity. */
 export interface CreateSubjectInput {
   readonly displayName: string;

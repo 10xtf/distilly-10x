@@ -21,6 +21,16 @@ assert.deepEqual(protocol.engineMethodSchemas["subjects.archive"].params.parse({
 });
 assert.equal(protocol.engineMethodSchemas["subjects.archive"].result.parse(null), null);
 assert.throws(() => protocol.engineMethodSchemas["subjects.archive"].result.parse(undefined));
+assert.deepEqual(Object.keys(protocol.engineAdministrationSchemas), ["backup", "restore"]);
+assert.equal(Object.hasOwn(protocol.engineMethodSchemas, "backup"), false);
+assert.deepEqual(
+  protocol.engineMethodSchemas["subjects.purge"].result.parse({
+    subjectId,
+    logicalDeletion: "complete",
+    physicalDeletion: "complete",
+  }),
+  { subjectId, logicalDeletion: "complete", physicalDeletion: "complete" },
+);
 assert.deepEqual(
   protocol.distillyMcpTools.map((tool) => tool.name),
   ["distilly_get", "distilly_ingest", "distilly_pending", "distilly_commit", "distilly_correct"],

@@ -16,6 +16,7 @@ import {
   contentDigestSchema,
   conversationSourceKeySchema,
   distillyMcpTools,
+  engineAdministrationSchemas,
   engineMethodSchemas,
   eventIdSchema,
   facetPathSchema,
@@ -40,6 +41,7 @@ import type {
   CommitToolOutput,
   CoreEngineClient,
   CorrectToolOutput,
+  EngineAdministrationClient,
   EngineClient,
   EngineEvent,
   EngineMethodMap,
@@ -80,6 +82,7 @@ describe("complete V3 protocol public contract", () => {
   it("exports the complete typed root contract", () => {
     expectTypeOf<keyof EngineMethodMap>().toEqualTypeOf<keyof typeof engineMethodSchemas>();
     expectTypeOf<EngineClient>().not.toEqualTypeOf<CoreEngineClient>();
+    expectTypeOf<EngineAdministrationClient>().not.toEqualTypeOf<EngineClient>();
     expectTypeOf<EngineEvent["kind"]>().toBeString();
     expectTypeOf<
       GetToolOutput | IngestToolOutput | PendingToolOutput | CommitToolOutput | CorrectToolOutput
@@ -96,6 +99,7 @@ describe("complete V3 protocol public contract", () => {
       builtInPeopleSpaceId: BUILTIN_PEOPLE_SPACE_ID,
       brandedSchemaNames: Object.keys(brandedSchemas),
       errorCodes: DISTILLY_ERROR_CODES,
+      engineAdministrationMethodNames: Object.keys(engineAdministrationSchemas),
       engineMethodNames: Object.keys(engineMethodSchemas),
     }).toMatchInlineSnapshot(`
       {
@@ -131,6 +135,10 @@ describe("complete V3 protocol public contract", () => {
           "codex": "codex",
         },
         "builtInPeopleSpaceId": "space_00000000000000000000000000000001",
+        "engineAdministrationMethodNames": [
+          "backup",
+          "restore",
+        ],
         "engineMethodNames": [
           "subjects.create",
           "subjects.list",

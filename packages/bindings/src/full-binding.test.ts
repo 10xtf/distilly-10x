@@ -207,7 +207,9 @@ describe("Claude Code full binding", () => {
     expect(await readdir(join(home, ".claude", "skills"))).toEqual(["distilly"]);
     const mcp = await readFile(join(installedRoot, ".mcp.json"), "utf8");
     expect(JSON.parse(mcp)).toEqual({
-      mcpServers: { distilly: { command: launcherPath, args: ["mcp"] } },
+      mcpServers: {
+        distilly: { command: launcherPath, args: ["mcp", "--host", "claude-code"] },
+      },
     });
     expect(mcp).not.toContain("__DISTILLY_LAUNCHER_ABSOLUTE_PATH__");
     await expect(readFile(join(installedRoot, ".mcp.json.template"))).rejects.toMatchObject({
@@ -477,6 +479,14 @@ describe("Codex full binding", () => {
     const ownershipBefore = await readFile(ownershipPath);
     await writeFile(join(pluginRoot, "user-note.txt"), "keep me\n");
 
+    await expect(
+      binding.doctor({ sessionId: "codex-unowned-doctor", environment: "cli" }),
+    ).resolves.toMatchObject({
+      installed: true,
+      launcherReachable: false,
+      wireCompatible: false,
+      warnings: ["The Distilly host installation manifest is invalid."],
+    });
     await expect(binding.installPlugin(context)).rejects.toMatchObject({
       code: "storage_corrupt",
     });

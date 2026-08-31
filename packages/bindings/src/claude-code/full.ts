@@ -59,7 +59,9 @@ export const createClaudeCodeHostBinding = (options: ClaudeCodeHostBindingOption
         platformManifestPath: PLATFORM_MANIFEST,
         expectedSkillDigest: options.release.canonicalSkillDigest,
         mcpShape: (launcherPath) => ({
-          mcpServers: { distilly: { command: launcherPath, args: ["mcp"] } },
+          mcpServers: {
+            distilly: { command: launcherPath, args: ["mcp", "--host", host] },
+          },
         }),
       }),
     uninstallPlugin: () => uninstallPluginTree(pluginRoot, host),

@@ -134,12 +134,14 @@ test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along rev
         "cli",
         "@distilly/cli",
         'export type { EngineClient } from "@distilly/protocol";\n' +
+          'export type { HostBinding } from "@distilly/bindings";\n' +
           'export type { PreviewLocalRuntime } from "@distilly/runtime/preview";\n' +
           'export { Distilly } from "distilly";\n' +
           'export { createMcpServer } from "@distilly/mcp";\n' +
           'export { PanelLauncher } from "@distilly/panel/server";\n',
         {
           "@distilly/protocol": "workspace:*",
+          "@distilly/bindings": "workspace:*",
           "@distilly/runtime": "workspace:*",
           distilly: "workspace:*",
           "@distilly/mcp": "workspace:*",

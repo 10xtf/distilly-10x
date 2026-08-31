@@ -467,11 +467,16 @@ export const doctorPluginTree = async (
   host: HostName,
   expectedVersion: string,
 ): Promise<HostDoctorResult> => {
-  let ownership: PluginOwnershipManifest;
+  let ownership: PluginOwnershipManifest | undefined;
   try {
-    ownership = await readOwnership(pluginRoot);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    ownership = await readVerifiedPluginTree(pluginRoot, host);
+    if (ownership === undefined) {
+      const root = await lstat(pluginRoot).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+      if (root !== undefined)
+        throw corrupt("The host plugin destination is not owned by Distilly.");
       return {
         host,
         installed: false,
@@ -481,6 +486,7 @@ export const doctorPluginTree = async (
         remediation: `Run distilly setup --host ${host}.`,
       };
     }
+  } catch {
     return {
       host,
       installed: true,
@@ -492,11 +498,6 @@ export const doctorPluginTree = async (
   }
 
   const warnings: string[] = [];
-  try {
-    await verifyOwnedFiles(pluginRoot, ownership);
-  } catch {
-    warnings.push("One or more Distilly host plugin files are missing or modified.");
-  }
   const reachable = await launcherReachable(ownership.launcherPath);
   if (!reachable) warnings.push("The installed Distilly launcher is not executable.");
   const compatible = ownership.host === host && ownership.runtimeVersion === expectedVersion;

@@ -4096,7 +4096,7 @@ distilly restore --from <path> --confirm <manifest-digest>
 distilly migrate --from <legacy-skill-dir>
 ~~~
 
-CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。这是 production CLI 的最终命令面，不是允许早期 slice 注册一个会对数据命令返回“尚未实现”的 shell；`@distilly/cli` executable、`distilly mcp` 与上述数据命令都只在 §29 production composition slice 落地。
+CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。上表是 production CLI 的最终命令面，不允许早期 slice 注册一组会对数据命令返回“尚未实现”的占位 shell。repo-local Developer Preview 只暴露已真实接通的 `setup --host codex|claude-code`、`doctor`、`uninstall --host ...` 与 plugin-owned `mcp --host ...`；其它数据命令在 §29 production composition slice 落地前不进入 help 或稳定 exports。
 
 `source configure` 只保存非敏感配置与 secret reference；需要新建 keychain secret 时使用 TTY 隐藏输入，不接受明文 secret flag。`source collect` 先显示 adapter、resolved subject、resource、time range 与 limit，再由直接用户动作执行；非交互 Xquik 调用还必须给出与 `--limit` 数值相同的 `--confirm-billable-limit`，缺失或不一致时在解析 secret 或发网络请求前失败。source 子命令不注册成 MCP tool，也不允许 canonical skill 用 shell 权限替用户绕过确认。
 
@@ -4112,7 +4112,7 @@ CLI-owned draft envelope schemaVersion=1，包含 `briefing`（HostDistillBriefi
 
 ### 19.2 Setup 不能依赖 PATH 运气
 
-npx distilly@VERSION setup 是 bootstrap 入口，但只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。setup：
+npx distilly@VERSION setup 是最终 bootstrap 入口，只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。发布前的 repo-local Developer Preview 允许从构建产物执行同名 setup：当前 Codex-first slice 只支持 macOS/Linux、已有真实容量证据的 Codex exact version、当前 release manifest 与当前绝对 Node/entry，不复制 workspace、不开启 upgrade，也不声称是自包含 archive；Claude Code 保留 full binding 但在取得同等证据前不进入 CLI 可用面。两种 setup 均遵循下列目标；Preview 当前完成 1–5、7–8，真实 initialize/tools-list 由 built lifecycle smoke 验证而非伪造 setup 成功：
 
 1. 检查 Node、平台、目标宿主与写权限；
 2. 把精确版本 runtime 安装到 ~/.distilly/runtime/<version>/；
@@ -4171,7 +4171,7 @@ handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；S
 
 解析后的 ToolOutput 是唯一结果值。MCP CallToolResult 精确使用 `structuredContent: parsedOutput` 与 `content: [{ type: "text", text: JSON.stringify(parsedOutput) }]`；content text 解码后必须与 structuredContent 深相等。domain、invalid_input、presenter failure 与 unexpected 都作为正常的这份 structured WireFailure 返回，不依赖 MCP SDK generic `isError` / JSON-RPC error 承载产品错误。只有 transport 在连一份合法 WireFailure 都无法序列化时才允许协议级失败。
 
-当前真实 stdio smoke 由 test-only child entry 注入一个覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，经 initialize → tools/list → 每个 tools/call → EOF/close 走真实字节 transport。它证明 descriptor、handler、envelope 与 stdio 生命周期，不接触 DISTILLY_ROOT、不构造 Engine service、也不是可操作的 `distilly mcp` 用户入口；production stdio 只能在完整 composition feature 落地。
+MCP 包自己的 stdio conformance smoke 仍由 test-only child 注入覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，以隔离验证 descriptor、handler、envelope 与 transport 生命周期。另一个 CLI built smoke 从真实 binary 执行 Codex setup 并拒绝尚无证据的 Claude activation，经安装后的绝对 launcher 启动 plugin-owned `mcp --host codex`，在真实临时 `~/.distilly` SQLite root 上完成 initialize 与恰好五个 tools/list，再执行 uninstall 并验证 root 数据保留。独立的真实 Codex fixture 通过当前 descriptor/serializer 验证 65,536-byte tool result 的 structured/text 深相等、16,384-byte briefing 与两个模型可见尾标。它证明 repo-local Codex Preview lifecycle，不证明自包含 archive、宿主真实重开 discovery、跨进程共享 writer、Claude activation 或 production upgrade。
 
 ~~~text
 plugins/
@@ -4237,7 +4237,7 @@ export interface PluginReleaseManifestV1 {
 
 releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
 
-Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 production setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；source release tree 本身因此不声称可启动 MCP。full HostBinding 只在 owned install tree 中把 sentinel 替换为 JSON-escaped absolute launcher path并写宿主实际读取的 `.mcp.json`；production setup 随后做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
+Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；source release tree 单独存在时因此不声称可启动 MCP。full HostBinding 只在 owned install tree 中把 sentinel 替换为 JSON-escaped absolute launcher path并写宿主实际读取的 `.mcp.json`，同时写入固定的 `mcp --host codex|claude-code` 参数。repo-local Preview 的 built lifecycle smoke做 initialize/tools-list；production setup 最终内置同等 smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
 
 ### 19.5 三种分发概念
 

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "codex-cli-0.146.0-cli-distilly-0.0.0-v1",
+  "host": "codex",
+  "hostVersion": "codex-cli 0.146.0",
+  "environment": "cli",
+  "releaseVersion": "0.0.0",
+  "wireMajor": 3,
+  "canonicalSkillDigest": "sha256_cf2952b0420672c1135dbf0329ba8495ea01903b47cff6778b25cc63cca19cb7",
+  "toolContractDigest": "sha256_a5ef4303fa29360416008448f12dd4b01f325143633e7fa2298c2094f73a6eda",
+  "serializer": "structured-content-plus-json-text-v1",
+  "capacity": {
+    "maximumInputTokens": 16384,
+    "maximumToolResultBytes": 65536
+  },
+  "observed": {
+    "briefingBytes": 16384,
+    "toolResultBytes": 65536,
+    "structuredTextDeepEqual": true,
+    "modelObservedBothTailMarkers": true,
+    "normalizedTranscriptDigest": "sha256_465007862d1eaaaeb5400b6e23dc127e955f106b7b188ff7b60fb543e4d4728f"
+  },
+  "verifiedAt": "2026-08-31T14:44:26.825Z"
+}

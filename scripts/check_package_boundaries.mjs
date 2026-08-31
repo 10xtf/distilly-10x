@@ -40,6 +40,7 @@ const ALLOWED_INTERNAL_DEPENDENCIES = new Map([
     "@distilly/cli",
     new Set([
       "@distilly/protocol",
+      "@distilly/bindings",
       "@distilly/runtime",
       "distilly",
       "@distilly/mcp",

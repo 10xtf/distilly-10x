@@ -85,7 +85,7 @@ test("rejects production Engine source importing a legacy test fixture", async (
   assert.match(result.stderr, /\[legacy-test-only-import\]/u);
 });
 
-test("accepts adapters, runtime, facade, MCP, bindings, and Panel along reviewed edges", async (testContext) => {
+test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along reviewed edges", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
@@ -125,6 +125,22 @@ test("accepts adapters, runtime, facade, MCP, bindings, and Panel along reviewed
         "@distilly/panel",
         'export type { EngineClient } from "@distilly/protocol";\nexport type { ReviewPresenter } from "@distilly/mcp";\n',
         { "@distilly/protocol": "workspace:*", "@distilly/mcp": "workspace:*" },
+      ],
+      [
+        "cli",
+        "@distilly/cli",
+        'export type { EngineClient } from "@distilly/protocol";\n' +
+          'export type { PreviewLocalRuntime } from "@distilly/runtime/preview";\n' +
+          'export { Distilly } from "distilly";\n' +
+          'export { createMcpServer } from "@distilly/mcp";\n' +
+          'export { PanelLauncher } from "@distilly/panel/server";\n',
+        {
+          "@distilly/protocol": "workspace:*",
+          "@distilly/runtime": "workspace:*",
+          distilly: "workspace:*",
+          "@distilly/mcp": "workspace:*",
+          "@distilly/panel": "workspace:*",
+        },
       ],
     ],
   });

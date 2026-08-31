@@ -1,0 +1,39 @@
+{
+  "name": "@distilly/cli",
+  "version": "0.0.0",
+  "description": "Outer product composition for the Distilly Developer Preview.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": "^22.19 || ^24"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./preview": {
+      "types": "./lib/preview.d.ts",
+      "default": "./lib/preview.js"
+    }
+  },
+  "files": [
+    "lib",
+    "!lib/**/*.test.*"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@distilly/mcp": "workspace:*",
+    "@distilly/panel": "workspace:*",
+    "@distilly/protocol": "workspace:*",
+    "@distilly/runtime": "workspace:*",
+    "distilly": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0"
+  },
+  "scripts": {
+    "smoke:built": "node scripts/smoke-built.mjs"
+  }
+}

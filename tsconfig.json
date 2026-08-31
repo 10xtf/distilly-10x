@@ -8,6 +8,7 @@
     { "path": "packages/bindings" },
     { "path": "packages/distilly" },
     { "path": "packages/mcp" },
-    { "path": "packages/panel" }
+    { "path": "packages/panel" },
+    { "path": "packages/cli" }
   ]
 }

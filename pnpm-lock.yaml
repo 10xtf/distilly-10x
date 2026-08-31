@@ -59,6 +59,28 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  packages/cli:
+    dependencies:
+      "@distilly/mcp":
+        specifier: workspace:*
+        version: link:../mcp
+      "@distilly/panel":
+        specifier: workspace:*
+        version: link:../panel
+      "@distilly/protocol":
+        specifier: workspace:*
+        version: link:../protocol
+      "@distilly/runtime":
+        specifier: workspace:*
+        version: link:../runtime
+      distilly:
+        specifier: workspace:*
+        version: link:../distilly
+    devDependencies:
+      "@modelcontextprotocol/client":
+        specifier: 2.0.0
+        version: 2.0.0
+
   packages/distilly:
     dependencies:
       "@distilly/protocol":

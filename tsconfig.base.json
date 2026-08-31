@@ -9,6 +9,7 @@
     "paths": {
       "@distilly/adapters": ["./packages/adapters/src/index.ts"],
       "@distilly/bindings": ["./packages/bindings/src/index.ts"],
+      "@distilly/cli/preview": ["./packages/cli/src/preview.ts"],
       "@distilly/engine/preview": ["./packages/engine/src/preview.ts"],
       "@distilly/mcp": ["./packages/mcp/src/index.ts"],
       "@distilly/mcp/stdio": ["./packages/mcp/src/stdio.ts"],

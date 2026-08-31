@@ -83,7 +83,7 @@ const walkImports = async (entry: string): Promise<ReadonlySet<string>> => {
   return visited;
 };
 
-describe("SQLite create/ingest composition boundary", () => {
+describe("SQLite production composition boundary", () => {
   it("discovers literal dynamic imports and rejects computed module loaders", () => {
     expect(
       moduleSpecifiers(
@@ -107,6 +107,7 @@ describe("SQLite create/ingest composition boundary", () => {
         /\/facts\/(?:current-profile-projection|event-store|material-store|operation-store|space-store|state-store|subject-store|transaction-store|version-manifest-store|version-store)\.ts$/.test(
           path,
         ) ||
+        /\/(?:correction|review)\/(?:journal|recovery|staging|transaction)\.ts$/.test(path) ||
         path.includes("/transaction/") ||
         path.includes("/queue/") ||
         path.includes("/projection/") ||

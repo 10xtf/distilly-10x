@@ -262,7 +262,7 @@ const SCHEMA_OBJECTS = [
   base_version_id TEXT,
   material_set_hash TEXT NOT NULL,
   added_material_count INTEGER NOT NULL CHECK (
-    added_material_count > 0 AND added_material_count <= 9007199254740991
+    added_material_count >= 0 AND added_material_count <= 9007199254740991
   ),
   total_material_count INTEGER NOT NULL CHECK (
     total_material_count >= 0 AND total_material_count <= 9007199254740991

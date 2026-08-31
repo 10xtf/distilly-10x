@@ -177,6 +177,7 @@ const assertCanonicalClaims = (
 ): void => {
   const materialIds = new Set(manifest.map((entry) => entry.materialId));
   const claimIds = new Set(claims.map((claim) => claim.id));
+  const claimsById = new Map(claims.map((claim) => [claim.id, claim] as const));
   for (const [index, claim] of claims.entries()) {
     if (index > 0 && compareUtf8(claims[index - 1]!.id, claim.id) >= 0) {
       throw storageCorrupt("SQLite version claims are not strictly ordered by ClaimId.");
@@ -203,15 +204,39 @@ const assertCanonicalClaims = (
     if (claim.supersededBy !== undefined && !claimIds.has(claim.supersededBy)) {
       throw storageCorrupt("SQLite claim supersession points outside its version snapshot.");
     }
-    if (claim.createdIn === version.id && claim.status === "active") {
-      if (deriveClaimId(version.subjectId, canonical) !== claim.id) {
-        throw storageCorrupt("SQLite version-created claim has the wrong ClaimId.");
-      }
+    if (
+      (claim.status === "active" || claim.status === "contested") &&
+      claim.supersededBy !== undefined
+    ) {
+      throw storageCorrupt("SQLite live version claim names a superseding claim.");
+    }
+    if (
+      claim.createdIn === version.id &&
+      (claim.status !== "active" ||
+        claim.supersededBy !== undefined ||
+        deriveClaimId(version.subjectId, canonical) !== claim.id)
+    ) {
+      throw storageCorrupt("SQLite version-created claim has invalid live claim-v1 semantics.");
     }
     if (version.parentId === undefined && claim.createdIn !== version.id) {
       throw storageCorrupt("SQLite first-version claim has foreign creation lineage.");
     }
   }
+
+  const completed = new Set<Claim["id"]>();
+  const active = new Set<Claim["id"]>();
+  const visit = (claimId: Claim["id"]): void => {
+    if (completed.has(claimId)) return;
+    if (active.has(claimId)) {
+      throw storageCorrupt("SQLite claim supersession contains a cycle.");
+    }
+    active.add(claimId);
+    const targetId = claimsById.get(claimId)?.supersededBy;
+    if (targetId !== undefined) visit(targetId);
+    active.delete(claimId);
+    completed.add(claimId);
+  };
+  for (const claim of claims) visit(claim.id);
 };
 
 const validateCompleteVersion = (input: SqliteStoredVersion): void => {

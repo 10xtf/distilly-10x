@@ -22,6 +22,12 @@ assert.equal(
 const { createInternalEngineComposition } = await import("../lib/ingest/composition.js");
 
 const actor = { kind: "sdk", id: "sqlite-crash-child" };
+const correctionUser = { kind: "user", id: "sqlite-built-correction-user" };
+const correctionHost = {
+  kind: "host",
+  id: "sqlite-built-correction-host",
+  host: "codex",
+};
 const session = {
   actor,
   leaseOwner: `lease_owner_${"1".padStart(32, "0")}`,
@@ -416,6 +422,37 @@ try {
   assert.deepEqual(await reviewComposition.reviews.list({ subjectId: firstIngest.subject.id }), {
     items: [],
   });
+  const directCorrectionInput = {
+    subjectId: firstIngest.subject.id,
+    correction: {
+      text: "Ada makes packaged decisions with explicit evidence.",
+      facet: "psyche.decision_style",
+    },
+  };
+  const directCorrectionRequest = requestIdFor(18);
+  const directCorrection = await reviewComposition.corrections.correct(
+    directCorrectionInput,
+    correctionUser,
+    { requestId: directCorrectionRequest },
+  );
+  assert.equal(directCorrection.kind, "current");
+  assert.equal(directCorrection.version.parentId, rolledBack.id);
+  const relayedCorrectionInput = {
+    subjectId: firstIngest.subject.id,
+    correction: {
+      text: "Ada states uncertainty explicitly.",
+      facet: "texture.uncertainty",
+    },
+  };
+  const relayedCorrectionRequest = requestIdFor(19);
+  const relayedCorrection = await reviewComposition.corrections.correct(
+    relayedCorrectionInput,
+    correctionHost,
+    { requestId: relayedCorrectionRequest },
+  );
+  assert.equal(relayedCorrection.kind, "suspended");
+  assert.equal(relayedCorrection.currentVersionId, directCorrection.version.id);
+  assert.deepEqual(relayedCorrection.reasons, [{ code: "relayed_correction", actorKind: "host" }]);
   reviewComposition.close();
 
   const reopenedReview = await createInternalEngineComposition({ root: reviewRoot });
@@ -428,6 +465,20 @@ try {
     await reopenedReview.review.rollback(rollbackInput, actor, { requestId: requestIdFor(17) }),
     rolledBack,
     "the packaged rollback operation must replay exactly after reopen",
+  );
+  assert.deepEqual(
+    await reopenedReview.corrections.correct(directCorrectionInput, correctionUser, {
+      requestId: directCorrectionRequest,
+    }),
+    directCorrection,
+    "the packaged direct correction must replay exactly after reopen",
+  );
+  assert.deepEqual(
+    await reopenedReview.corrections.correct(relayedCorrectionInput, correctionHost, {
+      requestId: relayedCorrectionRequest,
+    }),
+    relayedCorrection,
+    "the packaged relayed correction must replay exactly after reopen",
   );
   reopenedReview.close();
 

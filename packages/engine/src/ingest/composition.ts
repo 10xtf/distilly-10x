@@ -1,4 +1,6 @@
 import { CryptoIdGenerator } from "../defaults/crypto-id-generator.js";
+import type { CorrectionServiceHooks } from "../correction/service.js";
+import { CorrectionService } from "../correction/service.js";
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
@@ -29,6 +31,7 @@ export interface InternalEngineCompositionOptions {
   readonly ingestHooks?: IngestServiceHooks;
   readonly leaseHooks?: DistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
+  readonly correctionHooks?: CorrectionServiceHooks;
   readonly reviewHooks?: ReviewServiceHooks;
   readonly promptCatalog?: PromptCatalog;
 }
@@ -39,6 +42,7 @@ export interface InternalEngineComposition {
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
   readonly commits: CommitService;
+  readonly corrections: CorrectionService;
   readonly review: ReviewService;
   readonly reviews: ReviewQueryService;
   readonly blobs: ContentAddressedBlobStore;
@@ -102,12 +106,21 @@ export const createInternalEngineComposition = async (
       eventBus,
       ...(options.reviewHooks === undefined ? {} : { hooks: options.reviewHooks }),
     });
+    const corrections = new CorrectionService({
+      store,
+      blobs,
+      ids,
+      clock,
+      eventBus,
+      ...(options.correctionHooks === undefined ? {} : { hooks: options.correctionHooks }),
+    });
     const reviews = new ReviewQueryService({ store });
     return {
       subjects,
       ingest,
       leases,
       commits,
+      corrections,
       review,
       reviews,
       blobs,

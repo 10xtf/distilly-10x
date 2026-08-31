@@ -8,6 +8,7 @@ import { isAbsolute, posix, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const REQUIRED_PATHS = new Set([
+  "lib/correction/service.js",
   "lib/ingest/composition.js",
   "lib/index.d.ts",
   "lib/index.js",
@@ -16,9 +17,17 @@ const REQUIRED_PATHS = new Set([
   "package.json",
   "prompts/host-distill-v1.md",
 ]);
-const REQUIRED_COMPOSITION_IMPORTS = ["../review/query-service.js", "../review/service.js"];
+const REQUIRED_COMPOSITION_IMPORTS = [
+  ["../correction/service.js", "correction"],
+  ["../review/query-service.js", "review"],
+  ["../review/service.js", "review"],
+];
 const RETIRED_NAMES = [
   "commit-child",
+  "correction-journal",
+  "correction-recovery",
+  "correction-staging",
+  "correction-transaction",
   "ingest-staging",
   "legacy-file-engine",
   "legacy-file-review-service",
@@ -29,6 +38,12 @@ const RETIRED_NAMES = [
   "space-identity-lock",
 ];
 const RETIRED_MODULE_PATHS = [
+  "lib/correction/journal",
+  "lib/correction/journals",
+  "lib/correction/recovery",
+  "lib/correction/staging",
+  "lib/correction/transaction",
+  "lib/correction/transactions",
   "lib/facts/transaction-store",
   "lib/queue/sqlite-projection",
   "lib/review/journal",
@@ -40,6 +55,7 @@ const RETIRED_MODULE_PATHS = [
   "lib/transaction/version-staging",
 ];
 const RETIRED_RUNTIME_MARKERS = [
+  "CorrectionTransactionRecord",
   "ReviewDecisionTransactionRecord",
   "RollbackTransactionRecord",
   "materializeReviewCommitted",
@@ -131,12 +147,23 @@ function validatePackPath(path) {
   }
   const lowerPath = lowerSegments.join("/");
   for (const retiredPath of RETIRED_MODULE_PATHS) {
-    if (lowerPath === retiredPath || lowerPath.startsWith(`${retiredPath}.`)) {
+    if (
+      lowerPath === retiredPath ||
+      [".", "/", "-", "_"].some((separator) =>
+        lowerPath.startsWith(`${retiredPath}${separator}`),
+      )
+    ) {
       throw new Error(`${path}: [forbidden-engine-pack-path] ${retiredPath} is retired`);
     }
   }
   for (const name of RETIRED_NAMES) {
-    if (lowerSegments.some((segment) => segment === name || segment.startsWith(`${name}.`))) {
+    if (
+      lowerSegments.some(
+        (segment) =>
+          segment === name ||
+          [".", "-", "_"].some((separator) => segment.startsWith(`${name}${separator}`)),
+      )
+    ) {
       throw new Error(`${path}: [forbidden-engine-pack-path] ${name} is retired`);
     }
   }
@@ -170,25 +197,25 @@ async function verifyReportedFile(engineDirectory, workspaceRoot, path, segments
   }
 }
 
-async function verifyProductionReviewComposition(engineDirectory) {
+async function verifyProductionComposition(engineDirectory) {
   const composition = await readFile(resolve(engineDirectory, "lib/ingest/composition.js"), "utf8");
-  for (const specifier of REQUIRED_COMPOSITION_IMPORTS) {
+  for (const [specifier, feature] of REQUIRED_COMPOSITION_IMPORTS) {
     const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
     if (!new RegExp(`\\bfrom\\s+[\"']${escaped}[\"']`, "u").test(composition)) {
       throw new Error(
-        `lib/ingest/composition.js: [missing-production-review-import] expected ${specifier}`,
+        `lib/ingest/composition.js: [missing-production-${feature}-import] expected ${specifier}`,
       );
     }
   }
 }
 
-async function verifyNoRetiredReviewRuntime(engineDirectory, entries) {
+async function verifyNoRetiredRuntime(engineDirectory, entries) {
   for (const { path, segments } of entries) {
     if (segments[0] !== "lib" || !/\.(?:d\.ts|js)$/u.test(path)) continue;
     const content = await readFile(resolve(engineDirectory, ...segments), "utf8");
     for (const marker of RETIRED_RUNTIME_MARKERS) {
       if (content.includes(marker)) {
-        throw new Error(`${path}: [retired-review-runtime] ${marker} is retired`);
+        throw new Error(`${path}: [retired-engine-runtime] ${marker} is retired`);
       }
     }
   }
@@ -244,8 +271,8 @@ export async function checkEnginePack(workspaceRoot) {
   for (const entry of paths) {
     await verifyReportedFile(engineDirectory, root, entry.path, entry.segments);
   }
-  await verifyProductionReviewComposition(engineDirectory);
-  await verifyNoRetiredReviewRuntime(engineDirectory, paths);
+  await verifyProductionComposition(engineDirectory);
+  await verifyNoRetiredRuntime(engineDirectory, paths);
   return paths.length;
 }
 

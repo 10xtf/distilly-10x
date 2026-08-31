@@ -261,11 +261,7 @@ const parseAuthority = (row: Readonly<Record<string, unknown>>): SqlitePendingAu
     ),
     ...(lease === undefined ? {} : { lease }),
   };
-  if (
-    authority.generation === 0 ||
-    authority.addedMaterialCount === 0 ||
-    authority.addedMaterialCount > authority.totalMaterialCount
-  ) {
+  if (authority.generation === 0 || authority.addedMaterialCount > authority.totalMaterialCount) {
     throw storageCorrupt("SQLite pending material counts or generation are invalid.");
   }
   return authority;

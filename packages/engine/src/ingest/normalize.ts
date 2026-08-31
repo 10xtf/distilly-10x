@@ -77,22 +77,36 @@ const normalizeArtifact = (
  * Applies the frozen material-text-v1 byte normalization.
  *
  * @param value - Raw material body.
+ * @param maximumBytes - Canonical UTF-8 byte ceiling for this field.
+ * @param fieldPath - Public field path used in typed validation errors.
  * @returns The canonical material body.
  */
-export const normalizeMaterialTextV1 = (value: string): string => {
+const normalizeTextV1 = (value: string, maximumBytes: number, fieldPath: string): string => {
   const normalized = value
     .replace(/\r\n?/g, "\n")
     .normalize("NFC")
     .replace(/[ \t]+(?=\n|$)/g, "");
   if (!/[^\p{White_Space}]/u.test(normalized)) {
-    throw invalidInput("Material content cannot be whitespace-only.", "materials.content");
+    throw invalidInput("Canonical text cannot be whitespace-only.", fieldPath);
   }
-  return enforceCanonicalUtf8Limit(
-    normalized,
-    WIRE_LIMITS.materialContentBytes,
-    "materials.content",
-  );
+  return enforceCanonicalUtf8Limit(normalized, maximumBytes, fieldPath);
 };
+
+/**
+ * Applies the frozen material-text-v1 byte normalization to ordinary material content.
+ * @param value - Raw ordinary material body.
+ * @returns Canonical ordinary material body.
+ */
+export const normalizeMaterialTextV1 = (value: string): string =>
+  normalizeTextV1(value, WIRE_LIMITS.materialContentBytes, "materials.content");
+
+/**
+ * Applies material-text-v1 while retaining the narrower correction wire bound and field path.
+ * @param value - Raw correction body.
+ * @returns Canonical correction body.
+ */
+export const normalizeCorrectionTextV1 = (value: string): string =>
+  normalizeTextV1(value, WIRE_LIMITS.correctionTextBytes, "correction.text");
 
 const normalizeDerivation = (input: MaterialInput["derivation"]): TextDerivation => {
   if (input.kind === "native_text") return { kind: "native_text" };

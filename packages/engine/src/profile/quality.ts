@@ -167,6 +167,24 @@ export const strengthenClaims = (
     })
     .sort((left, right) => compareUtf8(left.id, right.id));
 
+/**
+ * Derives carried strengths normally while forcing the sole correction claim to user_asserted.
+ * @param claims - Carried claims plus the correction replacement.
+ * @param materials - Pinned material evidence index for carried strengths.
+ * @returns Canonically ordered claims with correction-owned strength.
+ */
+export const strengthenCorrectionClaims = (
+  claims: readonly ProvisionalClaim[],
+  materials: MaterialEvidenceIndex,
+): readonly StrengthenedClaim[] =>
+  claims
+    .map((claim): StrengthenedClaim =>
+      claim.provenance === "base"
+        ? { ...claim, strength: deriveEvidenceStrength(claim, materials) }
+        : { ...claim, strength: "user_asserted" },
+    )
+    .sort((left, right) => compareUtf8(left.id, right.id));
+
 const facetRoot = (claim: Pick<SemanticClaim, "facet">): string => claim.facet.split(".", 1)[0]!;
 
 const countReferencedGroups = (

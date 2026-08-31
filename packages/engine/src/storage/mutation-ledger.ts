@@ -44,6 +44,7 @@ export type SqliteLedgerMethod =
   | "distill.renew"
   | "distill.release"
   | "distill.commit"
+  | "profiles.correct"
   | "versions.promote"
   | "versions.reject"
   | "versions.rollback";
@@ -192,7 +193,8 @@ const operationResultSubjectId = (
       return (result as IngestResult).subject.id;
     case "distill.brief":
       return (result as HostDistillBriefing).subject.id;
-    case "distill.commit": {
+    case "distill.commit":
+    case "profiles.correct": {
       const commit = result as CommitResult;
       return commit.kind === "current" ? commit.version.subjectId : commit.candidate.subjectId;
     }
@@ -213,6 +215,7 @@ const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
   value === "distill.renew" ||
   value === "distill.release" ||
   value === "distill.commit" ||
+  value === "profiles.correct" ||
   value === "versions.promote" ||
   value === "versions.reject" ||
   value === "versions.rollback";

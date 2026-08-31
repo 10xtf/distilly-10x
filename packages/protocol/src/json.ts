@@ -18,7 +18,7 @@ export const WIRE_LIMITS = {
   reasonBytes: 8_192,
   claimTextBytes: 16_384,
   quoteBytes: 65_536,
-  correctionTextBytes: 65_536,
+  correctionTextBytes: 16_384,
   materialContentBytes: 1_048_576,
   ingestMaterials: 32,
   smallArrayItems: 64,

@@ -6015,10 +6015,10 @@ exports[`complete V3 protocol public contract > snapshots every serializable fie
           "type": "string",
         },
         "__schema3": {
-          "maxLength": 65536,
+          "maxLength": 16384,
           "minLength": 1,
           "type": "string",
-          "x-distilly-maxUtf8Bytes": 65536,
+          "x-distilly-maxUtf8Bytes": 16384,
         },
         "__schema4": {
           "maxLength": 128,

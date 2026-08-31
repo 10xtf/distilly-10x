@@ -205,7 +205,7 @@ describe("complete V3 protocol public contract", () => {
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
         "limits": {
           "claimTextBytes": 16384,
-          "correctionTextBytes": 65536,
+          "correctionTextBytes": 16384,
           "cursorBytes": 16384,
           "evidencePerOperation": 64,
           "ingestMaterials": 32,

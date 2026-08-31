@@ -95,6 +95,14 @@ const materialIdentitySemantics = (record: MaterialRecord): unknown => {
 };
 
 /**
+ * Returns the canonical SQLite identity payload that excludes first-seen display metadata.
+ * @param record - Verified or prepared material record.
+ * @returns Canonical JSON used by the SQLite identity column.
+ */
+export const canonicalMaterialIdentityJson = (record: MaterialRecord): string =>
+  canonicalJson(materialIdentitySemantics(record));
+
+/**
  * Reads and verifies every current material row for one subject inside a SQLite snapshot.
  *
  * @param database - Connection inside the caller's active transaction.
@@ -162,7 +170,7 @@ export const readSqliteMaterialsInTransaction = (
       blobDigest !== contentDigest ||
       digestMaterialProvenance(record) !== provenanceDigest ||
       deriveMaterialId(sourceIdentity, provenanceDigest, contentDigest) !== materialId ||
-      canonicalJson(materialIdentitySemantics(record)) !== storedIdentityJson
+      canonicalMaterialIdentityJson(record) !== storedIdentityJson
     ) {
       throw storageCorrupt("SQLite material columns disagree with their canonical record.");
     }

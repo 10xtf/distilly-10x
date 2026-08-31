@@ -31,6 +31,13 @@ export interface ResolvedPatch {
   readonly reviewRequest?: { readonly note?: string };
 }
 
+/** Engine-internal correction algebra after its full-body evidence has been resolved. */
+export interface ResolvedCorrectionReplacement extends ResolvedClaimDraft {
+  readonly evidence: readonly [EvidenceRef];
+  readonly observedIn: readonly [];
+  readonly supersedes: readonly ClaimId[];
+}
+
 /** Existing or newly created claim before the candidate VersionId exists. */
 export type ProvisionalClaim =
   | (Claim & { readonly provenance: "base" })
@@ -195,6 +202,57 @@ export const applyClaimPatch = (
     }
   }
   return ordered;
+};
+
+/**
+ * Applies one full-body correction replacement without expanding it into host patch operations.
+ *
+ * @param subjectId - Subject whose canonical claim namespace owns the replacement.
+ * @param base - Verified current or explicitly selected candidate claims.
+ * @param replacement - Canonical correction replacement and exact supersession targets.
+ * @returns Canonically ordered carried and replacement claims before strength derivation.
+ */
+export const applyCorrectionReplacement = (
+  subjectId: Parameters<typeof deriveClaimId>[0],
+  base: readonly Claim[],
+  replacement: ResolvedCorrectionReplacement,
+): readonly ProvisionalClaim[] => {
+  const baseById = requireUniqueBase(base);
+  const created = newClaim(subjectId, replacement);
+  if (baseById.has(created.id)) {
+    throw invalidInput(
+      "Correction replacement would create a duplicate or cyclic ClaimId.",
+      "correction",
+    );
+  }
+  const targets = new Set<ClaimId>();
+  for (const [index, claimId] of replacement.supersedes.entries()) {
+    if (targets.has(claimId)) {
+      throw invalidInput(
+        "A correction cannot supersede the same claim more than once.",
+        `correction.supersedes[${String(index)}]`,
+      );
+    }
+    targets.add(claimId);
+    requireTarget(baseById, claimId, `correction.supersedes[${String(index)}]`);
+  }
+
+  const result = new Map<ClaimId, ProvisionalClaim>();
+  for (const claim of base) {
+    result.set(
+      claim.id,
+      targets.has(claim.id)
+        ? {
+            ...claim,
+            provenance: "base",
+            status: "superseded",
+            supersededBy: created.id,
+          }
+        : baseClaim(claim),
+    );
+  }
+  result.set(created.id, created);
+  return [...result.values()].sort((left, right) => compareUtf8(left.id, right.id));
 };
 
 /**

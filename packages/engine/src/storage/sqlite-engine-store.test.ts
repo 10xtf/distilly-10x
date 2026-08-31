@@ -364,18 +364,20 @@ describe("SqliteEngineStore", () => {
           .run(),
       ),
     ).toThrow();
-    expect(() =>
-      store.write((database) =>
-        database
-          .prepare(
-            `INSERT INTO pending_jobs(
-               subject_id, job_id, generation, base_version_id, material_set_hash,
-               added_material_count, total_material_count, queued_at
-             ) VALUES ('subject_two', 'job_bad', 1, NULL, 'set_bad', 0, 1, '2026-08-30T00:00:00.000Z')`,
-          )
-          .run(),
-      ),
-    ).toThrow();
+    store.write((database) => {
+      database
+        .prepare(
+          `INSERT INTO pending_jobs(
+             subject_id, job_id, generation, base_version_id, material_set_hash,
+             added_material_count, total_material_count, queued_at
+           ) VALUES ('subject_two', 'job_zero', 1, NULL, 'set_test', 0, 1, '2026-08-30T00:00:00.000Z')`,
+        )
+        .run();
+      expect(
+        scalar(database, "SELECT added_material_count FROM pending_jobs WHERE job_id = 'job_zero'"),
+      ).toBe(0);
+      database.prepare("DELETE FROM pending_jobs WHERE job_id = 'job_zero'").run();
+    });
     expect(() =>
       store.write((database) =>
         database

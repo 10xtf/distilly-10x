@@ -65,10 +65,12 @@ async function engineWorkspace(testContext, extraPaths = []) {
   const files = new Map([
     [
       "lib/ingest/composition.js",
-      'import { ReviewQueryService } from "../review/query-service.js";\n' +
+      'import { CorrectionService } from "../correction/service.js";\n' +
+        'import { ReviewQueryService } from "../review/query-service.js";\n' +
         'import { ReviewService } from "../review/service.js";\n' +
-        "void ReviewQueryService;\nvoid ReviewService;\n",
+        "void CorrectionService;\nvoid ReviewQueryService;\nvoid ReviewService;\n",
     ],
+    ["lib/correction/service.js", "export class CorrectionService {}\n"],
     ["lib/index.d.ts", "export {};\n"],
     ["lib/index.js", "export {};\n"],
     ["lib/review/query-service.js", "export class ReviewQueryService {}\n"],
@@ -144,7 +146,8 @@ test("Engine pack requires the production review composition imports", async (te
   const root = await engineWorkspace(testContext);
   await writeFile(
     resolve(root, "packages/engine/lib/ingest/composition.js"),
-    "export const createInternalEngineComposition = () => undefined;\n",
+    'import { CorrectionService } from "../correction/service.js";\n' +
+      "void CorrectionService;\n",
     "utf8",
   );
 
@@ -152,6 +155,22 @@ test("Engine pack requires the production review composition imports", async (te
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /\[missing-production-review-import\]/u);
+});
+
+test("Engine pack requires the production correction composition import", async (testContext) => {
+  const root = await engineWorkspace(testContext);
+  await writeFile(
+    resolve(root, "packages/engine/lib/ingest/composition.js"),
+    'import { ReviewQueryService } from "../review/query-service.js";\n' +
+      'import { ReviewService } from "../review/service.js";\n' +
+      "void ReviewQueryService;\nvoid ReviewService;\n",
+    "utf8",
+  );
+
+  const result = run(PACK_CHECKER, root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[missing-production-correction-import\]/u);
 });
 
 test("Engine pack rejects retired review transaction runtime markers", async (testContext) => {
@@ -165,7 +184,21 @@ test("Engine pack rejects retired review transaction runtime markers", async (te
   const result = run(PACK_CHECKER, root);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /\[retired-review-runtime\]/u);
+  assert.match(result.stderr, /\[retired-engine-runtime\]/u);
+});
+
+test("Engine pack rejects a retired correction transaction runtime marker", async (testContext) => {
+  const root = await engineWorkspace(testContext, ["lib/correction/retired.js"]);
+  await writeFile(
+    resolve(root, "packages/engine/lib/correction/retired.js"),
+    "export const retired = 'CorrectionTransactionRecord';\n",
+    "utf8",
+  );
+
+  const result = run(PACK_CHECKER, root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[retired-engine-runtime\]/u);
 });
 
 test(
@@ -208,6 +241,12 @@ test(
 
 for (const forbiddenPath of [
   "lib/testing/fake-client.js",
+  "lib/correction/journal.js",
+  "lib/correction/journals.js",
+  "lib/correction/recovery.js",
+  "lib/correction/staging.js",
+  "lib/correction/transaction.js",
+  "lib/correction/transaction-record.js",
   "lib/facts/version-fixture.test-support.js",
   "lib/person.fixture.js",
   "lib/facts/transaction-store.js",
@@ -216,6 +255,7 @@ for (const forbiddenPath of [
   "lib/review/recovery.js",
   "lib/review/staging.js",
   "lib/transaction/review-recovery.js",
+  "lib/transaction/correction-recovery.js",
   "lib/transaction/rollback-recovery.js",
   "lib/transaction/recovery.js",
   "lib/transaction/version-staging.js",

@@ -739,14 +739,14 @@ describe("SQLite ingest service", () => {
     ).toEqual({ materials: 1, operations: 1, events: 3 });
   });
 
-  it("fails closed on v1 version pointers without committing an ingest", async () => {
+  it("fails closed on dangling version pointers without committing an ingest", async () => {
     const root = await makeRoot();
     const composition = await open(root);
     const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
     const danglingVersion = `version_${"a".repeat(64)}`;
     const tamper = (column: "current_version_id" | "suspended_version_id"): void => {
       const database = new DatabaseSync(join(root, "store.sqlite3"));
-      database.exec("PRAGMA ignore_check_constraints = ON");
+      database.exec("PRAGMA foreign_keys = OFF; PRAGMA ignore_check_constraints = ON");
       database
         .prepare(
           `UPDATE subject_states

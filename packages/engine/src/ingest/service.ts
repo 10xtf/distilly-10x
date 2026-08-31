@@ -57,6 +57,7 @@ import {
   replayCompletedMutation,
 } from "../storage/mutation-ledger.js";
 import type { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
+import { readSqliteVersionInTransaction } from "../version/sqlite-authority.js";
 import {
   createSubjectIdentityInTransaction,
   loadSubjectSummaryInTransaction,
@@ -66,6 +67,7 @@ import { canonicalizeIngestSubjectTarget } from "../subject/identity.js";
 import type { PreparedMaterial } from "./normalize.js";
 import { normalizeMaterial, prepareMaterial } from "./normalize.js";
 import { deriveIngestState } from "./state-transition.js";
+import type { IngestBaseline } from "./state-transition.js";
 import { createBriefContract } from "../distill/prompt-catalog.js";
 
 interface StoredMaterialRow {
@@ -411,7 +413,11 @@ const loadPending = (
 const loadState = (
   database: DatabaseSync,
   subjectId: SubjectId,
-): { readonly state: SubjectStateRecord; readonly rows: readonly StoredMaterialRow[] } => {
+): {
+  readonly state: SubjectStateRecord;
+  readonly rows: readonly StoredMaterialRow[];
+  readonly baseline?: IngestBaseline;
+} => {
   const row = queryOne(
     database,
     `SELECT generation, material_set_hash, current_version_id, suspended_version_id
@@ -446,8 +452,33 @@ const loadState = (
   const pending = loadPending(database, subjectId);
   const currentVersionId = nullableText(row, "current_version_id");
   const suspendedVersionId = nullableText(row, "suspended_version_id");
-  if (currentVersionId !== undefined || suspendedVersionId !== undefined) {
-    throw storageCorrupt("SQLite v1 cannot contain version pointers before version storage lands.");
+  const parsedCurrentVersionId =
+    currentVersionId === undefined
+      ? undefined
+      : parseStored(() => versionIdSchema.parse(currentVersionId), "current version id");
+  const parsedSuspendedVersionId =
+    suspendedVersionId === undefined
+      ? undefined
+      : parseStored(() => versionIdSchema.parse(suspendedVersionId), "suspended version id");
+  const currentVersion =
+    parsedCurrentVersionId === undefined
+      ? undefined
+      : readSqliteVersionInTransaction(database, subjectId, parsedCurrentVersionId);
+  if (
+    (parsedCurrentVersionId === undefined) !== (currentVersion === undefined) ||
+    (currentVersion !== undefined && currentVersion.status !== "current")
+  ) {
+    throw storageCorrupt("SQLite current version pointer has no verified current version.");
+  }
+  const suspendedVersion =
+    parsedSuspendedVersionId === undefined
+      ? undefined
+      : readSqliteVersionInTransaction(database, subjectId, parsedSuspendedVersionId);
+  if (
+    (parsedSuspendedVersionId === undefined) !== (suspendedVersion === undefined) ||
+    (suspendedVersion !== undefined && suspendedVersion.status !== "suspended")
+  ) {
+    throw storageCorrupt("SQLite suspended pointer has no verified suspended version.");
   }
   const state = parseStored(
     () =>
@@ -465,21 +496,15 @@ const loadState = (
                 ),
               }),
           materialManifest,
-          ...(currentVersionId === undefined
+          ...(parsedCurrentVersionId === undefined
             ? {}
             : {
-                currentVersionId: parseStored(
-                  () => versionIdSchema.parse(currentVersionId),
-                  "current version id",
-                ),
+                currentVersionId: parsedCurrentVersionId,
               }),
-          ...(suspendedVersionId === undefined
+          ...(parsedSuspendedVersionId === undefined
             ? {}
             : {
-                suspendedVersionId: parseStored(
-                  () => versionIdSchema.parse(suspendedVersionId),
-                  "suspended version id",
-                ),
+                suspendedVersionId: parsedSuspendedVersionId,
               }),
           ...(pending === undefined ? {} : { pending }),
         }),
@@ -487,7 +512,7 @@ const loadState = (
     "subject state",
   ) as SubjectStateRecord;
   if (
-    currentVersionId === undefined &&
+    parsedCurrentVersionId === undefined &&
     pending !== undefined &&
     (pending.baseVersionId !== undefined ||
       pending.addedMaterialCount !== materialManifest.length ||
@@ -495,7 +520,19 @@ const loadState = (
   ) {
     throw storageCorrupt("A pending job disagrees with its empty-version material baseline.");
   }
-  return { state, rows };
+  const baseline =
+    currentVersion === undefined
+      ? undefined
+      : { versionId: currentVersion.version.id, manifest: currentVersion.manifest.items };
+  if (
+    pending !== undefined &&
+    parsedCurrentVersionId !== undefined &&
+    (pending.baseVersionId !== parsedCurrentVersionId ||
+      pending.addedMaterialCount !== materialManifest.length - (baseline?.manifest.length ?? 0))
+  ) {
+    throw storageCorrupt("A pending job disagrees with its current-version baseline.");
+  }
+  return { state, rows, ...(baseline === undefined ? {} : { baseline }) };
 };
 
 const classifyBatch = (
@@ -796,13 +833,11 @@ export class IngestService {
           );
     const previous = loadState(database, subject.id);
     const batch = classifyBatch(previous.rows, prepared, publishedBlobs);
-    if (previous.state.currentVersionId !== undefined) {
-      throw storageCorrupt("A current version cannot exist before version storage is migrated.");
-    }
     const derived = deriveIngestState({
       subjectId: subject.id,
       previous: previous.state,
       targetManifest: batch.targetManifest,
+      ...(previous.baseline === undefined ? {} : { baseline: previous.baseline }),
       storedAtByMaterialId: batch.storedAtByMaterialId,
       enqueue: input.enqueue,
       now,

@@ -53,7 +53,7 @@ import { ReviewQueryService } from "../review/query-service.js";
 import { CommittedVersionReader } from "./committed-version-reader.js";
 import { encodeCursor } from "./cursor.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
-import { FileVersionStaging } from "../transaction/version-staging.js";
+import { FileVersionStaging } from "../testing/legacy-file-version-staging.test.fixture.js";
 import { VersionService } from "../version/service.js";
 
 const HEX_32 = "0".repeat(32);

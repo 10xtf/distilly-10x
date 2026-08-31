@@ -4,6 +4,8 @@ import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
 import type { DistillLeaseServiceHooks } from "../distill/lease-service.js";
 import { DistillLeaseService } from "../distill/lease-service.js";
+import type { CommitServiceHooks } from "../distill/commit-service.js";
+import { CommitService } from "../distill/commit-service.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
@@ -23,6 +25,7 @@ export interface InternalEngineCompositionOptions {
   readonly subjectHooks?: SubjectCreateServiceHooks;
   readonly ingestHooks?: IngestServiceHooks;
   readonly leaseHooks?: DistillLeaseServiceHooks;
+  readonly commitHooks?: CommitServiceHooks;
   readonly promptCatalog?: PromptCatalog;
 }
 
@@ -31,6 +34,7 @@ export interface InternalEngineComposition {
   readonly subjects: SubjectCreateService;
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
+  readonly commits: CommitService;
   readonly blobs: ContentAddressedBlobStore;
   readonly events: EventBus;
   close(): void;
@@ -51,6 +55,7 @@ export const createInternalEngineComposition = async (
     const eventBus = options.eventBus ?? new InProcessEventBus();
     const ids = options.ids ?? new CryptoIdGenerator();
     const clock = options.clock ?? new SystemClock();
+    const promptCatalog = options.promptCatalog ?? new PromptCatalog();
     const subjects = new SubjectCreateService({
       store,
       ids,
@@ -69,16 +74,26 @@ export const createInternalEngineComposition = async (
     const leases = new DistillLeaseService({
       store,
       blobs,
-      promptCatalog: options.promptCatalog ?? new PromptCatalog(),
+      promptCatalog,
       ids,
       clock,
       eventBus,
       ...(options.leaseHooks === undefined ? {} : { hooks: options.leaseHooks }),
     });
+    const commits = new CommitService({
+      store,
+      blobs,
+      promptCatalog,
+      ids,
+      clock,
+      eventBus,
+      ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
+    });
     return {
       subjects,
       ingest,
       leases,
+      commits,
       blobs,
       events: eventBus,
       close: () => store.close(),

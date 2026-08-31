@@ -83,18 +83,6 @@ describe("fact foundation defaults", () => {
       [layout.transactionFile(requestId), join("transactions", `${requestId}.json`)],
       [layout.versionsDirectory(subjectId), join("subjects", subjectId, "versions")],
       [
-        layout.versionStagingRootDirectory(subjectId),
-        join("subjects", subjectId, "versions", ".staging"),
-      ],
-      [
-        layout.versionStagingDirectory(requestId, subjectId, versionId),
-        join("subjects", subjectId, "versions", ".staging", `${requestId}.${versionId}`),
-      ],
-      [
-        layout.versionDeletingDirectory(requestId, subjectId, versionId),
-        join("subjects", subjectId, "versions", ".staging", `${requestId}.${versionId}.deleting`),
-      ],
-      [
         layout.versionFile(subjectId, versionId),
         join("subjects", subjectId, "versions", versionId, "version.json"),
       ],

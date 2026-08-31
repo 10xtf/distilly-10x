@@ -19,6 +19,7 @@ import {
   pendingJobSchema,
   provenanceDigestSchema,
   subjectIdSchema,
+  versionIdSchema,
 } from "@distilly/protocol";
 import type {
   BriefInput,
@@ -41,6 +42,7 @@ import type {
   SubjectId,
   SubjectRecord,
   SubjectStateRecord,
+  VersionId,
   VersionMaterialEntry,
 } from "@distilly/protocol";
 
@@ -59,6 +61,7 @@ import {
   leaseConflict,
   leaseExpired,
   nothingPending,
+  reviewConflict,
   staleJob,
   storageCorrupt,
 } from "../internal-errors.js";
@@ -75,6 +78,8 @@ import {
 } from "../storage/mutation-ledger.js";
 import type { BlobOperationReplay } from "../storage/mutation-ledger.js";
 import type { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
+import { readSqliteVersionInTransaction } from "../version/sqlite-authority.js";
+import type { SqliteStoredVersion } from "../version/sqlite-authority.js";
 import { loadSubjectSummaryInTransaction } from "../subject/transactional-identity.js";
 import { buildBriefingCandidate, type BriefingStoredMaterial } from "./briefing-builder.js";
 import { enforceBriefCapacity } from "./brief-capacity.js";
@@ -130,6 +135,9 @@ interface PendingAuthority {
   readonly subjectId: SubjectId;
   readonly jobId: JobId;
   readonly generation: number;
+  readonly baseVersionId?: VersionId;
+  readonly currentVersionId?: VersionId;
+  readonly suspendedVersionId?: VersionId;
   readonly materialSetHash: PendingJob["materialSetHash"];
   readonly addedMaterialCount: number;
   readonly totalMaterialCount: number;
@@ -149,6 +157,7 @@ interface BriefPreparationSnapshot {
   readonly space: SpaceRecord;
   readonly materialManifest: readonly VersionMaterialEntry[];
   readonly materials: readonly StoredMaterialDescriptor[];
+  readonly baseline?: SqliteStoredVersion;
 }
 
 interface MutationOutcome<T> {
@@ -262,6 +271,12 @@ const pendingAuthoritySql = (where: string): string => `
          subject_states.material_set_hash AS state_material_set_hash,
          subject_states.current_version_id AS state_current_version_id,
          subject_states.suspended_version_id AS state_suspended_version_id,
+         current_versions.id AS existing_current_version_id,
+         current_status.status AS current_version_status,
+         current_status.subject_id AS current_status_subject_id,
+         suspended_versions.id AS existing_suspended_version_id,
+         suspended_status.status AS suspended_version_status,
+         suspended_status.subject_id AS suspended_status_subject_id,
          job_leases.job_id AS lease_job_id,
          job_leases.lease_id, job_leases.lease_owner,
          job_leases.acquired_at, job_leases.expires_at,
@@ -272,6 +287,16 @@ const pendingAuthoritySql = (where: string): string => `
   FROM pending_jobs
   LEFT JOIN subjects ON subjects.id = pending_jobs.subject_id
   LEFT JOIN subject_states ON subject_states.subject_id = pending_jobs.subject_id
+  LEFT JOIN versions AS current_versions
+    ON current_versions.id = subject_states.current_version_id
+   AND current_versions.subject_id = pending_jobs.subject_id
+  LEFT JOIN version_statuses AS current_status
+    ON current_status.version_id = current_versions.id
+  LEFT JOIN versions AS suspended_versions
+    ON suspended_versions.id = subject_states.suspended_version_id
+   AND suspended_versions.subject_id = pending_jobs.subject_id
+  LEFT JOIN version_statuses AS suspended_status
+    ON suspended_status.version_id = suspended_versions.id
   LEFT JOIN job_leases ON job_leases.job_id = pending_jobs.job_id
   ${where}`;
 
@@ -362,17 +387,58 @@ const parsePendingAuthority = (row: Readonly<Record<string, unknown>>): PendingA
     throw storageCorrupt("SQLite pending job disagrees with current subject state.");
   }
   if (
-    baseVersionId !== undefined ||
-    currentVersionId !== undefined ||
-    suspendedVersionId !== undefined
+    (currentVersionId === undefined &&
+      (nullableText(row, "existing_current_version_id") !== undefined ||
+        nullableText(row, "current_version_status") !== undefined ||
+        nullableText(row, "current_status_subject_id") !== undefined)) ||
+    (currentVersionId !== undefined &&
+      (nullableText(row, "existing_current_version_id") !== currentVersionId ||
+        nullableText(row, "current_version_status") !== "current" ||
+        nullableText(row, "current_status_subject_id") !== subjectId))
   ) {
-    throw storageCorrupt("SQLite schema v1 cannot brief version-backed subject state.");
+    throw storageCorrupt("SQLite pending job has an invalid current version pointer.");
+  }
+  if (
+    (suspendedVersionId === undefined &&
+      (nullableText(row, "existing_suspended_version_id") !== undefined ||
+        nullableText(row, "suspended_version_status") !== undefined ||
+        nullableText(row, "suspended_status_subject_id") !== undefined)) ||
+    (suspendedVersionId !== undefined &&
+      (nullableText(row, "existing_suspended_version_id") !== suspendedVersionId ||
+        nullableText(row, "suspended_version_status") !== "suspended" ||
+        nullableText(row, "suspended_status_subject_id") !== subjectId))
+  ) {
+    throw storageCorrupt("SQLite pending job has an invalid suspended version pointer.");
   }
   const lease = parseLease(row);
   const authority: PendingAuthority = {
     subjectId,
     jobId: parseStored(() => jobIdSchema.parse(text(row, "job_id")), "pending job id"),
     generation,
+    ...(baseVersionId === undefined
+      ? {}
+      : {
+          baseVersionId: parseStored(
+            () => versionIdSchema.parse(baseVersionId),
+            "pending base version id",
+          ),
+        }),
+    ...(currentVersionId === undefined
+      ? {}
+      : {
+          currentVersionId: parseStored(
+            () => versionIdSchema.parse(currentVersionId),
+            "current version id",
+          ),
+        }),
+    ...(suspendedVersionId === undefined
+      ? {}
+      : {
+          suspendedVersionId: parseStored(
+            () => versionIdSchema.parse(suspendedVersionId),
+            "suspended version id",
+          ),
+        }),
     materialSetHash,
     addedMaterialCount: integer(row, "added_material_count"),
     totalMaterialCount: integer(row, "total_material_count"),
@@ -411,6 +477,9 @@ const projectPendingJob = (authority: PendingAuthority, now: IsoDateTime): Pendi
         id: authority.jobId,
         subjectId: authority.subjectId,
         generation: authority.generation,
+        ...(authority.baseVersionId === undefined
+          ? {}
+          : { baseVersionId: authority.baseVersionId }),
         materialSetHash: authority.materialSetHash,
         addedMaterialCount: authority.addedMaterialCount,
         totalMaterialCount: authority.totalMaterialCount,
@@ -426,6 +495,9 @@ const samePendingGeneration = (left: PendingAuthority, right: PendingAuthority):
   left.subjectId === right.subjectId &&
   left.jobId === right.jobId &&
   left.generation === right.generation &&
+  left.baseVersionId === right.baseVersionId &&
+  left.currentVersionId === right.currentVersionId &&
+  left.suspendedVersionId === right.suspendedVersionId &&
   left.materialSetHash === right.materialSetHash &&
   left.addedMaterialCount === right.addedMaterialCount &&
   left.totalMaterialCount === right.totalMaterialCount &&
@@ -464,10 +536,11 @@ const readBriefPreparation = (
 ): BriefPreparationSnapshot => {
   const authority = readPendingAuthority(database, jobId);
   if (authority === undefined) throw nothingPending();
+  if (authority.suspendedVersionId !== undefined) throw reviewConflict();
   if (activeAt(authority.lease, now)) throw leaseConflict();
   const summary = loadSubjectSummaryInTransaction(database, authority.subjectId);
-  if (summary.currentVersionId !== undefined) {
-    throw storageCorrupt("SQLite schema v1 cannot load a version-backed briefing.");
+  if (summary.currentVersionId !== authority.currentVersionId) {
+    throw storageCorrupt("SQLite briefing summary disagrees with current version authority.");
   }
   const subjectRow = queryOne(
     database,
@@ -556,11 +629,8 @@ const readBriefPreparation = (
     }
     return { record, blobDigest, blobByteLength: integer(row, "blob_byte_length") };
   });
-  if (
-    materials.length !== authority.totalMaterialCount ||
-    authority.addedMaterialCount !== materials.length
-  ) {
-    throw storageCorrupt("SQLite first-version pending counts disagree with material membership.");
+  if (materials.length !== authority.totalMaterialCount) {
+    throw storageCorrupt("SQLite pending counts disagree with material membership.");
   }
   const materialManifest = materials.map(({ record }): VersionMaterialEntry => ({
     materialId: record.id,
@@ -570,7 +640,27 @@ const readBriefPreparation = (
   if (hashMaterialSet(materialManifest) !== authority.materialSetHash) {
     throw storageCorrupt("SQLite pending material-set hash disagrees with verified membership.");
   }
-  return { authority, subject, space, materialManifest, materials };
+  const baseline =
+    authority.currentVersionId === undefined
+      ? undefined
+      : readSqliteVersionInTransaction(database, authority.subjectId, authority.currentVersionId);
+  if (
+    (authority.currentVersionId === undefined) !== (baseline === undefined) ||
+    (baseline !== undefined && baseline.status !== "current")
+  ) {
+    throw storageCorrupt("SQLite briefing baseline has no verified current version.");
+  }
+  if (authority.addedMaterialCount !== materials.length - (baseline?.manifest.items.length ?? 0)) {
+    throw storageCorrupt("SQLite pending delta disagrees with its version baseline.");
+  }
+  return {
+    authority,
+    subject,
+    space,
+    materialManifest,
+    materials,
+    ...(baseline === undefined ? {} : { baseline }),
+  };
 };
 
 const bindBriefTemplate = (
@@ -785,6 +875,9 @@ export class DistillLeaseService {
       const pending: PendingJobMarker = {
         jobId: snapshot.authority.jobId,
         generation: snapshot.authority.generation,
+        ...(snapshot.authority.baseVersionId === undefined
+          ? {}
+          : { baseVersionId: snapshot.authority.baseVersionId }),
         materialSetHash: snapshot.authority.materialSetHash,
         addedMaterialCount: snapshot.authority.addedMaterialCount,
         totalMaterialCount: snapshot.authority.totalMaterialCount,
@@ -808,6 +901,12 @@ export class DistillLeaseService {
         generation: snapshot.authority.generation,
         materialSetHash: snapshot.authority.materialSetHash,
         materialManifest: snapshot.materialManifest,
+        ...(snapshot.authority.currentVersionId === undefined
+          ? {}
+          : { currentVersionId: snapshot.authority.currentVersionId }),
+        ...(snapshot.authority.suspendedVersionId === undefined
+          ? {}
+          : { suspendedVersionId: snapshot.authority.suspendedVersionId }),
         pending,
       });
       const candidate = buildBriefingCandidate({
@@ -815,6 +914,7 @@ export class DistillLeaseService {
         space: snapshot.space,
         state,
         materials,
+        ...(snapshot.baseline === undefined ? {} : { baseline: snapshot.baseline }),
         lease: templateLease,
         contract,
       });
@@ -833,6 +933,7 @@ export class DistillLeaseService {
         });
         if (transactionReplay !== undefined) return { replay: transactionReplay };
         const current = readPendingAuthority(database, input.jobId);
+        if (current?.suspendedVersionId !== undefined) throw reviewConflict();
         if (current === undefined || !samePendingGeneration(snapshot.authority, current)) {
           throw staleJob();
         }

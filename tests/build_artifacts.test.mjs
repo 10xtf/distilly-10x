@@ -121,7 +121,7 @@ test("cleaner refuses a symlink lib without touching its target", async (testCon
 
 test("Engine pack accepts remaining production modules", async (testContext) => {
   const root = await engineWorkspace(testContext, [
-    "lib/transaction/version-staging.js",
+    "lib/distill/commit-service.js",
     "lib/projection/json-library-projection.js",
   ]);
 
@@ -174,11 +174,11 @@ for (const forbiddenPath of [
   "lib/testing/fake-client.js",
   "lib/facts/version-fixture.test-support.js",
   "lib/person.fixture.js",
-  "lib/distill/commit-service.js",
   "lib/facts/transaction-store.js",
   "lib/queue/sqlite-projection.js",
   "lib/review/service.js",
   "lib/transaction/recovery.js",
+  "lib/transaction/version-staging.js",
   "lib/transaction/ingest-staging.js",
   "lib/transaction/space-catalog-lock.js",
   "lib/transaction/space-identity-lock.js",

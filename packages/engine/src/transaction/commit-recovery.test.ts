@@ -56,7 +56,10 @@ import type { IdGenerator } from "../ports/id-generator.js";
 import { renderProfile, renderPrompt } from "../profile/render.js";
 import type { VersionIdentityPayload } from "../profile/version-id.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { FileVersionStaging } from "./version-staging.js";
+import {
+  FileVersionStaging,
+  legacyVersionDeletingDirectory,
+} from "../testing/legacy-file-version-staging.test.fixture.js";
 
 const ACQUIRED_AT = isoDateTimeSchema.parse("2026-08-21T08:00:00.000Z");
 const COMMIT_AT = isoDateTimeSchema.parse("2026-08-21T08:01:00.000Z");
@@ -570,7 +573,8 @@ describe("distill commit transaction recovery", { timeout: 30_000 }, () => {
 
   it("finishes a partially removed journal-owned deleting path after restart", async () => {
     const fixture = await setupPrepared({});
-    const deleting = fixture.facts.layout.versionDeletingDirectory(
+    const deleting = legacyVersionDeletingDirectory(
+      fixture.facts.layout,
       fixture.transaction.requestId,
       fixture.subjectId,
       fixture.transaction.version.id,

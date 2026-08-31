@@ -22,11 +22,11 @@ const RETIRED_NAMES = [
   "space-identity-lock",
 ];
 const RETIRED_MODULE_PATHS = [
-  "lib/distill/commit-service",
   "lib/facts/transaction-store",
   "lib/queue/sqlite-projection",
   "lib/review/service",
   "lib/transaction/recovery",
+  "lib/transaction/version-staging",
 ];
 
 function repositoryPath(root, path) {

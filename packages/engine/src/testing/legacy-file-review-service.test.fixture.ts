@@ -71,7 +71,7 @@ import {
   validateRollbackTransactionTarget,
 } from "./legacy-file-recovery.test.fixture.js";
 import type { FileSubjectLock } from "../transaction/subject-lock.js";
-import type { FileVersionStaging } from "../transaction/version-staging.js";
+import type { FileVersionStaging } from "./legacy-file-version-staging.test.fixture.js";
 
 interface ReviewOutcome {
   readonly result: VersionSummary;

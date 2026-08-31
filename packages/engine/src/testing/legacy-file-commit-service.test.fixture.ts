@@ -61,7 +61,7 @@ import type { FileRequestLock } from "../transaction/request-lock.js";
 import type { RecoveryService } from "./legacy-file-recovery.test.fixture.js";
 import { validateCommitTransactionTarget } from "./legacy-file-recovery.test.fixture.js";
 import type { FileSubjectLock } from "../transaction/subject-lock.js";
-import type { FileVersionStaging } from "../transaction/version-staging.js";
+import type { FileVersionStaging } from "./legacy-file-version-staging.test.fixture.js";
 import { applyClaimPatch, finalizeClaims } from "../profile/apply-patch.js";
 import {
   buildMaterialEvidenceIndex,

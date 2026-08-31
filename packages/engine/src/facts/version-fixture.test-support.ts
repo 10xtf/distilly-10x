@@ -34,7 +34,7 @@ import { compareUtf8, deriveClaimId } from "../profile/claim-id.js";
 import { renderProfile, renderPrompt, PROFILE_RENDERER_VERSION } from "../profile/render.js";
 import type { VersionIdentityPayload } from "../profile/version-id.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { FileVersionStaging } from "../transaction/version-staging.js";
+import { FileVersionStaging } from "../testing/legacy-file-version-staging.test.fixture.js";
 import { sealFact } from "./checksum.js";
 import {
   deriveMaterialId,

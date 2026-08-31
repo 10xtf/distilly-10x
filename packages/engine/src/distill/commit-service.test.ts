@@ -51,7 +51,8 @@ import type {
 import { createLegacyFileEngineTestSupport } from "../testing/legacy-file-engine.test.fixture.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
-import type { VersionStagingArtifactLabel } from "../transaction/version-staging.js";
+import { legacyVersionStagingDirectory } from "../testing/legacy-file-version-staging.test.fixture.js";
+import type { VersionStagingArtifactLabel } from "../testing/legacy-file-version-staging.test.fixture.js";
 
 const AT = "2026-08-21T08:00:00.000Z" as IsoDateTime;
 const ACTOR: ActorContext = { kind: "sdk", id: "step7-commit-test" };
@@ -1543,7 +1544,8 @@ describe("CommitService", { timeout: 45_000 }, () => {
       if (prepared.transactionKind !== "distill_commit" || prepared.state !== "prepared") {
         throw new Error("Expected a prepared journal after a staged-artifact crash.");
       }
-      const staging = facts.layout.versionStagingDirectory(
+      const staging = legacyVersionStagingDirectory(
+        facts.layout,
         request(3),
         ingest.subject.id,
         prepared.version.id,

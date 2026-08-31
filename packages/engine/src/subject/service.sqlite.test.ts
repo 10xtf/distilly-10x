@@ -138,6 +138,27 @@ const deleteSpaceWithoutForeignKeys = (root: string, spaceId: SpaceId): void => 
   }
 };
 
+const setSubjectVersionWithoutForeignKeys = (
+  root: string,
+  subjectId: SubjectId,
+  column: "current_version_id" | "suspended_version_id",
+  versionId: string,
+): void => {
+  const database = new DatabaseSync(join(root, "store.sqlite3"));
+  try {
+    database.exec("PRAGMA foreign_keys = OFF");
+    database
+      .prepare(
+        `UPDATE subject_states
+         SET current_version_id = NULL, suspended_version_id = NULL, ${column} = ?
+         WHERE subject_id = ?`,
+      )
+      .run(versionId, subjectId);
+  } finally {
+    database.close();
+  }
+};
+
 const count = (store: SqliteEngineStore, table: string): number =>
   store.read((database) => {
     const row = database.prepare(`SELECT count(*) AS count FROM ${table}`).get();
@@ -390,7 +411,7 @@ describe("SQLite subject create service", () => {
 
   it("fails closed on v1 subject pointers before version authority exists", async () => {
     const harness = await open();
-    await harness.service.create(
+    const subject = await harness.service.create(
       input("Ada", {
         identityHints: [{ kind: "url", value: "https://example.com/ada" }],
       }),
@@ -399,16 +420,7 @@ describe("SQLite subject create service", () => {
     );
     const danglingVersion = `version_${"a".repeat(64)}`;
     const tamper = (column: "current_version_id" | "suspended_version_id"): void => {
-      harness.store.write((database) => {
-        database.exec("PRAGMA ignore_check_constraints = ON");
-        database
-          .prepare(
-            `UPDATE subject_states
-             SET current_version_id = NULL, suspended_version_id = NULL, ${column} = ?`,
-          )
-          .run(danglingVersion);
-        database.exec("PRAGMA ignore_check_constraints = OFF");
-      });
+      setSubjectVersionWithoutForeignKeys(harness.root, subject.id, column, danglingVersion);
     };
 
     tamper("current_version_id");
@@ -496,17 +508,12 @@ describe("SQLite subject create service", () => {
       ACTOR,
       { requestId: request(1) },
     );
-    harness.store.write((database) => {
-      database.exec("PRAGMA ignore_check_constraints = ON");
-      database
-        .prepare(
-          `UPDATE subject_states
-           SET current_version_id = ?
-           WHERE subject_id = ?`,
-        )
-        .run(`version_${"a".repeat(64)}`, unrelated.id);
-      database.exec("PRAGMA ignore_check_constraints = OFF");
-    });
+    setSubjectVersionWithoutForeignKeys(
+      harness.root,
+      unrelated.id,
+      "current_version_id",
+      `version_${"a".repeat(64)}`,
+    );
 
     await expect(
       harness.service.create(input("Countess"), ACTOR, { requestId: request(2) }),

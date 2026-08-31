@@ -266,54 +266,6 @@ export class Layout {
   }
 
   /**
-   * Root of one subject's journal-owned immutable-version staging directories.
-   *
-   * @param subjectId - Subject that owns the staged versions.
-   * @returns The confined absolute version-staging root.
-   */
-  versionStagingRootDirectory(subjectId: SubjectId): string {
-    return resolve(this.versionsDirectory(subjectId), ".staging");
-  }
-
-  /**
-   * Fixed immutable-version staging directory owned by one commit journal.
-   *
-   * @param requestId - Commit journal that owns the staging directory.
-   * @param subjectId - Subject that owns the staged version.
-   * @param versionId - Version being staged.
-   * @returns The confined absolute fixed staging path.
-   */
-  versionStagingDirectory(
-    requestId: RequestId,
-    subjectId: SubjectId,
-    versionId: VersionId,
-  ): string {
-    return resolve(
-      this.versionStagingRootDirectory(subjectId),
-      `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}`,
-    );
-  }
-
-  /**
-   * Fixed journal-owned path used after the atomic published-version deletion commit point.
-   *
-   * @param requestId - Commit journal that owns the deleting directory.
-   * @param subjectId - Subject that owns the published version.
-   * @param versionId - Version being removed by aborted-commit recovery.
-   * @returns The confined absolute fixed deleting path.
-   */
-  versionDeletingDirectory(
-    requestId: RequestId,
-    subjectId: SubjectId,
-    versionId: VersionId,
-  ): string {
-    return resolve(
-      this.versionStagingRootDirectory(subjectId),
-      `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}.deleting`,
-    );
-  }
-
-  /**
    * Path of immutable metadata for one profile version.
    *
    * @param subjectId - Subject that owns the version.

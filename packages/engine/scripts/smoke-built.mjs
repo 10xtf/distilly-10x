@@ -22,6 +22,15 @@ assert.equal(
 const { createInternalEngineComposition } = await import("../lib/ingest/composition.js");
 
 const actor = { kind: "sdk", id: "sqlite-crash-child" };
+const session = {
+  actor,
+  leaseOwner: `lease_owner_${"1".padStart(32, "0")}`,
+  capacity: {
+    maximumInputTokens: 4_194_304,
+    maximumToolResultBytes: 4_194_304,
+    source: "sdk_explicit",
+  },
+};
 const input = {
   subject: {
     kind: "create",
@@ -75,6 +84,22 @@ const inspect = (root) => {
       blobRows: count("blobs"),
       materials: count("materials"),
       pending: count("pending_jobs"),
+      leases: count("job_leases"),
+      versions: count("versions"),
+      versionStatuses: count("version_statuses"),
+      versionMaterials: count("version_materials"),
+      versionClaims: count("version_claims"),
+      versionEvidence: count("version_claim_evidence"),
+      currentPointers: database
+        .prepare(
+          "SELECT count(*) AS count FROM subject_states WHERE current_version_id IS NOT NULL",
+        )
+        .get().count,
+      suspendedPointers: database
+        .prepare(
+          "SELECT count(*) AS count FROM subject_states WHERE suspended_version_id IS NOT NULL",
+        )
+        .get().count,
       operations: count("operations"),
       events: count("events"),
       journalMode: database.prepare("PRAGMA journal_mode").get().journal_mode,
@@ -205,12 +230,50 @@ try {
   const normalResult = await first.ingest.ingest(input, actor, { requestId: normalRequest });
   assert.equal(normalResult.kind, "ingested");
   assert.equal(normalResult.created, true);
+  const briefing = await first.leases.brief({ jobId: normalResult.job.id }, session, {
+    requestId: requestIdFor(2),
+  });
+  const commitInput = {
+    jobId: briefing.job.id,
+    generation: briefing.job.generation,
+    leaseId: briefing.lease.id,
+    briefContractDigest: briefing.contract.digest,
+    materialSetHash: briefing.job.materialSetHash,
+    patch: {
+      operations: [
+        {
+          op: "add",
+          claim: {
+            facet: "identity",
+            text: "Ada uses verified SQLite evidence.",
+            evidence: [
+              {
+                kind: "brief_material",
+                materialRef: "m001",
+                quote: "Verified SQLite crash evidence",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+  const commitRequest = requestIdFor(3);
+  const commitResult = await first.commits.commit(commitInput, session, {
+    requestId: commitRequest,
+  });
+  assert.equal(commitResult.kind, "current");
   first.close();
   const reopened = await createInternalEngineComposition({ root: normalRoot });
   assert.deepEqual(
     await reopened.ingest.ingest(input, actor, { requestId: normalRequest }),
     normalResult,
     "reopen must replay the exact stored result",
+  );
+  assert.deepEqual(
+    await reopened.commits.commit(commitInput, session, { requestId: commitRequest }),
+    commitResult,
+    "reopen must replay the exact built commit result without pending state",
   );
   reopened.close();
   assert.deepEqual(inspect(normalRoot), {
@@ -219,11 +282,19 @@ try {
     aliases: 1,
     identityHints: 1,
     subjectStates: 1,
-    blobRows: 1,
+    blobRows: 2,
     materials: 1,
-    pending: 1,
-    operations: 1,
-    events: 3,
+    pending: 0,
+    leases: 0,
+    versions: 1,
+    versionStatuses: 1,
+    versionMaterials: 1,
+    versionClaims: 1,
+    versionEvidence: 1,
+    currentPointers: 1,
+    suspendedPointers: 0,
+    operations: 3,
+    events: 6,
     journalMode: "wal",
     quickCheck: "ok",
     foreignKeyFailures: [],
@@ -249,6 +320,14 @@ try {
     blobRows: 1,
     materials: 1,
     pending: 1,
+    leases: 0,
+    versions: 0,
+    versionStatuses: 0,
+    versionMaterials: 0,
+    versionClaims: 0,
+    versionEvidence: 0,
+    currentPointers: 0,
+    suspendedPointers: 0,
     operations: 1,
     events: 3,
     journalMode: "wal",
@@ -270,6 +349,14 @@ try {
       blobRows: 0,
       materials: 0,
       pending: 0,
+      leases: 0,
+      versions: 0,
+      versionStatuses: 0,
+      versionMaterials: 0,
+      versionClaims: 0,
+      versionEvidence: 0,
+      currentPointers: 0,
+      suspendedPointers: 0,
       operations: 0,
       events: 0,
       journalMode: "wal",
@@ -307,6 +394,14 @@ try {
     blobRows: 1,
     materials: 1,
     pending: 1,
+    leases: 0,
+    versions: 0,
+    versionStatuses: 0,
+    versionMaterials: 0,
+    versionClaims: 0,
+    versionEvidence: 0,
+    currentPointers: 0,
+    suspendedPointers: 0,
     operations: 1,
     events: 3,
     journalMode: "wal",

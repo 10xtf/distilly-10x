@@ -8,6 +8,7 @@ import {
   spaceSummarySchema,
   subjectIdSchema,
   subjectSummarySchema,
+  versionIdSchema,
 } from "@distilly/protocol";
 import type {
   IdentityHint,
@@ -15,6 +16,7 @@ import type {
   SpaceSummary,
   SubjectId,
   SubjectSummary,
+  VersionId,
 } from "@distilly/protocol";
 
 import {
@@ -331,7 +333,44 @@ const parseHintRow = (row: HintRow): IdentityHint => {
   return hint;
 };
 
-const validateStateRow = (row: StateRow): string | undefined => {
+const validateVersionPointer = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+  value: string | undefined,
+  expectedStatus: "current" | "suspended",
+): VersionId | undefined => {
+  if (value === undefined) return undefined;
+  const versionId = parseStored(() => versionIdSchema.parse(value), `${expectedStatus} version id`);
+  const row = queryOne<{
+    readonly subject_id: unknown;
+    readonly status: unknown;
+    readonly status_subject_id: unknown;
+  }>(
+    database,
+    `SELECT versions.subject_id, version_statuses.status,
+            version_statuses.subject_id AS status_subject_id
+     FROM versions
+     LEFT JOIN version_statuses ON version_statuses.version_id = versions.id
+     WHERE versions.id = ?`,
+    [versionId],
+    `the ${expectedStatus} version pointer`,
+  );
+  if (
+    row === undefined ||
+    row.subject_id !== subjectId ||
+    row.status_subject_id !== subjectId ||
+    row.status !== expectedStatus
+  ) {
+    throw storageCorrupt(`SQLite ${expectedStatus} version pointer is inconsistent.`);
+  }
+  return versionId;
+};
+
+const validateStateRow = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+  row: StateRow,
+): VersionId | undefined => {
   if (typeof row.generation !== "number" || !Number.isSafeInteger(row.generation)) {
     throw storageCorrupt("SQLite subject generation is invalid.");
   }
@@ -345,10 +384,9 @@ const validateStateRow = (row: StateRow): string | undefined => {
   }
   const currentVersionId = storedNullableText(row.current_version_id, "current version id");
   const suspendedVersionId = storedNullableText(row.suspended_version_id, "suspended version id");
-  if (currentVersionId !== undefined || suspendedVersionId !== undefined) {
-    throw storageCorrupt("SQLite v1 cannot contain version pointers before version storage lands.");
-  }
-  return undefined;
+  const current = validateVersionPointer(database, subjectId, currentVersionId, "current");
+  validateVersionPointer(database, subjectId, suspendedVersionId, "suspended");
+  return current;
 };
 
 /**
@@ -409,7 +447,7 @@ export const loadSubjectSummaryInTransaction = (
     "subject state",
   );
   if (state === undefined) throw storageCorrupt("A subject is missing its authoritative state.");
-  const currentVersionId = validateStateRow(state);
+  const currentVersionId = validateStateRow(database, parsedSubjectId, state);
 
   const aliases = parseAliasRows(
     queryAll<AliasRow>(

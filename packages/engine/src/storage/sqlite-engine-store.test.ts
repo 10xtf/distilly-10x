@@ -37,7 +37,7 @@ afterEach(async () => {
 });
 
 describe("SqliteEngineStore", () => {
-  it("creates the exact twelve-table v1 authority in WAL/FK/FULL mode and reopens it", async () => {
+  it("creates the exact version-capable v1 authority in WAL/FK/FULL mode and reopens it", async () => {
     const root = await temporaryRoot();
     let store = await SqliteEngineStore.open(root);
     store.write((database) => insertSpace(database, "space_test_people"));
@@ -84,6 +84,11 @@ describe("SqliteEngineStore", () => {
         "subject_identity_hints",
         "subject_states",
         "subjects",
+        "version_claim_evidence",
+        "version_claims",
+        "version_materials",
+        "version_statuses",
+        "versions",
       ],
       labels: [{ display_name: "People" }],
     });

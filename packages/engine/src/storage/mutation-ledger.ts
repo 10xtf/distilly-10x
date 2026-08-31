@@ -14,6 +14,7 @@ import {
 } from "@distilly/protocol";
 import type {
   ActorContext,
+  CommitResult,
   ContentDigest,
   EngineEvent,
   EngineMethodMap,
@@ -35,7 +36,12 @@ import { idempotencyConflict, storageCorrupt } from "../internal-errors.js";
 
 /** Mutation methods currently backed by the SQLite operation ledger. */
 export type SqliteLedgerMethod =
-  "subjects.create" | "materials.ingest" | "distill.brief" | "distill.renew" | "distill.release";
+  | "subjects.create"
+  | "materials.ingest"
+  | "distill.brief"
+  | "distill.renew"
+  | "distill.release"
+  | "distill.commit";
 
 /** SQLite mutations whose stable result remains small enough for inline JSON. */
 export type SqliteInlineLedgerMethod = Exclude<SqliteLedgerMethod, "distill.brief">;
@@ -179,6 +185,10 @@ const operationResultSubjectId = (
       return (result as IngestResult).subject.id;
     case "distill.brief":
       return (result as HostDistillBriefing).subject.id;
+    case "distill.commit": {
+      const commit = result as CommitResult;
+      return commit.kind === "current" ? commit.version.subjectId : commit.candidate.subjectId;
+    }
     case "distill.renew":
     case "distill.release":
       return undefined;
@@ -190,7 +200,8 @@ const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
   value === "materials.ingest" ||
   value === "distill.brief" ||
   value === "distill.renew" ||
-  value === "distill.release";
+  value === "distill.release" ||
+  value === "distill.commit";
 
 interface BriefTemplateOperationEnvelope {
   readonly kind: "brief_template_v1";

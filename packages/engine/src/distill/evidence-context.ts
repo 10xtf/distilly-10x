@@ -8,12 +8,13 @@ import type {
   SubjectId,
   SubjectStateRecord,
   SourceGroupingSnapshot,
+  VersionClaimsSnapshot,
   VersionMaterialEntry,
+  VersionMaterialManifest,
+  VersionRecord,
 } from "@distilly/protocol";
 
 import { digestBriefContract, hashMaterialSet, verifyMaterialIdentity } from "../facts/digests.js";
-import type { StoredMaterial } from "../facts/material-store.js";
-import type { StoredVersion } from "../facts/version-store.js";
 import { storageCorrupt } from "../internal-errors.js";
 import { deriveSourceGroups } from "../ingest/source-groups.js";
 import { compareUtf8 } from "../profile/claim-id.js";
@@ -27,12 +28,25 @@ export interface EvidenceContext {
   readonly grouping: SourceGroupingSnapshot;
 }
 
+/** Verified material facts independent of their storage implementation. */
+interface EvidenceStoredMaterial {
+  readonly record: MaterialRecord;
+  readonly content: string;
+}
+
+/** Verified immutable version facts independent of their storage implementation. */
+interface EvidenceStoredVersion {
+  readonly version: VersionRecord;
+  readonly manifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+}
+
 /** Verified facts required to reconstruct evidence without a brief OperationRecord. */
 export interface BuildEvidenceContextInput {
   readonly subjectId: SubjectId;
   readonly state: SubjectStateRecord;
-  readonly materials: readonly StoredMaterial[];
-  readonly baseline?: StoredVersion;
+  readonly materials: readonly EvidenceStoredMaterial[];
+  readonly baseline?: EvidenceStoredVersion;
   readonly contract: BriefContract;
 }
 
@@ -68,7 +82,9 @@ const verifyStoredEvidence = (claim: Claim, bodies: ReadonlyMap<MaterialId, stri
   }
 };
 
-const requireCurrentMaterials = (input: BuildEvidenceContextInput): readonly StoredMaterial[] => {
+const requireCurrentMaterials = (
+  input: BuildEvidenceContextInput,
+): readonly EvidenceStoredMaterial[] => {
   const pending = input.state.pending;
   if (pending === undefined || pending.lease === undefined) {
     throw storageCorrupt("Evidence reconstruction requires an active persisted lease marker.");
@@ -125,7 +141,7 @@ interface BaselineFacts {
 
 const requireBaseline = (
   input: BuildEvidenceContextInput,
-  currentById: ReadonlyMap<MaterialId, StoredMaterial>,
+  currentById: ReadonlyMap<MaterialId, EvidenceStoredMaterial>,
   materialBodies: ReadonlyMap<MaterialId, string>,
 ): BaselineFacts => {
   const pending = input.state.pending!;

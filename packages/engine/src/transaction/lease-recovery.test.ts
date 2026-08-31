@@ -65,7 +65,7 @@ import {
 } from "../testing/legacy-file-recovery.test.fixture.js";
 import { FileRequestLock } from "./request-lock.js";
 import { FileSubjectLock } from "./subject-lock.js";
-import { FileVersionStaging } from "./version-staging.js";
+import { FileVersionStaging } from "../testing/legacy-file-version-staging.test.fixture.js";
 
 const SPACE_ID = spaceIdSchema.parse(`space_${"1".repeat(32)}`);
 const SUBJECT_ID = subjectIdSchema.parse(`subject_${"2".repeat(32)}`);

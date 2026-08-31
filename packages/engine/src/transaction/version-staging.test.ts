@@ -11,8 +11,13 @@ import {
   TEST_SUBJECT_ID,
 } from "../facts/version-fixture.test-support.js";
 import { storageCorrupt } from "../internal-errors.js";
-import { FileVersionStaging } from "./version-staging.js";
-import type { VersionStagingArtifactLabel } from "./version-staging.js";
+import {
+  FileVersionStaging,
+  legacyVersionDeletingDirectory,
+  legacyVersionStagingDirectory,
+  legacyVersionStagingRootDirectory,
+} from "../testing/legacy-file-version-staging.test.fixture.js";
+import type { VersionStagingArtifactLabel } from "../testing/legacy-file-version-staging.test.fixture.js";
 
 const roots: string[] = [];
 const OTHER_REQUEST_ID = requestIdSchema.parse(`req_${"1".repeat(32)}`);
@@ -62,7 +67,8 @@ describe("FileVersionStaging", () => {
       const harness = await createVersionFixtureHarness();
       roots.push(harness.root);
       const artifacts = makeVersionArtifacts(harness);
-      const staging = harness.layout.versionStagingDirectory(
+      const staging = legacyVersionStagingDirectory(
+        harness.layout,
         TEST_REQUEST_ID,
         TEST_SUBJECT_ID,
         artifacts.version.id,
@@ -85,7 +91,7 @@ describe("FileVersionStaging", () => {
         ".staging",
       ]);
       expect(
-        (await readdir(harness.layout.versionStagingRootDirectory(TEST_SUBJECT_ID))).sort(),
+        (await readdir(legacyVersionStagingRootDirectory(harness.layout, TEST_SUBJECT_ID))).sort(),
       ).toEqual([basename(staging)]);
 
       await harness.staging.cleanup(TEST_REQUEST_ID, artifacts);
@@ -104,7 +110,8 @@ describe("FileVersionStaging", () => {
     await expect(harness.staging.readExact(TEST_REQUEST_ID, artifacts)).resolves.toEqual(artifacts);
     expect(
       await exists(
-        harness.layout.versionStagingDirectory(
+        legacyVersionStagingDirectory(
+          harness.layout,
           TEST_REQUEST_ID,
           TEST_SUBJECT_ID,
           artifacts.version.id,
@@ -120,7 +127,8 @@ describe("FileVersionStaging", () => {
     await harness.staging.prepare(TEST_REQUEST_ID, artifacts);
     await harness.staging.publish(TEST_REQUEST_ID, artifacts);
 
-    const staging = harness.layout.versionStagingDirectory(
+    const staging = legacyVersionStagingDirectory(
+      harness.layout,
       TEST_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,
@@ -153,7 +161,8 @@ describe("FileVersionStaging", () => {
     const harness = await createVersionFixtureHarness();
     roots.push(harness.root);
     const artifacts = makeVersionArtifacts(harness);
-    const staging = harness.layout.versionStagingDirectory(
+    const staging = legacyVersionStagingDirectory(
+      harness.layout,
       TEST_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,
@@ -205,7 +214,8 @@ describe("FileVersionStaging", () => {
     await harness.staging.prepare(TEST_REQUEST_ID, artifacts);
     await harness.staging.publish(TEST_REQUEST_ID, artifacts);
     const target = harness.layout.versionDirectory(TEST_SUBJECT_ID, artifacts.version.id);
-    const deleting = harness.layout.versionDeletingDirectory(
+    const deleting = legacyVersionDeletingDirectory(
+      harness.layout,
       TEST_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,
@@ -234,7 +244,8 @@ describe("FileVersionStaging", () => {
     await harness.staging.prepare(TEST_REQUEST_ID, artifacts);
     await harness.staging.publish(TEST_REQUEST_ID, artifacts);
     const target = harness.layout.versionDirectory(TEST_SUBJECT_ID, artifacts.version.id);
-    const deleting = harness.layout.versionDeletingDirectory(
+    const deleting = legacyVersionDeletingDirectory(
+      harness.layout,
       TEST_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,
@@ -270,12 +281,14 @@ describe("FileVersionStaging", () => {
     await harness.staging.prepare(TEST_REQUEST_ID, artifacts);
     await harness.staging.publish(TEST_REQUEST_ID, artifacts);
     const target = harness.layout.versionDirectory(TEST_SUBJECT_ID, artifacts.version.id);
-    const deleting = harness.layout.versionDeletingDirectory(
+    const deleting = legacyVersionDeletingDirectory(
+      harness.layout,
       TEST_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,
     );
-    const otherDeleting = harness.layout.versionDeletingDirectory(
+    const otherDeleting = legacyVersionDeletingDirectory(
+      harness.layout,
       OTHER_REQUEST_ID,
       TEST_SUBJECT_ID,
       artifacts.version.id,

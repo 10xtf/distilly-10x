@@ -82,21 +82,6 @@ const SCHEMA_OBJECTS = [
 ) STRICT`,
   ),
   table(
-    "subject_states",
-    `CREATE TABLE subject_states (
-  subject_id TEXT PRIMARY KEY NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-  generation INTEGER NOT NULL CHECK (generation >= 0 AND generation <= 9007199254740991),
-  material_set_hash TEXT,
-  current_version_id TEXT,
-  suspended_version_id TEXT,
-  CHECK (
-    (generation = 0 AND material_set_hash IS NULL) OR
-    (generation > 0 AND material_set_hash IS NOT NULL)
-  ),
-  CHECK (current_version_id IS NULL AND suspended_version_id IS NULL)
-) STRICT`,
-  ),
-  table(
     "blobs",
     `CREATE TABLE blobs (
   digest TEXT PRIMARY KEY NOT NULL,
@@ -119,8 +104,153 @@ const SCHEMA_OBJECTS = [
   blob_digest TEXT NOT NULL REFERENCES blobs(digest) ON DELETE RESTRICT,
   stored_at TEXT NOT NULL,
   PRIMARY KEY (subject_id, material_id),
+  UNIQUE (subject_id, material_id, content_digest, provenance_digest),
   CHECK (length(source_identity) > 0),
   CHECK (blob_digest = content_digest)
+) STRICT`,
+  ),
+  table(
+    "versions",
+    `CREATE TABLE versions (
+  id TEXT PRIMARY KEY NOT NULL,
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  subject_display_name TEXT NOT NULL,
+  parent_id TEXT,
+  derived_from_candidate_version_id TEXT,
+  generation INTEGER NOT NULL CHECK (generation > 0 AND generation <= 9007199254740991),
+  material_set_hash TEXT NOT NULL,
+  material_count INTEGER NOT NULL CHECK (material_count > 0 AND material_count <= 9007199254740991),
+  creation_json TEXT NOT NULL CHECK (json_valid(creation_json)),
+  created_disposition TEXT NOT NULL CHECK (created_disposition IN ('current', 'suspended')),
+  actor_json TEXT NOT NULL CHECK (json_valid(actor_json)),
+  quality_json TEXT NOT NULL CHECK (json_valid(quality_json)),
+  renderer_version TEXT NOT NULL,
+  review_reasons_json TEXT CHECK (review_reasons_json IS NULL OR json_valid(review_reasons_json)),
+  accepted_patch_digest TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  record_json TEXT NOT NULL CHECK (json_valid(record_json)),
+  UNIQUE (id, subject_id),
+  UNIQUE (subject_id, id),
+  CHECK (length(subject_display_name) > 0),
+  CHECK (length(renderer_version) > 0),
+  CHECK (
+    (created_disposition = 'current' AND review_reasons_json IS NULL) OR
+    (created_disposition = 'suspended' AND review_reasons_json IS NOT NULL)
+  ),
+  CHECK (parent_id IS NULL OR parent_id <> id),
+  CHECK (derived_from_candidate_version_id IS NULL OR derived_from_candidate_version_id <> id),
+  FOREIGN KEY (subject_id, parent_id)
+    REFERENCES versions(subject_id, id) ON DELETE RESTRICT,
+  FOREIGN KEY (subject_id, derived_from_candidate_version_id)
+    REFERENCES versions(subject_id, id) ON DELETE RESTRICT
+) STRICT`,
+  ),
+  table(
+    "version_statuses",
+    `CREATE TABLE version_statuses (
+  version_id TEXT PRIMARY KEY NOT NULL,
+  subject_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('current', 'suspended', 'historical', 'rejected')),
+  FOREIGN KEY (version_id, subject_id) REFERENCES versions(id, subject_id) ON DELETE CASCADE
+) STRICT`,
+  ),
+  table(
+    "version_materials",
+    `CREATE TABLE version_materials (
+  version_id TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL CHECK (ordinal >= 0 AND ordinal <= 9007199254740991),
+  material_id TEXT NOT NULL,
+  content_digest TEXT NOT NULL,
+  provenance_digest TEXT NOT NULL,
+  PRIMARY KEY (version_id, ordinal),
+  UNIQUE (version_id, material_id),
+  FOREIGN KEY (version_id, subject_id) REFERENCES versions(id, subject_id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id, material_id, content_digest, provenance_digest)
+    REFERENCES materials(subject_id, material_id, content_digest, provenance_digest)
+    ON DELETE RESTRICT
+) STRICT`,
+  ),
+  table(
+    "version_claims",
+    `CREATE TABLE version_claims (
+  version_id TEXT NOT NULL REFERENCES versions(id) ON DELETE CASCADE,
+  subject_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL CHECK (ordinal >= 0 AND ordinal <= 9007199254740991),
+  claim_id TEXT NOT NULL,
+  facet TEXT NOT NULL,
+  text TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'contested', 'superseded')),
+  strength TEXT NOT NULL CHECK (
+    strength IN ('user_asserted', 'single_source', 'corroborated', 'contested', 'imported_unverified')
+  ),
+  observed_in_json TEXT NOT NULL CHECK (json_valid(observed_in_json)),
+  valid_from TEXT,
+  valid_to TEXT,
+  created_in_version_id TEXT NOT NULL,
+  superseded_by_claim_id TEXT,
+  PRIMARY KEY (version_id, ordinal),
+  UNIQUE (version_id, claim_id),
+  FOREIGN KEY (version_id, superseded_by_claim_id)
+    REFERENCES version_claims(version_id, claim_id)
+    ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+  FOREIGN KEY (version_id, subject_id)
+    REFERENCES versions(id, subject_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_in_version_id, subject_id)
+    REFERENCES versions(id, subject_id) ON DELETE RESTRICT,
+  CHECK (length(facet) > 0),
+  CHECK (length(text) > 0),
+  CHECK (valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to),
+  CHECK (
+    (status = 'superseded') OR
+    superseded_by_claim_id IS NULL
+  ),
+  CHECK (
+    (status = 'contested' AND strength = 'contested') OR
+    (status <> 'contested' AND strength <> 'contested')
+  )
+) STRICT`,
+  ),
+  table(
+    "version_claim_evidence",
+    `CREATE TABLE version_claim_evidence (
+  version_id TEXT NOT NULL,
+  claim_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL CHECK (ordinal >= 0 AND ordinal <= 9007199254740991),
+  material_id TEXT NOT NULL,
+  quote TEXT NOT NULL,
+  locator_start INTEGER,
+  locator_end INTEGER,
+  PRIMARY KEY (version_id, claim_id, ordinal),
+  FOREIGN KEY (version_id, claim_id)
+    REFERENCES version_claims(version_id, claim_id) ON DELETE CASCADE,
+  FOREIGN KEY (version_id, material_id)
+    REFERENCES version_materials(version_id, material_id) ON DELETE RESTRICT,
+  CHECK (length(quote) > 0),
+  CHECK (
+    (locator_start IS NULL AND locator_end IS NULL) OR
+    (locator_start IS NOT NULL AND locator_end IS NOT NULL AND
+     locator_start >= 0 AND locator_start < locator_end)
+  )
+) STRICT`,
+  ),
+  table(
+    "subject_states",
+    `CREATE TABLE subject_states (
+  subject_id TEXT PRIMARY KEY NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  generation INTEGER NOT NULL CHECK (generation >= 0 AND generation <= 9007199254740991),
+  material_set_hash TEXT,
+  current_version_id TEXT,
+  suspended_version_id TEXT,
+  CHECK (
+    (generation = 0 AND material_set_hash IS NULL) OR
+    (generation > 0 AND material_set_hash IS NOT NULL)
+  ),
+  CHECK (current_version_id IS NULL OR current_version_id <> suspended_version_id),
+  FOREIGN KEY (subject_id, current_version_id)
+    REFERENCES versions(subject_id, id) ON DELETE RESTRICT,
+  FOREIGN KEY (subject_id, suspended_version_id)
+    REFERENCES versions(subject_id, id) ON DELETE RESTRICT
 ) STRICT`,
   ),
   table(
@@ -138,6 +268,8 @@ const SCHEMA_OBJECTS = [
     total_material_count >= 0 AND total_material_count <= 9007199254740991
   ),
   queued_at TEXT NOT NULL,
+  FOREIGN KEY (subject_id, base_version_id)
+    REFERENCES versions(subject_id, id) ON DELETE RESTRICT,
   CHECK (added_material_count <= total_material_count)
 ) STRICT`,
   ),
@@ -223,6 +355,36 @@ WHERE locator_key IS NOT NULL`,
     "material_id_lookup",
     "materials",
     "CREATE INDEX material_id_lookup ON materials(material_id, subject_id)",
+  ),
+  index(
+    "version_subject_created_lookup",
+    "versions",
+    "CREATE INDEX version_subject_created_lookup ON versions(subject_id, created_at, id)",
+  ),
+  index(
+    "version_status_subject_lookup",
+    "version_statuses",
+    "CREATE INDEX version_status_subject_lookup ON version_statuses(subject_id, status, version_id)",
+  ),
+  index(
+    "version_current_subject_unique",
+    "version_statuses",
+    `CREATE UNIQUE INDEX version_current_subject_unique
+ON version_statuses(subject_id)
+WHERE status = 'current'`,
+  ),
+  index(
+    "version_suspended_subject_unique",
+    "version_statuses",
+    `CREATE UNIQUE INDEX version_suspended_subject_unique
+ON version_statuses(subject_id)
+WHERE status = 'suspended'`,
+  ),
+  index(
+    "version_evidence_material_lookup",
+    "version_claim_evidence",
+    `CREATE INDEX version_evidence_material_lookup
+ON version_claim_evidence(material_id, version_id, claim_id)`,
   ),
   index(
     "pending_job_order",

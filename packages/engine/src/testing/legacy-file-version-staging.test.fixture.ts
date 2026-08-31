@@ -1,6 +1,12 @@
+/**
+ * Test-only snapshot of the retired file-backed immutable-version staging seam.
+ *
+ * SQLite commit publishes version authority in one transaction and never imports this fixture.
+ */
+import { requestIdSchema, versionIdSchema } from "@distilly/protocol";
 import type { Profile, RequestId, SubjectId, VersionId } from "@distilly/protocol";
 import { lstat, rename, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import {
   atomicCreateFile,
@@ -52,6 +58,56 @@ const storedClaimsSchema: RuntimeSchema<VersionClaimsSnapshot> = {
 
 const isAlreadyExists = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "EEXIST";
+
+/**
+ * Returns the retired test-only staging root formerly exposed by production Layout.
+ *
+ * @param layout - Legacy file layout used by the regression fixture.
+ * @param subjectId - Subject that owns the staged version.
+ * @returns Absolute path to the subject's retired staging root.
+ */
+export const legacyVersionStagingRootDirectory = (layout: Layout, subjectId: SubjectId): string =>
+  resolve(layout.versionsDirectory(subjectId), ".staging");
+
+/**
+ * Returns one retired test-only staging path owned by a commit journal.
+ *
+ * @param layout - Legacy file layout used by the regression fixture.
+ * @param requestId - Mutation request that owns the staged version.
+ * @param subjectId - Subject that owns the staged version.
+ * @param versionId - Immutable version being staged.
+ * @returns Absolute path to the retired staging directory.
+ */
+export const legacyVersionStagingDirectory = (
+  layout: Layout,
+  requestId: RequestId,
+  subjectId: SubjectId,
+  versionId: VersionId,
+): string =>
+  resolve(
+    legacyVersionStagingRootDirectory(layout, subjectId),
+    `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}`,
+  );
+
+/**
+ * Returns one retired test-only deleting path used by commit recovery.
+ *
+ * @param layout - Legacy file layout used by the regression fixture.
+ * @param requestId - Mutation request that owns the staged version.
+ * @param subjectId - Subject that owns the staged version.
+ * @param versionId - Immutable version being deleted.
+ * @returns Absolute path to the retired deleting directory.
+ */
+export const legacyVersionDeletingDirectory = (
+  layout: Layout,
+  requestId: RequestId,
+  subjectId: SubjectId,
+  versionId: VersionId,
+): string =>
+  resolve(
+    legacyVersionStagingRootDirectory(layout, subjectId),
+    `${requestIdSchema.parse(requestId)}.${versionIdSchema.parse(versionId)}.deleting`,
+  );
 
 const writeProfileArtifacts = async (
   root: string,
@@ -142,7 +198,7 @@ export class FileVersionStaging {
   async prepare(requestId: RequestId, input: VersionArtifactSet): Promise<void> {
     const prepared = validateVersionArtifactSet(input);
     const { subjectId, id: versionId } = prepared.version;
-    const staging = this.#layout.versionStagingDirectory(requestId, subjectId, versionId);
+    const staging = legacyVersionStagingDirectory(this.#layout, requestId, subjectId, versionId);
     try {
       await createPrivateDirectoryExclusive(this.#layout.root, staging);
     } catch (error) {
@@ -198,7 +254,8 @@ export class FileVersionStaging {
     return this.#versions.readFromDirectory(
       prepared.version.subjectId,
       prepared.version.id,
-      this.#layout.versionStagingDirectory(
+      legacyVersionStagingDirectory(
+        this.#layout,
         requestId,
         prepared.version.subjectId,
         prepared.version.id,
@@ -233,7 +290,7 @@ export class FileVersionStaging {
     await this.readExact(requestId, prepared);
     await publishDirectoryNoReplace(
       this.#layout.root,
-      this.#layout.versionStagingDirectory(requestId, subjectId, versionId),
+      legacyVersionStagingDirectory(this.#layout, requestId, subjectId, versionId),
       target,
     );
     await this.#versions.readFromDirectory(subjectId, versionId, target, prepared);
@@ -251,7 +308,8 @@ export class FileVersionStaging {
    */
   async cleanup(requestId: RequestId, input: VersionArtifactSet): Promise<void> {
     const prepared = validateVersionArtifactSet(input);
-    const staging = this.#layout.versionStagingDirectory(
+    const staging = legacyVersionStagingDirectory(
+      this.#layout,
       requestId,
       prepared.version.subjectId,
       prepared.version.id,
@@ -276,7 +334,7 @@ export class FileVersionStaging {
     const prepared = validateVersionArtifactSet(input);
     const { subjectId, id: versionId } = prepared.version;
     const target = this.#layout.versionDirectory(subjectId, versionId);
-    const deleting = this.#layout.versionDeletingDirectory(requestId, subjectId, versionId);
+    const deleting = legacyVersionDeletingDirectory(this.#layout, requestId, subjectId, versionId);
 
     if (await this.realDirectoryExists(deleting, "Published version deleting path")) {
       await this.#hooks.beforePublishedCleanupRemoval?.();

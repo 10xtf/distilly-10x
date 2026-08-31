@@ -76,7 +76,11 @@ import {
   type SubjectProjection,
 } from "../testing/legacy-file-recovery.test.fixture.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
-import { FileVersionStaging, type VersionStagingHooks } from "../transaction/version-staging.js";
+import {
+  FileVersionStaging,
+  legacyVersionStagingDirectory,
+  type VersionStagingHooks,
+} from "../testing/legacy-file-version-staging.test.fixture.js";
 import {
   ReviewService,
   type ReviewServiceHooks,
@@ -1593,7 +1597,12 @@ describe("ReviewService", { timeout: 60_000 }, () => {
     ).toHaveLength(1);
     expect(
       await exists(
-        harness.layout.versionStagingDirectory(request(30), TEST_SUBJECT_ID, attempted.version.id),
+        legacyVersionStagingDirectory(
+          harness.layout,
+          request(30),
+          TEST_SUBJECT_ID,
+          attempted.version.id,
+        ),
       ),
     ).toBe(false);
   });

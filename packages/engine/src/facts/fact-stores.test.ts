@@ -42,7 +42,7 @@ import { Layout } from "../layout.js";
 import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
 import type { VersionIdentityPayload } from "../profile/version-id.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { FileVersionStaging } from "../transaction/version-staging.js";
+import { FileVersionStaging } from "../testing/legacy-file-version-staging.test.fixture.js";
 import { computeFactChecksum, sealFact } from "./checksum.js";
 import {
   deriveMaterialId,

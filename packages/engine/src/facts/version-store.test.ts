@@ -33,6 +33,7 @@ import { canonicalizeEvidence, compareUtf8, deriveClaimId } from "../profile/cla
 import { buildMaterialEvidenceIndex, summarizeQuality } from "../profile/quality.js";
 import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
 import { deriveVersionId } from "../profile/version-id.js";
+import { legacyVersionStagingRootDirectory } from "../testing/legacy-file-version-staging.test.fixture.js";
 import { sealFact } from "./checksum.js";
 import { deriveMaterialId, digestContent, digestProvenance, hashMaterialSet } from "./digests.js";
 import { replaceFactFile } from "./fact-file.js";
@@ -268,7 +269,7 @@ describe("FileVersionStore", () => {
     await expectCode(harness.versions.list(TEST_SUBJECT_ID), "storage_corrupt");
     await rm(versionFile);
 
-    const staging = harness.layout.versionStagingRootDirectory(TEST_SUBJECT_ID);
+    const staging = legacyVersionStagingRootDirectory(harness.layout, TEST_SUBJECT_ID);
     await rm(staging, { recursive: true });
     await writeFile(staging, "not a directory\n");
     await expectCode(harness.versions.list(TEST_SUBJECT_ID), "storage_corrupt");

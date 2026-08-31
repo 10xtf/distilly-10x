@@ -44,7 +44,7 @@ import type { QueueRepository } from "./legacy-queue-repository.test.fixture.js"
 import { validateRollbackHistoricalCopy } from "../read/committed-version-reader.js";
 import type { FileRequestLock } from "../transaction/request-lock.js";
 import type { FileSubjectLock } from "../transaction/subject-lock.js";
-import type { FileVersionStaging } from "../transaction/version-staging.js";
+import type { FileVersionStaging } from "./legacy-file-version-staging.test.fixture.js";
 
 /** Fault-injection hooks for idempotent post-commit recovery tests. */
 export interface RecoveryHooks {

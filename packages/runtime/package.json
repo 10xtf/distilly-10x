@@ -1,7 +1,7 @@
 {
-  "name": "@distilly/engine",
+  "name": "@distilly/runtime",
   "version": "0.0.0",
-  "description": "Private local fact implementation for the Distilly engine.",
+  "description": "Local runtime composition for the Distilly Developer Preview.",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -20,18 +20,14 @@
   },
   "files": [
     "lib",
-    "prompts",
-    "!lib/**/*.test.*",
-    "!lib/**/*test-support*",
-    "!lib/**/*fixture*",
-    "!lib/testing/**"
+    "!lib/**/*.test.*"
   ],
   "sideEffects": false,
   "dependencies": {
+    "@distilly/engine": "workspace:*",
     "@distilly/protocol": "workspace:*"
   },
   "scripts": {
-    "smoke:built": "node scripts/smoke-built.mjs",
-    "snapshots": "vitest --root ../.. run packages/engine/src/distill/prompt-catalog.test.ts"
+    "smoke:built": "node scripts/smoke-built.mjs"
   }
 }

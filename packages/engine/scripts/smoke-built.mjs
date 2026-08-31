@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const rootModule = await import("@distilly/engine");
 assert.deepEqual(Object.keys(rootModule), [], "the Engine root export must remain empty");
+const previewModule = await import("@distilly/engine/preview");
+assert.deepEqual(Object.keys(previewModule), ["openPreviewEngine"]);
 
 const { PromptCatalog } = await import("../lib/distill/prompt-catalog.js");
 const promptContract = await new PromptCatalog().load();
@@ -249,6 +251,16 @@ const killAt = async (root, phase, requestId) => {
 
 const roots = [];
 try {
+  const previewRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-preview-"));
+  roots.push(previewRoot);
+  const previewRuntime = await previewModule.openPreviewEngine({ root: previewRoot });
+  const previewClient = await previewRuntime.connect({
+    actor: { kind: "sdk", id: "engine-built-preview" },
+  });
+  assert.deepEqual(await previewClient.call("subjects.list", {}), { items: [] });
+  await previewClient.close();
+  await previewRuntime.close();
+
   const normalRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-sqlite-"));
   roots.push(normalRoot);
   const first = await createInternalEngineComposition({ root: normalRoot });

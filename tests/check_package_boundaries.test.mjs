@@ -85,7 +85,7 @@ test("rejects production Engine source importing a legacy test fixture", async (
   assert.match(result.stderr, /\[legacy-test-only-import\]/u);
 });
 
-test("accepts adapters, facade, MCP, bindings, and Panel along their reviewed edges", async (testContext) => {
+test("accepts adapters, runtime, facade, MCP, bindings, and Panel along reviewed edges", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
@@ -101,6 +101,12 @@ test("accepts adapters, facade, MCP, bindings, and Panel along their reviewed ed
         "distilly",
         'export type { EngineClient } from "@distilly/protocol";\n',
         { "@distilly/protocol": "workspace:*" },
+      ],
+      [
+        "runtime",
+        "@distilly/runtime",
+        'export type { EngineRuntime } from "@distilly/engine/preview";\nexport type { EngineClient } from "@distilly/protocol";\n',
+        { "@distilly/engine": "workspace:*", "@distilly/protocol": "workspace:*" },
       ],
       [
         "mcp",
@@ -128,6 +134,33 @@ test("accepts adapters, facade, MCP, bindings, and Panel along their reviewed ed
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "package boundaries: ok\n");
   assert.equal(result.stderr, "");
+});
+
+test("rejects runtime depending on adapters", async (testContext) => {
+  const root = await workspace(testContext, {
+    protocolSource: "export interface EngineClient {}\n",
+    engineSource: "export interface EngineRuntime {}\n",
+    additionalPackages: [
+      ["adapters", "@distilly/adapters", "export interface Adapter {}\n", {}],
+      [
+        "runtime",
+        "@distilly/runtime",
+        'export type { Adapter } from "@distilly/adapters";\n',
+        {
+          "@distilly/adapters": "workspace:*",
+          "@distilly/engine": "workspace:*",
+          "@distilly/protocol": "workspace:*",
+        },
+      ],
+    ],
+  });
+
+  const result = run(root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /@distilly\/runtime may not depend on @distilly\/adapters/u);
+  assert.match(result.stderr, /\[forbidden-internal-dependency\]/u);
+  assert.match(result.stderr, /\[forbidden-internal-import\]/u);
 });
 
 for (const forbiddenTarget of [

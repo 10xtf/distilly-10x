@@ -71,11 +71,17 @@ test("accepts engine to protocol", async (testContext) => {
   assert.equal(result.stderr, "");
 });
 
-test("accepts facade, MCP, bindings, and Panel along their reviewed edges", async (testContext) => {
+test("accepts adapters, facade, MCP, bindings, and Panel along their reviewed edges", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
     additionalPackages: [
+      [
+        "adapters",
+        "@distilly/adapters",
+        'export type { MaterialInput } from "@distilly/protocol";\n',
+        { "@distilly/protocol": "workspace:*" },
+      ],
       [
         "distilly",
         "distilly",
@@ -109,6 +115,93 @@ test("accepts facade, MCP, bindings, and Panel along their reviewed edges", asyn
   assert.equal(result.stdout, "package boundaries: ok\n");
   assert.equal(result.stderr, "");
 });
+
+for (const forbiddenTarget of [
+  "@distilly/engine",
+  "@distilly/bindings",
+  "distilly",
+  "@distilly/mcp",
+  "@distilly/panel",
+]) {
+  test(`rejects @distilly/adapters depending on ${forbiddenTarget}`, async (testContext) => {
+    const root = await workspace(testContext, {
+      protocolSource: "export interface MaterialInput {}\n",
+      engineSource: "export interface EngineRuntime {}\n",
+      additionalPackages: [
+        [
+          "adapters",
+          "@distilly/adapters",
+          `export type { Forbidden } from "${forbiddenTarget}";\n`,
+          { [forbiddenTarget]: "workspace:*" },
+        ],
+        ["bindings", "@distilly/bindings", "export interface Binding {}\n", {}],
+        ["distilly", "distilly", "export interface Facade {}\n", {}],
+        ["mcp", "@distilly/mcp", "export interface Mcp {}\n", {}],
+        ["panel", "@distilly/panel", "export interface Panel {}\n", {}],
+      ],
+    });
+
+    const result = run(root);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /\[forbidden-internal-dependency]/);
+    assert.match(result.stderr, /\[forbidden-internal-import]/);
+    assert.match(
+      result.stderr,
+      new RegExp(`@distilly/adapters may not depend on ${forbiddenTarget}`),
+    );
+  });
+}
+
+for (const [directory, name] of [
+  ["protocol", "@distilly/protocol"],
+  ["engine", "@distilly/engine"],
+  ["bindings", "@distilly/bindings"],
+  ["distilly", "distilly"],
+  ["mcp", "@distilly/mcp"],
+  ["panel", "@distilly/panel"],
+]) {
+  test(`rejects ${name} depending on @distilly/adapters`, async (testContext) => {
+    const sources = {
+      protocol: "export interface Protocol {}\n",
+      engine: "export interface Engine {}\n",
+      bindings: "export interface Binding {}\n",
+      distilly: "export interface Facade {}\n",
+      mcp: "export interface Mcp {}\n",
+      panel: "export interface Panel {}\n",
+    };
+    const manifests = {
+      protocol: {},
+      engine: {},
+      bindings: {},
+      distilly: {},
+      mcp: {},
+      panel: {},
+    };
+    sources[directory] = 'export type { Forbidden } from "@distilly/adapters";\n';
+    manifests[directory] = { "@distilly/adapters": "workspace:*" };
+    const root = await workspace(testContext, {
+      protocolSource: sources.protocol,
+      engineSource: sources.engine,
+      protocolDependencies: manifests.protocol,
+      engineDependencies: manifests.engine,
+      additionalPackages: [
+        ["adapters", "@distilly/adapters", "export interface Adapter {}\n", {}],
+        ["bindings", "@distilly/bindings", sources.bindings, manifests.bindings],
+        ["distilly", "distilly", sources.distilly, manifests.distilly],
+        ["mcp", "@distilly/mcp", sources.mcp, manifests.mcp],
+        ["panel", "@distilly/panel", sources.panel, manifests.panel],
+      ],
+    });
+
+    const result = run(root);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /\[forbidden-internal-dependency]/);
+    assert.match(result.stderr, /\[forbidden-internal-import]/);
+    assert.match(result.stderr, new RegExp(`${name} may not depend on @distilly/adapters`));
+  });
+}
 
 for (const [directory, name, forbiddenTarget] of [
   ["distilly", "distilly", "@distilly/engine"],

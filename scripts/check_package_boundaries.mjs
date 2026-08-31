@@ -26,6 +26,7 @@ const SOURCE_EXTENSIONS = new Set([
 ]);
 const ALLOWED_INTERNAL_DEPENDENCIES = new Map([
   ["@distilly/protocol", new Set()],
+  ["@distilly/adapters", new Set(["@distilly/protocol"])],
   ["@distilly/engine", new Set(["@distilly/protocol"])],
   ["@distilly/bindings", new Set(["@distilly/protocol"])],
   ["distilly", new Set(["@distilly/protocol"])],

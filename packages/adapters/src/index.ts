@@ -1,0 +1,27 @@
+export { AdapterRegistry } from "./registry.js";
+export { userCollectionMethodSchemas } from "./schemas.js";
+export type {
+  AdapterCapabilities,
+  AdapterConfig,
+  AdapterPreflightResult,
+  AdapterResource,
+  AdapterResourceSchema,
+  AgentPlan,
+  CollectRequest,
+  DelegatedSourceAdapter,
+  DirectSourceAdapter,
+  ExternalSubjectRef,
+  SourceActionInput,
+  SourceAdapter,
+  SourceAdapterBase,
+  SourceAdapterRegistration,
+  SourceCollectResult,
+  SourceConfigureInput,
+  SourceMutationActionName,
+  SourcePreflightResult,
+  SourceQueryActionName,
+  SourceStatus,
+  UserCollectionClient,
+  UserCollectionMethodMap,
+  UserCollectionSelection,
+} from "./contracts.js";

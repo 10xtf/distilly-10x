@@ -44,6 +44,15 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.27.4)(jiti@2.7.0)(yaml@2.9.0))
 
+  packages/adapters:
+    dependencies:
+      "@distilly/protocol":
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/bindings:
     dependencies:
       "@distilly/protocol":

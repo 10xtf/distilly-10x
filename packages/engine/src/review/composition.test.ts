@@ -30,7 +30,7 @@ import { FileMaterialStore } from "../facts/material-store.js";
 import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";

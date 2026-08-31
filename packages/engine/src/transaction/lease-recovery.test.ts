@@ -54,12 +54,15 @@ import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
-import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
+import { SqliteQueueRepository } from "../testing/legacy-sqlite-queue-projection.test.fixture.js";
 import { createBriefContract } from "../distill/prompt-catalog.js";
-import { RecoveryService, type RecoveryHooks } from "./recovery.js";
+import {
+  RecoveryService,
+  type RecoveryHooks,
+} from "../testing/legacy-file-recovery.test.fixture.js";
 import { FileRequestLock } from "./request-lock.js";
 import { FileSubjectLock } from "./subject-lock.js";
 import { FileVersionStaging } from "./version-staging.js";
@@ -404,8 +407,8 @@ const createFixture = async (
   const queue = new SqliteQueueRepository({
     root: layout.root,
     indexDirectory: layout.indexDirectory(),
-    databaseFile: layout.queueDatabaseFile(),
-    dirtyFile: layout.queueDirtyFile(),
+    databaseFile: join(layout.indexDirectory(), "queue.db"),
+    dirtyFile: join(layout.indexDirectory(), "queue.dirty"),
   });
   const space = sealFact<SpaceRecord>({
     schemaVersion: 1,

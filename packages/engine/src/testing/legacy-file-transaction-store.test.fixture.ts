@@ -3,10 +3,10 @@ import type { RequestId, RuntimeSchema, TransactionRecord } from "@distilly/prot
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
-import { canonicalJson } from "./canonical-json.js";
-import { verifyFactChecksum } from "./checksum.js";
-import { listFactDirectory } from "./directory-scan.js";
-import { readMutableFactFile, replaceFactFile } from "./fact-file.js";
+import { canonicalJson } from "../facts/canonical-json.js";
+import { verifyFactChecksum } from "../facts/checksum.js";
+import { listFactDirectory } from "../facts/directory-scan.js";
+import { readMutableFactFile, replaceFactFile } from "../facts/fact-file.js";
 
 const transactionFactSchema: RuntimeSchema<TransactionRecord> = {
   parse(value) {

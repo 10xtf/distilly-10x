@@ -34,15 +34,15 @@ import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import {
   createLegacyFileEngineTestSupport,
   type LegacyFileEngineTestSupport,
 } from "../testing/legacy-file-engine.test.fixture.js";
-import type { RecoveryHooks } from "../transaction/recovery.js";
-import type { DistillLeaseServiceHooks } from "./lease-service.js";
+import type { RecoveryHooks } from "../testing/legacy-file-recovery.test.fixture.js";
+import type { LegacyFileDistillLeaseServiceHooks } from "../testing/legacy-file-lease-service.test.fixture.js";
 
 const AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
 const ACTOR: ActorContext = { kind: "sdk", id: "step6-integration" };
@@ -158,7 +158,7 @@ const open = async (
   ids: SequenceIds,
   clock: FakeClock,
   options: {
-    readonly leaseHooks?: DistillLeaseServiceHooks;
+    readonly leaseHooks?: LegacyFileDistillLeaseServiceHooks;
     readonly recoveryHooks?: RecoveryHooks;
     readonly published?: EngineEvent[];
   } = {},

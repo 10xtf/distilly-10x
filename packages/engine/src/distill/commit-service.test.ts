@@ -42,7 +42,7 @@ import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import { FileVersionStore } from "../facts/version-store.js";
 import type {
   LegacyFileEngineTestSupport,
@@ -494,11 +494,8 @@ const snapshotTree = async (root: string): Promise<Readonly<Record<string, strin
 const snapshotQueueDurableFiles = async (
   layout: Layout,
 ): Promise<Readonly<Record<string, string>>> => {
-  const paths = [
-    layout.queueDatabaseFile(),
-    `${layout.queueDatabaseFile()}-wal`,
-    layout.queueDirtyFile(),
-  ];
+  const databaseFile = join(layout.indexDirectory(), "queue.db");
+  const paths = [databaseFile, `${databaseFile}-wal`, join(layout.indexDirectory(), "queue.dirty")];
   const snapshot: Record<string, string> = {};
   for (const path of paths) {
     if (await exists(path)) snapshot[path] = (await readFile(path)).toString("base64");

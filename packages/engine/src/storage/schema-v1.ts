@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { schemaUnsupported, storageCorrupt } from "../internal-errors.js";
 
-/** First private SQLite authority schema shipped by the TypeScript engine. */
+/** Current private SQLite authority schema used by the TypeScript engine preview. */
 export const SQLITE_STORAGE_SCHEMA_VERSION = 1;
 
 interface SchemaObject {
@@ -142,6 +142,27 @@ const SCHEMA_OBJECTS = [
 ) STRICT`,
   ),
   table(
+    "job_leases",
+    `CREATE TABLE job_leases (
+  job_id TEXT PRIMARY KEY NOT NULL REFERENCES pending_jobs(job_id) ON DELETE CASCADE,
+  lease_id TEXT NOT NULL UNIQUE,
+  lease_owner TEXT NOT NULL,
+  acquired_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  brief_contract_digest TEXT NOT NULL,
+  source_grouping_version TEXT NOT NULL CHECK (source_grouping_version = 'source-groups-v1'),
+  prompt_version TEXT NOT NULL,
+  draft_schema_version INTEGER NOT NULL CHECK (draft_schema_version = 1),
+  CHECK (length(lease_id) > 0),
+  CHECK (length(lease_owner) > 0),
+  CHECK (length(acquired_at) > 0),
+  CHECK (length(expires_at) > 0),
+  CHECK (length(brief_contract_digest) > 0),
+  CHECK (length(prompt_version) > 0),
+  CHECK (expires_at > acquired_at)
+) STRICT`,
+  ),
+  table(
     "operations",
     `CREATE TABLE operations (
   request_id TEXT PRIMARY KEY NOT NULL,
@@ -152,6 +173,16 @@ const SCHEMA_OBJECTS = [
   result_json TEXT NOT NULL CHECK (json_valid(result_json)),
   completed_at TEXT NOT NULL,
   CHECK (length(method) > 0)
+) STRICT`,
+  ),
+  table(
+    "operation_result_blobs",
+    `CREATE TABLE operation_result_blobs (
+  request_id TEXT PRIMARY KEY NOT NULL REFERENCES operations(request_id) ON DELETE CASCADE,
+  blob_digest TEXT NOT NULL REFERENCES blobs(digest) ON DELETE RESTRICT,
+  byte_length INTEGER NOT NULL CHECK (
+    byte_length > 0 AND byte_length <= 9007199254740991
+  )
 ) STRICT`,
   ),
   table(
@@ -202,6 +233,12 @@ WHERE locator_key IS NOT NULL`,
     "operation_subject_lookup",
     "operations",
     "CREATE INDEX operation_subject_lookup ON operations(scope_subject_id, completed_at, request_id)",
+  ),
+  index(
+    "operation_result_blob_lookup",
+    "operation_result_blobs",
+    `CREATE INDEX operation_result_blob_lookup
+ON operation_result_blobs(blob_digest, request_id)`,
   ),
   index(
     "event_subject_sequence",

@@ -34,8 +34,8 @@ import {
   SqliteQueueRepository,
   type SqliteQueueRepositoryHooks,
   type SqliteQueueRepositoryPaths,
-  type VerifiedQueueStateSeed,
-} from "./sqlite-projection.js";
+} from "./legacy-sqlite-queue-projection.test.fixture.js";
+import type { VerifiedQueueStateSeed } from "./legacy-queue-repository.test.fixture.js";
 
 const DIRTY_BYTES = '{"projection":"queue","schemaVersion":2}\n';
 const NOW = isoDateTimeSchema.parse("2026-08-20T00:10:00.000Z");

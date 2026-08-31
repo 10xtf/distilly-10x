@@ -37,7 +37,7 @@ import type { FileMaterialStore, StoredMaterial } from "../facts/material-store.
 import type { FileOperationStore } from "../facts/operation-store.js";
 import type { FileStateStore } from "../facts/state-store.js";
 import type { FileSubjectStore } from "../facts/subject-store.js";
-import type { FileTransactionStore } from "../facts/transaction-store.js";
+import type { FileTransactionStore } from "./legacy-file-transaction-store.test.fixture.js";
 import type {
   FileVersionStore,
   StoredVersion,
@@ -56,10 +56,10 @@ import {
 } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
-import type { QueueRepository } from "../queue/sqlite-projection.js";
+import type { QueueRepository } from "./legacy-queue-repository.test.fixture.js";
 import type { FileRequestLock } from "../transaction/request-lock.js";
-import type { RecoveryService } from "../transaction/recovery.js";
-import { validateCommitTransactionTarget } from "../transaction/recovery.js";
+import type { RecoveryService } from "./legacy-file-recovery.test.fixture.js";
+import { validateCommitTransactionTarget } from "./legacy-file-recovery.test.fixture.js";
 import type { FileSubjectLock } from "../transaction/subject-lock.js";
 import type { FileVersionStaging } from "../transaction/version-staging.js";
 import { applyClaimPatch, finalizeClaims } from "../profile/apply-patch.js";
@@ -71,10 +71,10 @@ import {
 import { renderProfile, renderPrompt, PROFILE_RENDERER_VERSION } from "../profile/render.js";
 import { evaluateHostReviewReasons } from "../profile/review-gate.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { buildEvidenceContext } from "./evidence-context.js";
-import type { PromptCatalog } from "./prompt-catalog.js";
-import { resolveHostPatch } from "./resolve-evidence.js";
-import { validateAcceptedPatchBytes } from "./validate-patch.js";
+import { buildEvidenceContext } from "../distill/evidence-context.js";
+import type { PromptCatalog } from "../distill/prompt-catalog.js";
+import { resolveHostPatch } from "../distill/resolve-evidence.js";
+import { validateAcceptedPatchBytes } from "../distill/validate-patch.js";
 
 interface CommitOutcome {
   readonly result: CommitResult;

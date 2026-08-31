@@ -34,17 +34,17 @@ import { computeFactChecksum, verifyFactChecksum } from "../facts/checksum.js";
 import { canonicalJson } from "../facts/canonical-json.js";
 import type { FileStateStore } from "../facts/state-store.js";
 import type { FileSubjectStore } from "../facts/subject-store.js";
-import type { FileTransactionStore } from "../facts/transaction-store.js";
+import type { FileTransactionStore } from "./legacy-file-transaction-store.test.fixture.js";
 import type { StoredCompleteVersion, VersionArtifactSet } from "../facts/version-store.js";
 import { validateVersionArtifactSet } from "../facts/version-store.js";
 import type { FileVersionStore } from "../facts/version-store.js";
 import { storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
-import type { QueueRepository } from "../queue/sqlite-projection.js";
+import type { QueueRepository } from "./legacy-queue-repository.test.fixture.js";
 import { validateRollbackHistoricalCopy } from "../read/committed-version-reader.js";
-import type { FileRequestLock } from "./request-lock.js";
-import type { FileSubjectLock } from "./subject-lock.js";
-import type { FileVersionStaging } from "./version-staging.js";
+import type { FileRequestLock } from "../transaction/request-lock.js";
+import type { FileSubjectLock } from "../transaction/subject-lock.js";
+import type { FileVersionStaging } from "../transaction/version-staging.js";
 
 /** Fault-injection hooks for idempotent post-commit recovery tests. */
 export interface RecoveryHooks {

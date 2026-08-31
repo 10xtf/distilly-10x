@@ -140,8 +140,6 @@ describe("fact foundation defaults", () => {
         layout.currentProfileBackupDirectory(requestId, subjectId, versionId),
         join("subjects", subjectId, `.profile.previous.${requestId}.${versionId}`),
       ],
-      [layout.queueDatabaseFile(), join(".index", "queue.db")],
-      [layout.queueDirtyFile(), join(".index", "queue.dirty")],
       [layout.libraryFile(), join(".index", "library.json")],
       [layout.libraryDirtyFile(), join(".index", "library.dirty")],
       [layout.libraryIntentFile(), join(".index", "library.intent")],

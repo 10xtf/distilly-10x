@@ -3,16 +3,20 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   DistillyError,
   actorContextSchema,
+  briefContractSchema,
   contentDigestSchema,
   engineMethodSchemas,
   ingestResultSchema,
   isoDateTimeSchema,
   jobIdSchema,
+  leaseIdSchema,
+  leaseOwnerIdSchema,
   materialIdSchema,
   materialRecordSchema,
   materialSetHashSchema,
   mutationContextSchema,
   provenanceDigestSchema,
+  pendingJobMarkerSchema,
   subjectStateRecordSchema,
   versionIdSchema,
 } from "@distilly/protocol";
@@ -62,6 +66,7 @@ import { canonicalizeIngestSubjectTarget } from "../subject/identity.js";
 import type { PreparedMaterial } from "./normalize.js";
 import { normalizeMaterial, prepareMaterial } from "./normalize.js";
 import { deriveIngestState } from "./state-transition.js";
+import { createBriefContract } from "../distill/prompt-catalog.js";
 
 interface StoredMaterialRow {
   readonly materialId: MaterialId;
@@ -320,37 +325,87 @@ const loadPending = (
 ): PendingJobMarker | undefined => {
   const row = queryOne(
     database,
-    `SELECT job_id, generation, base_version_id, material_set_hash,
-              added_material_count, total_material_count, queued_at
+    `SELECT pending_jobs.job_id, pending_jobs.generation,
+              pending_jobs.base_version_id, pending_jobs.material_set_hash,
+              pending_jobs.added_material_count, pending_jobs.total_material_count,
+              pending_jobs.queued_at,
+              job_leases.job_id AS lease_job_id,
+              job_leases.lease_id, job_leases.lease_owner,
+              job_leases.acquired_at, job_leases.expires_at,
+              job_leases.brief_contract_digest,
+              job_leases.source_grouping_version,
+              job_leases.prompt_version,
+              job_leases.draft_schema_version
        FROM pending_jobs
-       WHERE subject_id = ?`,
+       LEFT JOIN job_leases ON job_leases.job_id = pending_jobs.job_id
+       WHERE pending_jobs.subject_id = ?`,
     [subjectId],
     "a pending job",
   );
   if (row === undefined) return undefined;
   const baseVersionId = nullableText(row, "base_version_id");
-  return {
-    jobId: parseStored(() => jobIdSchema.parse(text(row, "job_id")), "job id"),
-    generation: integer(row, "generation"),
-    ...(baseVersionId === undefined
-      ? {}
+  const leaseJobId = nullableText(row, "lease_job_id");
+  const lease =
+    leaseJobId === undefined
+      ? undefined
       : {
-          baseVersionId: parseStored(
-            () => versionIdSchema.parse(baseVersionId),
-            "pending base version id",
+          id: parseStored(() => leaseIdSchema.parse(text(row, "lease_id")), "lease id"),
+          owner: parseStored(
+            () => leaseOwnerIdSchema.parse(text(row, "lease_owner")),
+            "lease owner",
           ),
-        }),
-    materialSetHash: parseStored(
-      () => materialSetHashSchema.parse(text(row, "material_set_hash")),
-      "material-set hash",
-    ),
-    addedMaterialCount: integer(row, "added_material_count"),
-    totalMaterialCount: integer(row, "total_material_count"),
-    queuedAt: parseStored(
-      () => isoDateTimeSchema.parse(text(row, "queued_at")),
-      "queued timestamp",
-    ),
-  };
+          acquiredAt: parseStored(
+            () => isoDateTimeSchema.parse(text(row, "acquired_at")),
+            "lease acquisition time",
+          ),
+          expiresAt: parseStored(
+            () => isoDateTimeSchema.parse(text(row, "expires_at")),
+            "lease expiry time",
+          ),
+          contract: parseStored(
+            () =>
+              briefContractSchema.parse({
+                digest: text(row, "brief_contract_digest"),
+                sourceGroupingVersion: text(row, "source_grouping_version"),
+                promptVersion: text(row, "prompt_version"),
+                draftSchemaVersion: integer(row, "draft_schema_version"),
+              }),
+            "lease brief contract",
+          ),
+        };
+  if (leaseJobId !== undefined && leaseJobId !== text(row, "job_id")) {
+    throw storageCorrupt("A pending lease points to a different job.");
+  }
+  if (lease !== undefined && createBriefContract(lease.contract).digest !== lease.contract.digest) {
+    throw storageCorrupt("A pending lease brief contract digest is inconsistent.");
+  }
+  return parseStored(
+    () =>
+      pendingJobMarkerSchema.parse({
+        jobId: parseStored(() => jobIdSchema.parse(text(row, "job_id")), "job id"),
+        generation: integer(row, "generation"),
+        ...(baseVersionId === undefined
+          ? {}
+          : {
+              baseVersionId: parseStored(
+                () => versionIdSchema.parse(baseVersionId),
+                "pending base version id",
+              ),
+            }),
+        materialSetHash: parseStored(
+          () => materialSetHashSchema.parse(text(row, "material_set_hash")),
+          "material-set hash",
+        ),
+        addedMaterialCount: integer(row, "added_material_count"),
+        totalMaterialCount: integer(row, "total_material_count"),
+        queuedAt: parseStored(
+          () => isoDateTimeSchema.parse(text(row, "queued_at")),
+          "queued timestamp",
+        ),
+        ...(lease === undefined ? {} : { lease }),
+      }) as PendingJobMarker,
+    "pending job",
+  );
 };
 
 const loadState = (
@@ -536,6 +591,27 @@ const writePending = (
       pending.totalMaterialCount,
       pending.queuedAt,
     );
+  if (pending.lease !== undefined) {
+    database
+      .prepare(
+        `INSERT INTO job_leases(
+           job_id, lease_id, lease_owner, acquired_at, expires_at,
+           brief_contract_digest, source_grouping_version,
+           prompt_version, draft_schema_version
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        pending.jobId,
+        pending.lease.id,
+        pending.lease.owner,
+        pending.lease.acquiredAt,
+        pending.lease.expiresAt,
+        pending.lease.contract.digest,
+        pending.lease.contract.sourceGroupingVersion,
+        pending.lease.contract.promptVersion,
+        pending.lease.contract.draftSchemaVersion,
+      );
+  }
 };
 
 /** Atomic SQLite/WAL text ingest below the public EngineClient boundary. */

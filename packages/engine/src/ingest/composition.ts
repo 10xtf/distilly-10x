@@ -2,6 +2,9 @@ import { CryptoIdGenerator } from "../defaults/crypto-id-generator.js";
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
+import type { DistillLeaseServiceHooks } from "../distill/lease-service.js";
+import { DistillLeaseService } from "../distill/lease-service.js";
+import { PromptCatalog } from "../distill/prompt-catalog.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import { ContentAddressedBlobStore } from "../storage/content-addressed-blob-store.js";
@@ -19,12 +22,15 @@ export interface InternalEngineCompositionOptions {
   readonly eventBus?: EventBus;
   readonly subjectHooks?: SubjectCreateServiceHooks;
   readonly ingestHooks?: IngestServiceHooks;
+  readonly leaseHooks?: DistillLeaseServiceHooks;
+  readonly promptCatalog?: PromptCatalog;
 }
 
 /** Runnable SQLite create/ingest slice without claiming the full EngineRuntime API. */
 export interface InternalEngineComposition {
   readonly subjects: SubjectCreateService;
   readonly ingest: IngestService;
+  readonly leases: DistillLeaseService;
   readonly blobs: ContentAddressedBlobStore;
   readonly events: EventBus;
   close(): void;
@@ -60,9 +66,19 @@ export const createInternalEngineComposition = async (
       eventBus,
       ...(options.ingestHooks === undefined ? {} : { hooks: options.ingestHooks }),
     });
+    const leases = new DistillLeaseService({
+      store,
+      blobs,
+      promptCatalog: options.promptCatalog ?? new PromptCatalog(),
+      ids,
+      clock,
+      eventBus,
+      ...(options.leaseHooks === undefined ? {} : { hooks: options.leaseHooks }),
+    });
     return {
       subjects,
       ingest,
+      leases,
       blobs,
       events: eventBus,
       close: () => store.close(),

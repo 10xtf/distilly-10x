@@ -25,8 +25,15 @@ const parseDigest = (digest: ContentDigest): ContentDigest => {
   try {
     return contentDigestSchema.parse(digest);
   } catch (error) {
-    throw storageCorrupt("Blob put received an invalid content digest.", error);
+    throw storageCorrupt("Blob access received an invalid content digest.", error);
   }
+};
+
+const parseExpectedByteLength = (value: number): number => {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw storageCorrupt("Blob read received an invalid expected byte length.");
+  }
+  return value;
 };
 
 /** Put result whose shared access lease remains held until explicit release. */
@@ -44,12 +51,55 @@ export interface BlobPutResult {
   readonly created: boolean;
 }
 
-/** Shared blob access held across every put and the referencing SQLite transaction. */
-export interface BlobMutationAccessLease {
-  verify(digest: ContentDigest, value: string | Uint8Array): Promise<BlobPutResult | undefined>;
-  put(digest: ContentDigest, value: string | Uint8Array): Promise<BlobPutResult>;
+/** Shared blob access held while verified immutable bytes are read. */
+export interface BlobReadAccessLease {
+  read(digest: ContentDigest, expectedByteLength: number): Promise<Uint8Array>;
   release(): Promise<void>;
 }
+
+/** Shared blob access held across every put and the referencing SQLite transaction. */
+export interface BlobMutationAccessLease extends BlobReadAccessLease {
+  verify(digest: ContentDigest, value: string | Uint8Array): Promise<BlobPutResult | undefined>;
+  put(digest: ContentDigest, value: string | Uint8Array): Promise<BlobPutResult>;
+}
+
+interface TrackedBlobAccess {
+  run<T>(operation: () => Promise<T>, fallbackMessage: string): Promise<T>;
+  release(): Promise<void>;
+}
+
+const trackBlobAccess = (access: BlobStoreAccessLease): TrackedBlobAccess => {
+  const inFlight = new Set<Promise<unknown>>();
+  let releasePromise: Promise<void> | undefined;
+  return {
+    run: <T>(operation: () => Promise<T>, fallbackMessage: string): Promise<T> => {
+      try {
+        if (releasePromise !== undefined) {
+          throw storageCorrupt("A released blob access lease cannot access bytes.");
+        }
+        const pending = operation();
+        inFlight.add(pending);
+        void pending.then(
+          () => inFlight.delete(pending),
+          () => inFlight.delete(pending),
+        );
+        return pending;
+      } catch (error) {
+        return Promise.reject(
+          error instanceof Error ? error : storageCorrupt(fallbackMessage, error),
+        );
+      }
+    },
+    release: () => {
+      if (releasePromise !== undefined) return releasePromise;
+      releasePromise = (async () => {
+        await Promise.allSettled([...inFlight]);
+        await access.release();
+      })();
+      return releasePromise;
+    },
+  };
+};
 
 const wrapPutLease = (
   digest: ContentDigest,
@@ -119,64 +169,46 @@ export class ContentAddressedBlobStore {
    */
   async acquireMutationAccess(): Promise<BlobMutationAccessLease> {
     const access = await this.accessGate.acquireShared();
-    const inFlight = new Set<Promise<unknown>>();
-    let releasePromise: Promise<void> | undefined;
-    const track = <T>(operation: Promise<T>): Promise<T> => {
-      inFlight.add(operation);
-      void operation.then(
-        () => inFlight.delete(operation),
-        () => inFlight.delete(operation),
-      );
-      return operation;
-    };
-    const assertActive = (): void => {
-      if (releasePromise !== undefined) {
-        throw storageCorrupt("A released blob mutation lease cannot access bytes.");
-      }
-    };
+    const tracked = trackBlobAccess(access);
     return {
-      verify: (digest, value) => {
-        try {
-          assertActive();
-          return track(this.verifyWithAccess(digest, value));
-        } catch (error) {
-          return Promise.reject(
-            error instanceof Error
-              ? error
-              : storageCorrupt("Blob verification failed unexpectedly.", error),
-          );
-        }
-      },
-      put: (digest, value) => {
-        try {
-          assertActive();
-          return track(this.putWithAccess(digest, value));
-        } catch (error) {
-          return Promise.reject(
-            error instanceof Error
-              ? error
-              : storageCorrupt("Blob publication failed unexpectedly.", error),
-          );
-        }
-      },
-      release: () => {
-        if (releasePromise !== undefined) return releasePromise;
-        releasePromise = (async () => {
-          await Promise.allSettled([...inFlight]);
-          await access.release();
-        })();
-        return releasePromise;
-      },
+      read: (digest, expectedByteLength) =>
+        tracked.run(
+          () => this.readWithAccess(digest, expectedByteLength),
+          "Blob read failed unexpectedly.",
+        ),
+      verify: (digest, value) =>
+        tracked.run(
+          () => this.verifyWithAccess(digest, value),
+          "Blob verification failed unexpectedly.",
+        ),
+      put: (digest, value) =>
+        tracked.run(
+          () => this.putWithAccess(digest, value),
+          "Blob publication failed unexpectedly.",
+        ),
+      release: () => tracked.release(),
     };
   }
 
   /**
-   * Acquires shared access for a future snapshot-bound blob read.
+   * Acquires shared access for a snapshot-bound verified blob read.
    *
-   * @returns A lease that excludes maintenance until released.
+   * The returned read surface uses this already-held lease instead of taking a
+   * nested shared lease, so a queued fair maintenance writer cannot deadlock it.
+   *
+   * @returns A verified read surface that excludes maintenance until released.
    */
-  acquireReadAccess(): Promise<BlobStoreAccessLease> {
-    return this.accessGate.acquireShared();
+  async acquireReadAccess(): Promise<BlobReadAccessLease> {
+    const access = await this.accessGate.acquireShared();
+    const tracked = trackBlobAccess(access);
+    return {
+      read: (digest, expectedByteLength) =>
+        tracked.run(
+          () => this.readWithAccess(digest, expectedByteLength),
+          "Blob read failed unexpectedly.",
+        ),
+      release: () => tracked.release(),
+    };
   }
 
   /**
@@ -220,6 +252,31 @@ export class ContentAddressedBlobStore {
       return { digest: parsedDigest, byteLength: bytes.byteLength, created };
     } catch (error) {
       return throwMappedStorageError(error, "write its local blob store");
+    }
+  }
+
+  private async readWithAccess(
+    digest: ContentDigest,
+    expectedByteLength: number,
+  ): Promise<Uint8Array> {
+    const parsedDigest = parseDigest(digest);
+    const parsedByteLength = parseExpectedByteLength(expectedByteLength);
+    try {
+      const bytes = await readRegularFile(
+        this.layout.root,
+        this.pathFor(parsedDigest),
+        parsedByteLength,
+      );
+      const actualDigest = `${DIGEST_PREFIX}${sha256Hex(bytes)}`;
+      if (bytes.byteLength !== parsedByteLength || actualDigest !== parsedDigest) {
+        throw storageCorrupt("A content-addressed blob conflicts with its digest or length.");
+      }
+      return Uint8Array.from(bytes);
+    } catch (error) {
+      if (error instanceof DistillyError && error.code === "not_found") {
+        throw storageCorrupt("A referenced content-addressed blob is missing.", error);
+      }
+      return throwMappedStorageError(error, "read its local blob store");
     }
   }
 

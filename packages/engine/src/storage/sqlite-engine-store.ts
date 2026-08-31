@@ -1,6 +1,7 @@
-import { chmod } from "node:fs/promises";
+import { chmod, lstat } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 
+import { isMissing } from "../facts/safe-fs.js";
 import { schemaUnsupported, storageCorrupt } from "../internal-errors.js";
 import {
   createStorageSchemaV1,
@@ -63,6 +64,30 @@ const configureConnection = (database: DatabaseSync, busyTimeoutMs: number): voi
   if (pragmaNumber(database, "synchronous") !== 2) {
     throw storageCorrupt("SQLite storage did not enter FULL synchronous mode.");
   }
+};
+
+const inspectDatabaseTarget = async (layout: StorageLayout): Promise<boolean> => {
+  let rootStatus;
+  try {
+    rootStatus = await lstat(layout.root);
+  } catch (error) {
+    if (isMissing(error)) return false;
+    throw error;
+  }
+  if (rootStatus.isSymbolicLink() || !rootStatus.isDirectory()) {
+    throw storageCorrupt("DISTILLY_ROOT is not a regular directory.");
+  }
+
+  try {
+    const databaseStatus = await lstat(layout.databaseFile);
+    if (databaseStatus.isSymbolicLink() || !databaseStatus.isFile()) {
+      throw storageCorrupt("SQLite storage path is not a regular file.");
+    }
+  } catch (error) {
+    if (isMissing(error)) return false;
+    throw error;
+  }
+  return true;
 };
 
 const preflightStorage = (database: DatabaseSync): boolean => {
@@ -129,11 +154,12 @@ export class SqliteEngineStore {
     const busyTimeoutMs = parseBusyTimeout(options.busyTimeoutMs);
     let database: DatabaseSync | undefined;
     try {
-      await layout.verifyDatabaseTarget();
+      if (!(await inspectDatabaseTarget(layout))) await layout.verifyDatabaseTarget();
       database = new DatabaseSync(layout.databaseFile);
       database.exec(`PRAGMA busy_timeout = ${String(busyTimeoutMs)}`);
       const shouldInitialize = preflightStorage(database);
 
+      await layout.verifyDatabaseTarget();
       await chmod(layout.databaseFile, 0o600);
       configureConnection(database, busyTimeoutMs);
 

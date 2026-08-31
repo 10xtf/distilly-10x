@@ -524,24 +524,6 @@ export class Layout {
   }
 
   /**
-   * Path of the disposable queue database.
-   *
-   * @returns The confined absolute queue-database path.
-   */
-  queueDatabaseFile(): string {
-    return this.inside(".index", "queue.db");
-  }
-
-  /**
-   * Path of the fixed-byte queue projection dirty marker.
-   *
-   * @returns The confined absolute queue-dirty-marker path.
-   */
-  queueDirtyFile(): string {
-    return this.inside(".index", "queue.dirty");
-  }
-
-  /**
    * Path of the disposable canonical Library projection.
    *
    * @returns The confined absolute Library projection path.

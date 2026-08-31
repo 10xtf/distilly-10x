@@ -37,7 +37,7 @@ afterEach(async () => {
 });
 
 describe("SqliteEngineStore", () => {
-  it("creates the exact ten-table v1 authority in WAL/FK/FULL mode and reopens it", async () => {
+  it("creates the exact twelve-table v1 authority in WAL/FK/FULL mode and reopens it", async () => {
     const root = await temporaryRoot();
     let store = await SqliteEngineStore.open(root);
     store.write((database) => insertSpace(database, "space_test_people"));
@@ -74,7 +74,9 @@ describe("SqliteEngineStore", () => {
       tables: [
         "blobs",
         "events",
+        "job_leases",
         "materials",
+        "operation_result_blobs",
         "operations",
         "pending_jobs",
         "spaces",
@@ -156,7 +158,7 @@ describe("SqliteEngineStore", () => {
     reopened.close();
   });
 
-  it("enforces foreign keys, duplicate-name tolerance, locator uniqueness, and state/job checks", async () => {
+  it("enforces identity, state, job, lease, and operation-result-blob constraints", async () => {
     const root = await temporaryRoot();
     const store = await SqliteEngineStore.open(root);
     store.write((database) => {
@@ -214,6 +216,129 @@ describe("SqliteEngineStore", () => {
           .run(),
       ),
     ).toThrow();
+    store.write((database) => {
+      database
+        .prepare(
+          `INSERT INTO subject_states(
+             subject_id, generation, material_set_hash, current_version_id, suspended_version_id
+           ) VALUES ('subject_two', 1, 'set_test', NULL, NULL)`,
+        )
+        .run();
+      database
+        .prepare(
+          `INSERT INTO pending_jobs(
+             subject_id, job_id, generation, base_version_id, material_set_hash,
+             added_material_count, total_material_count, queued_at
+           ) VALUES (
+             'subject_two', 'job_test', 1, NULL, 'set_test', 1, 1,
+             '2026-08-30T00:00:00.000Z'
+           )`,
+        )
+        .run();
+    });
+    expect(() =>
+      store.write((database) =>
+        database
+          .prepare(
+            `INSERT INTO job_leases(
+               job_id, lease_id, lease_owner, acquired_at, expires_at,
+               brief_contract_digest, source_grouping_version, prompt_version,
+               draft_schema_version
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          )
+          .run(
+            "job_test",
+            "lease_bad",
+            "lease_owner_test",
+            "2026-08-30T00:00:00.000Z",
+            "2026-08-30T00:00:00.000Z",
+            "brief_contract_test",
+            "source-groups-v1",
+            "host-distill-v1-sha256_test",
+          ),
+      ),
+    ).toThrow();
+    expect(() =>
+      store.write((database) =>
+        database
+          .prepare(
+            `INSERT INTO job_leases(
+               job_id, lease_id, lease_owner, acquired_at, expires_at,
+               brief_contract_digest, source_grouping_version, prompt_version,
+               draft_schema_version
+             ) VALUES (
+               'job_missing', 'lease_missing', 'lease_owner_test',
+               '2026-08-30T00:00:00.000Z', '2026-08-30T00:30:00.000Z',
+               'brief_contract_test', 'source-groups-v1',
+               'host-distill-v1-sha256_test', 1
+             )`,
+          )
+          .run(),
+      ),
+    ).toThrow();
+    store.write((database) => {
+      database
+        .prepare(
+          `INSERT INTO job_leases(
+             job_id, lease_id, lease_owner, acquired_at, expires_at,
+             brief_contract_digest, source_grouping_version, prompt_version,
+             draft_schema_version
+           ) VALUES (
+             'job_test', 'lease_test', 'lease_owner_test',
+             '2026-08-30T00:00:00.000Z', '2026-08-30T00:30:00.000Z',
+             'brief_contract_test', 'source-groups-v1',
+             'host-distill-v1-sha256_test', 1
+           )`,
+        )
+        .run();
+      expect(scalar(database, "SELECT count(*) FROM job_leases")).toBe(1);
+      database.prepare("DELETE FROM pending_jobs WHERE job_id = 'job_test'").run();
+      expect(scalar(database, "SELECT count(*) FROM job_leases")).toBe(0);
+    });
+    store.write((database) => {
+      database.prepare("INSERT INTO blobs(digest, byte_length) VALUES ('sha256_result', 2)").run();
+      database
+        .prepare(
+          `INSERT INTO operations(
+             request_id, method, scope_subject_id, actor_json,
+             input_checksum, result_json, completed_at
+           ) VALUES (
+             'req_result', 'distill.brief', 'subject_one', '{"id":"test","kind":"sdk"}',
+             'fact_checksum', '{}', '2026-08-30T00:00:00.000Z'
+           )`,
+        )
+        .run();
+    });
+    expect(() =>
+      store.write((database) =>
+        database
+          .prepare(
+            `INSERT INTO operation_result_blobs(request_id, blob_digest, byte_length)
+             VALUES ('req_result', 'sha256_missing', 2)`,
+          )
+          .run(),
+      ),
+    ).toThrow();
+    expect(() =>
+      store.write((database) =>
+        database
+          .prepare(
+            `INSERT INTO operation_result_blobs(request_id, blob_digest, byte_length)
+             VALUES ('req_result', 'sha256_result', 0)`,
+          )
+          .run(),
+      ),
+    ).toThrow();
+    store.write((database) => {
+      database
+        .prepare(
+          `INSERT INTO operation_result_blobs(request_id, blob_digest, byte_length)
+           VALUES ('req_result', 'sha256_result', 2)`,
+        )
+        .run();
+      database.prepare("DELETE FROM operations WHERE request_id = 'req_result'").run();
+      expect(scalar(database, "SELECT count(*) FROM operation_result_blobs")).toBe(0);
+    });
     expect(() =>
       store.write((database) =>
         database
@@ -351,13 +476,24 @@ describe("SqliteEngineStore", () => {
     const versionRoot = await temporaryRoot();
     raw = new DatabaseSync(join(versionRoot, "store.sqlite3"));
     expect(scalar(raw, "PRAGMA journal_mode")).toBe("delete");
-    raw.exec("PRAGMA user_version = 2");
+    raw.exec("PRAGMA user_version = 3");
     raw.close();
+    if (process.platform !== "win32") {
+      await chmod(versionRoot, 0o755);
+      await chmod(join(versionRoot, "store.sqlite3"), 0o644);
+    }
+    const beforeVersionBytes = await readFile(join(versionRoot, "store.sqlite3"));
+    const beforeVersionRootMode = (await stat(versionRoot)).mode & 0o777;
+    const beforeVersionMode = (await stat(join(versionRoot, "store.sqlite3"))).mode & 0o777;
     await expect(SqliteEngineStore.open(versionRoot)).rejects.toMatchObject({
       code: "schema_unsupported",
     });
+    expect(await readFile(join(versionRoot, "store.sqlite3"))).toEqual(beforeVersionBytes);
+    expect((await stat(versionRoot)).mode & 0o777).toBe(beforeVersionRootMode);
+    expect((await stat(join(versionRoot, "store.sqlite3"))).mode & 0o777).toBe(beforeVersionMode);
+    expect(await readdir(versionRoot)).toEqual(["store.sqlite3"]);
     raw = new DatabaseSync(join(versionRoot, "store.sqlite3"));
-    expect(scalar(raw, "PRAGMA user_version")).toBe(2);
+    expect(scalar(raw, "PRAGMA user_version")).toBe(3);
     expect(scalar(raw, "PRAGMA journal_mode")).toBe("delete");
     raw.close();
 
@@ -367,13 +503,18 @@ describe("SqliteEngineStore", () => {
     raw.exec("CREATE TABLE unrelated(secret TEXT); PRAGMA user_version = 1");
     expect(scalar(raw, "PRAGMA journal_mode")).toBe("delete");
     raw.close();
-    if (process.platform !== "win32") await chmod(malformedV1Path, 0o644);
+    if (process.platform !== "win32") {
+      await chmod(malformedV1Root, 0o755);
+      await chmod(malformedV1Path, 0o644);
+    }
     const beforeBytes = await readFile(malformedV1Path);
+    const beforeRootMode = (await stat(malformedV1Root)).mode & 0o777;
     const beforeMode = (await stat(malformedV1Path)).mode & 0o777;
     await expect(SqliteEngineStore.open(malformedV1Root)).rejects.toMatchObject({
       code: "storage_corrupt",
     });
     expect(await readFile(malformedV1Path)).toEqual(beforeBytes);
+    expect((await stat(malformedV1Root)).mode & 0o777).toBe(beforeRootMode);
     expect((await stat(malformedV1Path)).mode & 0o777).toBe(beforeMode);
     expect(await readdir(malformedV1Root)).toEqual(["store.sqlite3"]);
     raw = new DatabaseSync(malformedV1Path);

@@ -40,7 +40,7 @@ import type { FileMaterialStore } from "../facts/material-store.js";
 import type { FileOperationStore } from "../facts/operation-store.js";
 import type { FileStateStore } from "../facts/state-store.js";
 import type { FileSubjectStore } from "../facts/subject-store.js";
-import type { FileTransactionStore } from "../facts/transaction-store.js";
+import type { FileTransactionStore } from "./legacy-file-transaction-store.test.fixture.js";
 import type {
   FileVersionStore,
   StoredCompleteVersion,
@@ -65,11 +65,11 @@ import {
 } from "../read/committed-version-reader.js";
 import type { FileRequestLock } from "../transaction/request-lock.js";
 import type { FileLockLease } from "../transaction/file-lock.js";
-import type { RecoveryService } from "../transaction/recovery.js";
+import type { RecoveryService } from "./legacy-file-recovery.test.fixture.js";
 import {
   validateReviewTransactionTarget,
   validateRollbackTransactionTarget,
-} from "../transaction/recovery.js";
+} from "./legacy-file-recovery.test.fixture.js";
 import type { FileSubjectLock } from "../transaction/subject-lock.js";
 import type { FileVersionStaging } from "../transaction/version-staging.js";
 

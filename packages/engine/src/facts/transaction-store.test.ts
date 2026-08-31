@@ -29,7 +29,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Layout } from "../layout.js";
 import { computeFactChecksum, sealFact } from "./checksum.js";
 import { replaceFactFile } from "./fact-file.js";
-import { FileTransactionStore } from "./transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 
 const ZERO_32 = "0".repeat(32);
 const ONE_32 = "1".repeat(32);

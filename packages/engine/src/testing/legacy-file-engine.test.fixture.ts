@@ -4,6 +4,7 @@ import {
   engineMethodSchemas,
   mutationContextSchema,
 } from "@distilly/protocol";
+import { join } from "node:path";
 import type {
   ActorContext,
   EngineEvent,
@@ -31,10 +32,8 @@ import { CryptoIdGenerator } from "../defaults/crypto-id-generator.js";
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
-import type { CommitServiceHooks } from "../distill/commit-service.js";
-import { CommitService } from "../distill/commit-service.js";
-import type { DistillLeaseServiceHooks } from "../distill/lease-service.js";
-import { DistillLeaseService } from "../distill/lease-service.js";
+import type { CommitServiceHooks } from "./legacy-file-commit-service.test.fixture.js";
+import { CommitService } from "./legacy-file-commit-service.test.fixture.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
 import { FileCurrentProfileProjection } from "../facts/current-profile-projection.js";
 import { computeFactChecksum, sealFact } from "../facts/checksum.js";
@@ -44,7 +43,7 @@ import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "./legacy-file-transaction-store.test.fixture.js";
 import { FileVersionManifestStore } from "../facts/version-manifest-store.js";
 import { FileVersionStore } from "../facts/version-store.js";
 import {
@@ -64,12 +63,12 @@ import { JsonLibraryProjection } from "../projection/json-library-projection.js"
 import { LibraryCoordinatedSubjectLock } from "../projection/library-coordinated-subject-lock.js";
 import { LibraryService } from "../projection/library-service.js";
 import { ProjectionService } from "../projection/projection-service.js";
-import type { SqliteQueueRepositoryHooks } from "../queue/sqlite-projection.js";
-import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
+import type { SqliteQueueRepositoryHooks } from "./legacy-sqlite-queue-projection.test.fixture.js";
+import { SqliteQueueRepository } from "./legacy-sqlite-queue-projection.test.fixture.js";
 import { CommittedVersionReader } from "../read/committed-version-reader.js";
 import { ReviewQueryService } from "../review/query-service.js";
-import type { ReviewServiceHooks } from "../review/service.js";
-import { ReviewService } from "../review/service.js";
+import type { ReviewServiceHooks } from "./legacy-file-review-service.test.fixture.js";
+import { ReviewService } from "./legacy-file-review-service.test.fixture.js";
 import {
   canonicalizeIngestSubjectTarget,
   findCreateConflict,
@@ -77,13 +76,17 @@ import {
 } from "../subject/identity.js";
 import { summarizeSubject } from "../subject/summary.js";
 import { FileRequestLock } from "../transaction/request-lock.js";
-import { RecoveryService, type RecoveryHooks } from "../transaction/recovery.js";
+import { RecoveryService, type RecoveryHooks } from "./legacy-file-recovery.test.fixture.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
 import type { VersionStagingHooks } from "../transaction/version-staging.js";
 import { FileVersionStaging } from "../transaction/version-staging.js";
 import { VersionService } from "../version/service.js";
 import { normalizeMaterial, prepareMaterial, type PreparedMaterial } from "../ingest/normalize.js";
 import { deriveIngestState, type IngestBaseline } from "../ingest/state-transition.js";
+import {
+  LegacyFileDistillLeaseService,
+  type LegacyFileDistillLeaseServiceHooks,
+} from "./legacy-file-lease-service.test.fixture.js";
 
 /** Options for the disposable file-backed composition retained only by unmigrated tests. */
 export interface LegacyFileEngineTestSupportOptions {
@@ -93,7 +96,7 @@ export interface LegacyFileEngineTestSupportOptions {
   readonly eventBus?: EventBus;
   readonly recoveryHooks?: RecoveryHooks;
   readonly queueHooks?: SqliteQueueRepositoryHooks;
-  readonly leaseHooks?: DistillLeaseServiceHooks;
+  readonly leaseHooks?: LegacyFileDistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
   readonly reviewHooks?: ReviewServiceHooks;
   readonly libraryHooks?: JsonLibraryProjectionHooks;
@@ -104,7 +107,7 @@ export interface LegacyFileEngineTestSupportOptions {
 /** File-backed legacy services still under test while their SQLite migrations are pending. */
 export interface LegacyFileEngineTestSupport {
   readonly ingest: LegacyFactSeedService;
-  readonly leases: DistillLeaseService;
+  readonly leases: LegacyFileDistillLeaseService;
   readonly commits: CommitService;
   readonly review: ReviewService;
   readonly materials: MaterialQueryService;
@@ -633,8 +636,8 @@ export const createLegacyFileEngineTestSupport = async (
     {
       root: layout.root,
       indexDirectory: layout.indexDirectory(),
-      databaseFile: layout.queueDatabaseFile(),
-      dirtyFile: layout.queueDirtyFile(),
+      databaseFile: join(layout.indexDirectory(), "queue.db"),
+      dirtyFile: join(layout.indexDirectory(), "queue.dirty"),
     },
     options.queueHooks,
   );
@@ -685,7 +688,7 @@ export const createLegacyFileEngineTestSupport = async (
     writerPending: () => libraryIndex.hasWriterIntent(),
   });
   const promptCatalog = options.promptCatalog ?? new PromptCatalog();
-  const leases = new DistillLeaseService({
+  const leases = new LegacyFileDistillLeaseService({
     spaces,
     subjects,
     states,

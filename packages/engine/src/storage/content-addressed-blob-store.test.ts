@@ -125,6 +125,9 @@ describe("ContentAddressedBlobStore", () => {
       return lease;
     });
 
+    await expect(mutation.read(firstDigest, Buffer.byteLength("first"))).resolves.toEqual(
+      new TextEncoder().encode("first"),
+    );
     await expect(mutation.put(digestFor("second"), "second")).resolves.toMatchObject({
       created: true,
     });
@@ -136,6 +139,57 @@ describe("ContentAddressedBlobStore", () => {
     await expect(mutation.put(digestFor("too late"), "too late")).rejects.toMatchObject({
       code: "storage_corrupt",
     });
+  });
+
+  it("reads verified bytes without reacquiring shared access behind a queued writer", async () => {
+    const root = await temporaryRoot();
+    const store = await ContentAddressedBlobStore.open(root);
+    const content = "snapshot-bound bytes";
+    const digest = digestFor(content);
+    const put = await store.put(digest, content);
+    await put.release();
+
+    const read = await store.acquireReadAccess();
+    let maintenanceEntered = false;
+    const maintenancePromise = store.acquireMaintenanceAccess().then((lease) => {
+      maintenanceEntered = true;
+      return lease;
+    });
+
+    await expect(read.read(digest, Buffer.byteLength(content))).resolves.toEqual(
+      new TextEncoder().encode(content),
+    );
+    expect(maintenanceEntered).toBe(false);
+    await read.release();
+    const maintenance = await maintenancePromise;
+    expect(maintenanceEntered).toBe(true);
+    await maintenance.release();
+    await expect(read.read(digest, Buffer.byteLength(content))).rejects.toMatchObject({
+      code: "storage_corrupt",
+    });
+  });
+
+  it("rejects missing, length-mismatched, and digest-mismatched blob reads", async () => {
+    const root = await temporaryRoot();
+    const store = await ContentAddressedBlobStore.open(root);
+    const content = "verified bytes";
+    const digest = digestFor(content);
+    const put = await store.put(digest, content);
+    await put.release();
+    const read = await store.acquireReadAccess();
+
+    await expect(read.read(digest, Buffer.byteLength(content) + 1)).rejects.toMatchObject({
+      code: "storage_corrupt",
+    });
+    await expect(
+      read.read(digestFor("missing"), Buffer.byteLength("missing")),
+    ).rejects.toMatchObject({ code: "storage_corrupt" });
+    await writeFile(pathFor(root, digest), "tampered bytes", { mode: 0o600 });
+    await expect(read.read(digest, Buffer.byteLength("tampered bytes"))).rejects.toMatchObject({
+      code: "storage_corrupt",
+    });
+    await expect(read.read(digest, -1)).rejects.toMatchObject({ code: "storage_corrupt" });
+    await read.release();
   });
 
   it("holds the put lease until release and gives queued maintenance writer priority", async () => {

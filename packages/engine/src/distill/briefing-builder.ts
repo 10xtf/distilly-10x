@@ -6,6 +6,7 @@ import type {
   HostDistillBriefing,
   HostDistillContract,
   JobLease,
+  MaterialRecord,
   MaterialId,
   MaterialSource,
   PendingJob,
@@ -13,13 +14,14 @@ import type {
   SubjectRecord,
   SubjectStateRecord,
   SourceGroup,
+  VersionClaimsSnapshot,
   VersionMaterialEntry,
+  VersionMaterialManifest,
+  VersionRecord,
 } from "@distilly/protocol";
 import { posix, win32 } from "node:path";
 
 import { hashMaterialSet, verifyMaterialIdentity } from "../facts/digests.js";
-import type { StoredMaterial } from "../facts/material-store.js";
-import type { StoredVersion } from "../facts/version-store.js";
 import { storageCorrupt } from "../internal-errors.js";
 import { deriveSourceGroups } from "../ingest/source-groups.js";
 import { summarizeSubject } from "../subject/service.js";
@@ -27,13 +29,26 @@ import { createBriefContract } from "./prompt-catalog.js";
 
 type BriefingCandidate = Omit<HostDistillBriefing, "limits">;
 
+/** Verified material bytes independent of any storage backend. */
+export interface BriefingStoredMaterial {
+  readonly record: MaterialRecord;
+  readonly content: string;
+}
+
+/** Verified baseline facts independent of any storage backend. */
+interface BriefingStoredVersion {
+  readonly version: VersionRecord;
+  readonly manifest: VersionMaterialManifest;
+  readonly claims: VersionClaimsSnapshot;
+}
+
 /** Complete verified facts needed to build one deterministic briefing candidate. */
 export interface BuildBriefingCandidateInput {
   readonly subject: SubjectRecord;
   readonly space: SpaceRecord;
   readonly state: SubjectStateRecord;
-  readonly materials: readonly StoredMaterial[];
-  readonly baseline?: StoredVersion;
+  readonly materials: readonly BriefingStoredMaterial[];
+  readonly baseline?: BriefingStoredVersion;
   readonly lease: JobLease;
   readonly contract: HostDistillContract;
 }
@@ -54,7 +69,7 @@ const projectModelFacingSource = (source: MaterialSource): MaterialSource => {
 
 const entryMatchesMaterial = (
   entry: VersionMaterialEntry,
-  material: StoredMaterial["record"],
+  material: BriefingStoredMaterial["record"],
 ): boolean =>
   entry.materialId === material.id &&
   entry.contentDigest === material.contentDigest &&
@@ -113,7 +128,7 @@ const validateLeaseAndContract = (
 const validateCurrentMaterials = (
   input: BuildBriefingCandidateInput,
   pending: NonNullable<SubjectStateRecord["pending"]>,
-): readonly StoredMaterial[] => {
+): readonly BriefingStoredMaterial[] => {
   const ordered = [...input.materials].sort((left, right) =>
     compareStrings(left.record.id, right.record.id),
   );
@@ -152,7 +167,7 @@ interface BaselineProjection {
 const projectBaseline = (
   input: BuildBriefingCandidateInput,
   pending: NonNullable<SubjectStateRecord["pending"]>,
-  currentById: ReadonlyMap<MaterialId, StoredMaterial>,
+  currentById: ReadonlyMap<MaterialId, BriefingStoredMaterial>,
   groups: ReadonlyMap<MaterialId, SourceGroup>,
 ): BaselineProjection => {
   if (

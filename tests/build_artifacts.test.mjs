@@ -119,12 +119,9 @@ test("cleaner refuses a symlink lib without touching its target", async (testCon
   assert.equal(await readFile(resolve(outside, "sentinel"), "utf8"), "keep\n");
 });
 
-test("Engine pack accepts remaining migration modules", async (testContext) => {
+test("Engine pack accepts remaining production modules", async (testContext) => {
   const root = await engineWorkspace(testContext, [
-    "lib/facts/transaction-store.js",
-    "lib/transaction/recovery.js",
     "lib/transaction/version-staging.js",
-    "lib/queue/sqlite-projection.js",
     "lib/projection/json-library-projection.js",
   ]);
 
@@ -177,6 +174,11 @@ for (const forbiddenPath of [
   "lib/testing/fake-client.js",
   "lib/facts/version-fixture.test-support.js",
   "lib/person.fixture.js",
+  "lib/distill/commit-service.js",
+  "lib/facts/transaction-store.js",
+  "lib/queue/sqlite-projection.js",
+  "lib/review/service.js",
+  "lib/transaction/recovery.js",
   "lib/transaction/ingest-staging.js",
   "lib/transaction/space-catalog-lock.js",
   "lib/transaction/space-identity-lock.js",

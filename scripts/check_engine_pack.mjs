@@ -21,6 +21,13 @@ const RETIRED_NAMES = [
   "space-catalog-lock",
   "space-identity-lock",
 ];
+const RETIRED_MODULE_PATHS = [
+  "lib/distill/commit-service",
+  "lib/facts/transaction-store",
+  "lib/queue/sqlite-projection",
+  "lib/review/service",
+  "lib/transaction/recovery",
+];
 
 function repositoryPath(root, path) {
   const result = relative(root, path);
@@ -102,6 +109,12 @@ function validatePackPath(path) {
   }
   if (basename?.includes(".test.")) {
     throw new Error(`${path}: [forbidden-engine-pack-path] tests are not package artifacts`);
+  }
+  const lowerPath = lowerSegments.join("/");
+  for (const retiredPath of RETIRED_MODULE_PATHS) {
+    if (lowerPath === retiredPath || lowerPath.startsWith(`${retiredPath}.`)) {
+      throw new Error(`${path}: [forbidden-engine-pack-path] ${retiredPath} is retired`);
+    }
   }
   for (const name of RETIRED_NAMES) {
     if (lowerSegments.some((segment) => segment === name || segment.startsWith(`${name}.`))) {

@@ -3,22 +3,27 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   DistillyError,
   actorContextSchema,
+  contentDigestSchema,
   engineMethodSchemas,
   eventRecordSchema,
   factChecksumSchema,
   isoDateTimeSchema,
+  jobLeaseSchema,
   requestIdSchema,
   subjectIdSchema,
 } from "@distilly/protocol";
 import type {
   ActorContext,
+  ContentDigest,
   EngineEvent,
   EngineMethodMap,
   EventId,
   EventRecord,
   FactChecksum,
+  HostDistillBriefing,
   IngestResult,
   IsoDateTime,
+  JobLease,
   RequestId,
   SubjectId,
   SubjectSummary,
@@ -28,8 +33,12 @@ import { canonicalJson } from "../facts/canonical-json.js";
 import { computeFactChecksum, sealFact, verifyFactChecksum } from "../facts/checksum.js";
 import { idempotencyConflict, storageCorrupt } from "../internal-errors.js";
 
-/** Mutation methods that share the first SQLite operation ledger. */
-export type SqliteLedgerMethod = "subjects.create" | "materials.ingest";
+/** Mutation methods currently backed by the SQLite operation ledger. */
+export type SqliteLedgerMethod =
+  "subjects.create" | "materials.ingest" | "distill.brief" | "distill.renew" | "distill.release";
+
+/** SQLite mutations whose stable result remains small enough for inline JSON. */
+export type SqliteInlineLedgerMethod = Exclude<SqliteLedgerMethod, "distill.brief">;
 
 type LedgerResult<M extends SqliteLedgerMethod> = EngineMethodMap[M]["result"];
 
@@ -43,11 +52,32 @@ export interface MutationReplayInput<M extends SqliteLedgerMethod> {
 
 /** Complete successful operation written in the same transaction as its business facts. */
 export interface CompletedOperationInput<
-  M extends SqliteLedgerMethod,
+  M extends SqliteInlineLedgerMethod,
 > extends MutationReplayInput<M> {
   readonly subjectId: SubjectId;
   readonly actor: ActorContext;
   readonly result: LedgerResult<M>;
+  readonly completedAt: IsoDateTime;
+}
+
+/** Immutable blob pointer used for a large stable operation result. */
+interface OperationResultBlob {
+  readonly digest: ContentDigest;
+  readonly byteLength: number;
+}
+
+/** Verified operation scope paired with its immutable stable-result pointer. */
+export interface BlobOperationReplay {
+  readonly subjectId: SubjectId;
+  readonly resultBlob: OperationResultBlob;
+  readonly lease: JobLease;
+}
+
+/** Complete blob-backed brief operation written with its lease transaction. */
+export interface CompletedBlobOperationInput extends MutationReplayInput<"distill.brief"> {
+  readonly subjectId: SubjectId;
+  readonly resultBlob: OperationResultBlob;
+  readonly lease: JobLease;
   readonly completedAt: IsoDateTime;
 }
 
@@ -67,6 +97,18 @@ interface OperationRow {
   readonly result_json: unknown;
   readonly completed_at: unknown;
   readonly existing_subject_id: unknown;
+  readonly result_blob_digest: unknown;
+  readonly result_blob_byte_length: unknown;
+  readonly authority_blob_byte_length: unknown;
+}
+
+interface VerifiedOperationRow {
+  readonly method: SqliteLedgerMethod;
+  readonly subjectId: SubjectId;
+  readonly completedAt: IsoDateTime;
+  readonly inputChecksum: FactChecksum;
+  readonly resultJson: string;
+  readonly resultBlob?: OperationResultBlob;
 }
 
 interface EventOperationRow {
@@ -84,6 +126,13 @@ const parseJson = (value: string, label: string): unknown => {
 
 const storedText = (value: unknown, label: string): string => {
   if (typeof value !== "string") throw storageCorrupt(`SQLite ${label} is invalid.`);
+  return value;
+};
+
+const storedSafeInteger = (value: unknown, label: string): number => {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw storageCorrupt(`SQLite ${label} is invalid.`);
+  }
   return value;
 };
 
@@ -105,7 +154,7 @@ const runInsert = (write: () => void, label: string): void => {
   }
 };
 
-const parseOperationResult = <M extends SqliteLedgerMethod>(
+const parseOperationResult = <M extends SqliteInlineLedgerMethod>(
   method: M,
   resultJson: string,
 ): LedgerResult<M> => {
@@ -121,41 +170,80 @@ const parseOperationResult = <M extends SqliteLedgerMethod>(
 
 const operationResultSubjectId = (
   method: SqliteLedgerMethod,
-  result: SubjectSummary | IngestResult,
-): SubjectId =>
-  method === "subjects.create"
-    ? (result as SubjectSummary).id
-    : (result as IngestResult).subject.id;
+  result: EngineMethodMap[SqliteLedgerMethod]["result"],
+): SubjectId | undefined => {
+  switch (method) {
+    case "subjects.create":
+      return (result as SubjectSummary).id;
+    case "materials.ingest":
+      return (result as IngestResult).subject.id;
+    case "distill.brief":
+      return (result as HostDistillBriefing).subject.id;
+    case "distill.renew":
+    case "distill.release":
+      return undefined;
+  }
+};
 
-/**
- * Hashes normalized mutation parameters together with their trusted actor.
- *
- * The RequestId is deliberately excluded so a retry compares the actual mutation identity.
- *
- * @param method - Mutation method discriminant included in the digest.
- * @param normalizedParams - Canonical transaction input for the method.
- * @param actor - Trusted actor bound to the client session.
- * @returns The full canonical mutation checksum.
- */
-export const computeMutationInputChecksum = (
-  method: SqliteLedgerMethod,
-  normalizedParams: unknown,
-  actor: ActorContext,
-): FactChecksum => computeFactChecksum({ method, params: normalizedParams, actor });
+const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
+  value === "subjects.create" ||
+  value === "materials.ingest" ||
+  value === "distill.brief" ||
+  value === "distill.renew" ||
+  value === "distill.release";
 
-/**
- * Replays one exact completed mutation or rejects any global RequestId reuse.
- *
- * Result JSON is parsed with the Protocol schema for the stored method before it leaves storage.
- *
- * @param database - Database connection inside the caller's active transaction.
- * @param input - Expected global RequestId, method, and normalized input checksum.
- * @returns The strictly parsed stored result, or undefined when the RequestId is unused.
- */
-export const replayCompletedMutation = <M extends SqliteLedgerMethod>(
+interface BriefTemplateOperationEnvelope {
+  readonly kind: "brief_template_v1";
+  readonly requestId: RequestId;
+  readonly inputChecksum: FactChecksum;
+  readonly subjectId: SubjectId;
+  readonly resultBlob: OperationResultBlob;
+  readonly lease: JobLease;
+}
+
+const object = (value: unknown, label: string): Readonly<Record<string, unknown>> => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw storageCorrupt(`SQLite ${label} is invalid.`);
+  }
+  return value as Readonly<Record<string, unknown>>;
+};
+
+const parseBriefTemplateEnvelope = (resultJson: string): BriefTemplateOperationEnvelope => {
+  const raw = object(parseJson(resultJson, "brief template envelope"), "brief template envelope");
+  if (raw.kind !== "brief_template_v1") {
+    throw storageCorrupt("SQLite brief template envelope kind is invalid.");
+  }
+  const pointer = object(raw.resultBlob, "brief template blob pointer");
+  const envelope: BriefTemplateOperationEnvelope = {
+    kind: "brief_template_v1",
+    requestId: parseStored(() => requestIdSchema.parse(raw.requestId), "brief template request id"),
+    inputChecksum: parseStored(
+      () => factChecksumSchema.parse(raw.inputChecksum),
+      "brief template input checksum",
+    ),
+    subjectId: parseStored(() => subjectIdSchema.parse(raw.subjectId), "brief template subject id"),
+    resultBlob: {
+      digest: parseStored(
+        () => contentDigestSchema.parse(pointer.digest),
+        "brief template blob digest",
+      ),
+      byteLength: storedSafeInteger(pointer.byteLength, "brief template blob byte length"),
+    },
+    lease: parseStored(
+      () => jobLeaseSchema.parse(raw.lease) as JobLease,
+      "brief template final lease",
+    ),
+  };
+  if (canonicalJson(envelope) !== resultJson) {
+    throw storageCorrupt("SQLite brief template envelope is not canonically encoded.");
+  }
+  return envelope;
+};
+
+const readVerifiedOperation = <M extends SqliteLedgerMethod>(
   database: DatabaseSync,
   input: MutationReplayInput<M>,
-): LedgerResult<M> | undefined => {
+): VerifiedOperationRow | undefined => {
   const requestId = parseStored(() => requestIdSchema.parse(input.requestId), "request id");
   const expectedChecksum = parseStored(
     () => factChecksumSchema.parse(input.inputChecksum),
@@ -171,9 +259,15 @@ export const replayCompletedMutation = <M extends SqliteLedgerMethod>(
       .prepare(
         `SELECT operations.method, operations.scope_subject_id, operations.actor_json,
                 operations.input_checksum, operations.result_json, operations.completed_at,
-                subjects.id AS existing_subject_id
+                subjects.id AS existing_subject_id,
+                operation_result_blobs.blob_digest AS result_blob_digest,
+                operation_result_blobs.byte_length AS result_blob_byte_length,
+                blobs.byte_length AS authority_blob_byte_length
          FROM operations
          LEFT JOIN subjects ON subjects.id = operations.scope_subject_id
+         LEFT JOIN operation_result_blobs
+           ON operation_result_blobs.request_id = operations.request_id
+         LEFT JOIN blobs ON blobs.digest = operation_result_blobs.blob_digest
          WHERE operations.request_id = ?`,
       )
       .get(requestId) as OperationRow | undefined;
@@ -182,8 +276,8 @@ export const replayCompletedMutation = <M extends SqliteLedgerMethod>(
   }
   if (row === undefined) return undefined;
 
-  const storedMethod = storedText(row.method, "operation method");
-  if (storedMethod !== "subjects.create" && storedMethod !== "materials.ingest") {
+  const storedMethodText = storedText(row.method, "operation method");
+  if (!isSqliteLedgerMethod(storedMethodText)) {
     throw storageCorrupt("SQLite operation method is unsupported by its storage schema.");
   }
   const scopeSubjectId = parseStored(
@@ -212,26 +306,139 @@ export const replayCompletedMutation = <M extends SqliteLedgerMethod>(
     () => factChecksumSchema.parse(storedText(row.input_checksum, "operation input checksum")),
     "operation input checksum",
   );
-  parseStored(
+  const completedAt = parseStored(
     () => isoDateTimeSchema.parse(storedText(row.completed_at, "operation completion time")),
     "operation completion time",
   );
 
-  if (storedMethod !== input.method || storedChecksum !== expectedChecksum) {
+  if (storedMethodText !== input.method || storedChecksum !== expectedChecksum) {
     throw idempotencyConflict("RequestId was already used by a different mutation input.");
   }
   if (canonicalJson(actor) !== canonicalJson(expectedActor)) {
     throw storageCorrupt("SQLite operation actor disagrees with its trusted mutation identity.");
   }
 
-  const result = parseOperationResult(
-    input.method,
-    storedText(row.result_json, "operation result"),
+  const resultJson = storedText(row.result_json, "operation result");
+  const digestValue = row.result_blob_digest;
+  if (digestValue === null) {
+    if (row.result_blob_byte_length !== null || row.authority_blob_byte_length !== null) {
+      throw storageCorrupt("SQLite operation result blob metadata is incomplete.");
+    }
+    return {
+      method: storedMethodText,
+      subjectId: scopeSubjectId,
+      completedAt,
+      inputChecksum: storedChecksum,
+      resultJson,
+    };
+  }
+  const digest = parseStored(
+    () => contentDigestSchema.parse(storedText(digestValue, "operation result blob digest")),
+    "operation result blob digest",
   );
-  if (operationResultSubjectId(input.method, result) !== scopeSubjectId) {
+  const byteLength = storedSafeInteger(
+    row.result_blob_byte_length,
+    "operation result blob byte length",
+  );
+  const authorityByteLength = storedSafeInteger(
+    row.authority_blob_byte_length,
+    "operation result authority blob byte length",
+  );
+  if (byteLength !== authorityByteLength) {
+    throw storageCorrupt("SQLite operation result blob metadata disagrees with blob authority.");
+  }
+  const resultBlob = { digest, byteLength } satisfies OperationResultBlob;
+  return {
+    method: storedMethodText,
+    subjectId: scopeSubjectId,
+    completedAt,
+    inputChecksum: storedChecksum,
+    resultJson,
+    resultBlob,
+  };
+};
+
+/**
+ * Hashes normalized mutation parameters together with their trusted actor.
+ *
+ * The RequestId is deliberately excluded so a retry compares the actual mutation identity.
+ *
+ * @param method - Mutation method discriminant included in the digest.
+ * @param normalizedParams - Canonical transaction input for the method.
+ * @param actor - Trusted actor bound to the client session.
+ * @param trustedSession - Additional trusted session fields for the mutation, when any.
+ * @returns The full canonical mutation checksum.
+ */
+export const computeMutationInputChecksum = (
+  method: SqliteLedgerMethod,
+  normalizedParams: unknown,
+  actor: ActorContext,
+  trustedSession?: unknown,
+): FactChecksum =>
+  computeFactChecksum({
+    method,
+    params: normalizedParams,
+    actor,
+    ...(trustedSession === undefined ? {} : { trustedSession }),
+  });
+
+/**
+ * Replays one exact completed mutation or rejects any global RequestId reuse.
+ *
+ * Result JSON is parsed with the Protocol schema for the stored method before it leaves storage.
+ *
+ * @param database - Database connection inside the caller's active transaction.
+ * @param input - Expected global RequestId, method, and normalized input checksum.
+ * @returns The strictly parsed stored result, or undefined when the RequestId is unused.
+ */
+export const replayCompletedMutation = <M extends SqliteInlineLedgerMethod>(
+  database: DatabaseSync,
+  input: MutationReplayInput<M>,
+): LedgerResult<M> | undefined => {
+  const row = readVerifiedOperation(database, input);
+  if (row === undefined) return undefined;
+  if (row.resultBlob !== undefined) {
+    throw storageCorrupt("An inline operation unexpectedly references a result blob.");
+  }
+  const result = parseOperationResult(input.method, row.resultJson);
+  const resultSubjectId = operationResultSubjectId(input.method, result);
+  if (resultSubjectId !== undefined && resultSubjectId !== row.subjectId) {
     throw storageCorrupt("SQLite operation result disagrees with its subject scope.");
   }
   return result;
+};
+
+/**
+ * Replays the verified immutable pointer for one completed blob-backed brief.
+ *
+ * The caller must read and validate the bytes through ContentAddressedBlobStore before parsing the
+ * Protocol result. Keeping file I/O outside the synchronous SQLite callback preserves short reads.
+ *
+ * @param database - Database connection inside a consistent read or write transaction.
+ * @param input - Expected brief mutation identity.
+ * @returns The referenced template blob and exact lease overlay, or undefined when unused.
+ */
+export const replayCompletedBlobMutation = (
+  database: DatabaseSync,
+  input: MutationReplayInput<"distill.brief">,
+): BlobOperationReplay | undefined => {
+  const row = readVerifiedOperation(database, input);
+  if (row === undefined) return undefined;
+  if (row.resultBlob === undefined) {
+    throw storageCorrupt("A blob-backed brief operation is missing its result blob.");
+  }
+  const envelope = parseBriefTemplateEnvelope(row.resultJson);
+  if (
+    envelope.requestId !== input.requestId ||
+    envelope.inputChecksum !== row.inputChecksum ||
+    envelope.subjectId !== row.subjectId ||
+    envelope.resultBlob.digest !== row.resultBlob.digest ||
+    envelope.resultBlob.byteLength !== row.resultBlob.byteLength ||
+    envelope.lease.acquiredAt !== row.completedAt
+  ) {
+    throw storageCorrupt("SQLite brief template envelope disagrees with its operation authority.");
+  }
+  return { subjectId: row.subjectId, resultBlob: row.resultBlob, lease: envelope.lease };
 };
 
 /**
@@ -240,7 +447,7 @@ export const replayCompletedMutation = <M extends SqliteLedgerMethod>(
  * @param database - Database connection inside the caller's active write transaction.
  * @param input - Validated operation identity, actor, result, scope, and completion time.
  */
-export const insertCompletedOperationInTransaction = <M extends SqliteLedgerMethod>(
+export const insertCompletedOperationInTransaction = <M extends SqliteInlineLedgerMethod>(
   database: DatabaseSync,
   input: CompletedOperationInput<M>,
 ): void => {
@@ -262,7 +469,8 @@ export const insertCompletedOperationInTransaction = <M extends SqliteLedgerMeth
     () => engineMethodSchemas[input.method].result.parse(input.result),
     "operation result",
   ) as LedgerResult<M>;
-  if (operationResultSubjectId(input.method, result) !== subjectId) {
+  const resultSubjectId = operationResultSubjectId(input.method, result);
+  if (resultSubjectId !== undefined && resultSubjectId !== subjectId) {
     throw storageCorrupt("A completed operation result disagrees with its subject scope.");
   }
 
@@ -284,6 +492,88 @@ export const insertCompletedOperationInTransaction = <M extends SqliteLedgerMeth
         completedAt,
       );
   }, "a completed operation");
+};
+
+/**
+ * Inserts a canonical blob-backed `distill.brief` operation and its reachability edge.
+ *
+ * @param database - Database connection inside the lease write transaction.
+ * @param input - Template pointer, exact final lease, actor, and operation identity.
+ */
+export const insertCompletedBlobOperationInTransaction = (
+  database: DatabaseSync,
+  input: CompletedBlobOperationInput,
+): void => {
+  const requestId = parseStored(() => requestIdSchema.parse(input.requestId), "request id");
+  const subjectId = parseStored(
+    () => subjectIdSchema.parse(input.subjectId),
+    "operation subject id",
+  );
+  const actor = parseStored(() => actorContextSchema.parse(input.actor), "operation actor");
+  const inputChecksum = parseStored(
+    () => factChecksumSchema.parse(input.inputChecksum),
+    "operation input checksum",
+  );
+  const completedAt = parseStored(
+    () => isoDateTimeSchema.parse(input.completedAt),
+    "operation completion time",
+  );
+  const lease = parseStored(
+    () => jobLeaseSchema.parse(input.lease) as JobLease,
+    "completed brief lease",
+  );
+  if (lease.acquiredAt !== completedAt) {
+    throw storageCorrupt("A completed brief lease disagrees with its operation completion time.");
+  }
+  const digest = parseStored(
+    () => contentDigestSchema.parse(input.resultBlob.digest),
+    "operation result blob digest",
+  );
+  const byteLength = storedSafeInteger(
+    input.resultBlob.byteLength,
+    "operation result blob byte length",
+  );
+  const blobRow = database.prepare("SELECT byte_length FROM blobs WHERE digest = ?").get(digest) as
+    { readonly byte_length?: unknown } | undefined;
+  if (
+    blobRow === undefined ||
+    storedSafeInteger(blobRow.byte_length, "operation result authority blob byte length") !==
+      byteLength
+  ) {
+    throw storageCorrupt("A completed brief result is missing its blob authority row.");
+  }
+  const envelope: BriefTemplateOperationEnvelope = {
+    kind: "brief_template_v1",
+    requestId,
+    inputChecksum,
+    subjectId,
+    resultBlob: { digest, byteLength },
+    lease,
+  };
+
+  runInsert(() => {
+    database
+      .prepare(
+        `INSERT INTO operations(
+           request_id, method, scope_subject_id, actor_json,
+           input_checksum, result_json, completed_at
+         ) VALUES (?, 'distill.brief', ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        requestId,
+        subjectId,
+        canonicalJson(actor),
+        inputChecksum,
+        canonicalJson(envelope),
+        completedAt,
+      );
+    database
+      .prepare(
+        `INSERT INTO operation_result_blobs(request_id, blob_digest, byte_length)
+         VALUES (?, ?, ?)`,
+      )
+      .run(requestId, digest, byteLength);
+  }, "a blob-backed completed operation");
 };
 
 /**

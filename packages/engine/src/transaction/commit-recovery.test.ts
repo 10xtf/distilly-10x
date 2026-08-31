@@ -43,7 +43,7 @@ import { FileOperationStore } from "../facts/operation-store.js";
 import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import type { VersionArtifactSet } from "../facts/version-store.js";
 import { FileVersionStore } from "../facts/version-store.js";
 import type {

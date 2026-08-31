@@ -1,4 +1,5 @@
 import { access, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
   DistillyError,
@@ -53,7 +54,7 @@ import { FileEventStore } from "../facts/event-store.js";
 import { replaceFactFile } from "../facts/fact-file.js";
 import { FileOperationStore } from "../facts/operation-store.js";
 import { FileStateStore } from "../facts/state-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
+import { FileTransactionStore } from "../testing/legacy-file-transaction-store.test.fixture.js";
 import {
   createVersionFixtureHarness,
   makeVersionArtifacts,
@@ -67,16 +68,19 @@ import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import { renderProfile, renderPrompt } from "../profile/render.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
+import { SqliteQueueRepository } from "../testing/legacy-sqlite-queue-projection.test.fixture.js";
 import { FileRequestLock } from "../transaction/request-lock.js";
 import {
   RecoveryService,
   type RecoveryHooks,
   type SubjectProjection,
-} from "../transaction/recovery.js";
+} from "../testing/legacy-file-recovery.test.fixture.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
 import { FileVersionStaging, type VersionStagingHooks } from "../transaction/version-staging.js";
-import { ReviewService, type ReviewServiceHooks } from "./service.js";
+import {
+  ReviewService,
+  type ReviewServiceHooks,
+} from "../testing/legacy-file-review-service.test.fixture.js";
 
 const AT = isoDateTimeSchema.parse("2026-08-21T08:00:00.000Z");
 const LATER = isoDateTimeSchema.parse("2026-08-21T09:00:00.000Z");
@@ -281,8 +285,8 @@ const openHarness = (input: {
   const queue = new SqliteQueueRepository({
     root: layout.root,
     indexDirectory: layout.indexDirectory(),
-    databaseFile: layout.queueDatabaseFile(),
-    dirtyFile: layout.queueDirtyFile(),
+    databaseFile: join(layout.indexDirectory(), "queue.db"),
+    dirtyFile: join(layout.indexDirectory(), "queue.dirty"),
   });
   const eventBus = new InProcessEventBus();
   const recovery = new RecoveryService({

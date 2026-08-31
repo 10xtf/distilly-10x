@@ -15,19 +15,22 @@ import {
   pendingJobMarkerSchema,
   pendingJobSchema,
   subjectIdSchema,
-  type FactChecksum,
   type IsoDateTime,
   type JobId,
   type LeaseOwnerId,
   type PendingFilter,
   type PendingJob,
   type PendingJobMarker,
-  type SubjectId,
 } from "@distilly/protocol";
 
 import { atomicReplaceFile, ensurePrivateDirectory, syncDirectory } from "../facts/atomic-write.js";
 import { assertNoSymlinkPath, isMissing, readRegularFile } from "../facts/safe-fs.js";
 import { indexUnavailable, storageCorrupt } from "../internal-errors.js";
+import type {
+  PendingJobRecord,
+  QueueRepository,
+  VerifiedQueueStateSeed,
+} from "./legacy-queue-repository.test.fixture.js";
 import { FileLock } from "../transaction/file-lock.js";
 import type { FileLockLease } from "../transaction/file-lock.js";
 
@@ -156,29 +159,6 @@ export interface SqliteQueueRepositoryPaths {
   readonly indexDirectory: string;
   readonly databaseFile: string;
   readonly dirtyFile: string;
-}
-
-/** One fact-verified subject state used to apply or rebuild the queue projection. */
-export interface VerifiedQueueStateSeed {
-  readonly subjectId: SubjectId;
-  readonly stateChecksum: FactChecksum;
-  readonly pending?: PendingJobMarker;
-}
-
-/** Public queue view plus projection-only scheduling metadata. */
-export interface PendingJobRecord {
-  readonly job: PendingJob;
-  readonly attempt: number;
-  readonly leaseOwner?: LeaseOwnerId;
-  readonly lastSequence: number;
-}
-
-/** Replaceable queue projection contract used by ingest and lease services. */
-export interface QueueRepository {
-  apply(seed: VerifiedQueueStateSeed): Promise<void>;
-  read(jobId: JobId, now: IsoDateTime): Promise<PendingJobRecord | undefined>;
-  list(filter: PendingFilter, now: IsoDateTime): Promise<readonly PendingJobRecord[]>;
-  rebuild(seeds: () => AsyncIterable<VerifiedQueueStateSeed>, now: IsoDateTime): Promise<void>;
 }
 
 /** Fault-injection hooks for durability-order tests. */

@@ -1,4 +1,5 @@
-import { BUILTIN_HOSTS } from "@distilly/protocol";
+import { createCodexHostBinding } from "@distilly/bindings";
+import { contentDigestSchema } from "@distilly/protocol";
 import { openPreviewMcpApplication } from "../lib/preview.js";
 
 const root = process.env.DISTILLY_PREVIEW_ROOT;
@@ -10,8 +11,19 @@ if (!root || !assetsDir || !Number.isSafeInteger(panelPort)) {
 
 const application = await openPreviewMcpApplication({
   root,
-  host: BUILTIN_HOSTS.codex,
-  sessionId: "built-preview-stdio",
+  binding: createCodexHostBinding({
+    homeDirectory: root,
+    executablePath: "/usr/bin/false",
+    forms: { ask: () => Promise.reject(new Error("Forms are not used by this fixture.")) },
+    provider: { load: () => Promise.reject(new Error("Preflight is owned by the caller.")) },
+    release: {
+      releaseVersion: "0.1.0-preview.1",
+      wireMajor: 3,
+      canonicalSkillDigest: contentDigestSchema.parse(`sha256_${"a".repeat(64)}`),
+    },
+    now: () => new Date("2026-08-31T20:00:00.000Z"),
+  }),
+  hostContext: { sessionId: "built-preview-stdio", environment: "ci" },
   capacity: {
     maximumInputTokens: 4_194_304,
     maximumToolResultBytes: 4_194_304,

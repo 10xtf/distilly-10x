@@ -4,17 +4,11 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { realpath } from "node:fs/promises";
 
-import {
-  createClaudeCodeCapabilityBinding,
-  createCodexCapabilityBinding,
-} from "@distilly/bindings";
 import { BUILTIN_HOSTS, type HostName } from "@distilly/protocol";
 
-import { loadPreviewHostFixture } from "./host-capacity-fixtures.js";
 import {
   doctorPreview,
-  readPreviewRelease,
-  requireInstalledPreviewHost,
+  requireInstalledPreviewBinding,
   setupPreviewHost,
   uninstallPreviewHost,
   type PreviewLifecycleEnvironment,
@@ -62,45 +56,20 @@ const freePanelPort = async (): Promise<number> => {
   return address.port;
 };
 
-const previewCapacity = async (
-  host: HostName,
-  hostVersion: string,
-  environment: PreviewLifecycleEnvironment,
-) => {
-  const release = await readPreviewRelease(environment.pluginSourcesPath);
-  const provider = {
-    load: (context: { readonly environment: "desktop" | "cli" | "ci" }) =>
-      Promise.resolve(loadPreviewHostFixture(host, hostVersion, context.environment, release)),
-  };
-  const options = {
-    provider,
-    release: {
-      releaseVersion: release.releaseVersion,
-      wireMajor: 3 as const,
-      canonicalSkillDigest: release.canonicalSkillDigest,
-    },
-  };
-  const binding =
-    host === BUILTIN_HOSTS.codex
-      ? createCodexCapabilityBinding(options)
-      : createClaudeCodeCapabilityBinding(options);
-  const preflight = await binding.preflight({
-    sessionId: `${host}-preview-mcp-${process.pid}`,
-    environment: "cli",
-  });
-  if (!preflight.ok) throw new Error(preflight.error.message);
-  return preflight.capacity;
-};
-
 const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promise<void> => {
-  const installed = await requireInstalledPreviewHost(environment.lifecycle, host);
-  const capacity = await previewCapacity(host, installed.hostVersion, environment.lifecycle);
+  const binding = await requireInstalledPreviewBinding(environment.lifecycle, host);
+  const hostContext = {
+    sessionId: `${host}-preview-mcp-${process.pid}`,
+    environment: "cli" as const,
+  };
+  const preflight = await binding.preflight(hostContext);
+  if (!preflight.ok) throw new Error(preflight.error.message);
   const { openPreviewMcpApplication } = await import("./preview.js");
   const application = await openPreviewMcpApplication({
     root: join(environment.lifecycle.homeDirectory, ".distilly"),
-    host,
-    sessionId: `${host}-preview-mcp-${process.pid}`,
-    capacity,
+    binding,
+    hostContext,
+    capacity: preflight.capacity,
     panel: {
       assetsDir: environment.panelAssetsPath,
       port: await freePanelPort(),

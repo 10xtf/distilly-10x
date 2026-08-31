@@ -6,5 +6,10 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../protocol" }, { "path": "../adapters" }, { "path": "../engine" }]
+  "references": [
+    { "path": "../protocol" },
+    { "path": "../adapters" },
+    { "path": "../bindings" },
+    { "path": "../engine" }
+  ]
 }

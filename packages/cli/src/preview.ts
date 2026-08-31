@@ -1,7 +1,8 @@
 import { createMcpServer, type McpServer } from "@distilly/mcp";
 import { runStdio } from "@distilly/mcp/stdio";
 import { PanelLauncher, startPanelServer } from "@distilly/panel/server";
-import type { BriefCapacity, EngineClient, HostName } from "@distilly/protocol";
+import type { HostBinding, HostContext } from "@distilly/bindings";
+import type { BriefCapacity, EngineClient } from "@distilly/protocol";
 import { openPreviewLocalRuntime, type PreviewLocalRuntime } from "@distilly/runtime/preview";
 import { Distilly } from "distilly";
 
@@ -20,8 +21,8 @@ export interface PreviewPanelOptions {
 /** Trusted host identity and local paths needed by the Preview composition. */
 export interface OpenPreviewMcpApplicationOptions {
   readonly root: string;
-  readonly host: HostName;
-  readonly sessionId: string;
+  readonly binding: HostBinding;
+  readonly hostContext: HostContext;
   readonly capacity: BriefCapacity;
   readonly panel: PreviewPanelOptions;
 }
@@ -104,14 +105,21 @@ class PreviewMcpApplicationImplementation implements PreviewMcpApplication {
 export const openPreviewMcpApplication = async (
   options: OpenPreviewMcpApplicationOptions,
 ): Promise<PreviewMcpApplication> => {
-  const runtime = await openPreviewLocalRuntime({ root: options.root });
+  const runtime = await openPreviewLocalRuntime({
+    root: options.root,
+    hostBinding: { binding: options.binding, context: options.hostContext },
+  });
   try {
     const hostClient = await runtime.connectTrusted({
-      actor: { kind: "host", id: options.sessionId, host: options.host },
+      actor: {
+        kind: "host",
+        id: options.hostContext.sessionId,
+        host: options.binding.host,
+      },
       capacity: options.capacity,
     });
     const userClient = await runtime.connectTrusted({
-      actor: { kind: "user", id: options.sessionId },
+      actor: { kind: "user", id: options.hostContext.sessionId },
       capacity: DIRECT_USER_CAPACITY,
     });
     const panel = new PanelLauncher({

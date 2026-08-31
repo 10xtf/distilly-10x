@@ -105,9 +105,10 @@ test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along rev
       [
         "runtime",
         "@distilly/runtime",
-        'export type { Adapter } from "@distilly/adapters";\nexport type { EngineRuntime } from "@distilly/engine/preview";\nexport type { EngineClient } from "@distilly/protocol";\n',
+        'export type { Adapter } from "@distilly/adapters";\nexport type { HostBinding } from "@distilly/bindings";\nexport type { EngineRuntime } from "@distilly/engine/preview";\nexport type { EngineClient } from "@distilly/protocol";\n',
         {
           "@distilly/adapters": "workspace:*",
+          "@distilly/bindings": "workspace:*",
           "@distilly/engine": "workspace:*",
           "@distilly/protocol": "workspace:*",
         },
@@ -158,7 +159,7 @@ test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along rev
   assert.equal(result.stderr, "");
 });
 
-test("rejects runtime depending on bindings", async (testContext) => {
+test("accepts runtime composing bindings", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
@@ -179,10 +180,9 @@ test("rejects runtime depending on bindings", async (testContext) => {
 
   const result = run(root);
 
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /@distilly\/runtime may not depend on @distilly\/bindings/u);
-  assert.match(result.stderr, /\[forbidden-internal-dependency\]/u);
-  assert.match(result.stderr, /\[forbidden-internal-import\]/u);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "package boundaries: ok\n");
+  assert.equal(result.stderr, "");
 });
 
 for (const forbiddenTarget of [

@@ -49,7 +49,10 @@ export type SqliteLedgerMethod =
   | "profiles.correct"
   | "versions.promote"
   | "versions.reject"
-  | "versions.rollback";
+  | "versions.rollback"
+  | "hosts.install"
+  | "hosts.uninstall"
+  | "hosts.export";
 
 /** SQLite mutations whose stable result remains small enough for inline JSON. */
 export type SqliteInlineLedgerMethod = Exclude<SqliteLedgerMethod, "distill.brief">;
@@ -206,8 +209,12 @@ const operationResultSubjectId = (
     case "versions.reject":
     case "versions.rollback":
       return (result as VersionSummary).subjectId;
+    case "hosts.install":
+    case "hosts.export":
+      return (result as { readonly subjectId: SubjectId }).subjectId;
     case "distill.renew":
     case "distill.release":
+    case "hosts.uninstall":
       return undefined;
   }
 };
@@ -223,7 +230,10 @@ const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
   value === "profiles.correct" ||
   value === "versions.promote" ||
   value === "versions.reject" ||
-  value === "versions.rollback";
+  value === "versions.rollback" ||
+  value === "hosts.install" ||
+  value === "hosts.uninstall" ||
+  value === "hosts.export";
 
 interface BriefTemplateOperationEnvelope {
   readonly kind: "brief_template_v1";

@@ -1,9 +1,13 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
+import { promisify } from "node:util";
 
+import { createCodexHostBinding } from "@distilly/bindings";
 import {
   BUILTIN_HOSTS,
+  contentDigestSchema,
   facetPathSchema,
   isoDateTimeSchema,
   requestIdSchema,
@@ -23,15 +27,28 @@ const IDENTITY = facetPathSchema.parse("identity");
 let requestCounter = 1;
 const roots: string[] = [];
 const applications: PreviewMcpApplication[] = [];
+const execFileAsync = promisify(execFile);
 
 const request = (): RequestId =>
   requestIdSchema.parse(`req_${(requestCounter++).toString(16).padStart(32, "0")}`);
 
 const open = async (root: string): Promise<PreviewMcpApplication> => {
+  const binding = createCodexHostBinding({
+    homeDirectory: root,
+    executablePath: "/usr/bin/false",
+    forms: { ask: () => Promise.reject(new Error("Forms are not used by this fixture.")) },
+    provider: { load: () => Promise.reject(new Error("Preflight is owned by the caller.")) },
+    release: {
+      releaseVersion: "0.1.0-preview.1",
+      wireMajor: 3,
+      canonicalSkillDigest: contentDigestSchema.parse(`sha256_${"a".repeat(64)}`),
+    },
+    now: () => new Date("2026-08-31T20:00:00.000Z"),
+  });
   const application = await openPreviewMcpApplication({
     root,
-    host: BUILTIN_HOSTS.codex,
-    sessionId: "preview-test-session",
+    binding,
+    hostContext: { sessionId: "preview-test-session", environment: "ci" },
     capacity: CAPACITY,
     panel: {
       assetsDir: resolve("packages/panel/web"),
@@ -128,7 +145,49 @@ describe("Developer Preview MCP application", () => {
       "Mira prioritizes auditable local-first systems.",
     );
 
+    const installRequestId = request();
+    const installed = await person.install(BUILTIN_HOSTS.codex, undefined, {
+      requestId: installRequestId,
+    });
+    await expect(
+      person.install(BUILTIN_HOSTS.codex, undefined, { requestId: installRequestId }),
+    ).resolves.toEqual(installed);
+    await expect(
+      person.install(
+        BUILTIN_HOSTS.codex,
+        { destination: join(root, "another-person-skill") },
+        { requestId: installRequestId },
+      ),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+    await expect(readdir(installed.path).then((entries) => entries.sort())).resolves.toEqual([
+      ".distilly-install.json",
+      "SKILL.md",
+    ]);
+    const installedSkill = await readFile(join(installed.path, "SKILL.md"), "utf8");
+    expect(installedSkill).toContain("Mira prioritizes auditable local-first systems.");
+    expect(installedSkill).not.toContain("mira-note");
+
     await close(first);
+    const codexExecutable = process.env.DISTILLY_VERIFY_CODEX_DISCOVERY;
+    if (codexExecutable !== undefined) {
+      const discovered = await execFileAsync(
+        codexExecutable,
+        ["debug", "prompt-input", "Use the installed Distilly person Profile."],
+        {
+          cwd: root,
+          env: {
+            ...process.env,
+            HOME: root,
+            USERPROFILE: root,
+            CODEX_HOME: join(root, ".codex"),
+          },
+          maxBuffer: 4 * 1_024 * 1_024,
+        },
+      );
+      const promptInput = JSON.parse(discovered.stdout) as unknown;
+      expect(JSON.stringify(promptInput)).toContain(basename(installed.path));
+      expect(JSON.stringify(promptInput)).toContain(installed.path);
+    }
     const reopened = await open(root);
     const resolution = await reopened.distilly.resolve({
       selector: { kind: "id", subjectId: person.id },
@@ -137,6 +196,32 @@ describe("Developer Preview MCP application", () => {
     await expect(reopened.distilly.person(person.id).prompt()).resolves.toContain(
       "Mira prioritizes auditable local-first systems.",
     );
+    await expect(readdir(installed.path).then((entries) => entries.sort())).resolves.toEqual([
+      ".distilly-install.json",
+      "SKILL.md",
+    ]);
+
+    const reopenedPerson = reopened.distilly.person(person.id);
+    const exportPath = join(root, "exports", "mira.md");
+    const exportRequestId = request();
+    const exported = await reopenedPerson.export(
+      BUILTIN_HOSTS.codex,
+      { destination: exportPath },
+      { requestId: exportRequestId },
+    );
+    await expect(
+      reopenedPerson.export(
+        BUILTIN_HOSTS.codex,
+        { destination: exportPath },
+        { requestId: exportRequestId },
+      ),
+    ).resolves.toEqual(exported);
+    await expect(readFile(exportPath, "utf8")).resolves.toContain(
+      "Mira prioritizes auditable local-first systems.",
+    );
+
+    await reopenedPerson.uninstall(installed, { requestId: request() });
+    await expect(readdir(installed.path)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("waits for its active stdio transport before releasing the local root", async () => {

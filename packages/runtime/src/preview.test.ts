@@ -479,9 +479,9 @@ describe("Developer Preview LocalRuntime", () => {
     );
     await expect(unsupported).rejects.toBeInstanceOf(DistillyError);
     await expect(unsupported).rejects.toMatchObject({
-      code: "schema_unsupported",
+      code: "host_unsupported",
       retryable: false,
-      message: "hosts.install is not enabled in Distilly 0.1 Developer Preview.",
+      message: "The requested host does not have a verified full Distilly binding.",
     });
 
     await close(firstRuntime);

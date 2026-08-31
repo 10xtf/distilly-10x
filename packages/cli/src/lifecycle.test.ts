@@ -84,8 +84,11 @@ describe("Developer Preview CLI lifecycle", () => {
     });
 
     const personData = join(home, ".distilly", "people", "keep.txt");
+    const personSkill = join(home, ".codex", "skills", "distilly-mira", "SKILL.md");
     await mkdir(join(home, ".distilly", "people"));
+    await mkdir(join(home, ".codex", "skills", "distilly-mira"), { recursive: true });
     await writeFile(personData, "keep me\n");
+    await writeFile(personSkill, "# keep this person Skill\n");
     await expect(uninstallPreviewHost(BUILTIN_HOSTS.codex, environment)).resolves.toEqual({
       host: BUILTIN_HOSTS.codex,
       removed: true,
@@ -93,6 +96,7 @@ describe("Developer Preview CLI lifecycle", () => {
     });
     await expect(readFile(launcher)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(personData, "utf8")).resolves.toBe("keep me\n");
+    await expect(readFile(personSkill, "utf8")).resolves.toBe("# keep this person Skill\n");
   });
 
   it("reports tampered lifecycle bytes and refuses destructive uninstall", async () => {

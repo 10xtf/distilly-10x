@@ -140,6 +140,9 @@ importers:
       "@distilly/adapters":
         specifier: workspace:*
         version: link:../adapters
+      "@distilly/bindings":
+        specifier: workspace:*
+        version: link:../bindings
       "@distilly/engine":
         specifier: workspace:*
         version: link:../engine

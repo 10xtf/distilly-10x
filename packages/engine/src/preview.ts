@@ -23,11 +23,17 @@ import type {
 } from "@distilly/protocol";
 
 import { CryptoIdGenerator } from "./defaults/crypto-id-generator.js";
+import type { PreviewHostMutationAuthority } from "./host/mutation-authority.js";
 import {
   createInternalEngineComposition,
   type InternalEngineComposition,
 } from "./ingest/composition.js";
 import type { TrustedFileLoader } from "./ingest/service.js";
+
+export type {
+  PreviewHostMutationAuthority,
+  PreviewHostMutationMethod,
+} from "./host/mutation-authority.js";
 
 type CoreQueryMethodName = Extract<CoreMethodName, QueryMethodName>;
 type CoreMutationMethodName = Extract<CoreMethodName, MutationMethodName>;
@@ -173,6 +179,9 @@ export interface OpenPreviewEngineOptions {
 
 /** Explicitly incomplete Developer Preview runtime over the real SQLite core. */
 export interface PreviewEngineRuntime {
+  /** SQLite authority used by trusted Runtime around host-owned filesystem effects. */
+  readonly hostMutations: PreviewHostMutationAuthority;
+
   /**
    * Creates an isolated trusted client session with an engine-owned lease owner.
    *
@@ -269,6 +278,7 @@ class PreviewCoreClient implements CoreEngineClient {
 }
 
 class PreviewEngineRuntimeImplementation implements PreviewEngineRuntime {
+  readonly hostMutations: PreviewHostMutationAuthority;
   readonly #composition: InternalEngineComposition;
   readonly #ids: CryptoIdGenerator;
   readonly #root: string;
@@ -281,6 +291,7 @@ class PreviewEngineRuntimeImplementation implements PreviewEngineRuntime {
     this.#root = root;
     this.#composition = composition;
     this.#ids = ids;
+    this.hostMutations = composition.hostMutations;
   }
 
   /**

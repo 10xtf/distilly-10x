@@ -9,6 +9,10 @@ import { DistillLeaseService } from "../distill/lease-service.js";
 import type { CommitServiceHooks } from "../distill/commit-service.js";
 import { CommitService } from "../distill/commit-service.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
+import {
+  SqlitePreviewHostMutationAuthority,
+  type PreviewHostMutationAuthority,
+} from "../host/mutation-authority.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import { SqliteReadService } from "../read/sqlite-read-service.js";
@@ -62,6 +66,7 @@ export interface InternalEngineComposition {
   readonly library: {
     readonly list: SqliteReadService["listLibrary"];
   };
+  readonly hostMutations: PreviewHostMutationAuthority;
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
   readonly commits: CommitService;
@@ -140,6 +145,7 @@ export const createInternalEngineComposition = async (
     });
     const reads = new SqliteReadService({ store, blobs });
     const reviews = new ReviewQueryService({ store });
+    const hostMutations = new SqlitePreviewHostMutationAuthority({ store, clock });
     return {
       subjects: {
         create: (input, actor, mutation) => subjectCreate.create(input, actor, mutation),
@@ -163,6 +169,7 @@ export const createInternalEngineComposition = async (
       library: {
         list: (input) => reads.listLibrary(input),
       },
+      hostMutations,
       ingest,
       leases,
       commits,

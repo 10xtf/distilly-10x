@@ -3,8 +3,14 @@ import { basename, extname } from "node:path";
 
 import { createBuiltinParserRegistry } from "@distilly/adapters";
 import type { ParsedMaterial } from "@distilly/adapters";
-import { openPreviewEngine, type PreviewEngineRuntime } from "@distilly/engine/preview";
+import type { HostBinding, HostContext, HostInjector } from "@distilly/bindings";
 import {
+  openPreviewEngine,
+  type PreviewEngineRuntime,
+  type PreviewHostMutationAuthority,
+} from "@distilly/engine/preview";
+import {
+  actorContextSchema,
   DistillyError,
   WIRE_LIMITS,
   engineMethodSchemas,
@@ -54,6 +60,21 @@ const previewUnsupported = (method: RuntimeOwnedMethodName): DistillyError =>
     message: `${method} is not enabled in Distilly 0.1 Developer Preview.`,
     retryable: false,
     remediation: "Use a method enabled by the 0.1 Developer Preview.",
+  });
+
+const hostUnavailable = (): DistillyError =>
+  new DistillyError({
+    code: "host_unsupported",
+    message: "The requested host does not have a verified full Distilly binding.",
+    retryable: false,
+    remediation: "Run Distilly setup for this host and restart it.",
+  });
+
+const invalidHostResult = (): DistillyError =>
+  new DistillyError({
+    code: "internal_error",
+    message: "The verified host binding returned an inconsistent Profile projection.",
+    retryable: false,
   });
 
 const invalidBoundary = (label: string): DistillyError =>
@@ -198,6 +219,10 @@ export interface PreviewTrustedSessionOptions {
 /** Root configuration for the local Developer Preview runtime. */
 export interface OpenPreviewLocalRuntimeOptions {
   readonly root: string;
+  readonly hostBinding?: {
+    readonly binding: HostBinding;
+    readonly context: HostContext;
+  };
 }
 
 /** Explicit Developer Preview composition of local Engine core methods. */
@@ -220,14 +245,22 @@ export interface PreviewLocalRuntime {
 
 interface PreviewLocalClientDependencies {
   readonly core: CoreEngineClient;
+  readonly actor: ActorContext;
+  readonly hostMutations: PreviewHostMutationAuthority;
+  readonly injector?: HostInjector;
   readonly run: <T>(operation: () => Promise<T>) => Promise<T>;
+  readonly runHost: <T>(operation: () => Promise<T>) => Promise<T>;
   readonly onClose: (client: PreviewLocalClient) => void;
 }
 
 class PreviewLocalClient implements EngineClient {
   readonly #core: CoreEngineClient;
   readonly #callCore: DynamicCoreCall;
+  readonly #actor: ActorContext;
+  readonly #hostMutations: PreviewHostMutationAuthority;
+  readonly #injector: HostInjector | undefined;
   readonly #run: PreviewLocalClientDependencies["run"];
+  readonly #runHost: PreviewLocalClientDependencies["runHost"];
   readonly #onClose: PreviewLocalClientDependencies["onClose"];
   #closed = false;
   #closePromise: Promise<void> | undefined;
@@ -235,7 +268,11 @@ class PreviewLocalClient implements EngineClient {
   constructor(dependencies: PreviewLocalClientDependencies) {
     this.#core = dependencies.core;
     this.#callCore = this.#core.call.bind(this.#core);
+    this.#actor = dependencies.actor;
+    this.#hostMutations = dependencies.hostMutations;
+    this.#injector = dependencies.injector;
     this.#run = dependencies.run;
+    this.#runHost = dependencies.runHost;
     this.#onClose = dependencies.onClose;
   }
 
@@ -257,9 +294,7 @@ class PreviewLocalClient implements EngineClient {
     this.#assertOpen();
     return this.#run(async () => {
       if (method === "hosts.install" || method === "hosts.uninstall" || method === "hosts.export") {
-        parseRuntimeParams(method, params);
-        parseRuntimeMutation(context);
-        throw previewUnsupported(method);
+        return this.#runHost(() => this.#callHost(method, params, context));
       }
       if (method === "system.doctor") {
         parseRuntimeParams(method, params);
@@ -305,17 +340,86 @@ class PreviewLocalClient implements EngineClient {
   #assertOpen(): void {
     if (this.#closed) throw localClientClosed();
   }
+
+  async #callHost(
+    method: "hosts.install" | "hosts.uninstall" | "hosts.export",
+    rawParams: unknown,
+    rawContext: MutationContext | undefined,
+  ): Promise<unknown> {
+    const context = parseRuntimeMutation(rawContext);
+    switch (method) {
+      case "hosts.install": {
+        const params = parseRuntimeParams("hosts.install", rawParams);
+        const replay = await this.#hostMutations.replay(
+          "hosts.install",
+          params,
+          this.#actor,
+          context,
+        );
+        if (replay !== undefined) return replay;
+        const injector = this.#injector;
+        if (injector === undefined || injector.host !== params.host) throw hostUnavailable();
+        const versionId = params.options?.versionId;
+        const profile = await this.#core.call("profiles.get", {
+          subjectId: params.subjectId,
+          ...(versionId === undefined ? {} : { versionId }),
+        });
+        const result = await injector.install(profile, params.options ?? {});
+        if (result.versionId !== profile.versionId) throw invalidHostResult();
+        return this.#hostMutations.complete("hosts.install", params, this.#actor, context, result);
+      }
+      case "hosts.uninstall": {
+        const params = parseRuntimeParams("hosts.uninstall", rawParams);
+        const replay = await this.#hostMutations.replay(
+          "hosts.uninstall",
+          params,
+          this.#actor,
+          context,
+        );
+        if (replay !== undefined) return replay;
+        const injector = this.#injector;
+        if (injector === undefined || injector.host !== params.install.host) {
+          throw hostUnavailable();
+        }
+        await injector.uninstall(params.install);
+        return this.#hostMutations.complete("hosts.uninstall", params, this.#actor, context, null);
+      }
+      case "hosts.export": {
+        const params = parseRuntimeParams("hosts.export", rawParams);
+        const replay = await this.#hostMutations.replay(
+          "hosts.export",
+          params,
+          this.#actor,
+          context,
+        );
+        if (replay !== undefined) return replay;
+        const injector = this.#injector;
+        if (injector === undefined || injector.host !== params.host) throw hostUnavailable();
+        const versionId = params.options.versionId;
+        const profile = await this.#core.call("profiles.get", {
+          subjectId: params.subjectId,
+          ...(versionId === undefined ? {} : { versionId }),
+        });
+        const result = await injector.exportIdentity(profile, params.options);
+        if (result.versionId !== profile.versionId) throw invalidHostResult();
+        return this.#hostMutations.complete("hosts.export", params, this.#actor, context, result);
+      }
+    }
+  }
 }
 
 class PreviewLocalRuntimeImplementation implements PreviewLocalRuntime {
   readonly #engine: PreviewEngineRuntime;
+  readonly #injector: HostInjector | undefined;
   readonly #clients = new Set<PreviewLocalClient>();
   readonly #inFlight = new Set<Promise<unknown>>();
+  #hostTail: Promise<void> = Promise.resolve();
   #accepting = true;
   #closePromise: Promise<void> | undefined;
 
-  constructor(engine: PreviewEngineRuntime) {
+  constructor(engine: PreviewEngineRuntime, injector?: HostInjector) {
     this.#engine = engine;
+    this.#injector = injector;
   }
 
   /**
@@ -327,9 +431,14 @@ class PreviewLocalRuntimeImplementation implements PreviewLocalRuntime {
   async connectTrusted(options: PreviewTrustedSessionOptions): Promise<EngineClient> {
     return this.#run(async () => {
       const core = await this.#engine.connect(options);
+      const actor = actorContextSchema.parse(options.actor) as ActorContext;
       const client = new PreviewLocalClient({
         core,
+        actor,
+        hostMutations: this.#engine.hostMutations,
+        ...(this.#injector === undefined ? {} : { injector: this.#injector }),
         run: (operation) => this.#run(operation),
+        runHost: (operation) => this.#runHost(operation),
         onClose: (closed) => this.#clients.delete(closed),
       });
       this.#clients.add(client);
@@ -363,6 +472,15 @@ class PreviewLocalRuntimeImplementation implements PreviewLocalRuntime {
     );
     return pending;
   }
+
+  #runHost<T>(operation: () => Promise<T>): Promise<T> {
+    const pending = this.#hostTail.then(operation, operation);
+    this.#hostTail = pending.then(
+      () => undefined,
+      () => undefined,
+    );
+    return pending;
+  }
 }
 
 /**
@@ -374,6 +492,16 @@ class PreviewLocalRuntimeImplementation implements PreviewLocalRuntime {
 export const openPreviewLocalRuntime = async (
   options: OpenPreviewLocalRuntimeOptions,
 ): Promise<PreviewLocalRuntime> => {
-  const engine = await openPreviewEngine({ ...options, fileLoader: createLocalFileLoader() });
-  return new PreviewLocalRuntimeImplementation(engine);
+  let injector: HostInjector | undefined;
+  if (options.hostBinding !== undefined) {
+    const { binding, context } = options.hostBinding;
+    if (binding.kind !== "full") throw invalidBoundary("full host binding");
+    injector = binding.createInjector(context);
+    if (injector.host !== binding.host) throw invalidBoundary("host injector");
+  }
+  const engine = await openPreviewEngine({
+    root: options.root,
+    fileLoader: createLocalFileLoader(),
+  });
+  return new PreviewLocalRuntimeImplementation(engine, injector);
 };

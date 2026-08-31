@@ -310,6 +310,11 @@ const uninstallProfile = async (host: HostName, ref: InstallRef): Promise<void> 
     throw invalid("The installation belongs to another host.", "ref.host");
   }
   const root = resolveDestination(parsedRef.data.path);
+  const existing = await lstat(root).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (existing === undefined) return;
   const manifest = await readVerifiedInstall(root, host);
   if (canonicalJson(manifest.install) !== canonicalJson(parsedRef.data)) throw modified();
   const skillPath = resolve(root, SKILL_FILE);
@@ -329,7 +334,26 @@ const exportProfile = async (
   validateVersion(profile, options);
   const destination = resolveDestination(options.destination);
   const content = renderPersonSkill(profile, skillName(profile));
+  const contentDigest = digest(content);
   await mkdir(dirname(destination), { recursive: true });
+  const existing = await lstat(destination).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (existing !== undefined) {
+    if (!existing.isFile() || existing.isSymbolicLink()) {
+      throw invalid("The export destination is not a regular file.", "destination");
+    }
+    if (digest(await readFile(destination)) === contentDigest) {
+      return {
+        host,
+        subjectId: profile.subjectId,
+        versionId: profile.versionId,
+        path: destination,
+        contentDigest,
+      };
+    }
+  }
   if (!options.overwrite) {
     await writeFile(destination, content, { mode: 0o600, flag: "wx" }).catch((error: unknown) => {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") {
@@ -338,10 +362,6 @@ const exportProfile = async (
       throw error;
     });
   } else {
-    const metadata = await lstat(destination).catch(() => undefined);
-    if (metadata !== undefined && (!metadata.isFile() || metadata.isSymbolicLink())) {
-      throw invalid("The export destination is not a regular file.", "destination");
-    }
     await writeFile(destination, content, { mode: 0o600 });
   }
   return {
@@ -349,7 +369,7 @@ const exportProfile = async (
     subjectId: profile.subjectId,
     versionId: profile.versionId,
     path: destination,
-    contentDigest: digest(content),
+    contentDigest,
   };
 };
 

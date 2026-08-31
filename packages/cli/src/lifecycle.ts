@@ -275,7 +275,7 @@ const parseRelease = (bytes: Uint8Array): ReleaseManifest => {
  * @param pluginSourcesPath - Absolute root containing the release manifest.
  * @returns The validated Preview release tuple.
  */
-export const readPreviewRelease = async (pluginSourcesPath: string): Promise<ReleaseManifest> => {
+const readPreviewRelease = async (pluginSourcesPath: string): Promise<ReleaseManifest> => {
   if (!isAbsolute(pluginSourcesPath)) throw fail("The plugin source path must be absolute.");
   const bytes = await readOptionalRegularFile(join(pluginSourcesPath, RELEASE_FILE));
   if (bytes === undefined) throw fail("The plugin release manifest is missing.");
@@ -821,7 +821,7 @@ export const doctorPreview = async (
  * @param hostValue - Supported host claimed by the owned plugin command.
  * @returns The exact installed host entry.
  */
-export const requireInstalledPreviewHost = async (
+const requireInstalledPreviewHost = async (
   environment: PreviewLifecycleEnvironment,
   hostValue: HostName,
 ): Promise<InstalledHost> => {
@@ -839,6 +839,22 @@ export const requireInstalledPreviewHost = async (
     throw fail("The installed host version changed; run Distilly setup again.");
   }
   return entry;
+};
+
+/**
+ * Reconstructs the verified full binding used by one installed Preview host.
+ *
+ * @param environment - Trusted local lifecycle paths and clock.
+ * @param hostValue - Supported host claimed by the owned plugin command.
+ * @returns The full binding rooted in the exact installed host and release tuple.
+ */
+export const requireInstalledPreviewBinding = async (
+  environment: PreviewLifecycleEnvironment,
+  hostValue: HostName,
+): Promise<HostBinding> => {
+  const entry = await requireInstalledPreviewHost(environment, hostValue);
+  const release = await readPreviewRelease(environment.pluginSourcesPath);
+  return createBinding(entry.host, entry.hostVersion, environment, release, entry.executablePath);
 };
 
 /**

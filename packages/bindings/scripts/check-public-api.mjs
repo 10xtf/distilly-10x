@@ -2,13 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const expectedTypeExports = `
+ClaudeCodeHostBindingOptions
+CodexHostBindingOptions
+FullHostBindingOptions
 HostActionRegistration
 HostAnswer
 HostBinding
 HostCapabilityBinding
 HostCapabilityBindingOptions
+HostCommandResult
+HostCommandRunner
 HostContext
 HostDoctorResult
+HostFormPresenter
 HostFormRenderer
 HostInjector
 HostPreflightProvider
@@ -28,7 +34,9 @@ PrivateUiCaptureGrantHandle
 const expectedRuntimeExports = [
   "HostRegistry",
   "createClaudeCodeCapabilityBinding",
+  "createClaudeCodeHostBinding",
   "createCodexCapabilityBinding",
+  "createCodexHostBinding",
 ];
 
 const source = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");

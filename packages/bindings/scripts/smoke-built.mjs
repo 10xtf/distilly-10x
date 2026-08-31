@@ -5,14 +5,18 @@ import { BUILTIN_HOSTS } from "@distilly/protocol";
 import {
   HostRegistry,
   createClaudeCodeCapabilityBinding,
+  createClaudeCodeHostBinding,
   createCodexCapabilityBinding,
+  createCodexHostBinding,
 } from "@distilly/bindings";
 
 const bindings = await import("@distilly/bindings");
 assert.deepEqual(Object.keys(bindings).sort(), [
   "HostRegistry",
   "createClaudeCodeCapabilityBinding",
+  "createClaudeCodeHostBinding",
   "createCodexCapabilityBinding",
+  "createCodexHostBinding",
 ]);
 
 const digest = `sha256_${"9".repeat(64)}`;

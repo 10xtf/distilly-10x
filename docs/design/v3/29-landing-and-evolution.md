@@ -4,7 +4,7 @@
 
 ### 29.1 纵向切片
 
-已经落地的 Protocol、deterministic core、injected Facade/MCP、capability bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
+已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
 
 1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
 2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest(existing|create)` 所需的 spaces、subjects、aliases、identity hints、material metadata/blob references、current subject material membership、authoritative pending-job、operations 与 events 逻辑关系，以及一个短 write-transaction runner 和 ContentAddressedBlobStore。Blob put lease 保持到引用它的 transaction commit 或 rollback；两条方法共享 transaction-local create primitive，但 ingest(create) 不调用公开 create。该 commit 删除 live create/ingest 的 IngestTransactionRecord、staging、mutation-specific recovery、space catalog/identity locks 与旧 composition；仍被未迁移 brief/commit/review 测试使用的 shared file stores、request/subject locks 和 disposable queue 只能留在显式 test-only legacy fixture，不能被 SQLite composition import、不能 dual-write，也不是兼容路径，并由各自 owner migration 删除。没有当前消费者的 outbox、projection、doctor、backup 或 GC task abstraction 不提前出现。

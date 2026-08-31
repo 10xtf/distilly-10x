@@ -110,6 +110,47 @@ export interface HostCapabilityBindingOptions {
   };
 }
 
+/** Trusted outer presenter used by a concrete host form renderer. */
+export interface HostFormPresenter {
+  ask<T extends HostQuestion>(input: {
+    readonly host: HostName;
+    readonly context: HostContext;
+    readonly question: T;
+  }): Promise<HostAnswer<T>>;
+}
+
+/** Result of one host CLI command owned by a full binding. */
+export interface HostCommandResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** Injectable command boundary used only for host-supported plugin lifecycle commands. */
+export interface HostCommandRunner {
+  run(input: {
+    readonly executablePath: string;
+    readonly args: readonly string[];
+    readonly homeDirectory: string;
+  }): Promise<HostCommandResult>;
+}
+
+/** Shared trusted inputs required to construct a production full binding. */
+export interface FullHostBindingOptions extends HostCapabilityBindingOptions {
+  readonly homeDirectory: string;
+  readonly forms: HostFormPresenter;
+  readonly now?: () => Date;
+}
+
+/** Codex full-binding inputs, including the checked host executable. */
+export interface CodexHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
+/** Claude Code full-binding inputs. */
+export type ClaudeCodeHostBindingOptions = FullHostBindingOptions;
+
 export type HostQuestion =
   | { readonly kind: "short_text"; readonly prompt: string }
   | { readonly kind: "explicit_consent"; readonly prompt: string }

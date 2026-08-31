@@ -142,6 +142,49 @@ export declare function createClaudeCodeCapabilityBinding(
   options: HostCapabilityBindingOptions,
 ): HostCapabilityBinding;
 
+export interface HostFormPresenter {
+  ask<T extends HostQuestion>(input: {
+    readonly host: HostName;
+    readonly context: HostContext;
+    readonly question: T;
+  }): Promise<HostAnswer<T>>;
+}
+
+export interface HostCommandResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export interface HostCommandRunner {
+  run(input: {
+    readonly executablePath: string;
+    readonly args: readonly string[];
+    readonly homeDirectory: string;
+  }): Promise<HostCommandResult>;
+}
+
+export interface FullHostBindingOptions extends HostCapabilityBindingOptions {
+  readonly homeDirectory: string;
+  readonly forms: HostFormPresenter;
+  readonly now?: () => Date;
+}
+
+export interface CodexHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
+export type ClaudeCodeHostBindingOptions = FullHostBindingOptions;
+
+export declare function createCodexHostBinding(
+  options: CodexHostBindingOptions,
+): HostBinding;
+
+export declare function createClaudeCodeHostBinding(
+  options: ClaudeCodeHostBindingOptions,
+): HostBinding;
+
 export declare class HostRegistry {
   register(binding: HostRegistryBinding): void;
   get(host: HostName): HostRegistryBinding | undefined;
@@ -159,7 +202,7 @@ provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 c
 - 如何打开 Panel URL；
 - capability 如何探测。
 
-它不实现 subject、ingest、briefing、commit、quality 或 version。当前 Codex / Claude Code builtins 都是 kind=capability；它们用可信净 handshake 或 exact versioned fixture 完成 preflight，但不提供 full HostBinding factory。HostInjector / HostFormRenderer 在 Recall/install feature 落地，installPlugin/uninstallPlugin/doctor 与 full factory 在 production composition 一起闭合；任何较早的 placeholder full binding 都禁止。
+它不实现 subject、ingest、briefing、commit、quality 或 version。Codex / Claude Code 各保留一个 kind=capability factory，供只需要可信 preflight 的组合使用；两个 capability factory 继续禁止 HOME、PATH、process 与 install。另有独立 kind=full factory：复用相同 fail-closed preflight，要求显式 absolute home 与可信 form presenter；Codex 还要求 setup 已检查的 absolute executable path。full binding 创建 concrete injector/form renderer，验证 canonical skill digest，渲染不含 sentinel 的 absolute-launcher `.mcp.json`，用 digest ownership manifest 管理 plugin/Profile Skill 文件并提供 narrow doctor。Codex 只维护 personal marketplace 中自己的 entry，并通过受支持的 `codex plugin add/remove` 命令改变宿主安装状态；Claude Code 使用其自动发现的 `~/.claude/skills/distilly` plugin。Plugin uninstall 不删除 `DISTILLY_ROOT` 或人物 Profile Skill。两者仍固定 privateUiCapture=unavailable 且不创建 Controller。
 
 HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。
 

@@ -3049,7 +3049,7 @@ export interface HostInjector {
 }
 ~~~
 
-HostInjector 是 full HostBinding 创建的 interface，不单独注册，也不做 capability preflight。它只能包装中性 profile，不重新蒸馏一份“Claude 版”或“Codex 版”人物。capability-binding feature 只冻结此合同，不交付 Codex / Claude Code concrete injector；Recall/install feature 才实现 injector 与 form renderer，production composition 再由 full binding 创建它们。
+HostInjector 是 full HostBinding 创建的 interface，不单独注册，也不做 capability preflight。它只能包装中性 profile，不重新蒸馏一份“Claude 版”或“Codex 版”人物。Codex 与 Claude Code full binding 各创建 concrete injector 与 form renderer；injector 的长期投影只含自包含 Profile Skill 与 digest manifest，不复制原始材料。production Runtime 仍必须通过 `hosts.install` / `hosts.uninstall` transaction 持有安装记录与 RequestId 语义，不能让模型或 Panel 绕过 EngineClient 直接调用 injector。
 
 ### 16.4 禁止写全局指令
 
@@ -3223,6 +3223,49 @@ export declare function createClaudeCodeCapabilityBinding(
   options: HostCapabilityBindingOptions,
 ): HostCapabilityBinding;
 
+export interface HostFormPresenter {
+  ask<T extends HostQuestion>(input: {
+    readonly host: HostName;
+    readonly context: HostContext;
+    readonly question: T;
+  }): Promise<HostAnswer<T>>;
+}
+
+export interface HostCommandResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export interface HostCommandRunner {
+  run(input: {
+    readonly executablePath: string;
+    readonly args: readonly string[];
+    readonly homeDirectory: string;
+  }): Promise<HostCommandResult>;
+}
+
+export interface FullHostBindingOptions extends HostCapabilityBindingOptions {
+  readonly homeDirectory: string;
+  readonly forms: HostFormPresenter;
+  readonly now?: () => Date;
+}
+
+export interface CodexHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
+export type ClaudeCodeHostBindingOptions = FullHostBindingOptions;
+
+export declare function createCodexHostBinding(
+  options: CodexHostBindingOptions,
+): HostBinding;
+
+export declare function createClaudeCodeHostBinding(
+  options: ClaudeCodeHostBindingOptions,
+): HostBinding;
+
 export declare class HostRegistry {
   register(binding: HostRegistryBinding): void;
   get(host: HostName): HostRegistryBinding | undefined;
@@ -3240,7 +3283,7 @@ provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 c
 - 如何打开 Panel URL；
 - capability 如何探测。
 
-它不实现 subject、ingest、briefing、commit、quality 或 version。当前 Codex / Claude Code builtins 都是 kind=capability；它们用可信净 handshake 或 exact versioned fixture 完成 preflight，但不提供 full HostBinding factory。HostInjector / HostFormRenderer 在 Recall/install feature 落地，installPlugin/uninstallPlugin/doctor 与 full factory 在 production composition 一起闭合；任何较早的 placeholder full binding 都禁止。
+它不实现 subject、ingest、briefing、commit、quality 或 version。Codex / Claude Code 各保留一个 kind=capability factory，供只需要可信 preflight 的组合使用；两个 capability factory 继续禁止 HOME、PATH、process 与 install。另有独立 kind=full factory：复用相同 fail-closed preflight，要求显式 absolute home 与可信 form presenter；Codex 还要求 setup 已检查的 absolute executable path。full binding 创建 concrete injector/form renderer，验证 canonical skill digest，渲染不含 sentinel 的 absolute-launcher `.mcp.json`，用 digest ownership manifest 管理 plugin/Profile Skill 文件并提供 narrow doctor。Codex 只维护 personal marketplace 中自己的 entry，并通过受支持的 `codex plugin add/remove` 命令改变宿主安装状态；Claude Code 使用其自动发现的 `~/.claude/skills/distilly` plugin。Plugin uninstall 不删除 `DISTILLY_ROOT` 或人物 Profile Skill。两者仍固定 privateUiCapture=unavailable 且不创建 Controller。
 
 HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。
 
@@ -4194,7 +4237,7 @@ export interface PluginReleaseManifestV1 {
 
 releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
 
-Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 production setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；capability-only source trees因此不声称可启动 MCP。production setup 才把 sentinel 替换为 JSON-escaped absolute launcher path，写目标宿主实际读取的 `.mcp.json`，再做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
+Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 production setup fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target 或 installable archive引用；source release tree 本身因此不声称可启动 MCP。full HostBinding 只在 owned install tree 中把 sentinel 替换为 JSON-escaped absolute launcher path并写宿主实际读取的 `.mcp.json`；production setup 随后做 initialize/tools-list smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
 
 ### 19.5 三种分发概念
 
@@ -5050,11 +5093,11 @@ Step 9 单独做 capability-binding conformance：HostPreflight runtime schema �
 - briefing_too_large；
 - suspended + Panel review。
 
-FakeHost 不声称证明真实宿主 UI；capability binding 只有 manifest/capability/fixture smoke，launcher/install/doctor smoke 等 kind=full factory 在 production runtime feature 才成立。
+FakeHost 不声称证明真实宿主 UI；capability binding 只证明 manifest/capability/fixture。kind=full factory 的临时 HOME fixture 证明 launcher rendering、owned install/uninstall、doctor、marketplace preservation、injector 与 person-Skill digest refusal；真实宿主重开、五工具与 runtime handshake 仍必须由 packaged fresh-install E2E 证明。
 
 内置 adapter / parser conformance 全部离线运行：HTTP mock 覆盖 Lark 中国与国际 endpoint 不混用、scope、pagination、limit、bounded retry 与 secret redaction；Slack 只返回 bot 已加入范围，按不同 provider page limits / cursors 工作并逐字尊重 bounded `Retry-After`；DingTalk message-history 请求在零网络调用下返回 non-retryable `host_unsupported`；Xquik 的 MeteredReadConsentPort declined/throw 与 subject/resource/objective/limit 不匹配都在解析 secret 和发网前拒绝。TXT / Markdown / JSON / Lark export / EML / MBOX / SRT / VTT / embedded-text PDF 使用真实格式 fixture；Lark export / MBOX 覆盖 exact subject hints、歧义/缺失拒绝、稳定聚合、1,048,576-byte 边界与 +1 无 material，扫描 PDF / image 在没有已验证宿主提取能力时明确 unparsed / unavailable。CLI 与 Panel 的等价 collect fixture 产生相同规范化 MaterialInput、provenance 与 ingest 结果，并断言配置、payload、日志、错误和诊断中没有 secret。Codex / Claude Code 全流程断言没有 browser、Playwright、Computer Use、截图或 private-capture Controller 路径。
 
-未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。Step 9 的两个 capability binding 不运行这套 available-lane fixture，只验证 unavailable 与 paste/export fallback。
+未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。当前两个 full binding 与 capability binding 都不运行 available lane，只验证 unavailable 与 paste/export fallback。
 
 ### 27.6 Panel
 
@@ -5246,7 +5289,7 @@ wire major 3 内允许：
 
 ### 29.1 纵向切片
 
-已经落地的 Protocol、deterministic core、injected Facade/MCP、capability bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
+已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
 
 1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
 2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest(existing|create)` 所需的 spaces、subjects、aliases、identity hints、material metadata/blob references、current subject material membership、authoritative pending-job、operations 与 events 逻辑关系，以及一个短 write-transaction runner 和 ContentAddressedBlobStore。Blob put lease 保持到引用它的 transaction commit 或 rollback；两条方法共享 transaction-local create primitive，但 ingest(create) 不调用公开 create。该 commit 删除 live create/ingest 的 IngestTransactionRecord、staging、mutation-specific recovery、space catalog/identity locks 与旧 composition；仍被未迁移 brief/commit/review 测试使用的 shared file stores、request/subject locks 和 disposable queue 只能留在显式 test-only legacy fixture，不能被 SQLite composition import、不能 dual-write，也不是兼容路径，并由各自 owner migration 删除。没有当前消费者的 outbox、projection、doctor、backup 或 GC task abstraction 不提前出现。

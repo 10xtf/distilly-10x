@@ -58,6 +58,26 @@ const input = {
   enqueue: "now",
 };
 
+const incrementalInput = (subjectId) => ({
+  subject: { kind: "existing", subjectId },
+  materials: [
+    {
+      clientRef: "sqlite-review-source",
+      kind: "document",
+      content: "Ada records explicit review tradeoffs with concise examples.",
+      source: {
+        uri: "https://example.com/sqlite-review",
+        medium: "document",
+        access: "public",
+        role: "first_party_expression",
+        capturedAt: "2026-08-30T00:01:00.000Z",
+      },
+      derivation: { kind: "native_text" },
+    },
+  ],
+  enqueue: "now",
+});
+
 const requestIdFor = (digit) => `req_${digit.toString(16).padStart(32, "0")}`;
 
 const blobPath = (root, content) => {
@@ -299,6 +319,117 @@ try {
     quickCheck: "ok",
     foreignKeyFailures: [],
   });
+
+  const reviewRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-review-"));
+  roots.push(reviewRoot);
+  const reviewComposition = await createInternalEngineComposition({ root: reviewRoot });
+  const firstIngest = await reviewComposition.ingest.ingest(input, actor, {
+    requestId: requestIdFor(10),
+  });
+  const firstBrief = await reviewComposition.leases.brief({ jobId: firstIngest.job.id }, session, {
+    requestId: requestIdFor(11),
+  });
+  const firstCurrent = await reviewComposition.commits.commit(
+    {
+      jobId: firstBrief.job.id,
+      generation: firstBrief.job.generation,
+      leaseId: firstBrief.lease.id,
+      briefContractDigest: firstBrief.contract.digest,
+      materialSetHash: firstBrief.job.materialSetHash,
+      patch: commitInput.patch,
+    },
+    session,
+    { requestId: requestIdFor(12) },
+  );
+  assert.equal(firstCurrent.kind, "current");
+  const incremental = await reviewComposition.ingest.ingest(
+    incrementalInput(firstIngest.subject.id),
+    actor,
+    { requestId: requestIdFor(13) },
+  );
+  const incrementalBrief = await reviewComposition.leases.brief(
+    { jobId: incremental.job.id },
+    session,
+    { requestId: requestIdFor(14) },
+  );
+  const suspended = await reviewComposition.commits.commit(
+    {
+      jobId: incrementalBrief.job.id,
+      generation: incrementalBrief.job.generation,
+      leaseId: incrementalBrief.lease.id,
+      briefContractDigest: incrementalBrief.contract.digest,
+      materialSetHash: incrementalBrief.job.materialSetHash,
+      baseVersionId: incrementalBrief.job.baseVersionId,
+      patch: {
+        operations: [
+          {
+            op: "add",
+            claim: {
+              facet: "psyche",
+              text: "Ada makes review tradeoffs explicit and uses concise examples.",
+              evidence: [
+                {
+                  kind: "brief_material",
+                  materialRef: "m001",
+                  quote: "explicit review tradeoffs with concise examples",
+                },
+              ],
+            },
+          },
+        ],
+        reviewRequest: { note: "Exercise the packaged review service." },
+      },
+    },
+    session,
+    { requestId: requestIdFor(15) },
+  );
+  assert.equal(suspended.kind, "suspended");
+  const candidateId = suspended.candidate.id;
+  assert.equal(
+    (await reviewComposition.reviews.list({ subjectId: firstIngest.subject.id })).items[0]
+      ?.candidate.id,
+    candidateId,
+    "the packaged review query must expose the active candidate",
+  );
+  const promoteInput = {
+    subjectId: firstIngest.subject.id,
+    candidateVersionId: candidateId,
+    reason: "Approve the packaged review candidate.",
+  };
+  const promoted = await reviewComposition.review.promote(promoteInput, actor, {
+    requestId: requestIdFor(16),
+  });
+  assert.equal(promoted.status, "current");
+  const rollbackInput = {
+    subjectId: firstIngest.subject.id,
+    targetVersionId: firstCurrent.version.id,
+    reason: "Exercise packaged immutable rollback.",
+  };
+  const rolledBack = await reviewComposition.review.rollback(rollbackInput, actor, {
+    requestId: requestIdFor(17),
+  });
+  assert.equal(rolledBack.status, "current");
+  assert.deepEqual(rolledBack.creation, {
+    kind: "rollback",
+    targetVersionId: firstCurrent.version.id,
+  });
+  assert.deepEqual(await reviewComposition.reviews.list({ subjectId: firstIngest.subject.id }), {
+    items: [],
+  });
+  reviewComposition.close();
+
+  const reopenedReview = await createInternalEngineComposition({ root: reviewRoot });
+  assert.deepEqual(
+    await reopenedReview.review.promote(promoteInput, actor, { requestId: requestIdFor(16) }),
+    promoted,
+    "the packaged promote operation must replay exactly after rollback and reopen",
+  );
+  assert.deepEqual(
+    await reopenedReview.review.rollback(rollbackInput, actor, { requestId: requestIdFor(17) }),
+    rolledBack,
+    "the packaged rollback operation must replay exactly after reopen",
+  );
+  reopenedReview.close();
 
   const concurrentRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-concurrent-"));
   roots.push(concurrentRoot);

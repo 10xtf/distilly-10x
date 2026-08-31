@@ -66,9 +66,6 @@ import { ProjectionService } from "../projection/projection-service.js";
 import type { SqliteQueueRepositoryHooks } from "./legacy-sqlite-queue-projection.test.fixture.js";
 import { SqliteQueueRepository } from "./legacy-sqlite-queue-projection.test.fixture.js";
 import { CommittedVersionReader } from "../read/committed-version-reader.js";
-import { ReviewQueryService } from "../review/query-service.js";
-import type { ReviewServiceHooks } from "./legacy-file-review-service.test.fixture.js";
-import { ReviewService } from "./legacy-file-review-service.test.fixture.js";
 import {
   canonicalizeIngestSubjectTarget,
   findCreateConflict,
@@ -98,7 +95,6 @@ export interface LegacyFileEngineTestSupportOptions {
   readonly queueHooks?: SqliteQueueRepositoryHooks;
   readonly leaseHooks?: LegacyFileDistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
-  readonly reviewHooks?: ReviewServiceHooks;
   readonly libraryHooks?: JsonLibraryProjectionHooks;
   readonly versionStagingHooks?: VersionStagingHooks;
   readonly promptCatalog?: PromptCatalog;
@@ -109,11 +105,9 @@ export interface LegacyFileEngineTestSupport {
   readonly ingest: LegacyFactSeedService;
   readonly leases: LegacyFileDistillLeaseService;
   readonly commits: CommitService;
-  readonly review: ReviewService;
   readonly materials: MaterialQueryService;
   readonly profiles: ProfileService;
   readonly versions: VersionService;
-  readonly reviews: ReviewQueryService;
   readonly library: LibraryService;
   readonly libraryProjection: ProjectionService;
   readonly recovery: RecoveryService;
@@ -724,23 +718,6 @@ export const createLegacyFileEngineTestSupport = async (
     eventBus,
     ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
   });
-  const review = new ReviewService({
-    subjects,
-    states,
-    materials,
-    versions,
-    versionStaging,
-    operations,
-    transactions,
-    events,
-    requestLocks,
-    subjectLocks,
-    recovery,
-    ids,
-    clock,
-    eventBus,
-    ...(options.reviewHooks === undefined ? {} : { hooks: options.reviewHooks }),
-  });
   const seed = new LegacyFactSeedService({
     spaces,
     subjects,
@@ -775,11 +752,9 @@ export const createLegacyFileEngineTestSupport = async (
     ingest: seed,
     leases,
     commits,
-    review,
     materials: new MaterialQueryService({ materials, committedVersions }),
     profiles: new ProfileService({ committedVersions }),
     versions: new VersionService({ committedVersions }),
-    reviews: new ReviewQueryService({ subjects, committedVersions }),
     library,
     libraryProjection,
     recovery,

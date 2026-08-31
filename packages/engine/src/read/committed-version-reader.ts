@@ -92,7 +92,7 @@ const wasCurrentBy = (
  * @param versionsById - Complete durable versions available before or after publication.
  * @param events - Durable lineage events visible at the validation boundary.
  */
-export const validateRollbackHistoricalCopy = (
+const validateRollbackHistoricalCopy = (
   rollback: StoredCompleteVersion,
   versionsById: ReadonlyMap<VersionId, StoredCompleteVersion>,
   events: readonly EventRecord[],

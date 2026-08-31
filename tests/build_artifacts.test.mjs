@@ -63,8 +63,16 @@ async function engineWorkspace(testContext, extraPaths = []) {
     files: ["lib", "prompts", "scripts"],
   });
   const files = new Map([
+    [
+      "lib/ingest/composition.js",
+      'import { ReviewQueryService } from "../review/query-service.js";\n' +
+        'import { ReviewService } from "../review/service.js";\n' +
+        "void ReviewQueryService;\nvoid ReviewService;\n",
+    ],
     ["lib/index.d.ts", "export {};\n"],
     ["lib/index.js", "export {};\n"],
+    ["lib/review/query-service.js", "export class ReviewQueryService {}\n"],
+    ["lib/review/service.js", "export class ReviewService {}\n"],
     ["prompts/host-distill-v1.md", "# Prompt\n"],
     ...extraPaths.map((path) => [path, "fixture\n"]),
   ]);
@@ -132,6 +140,34 @@ test("Engine pack accepts remaining production modules", async (testContext) => 
   assert.equal(result.stderr, "");
 });
 
+test("Engine pack requires the production review composition imports", async (testContext) => {
+  const root = await engineWorkspace(testContext);
+  await writeFile(
+    resolve(root, "packages/engine/lib/ingest/composition.js"),
+    "export const createInternalEngineComposition = () => undefined;\n",
+    "utf8",
+  );
+
+  const result = run(PACK_CHECKER, root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[missing-production-review-import\]/u);
+});
+
+test("Engine pack rejects retired review transaction runtime markers", async (testContext) => {
+  const root = await engineWorkspace(testContext, ["lib/review/retired.js"]);
+  await writeFile(
+    resolve(root, "packages/engine/lib/review/retired.js"),
+    "export const retired = 'ReviewDecisionTransactionRecord';\n",
+    "utf8",
+  );
+
+  const result = run(PACK_CHECKER, root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[retired-review-runtime\]/u);
+});
+
 test(
   "Engine pack rejects an unsafe dry-run path",
   { skip: process.platform === "win32" },
@@ -176,7 +212,11 @@ for (const forbiddenPath of [
   "lib/person.fixture.js",
   "lib/facts/transaction-store.js",
   "lib/queue/sqlite-projection.js",
-  "lib/review/service.js",
+  "lib/review/journal.js",
+  "lib/review/recovery.js",
+  "lib/review/staging.js",
+  "lib/transaction/review-recovery.js",
+  "lib/transaction/rollback-recovery.js",
   "lib/transaction/recovery.js",
   "lib/transaction/version-staging.js",
   "lib/transaction/ingest-staging.js",

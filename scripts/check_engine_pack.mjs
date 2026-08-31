@@ -3,30 +3,49 @@
 /** Fail closed when the dry-run Engine package contains test or retired artifacts. */
 
 import { spawnSync } from "node:child_process";
-import { lstat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { isAbsolute, posix, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const REQUIRED_PATHS = new Set([
+  "lib/ingest/composition.js",
   "lib/index.d.ts",
   "lib/index.js",
+  "lib/review/query-service.js",
+  "lib/review/service.js",
   "package.json",
   "prompts/host-distill-v1.md",
 ]);
+const REQUIRED_COMPOSITION_IMPORTS = ["../review/query-service.js", "../review/service.js"];
 const RETIRED_NAMES = [
   "commit-child",
   "ingest-staging",
   "legacy-file-engine",
+  "legacy-file-review-service",
   "lock-child",
+  "review-journal",
+  "rollback-journal",
   "space-catalog-lock",
   "space-identity-lock",
 ];
 const RETIRED_MODULE_PATHS = [
   "lib/facts/transaction-store",
   "lib/queue/sqlite-projection",
-  "lib/review/service",
+  "lib/review/journal",
+  "lib/review/recovery",
+  "lib/review/staging",
+  "lib/transaction/review-recovery",
   "lib/transaction/recovery",
+  "lib/transaction/rollback-recovery",
   "lib/transaction/version-staging",
+];
+const RETIRED_RUNTIME_MARKERS = [
+  "ReviewDecisionTransactionRecord",
+  "RollbackTransactionRecord",
+  "materializeReviewCommitted",
+  "materializeRollbackCommitted",
+  "terminalReviewTransaction",
+  "terminalRollbackTransaction",
 ];
 
 function repositoryPath(root, path) {
@@ -151,6 +170,30 @@ async function verifyReportedFile(engineDirectory, workspaceRoot, path, segments
   }
 }
 
+async function verifyProductionReviewComposition(engineDirectory) {
+  const composition = await readFile(resolve(engineDirectory, "lib/ingest/composition.js"), "utf8");
+  for (const specifier of REQUIRED_COMPOSITION_IMPORTS) {
+    const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    if (!new RegExp(`\\bfrom\\s+[\"']${escaped}[\"']`, "u").test(composition)) {
+      throw new Error(
+        `lib/ingest/composition.js: [missing-production-review-import] expected ${specifier}`,
+      );
+    }
+  }
+}
+
+async function verifyNoRetiredReviewRuntime(engineDirectory, entries) {
+  for (const { path, segments } of entries) {
+    if (segments[0] !== "lib" || !/\.(?:d\.ts|js)$/u.test(path)) continue;
+    const content = await readFile(resolve(engineDirectory, ...segments), "utf8");
+    for (const marker of RETIRED_RUNTIME_MARKERS) {
+      if (content.includes(marker)) {
+        throw new Error(`${path}: [retired-review-runtime] ${marker} is retired`);
+      }
+    }
+  }
+}
+
 /**
  * Runs npm's real dry-run pack entry and validates every reported Engine package path.
  *
@@ -201,6 +244,8 @@ export async function checkEnginePack(workspaceRoot) {
   for (const entry of paths) {
     await verifyReportedFile(engineDirectory, root, entry.path, entry.segments);
   }
+  await verifyProductionReviewComposition(engineDirectory);
+  await verifyNoRetiredReviewRuntime(engineDirectory, paths);
   return paths.length;
 }
 

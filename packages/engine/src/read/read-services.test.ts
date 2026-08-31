@@ -49,7 +49,7 @@ import { ProfileService } from "../profile/service.js";
 import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
 import type { VersionIdentityPayload } from "../profile/version-id.js";
 import { deriveVersionId } from "../profile/version-id.js";
-import { ReviewQueryService } from "../review/query-service.js";
+import { LegacyFileReviewQueryService } from "../testing/legacy-file-review-query-service.test.fixture.js";
 import { CommittedVersionReader } from "./committed-version-reader.js";
 import { encodeCursor } from "./cursor.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
@@ -874,7 +874,7 @@ describe("Step 10 verified read services", () => {
       const versions = new VersionService({
         committedVersions: reader,
       });
-      const reviews = new ReviewQueryService({
+      const reviews = new LegacyFileReviewQueryService({
         subjects: stores.subjects,
         committedVersions: reader,
       });
@@ -1024,7 +1024,10 @@ describe("Step 10 verified read services", () => {
       () => new VersionService({ committedVersions: reader }).list({ subjectId: SUBJECT_ID }),
       () => new ProfileService({ committedVersions: reader }).status({ subjectId: SUBJECT_ID }),
       () =>
-        new ReviewQueryService({ subjects: stores.subjects, committedVersions: reader }).list({
+        new LegacyFileReviewQueryService({
+          subjects: stores.subjects,
+          committedVersions: reader,
+        }).list({
           subjectId: SUBJECT_ID,
         }),
       () =>
@@ -1238,7 +1241,7 @@ describe("Step 10 verified read services", () => {
       );
     }
     const reconcile = vi.fn(() => Promise.resolve());
-    const reviews = new ReviewQueryService({
+    const reviews = new LegacyFileReviewQueryService({
       subjects: stores.subjects,
       committedVersions: committedReader(stores, reconcile),
     });

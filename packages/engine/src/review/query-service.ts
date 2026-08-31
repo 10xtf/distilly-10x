@@ -2,6 +2,7 @@ import { isoDateTimeSchema, subjectIdSchema, versionIdSchema } from "@distilly/p
 import type {
   JsonObject,
   IsoDateTime,
+  Profile,
   ReviewItem,
   ReviewPage,
   ReviewQuery,
@@ -9,13 +10,18 @@ import type {
   VersionId,
 } from "@distilly/protocol";
 
-import type { FileSubjectStore } from "../facts/subject-store.js";
-import { invalidInput, storageCorrupt } from "../internal-errors.js";
+import { invalidInput } from "../internal-errors.js";
 import { compareUtf8 } from "../profile/claim-id.js";
 import { diffProfiles } from "../profile/diff.js";
-import type { CommittedVersionReader } from "../read/committed-version-reader.js";
+import { renderProfile } from "../profile/render.js";
 import { decodeCursor, encodeCursor } from "../read/cursor.js";
-import { summarizeVersion } from "../version/service.js";
+import type { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
+import type { SqliteStoredVersion } from "../version/sqlite-authority.js";
+import { summarizeVersion } from "../version/summary.js";
+import {
+  listSqliteReviewSubjectIdsInTransaction,
+  readSqliteActiveReviewAuthorityInTransaction,
+} from "./sqlite-authority.js";
 
 const DEFAULT_PAGE_LIMIT = 50;
 
@@ -54,24 +60,38 @@ const compareReviewToCursor = (item: ReviewItem, sort: readonly string[]): numbe
 const queryFilters = (input: ReviewQuery): JsonObject =>
   input.subjectId === undefined ? {} : { subjectId: input.subjectId };
 
+const profileFor = (stored: SqliteStoredVersion): Profile => {
+  const rendered = renderProfile({
+    subjectId: stored.version.subjectId,
+    displayName: stored.version.subjectDisplayName,
+    versionId: stored.version.id,
+    claims: stored.claims.claims,
+    quality: stored.version.quality,
+  });
+  return {
+    subjectId: stored.version.subjectId,
+    displayName: stored.version.subjectDisplayName,
+    versionId: stored.version.id,
+    claims: stored.claims.claims,
+    core: rendered.core,
+    domains: rendered.domains,
+    rendered: rendered.markdown,
+    quality: stored.version.quality,
+  };
+};
+
 /** Verified projection of the currently active suspended candidate for each subject. */
 export class ReviewQueryService {
-  readonly #subjects: FileSubjectStore;
-  readonly #committedVersions: CommittedVersionReader;
+  readonly #store: SqliteEngineStore;
 
   /**
    * Creates review reads over authoritative subject state and immutable versions.
    *
-   * @param input - Stores required to discover and verify active candidates.
-   * @param input.subjects - Published subject facts.
-   * @param input.committedVersions - Coordinated committed-version snapshot reader.
+   * @param input - SQLite authority used for one consistent review snapshot.
+   * @param input.store - Single-writer Engine store with snapshot reads.
    */
-  constructor(input: {
-    readonly subjects: FileSubjectStore;
-    readonly committedVersions: CommittedVersionReader;
-  }) {
-    this.#subjects = input.subjects;
-    this.#committedVersions = input.committedVersions;
+  constructor(input: { readonly store: SqliteEngineStore }) {
+    this.#store = input.store;
   }
 
   /**
@@ -80,69 +100,62 @@ export class ReviewQueryService {
    * @param input - Typed optional subject filter and page boundary.
    * @returns A verified page of current-versus-candidate review items.
    */
-  async list(input: ReviewQuery = {}): Promise<ReviewPage> {
-    await this.#committedVersions.reconcile();
-    const subjects =
-      input.subjectId === undefined
-        ? await this.#subjects.listAll()
-        : [await this.#subjects.read(input.subjectId)];
-    const items: ReviewItem[] = [];
-    for (const subject of subjects) {
-      const item = await this.#committedVersions.withReconciledSnapshot(subject.id, (committed) => {
-        const { state } = committed;
-        if (state.suspendedVersionId === undefined) return undefined;
-        const candidate = committed.versionsById.get(state.suspendedVersionId);
-        if (candidate === undefined) {
-          throw storageCorrupt("An active review references a missing committed candidate.");
-        }
-        const reasons = candidate.version.reviewReasons;
-        if (reasons === undefined) {
-          throw storageCorrupt(
-            "An active suspended version is missing its canonical review reasons.",
-          );
-        }
-        const current =
-          state.currentVersionId === undefined
-            ? undefined
-            : committed.versionsById.get(state.currentVersionId);
-        if (state.currentVersionId !== undefined && current === undefined) {
-          throw storageCorrupt("An active review references a missing committed current version.");
-        }
-        return {
-          candidate: summarizeVersion(candidate.version, "suspended"),
-          ...(current === undefined
-            ? {}
-            : { current: summarizeVersion(current.version, "current") }),
-          reasons,
-          diff: diffProfiles(current?.profile, candidate.profile),
-        } satisfies ReviewItem;
+  list(input: ReviewQuery = {}): Promise<ReviewPage> {
+    return Promise.resolve().then(() => {
+      const items = this.#store.read((database): ReviewItem[] => {
+        const subjectIds =
+          input.subjectId === undefined
+            ? listSqliteReviewSubjectIdsInTransaction(database)
+            : [input.subjectId];
+        return subjectIds.flatMap((subjectId) => {
+          const authority = readSqliteActiveReviewAuthorityInTransaction(database, subjectId);
+          const candidate = authority.suspended;
+          if (candidate === undefined) return [];
+          const reasons = candidate.version.reviewReasons;
+          if (reasons === undefined) return [];
+          const current = authority.current;
+          return [
+            {
+              candidate: summarizeVersion(candidate.version, "suspended"),
+              ...(current === undefined
+                ? {}
+                : { current: summarizeVersion(current.version, "current") }),
+              reasons,
+              diff: diffProfiles(
+                current === undefined ? undefined : profileFor(current),
+                profileFor(candidate),
+              ),
+            } satisfies ReviewItem,
+          ];
+        });
       });
-      if (item !== undefined) items.push(item);
-    }
 
-    items.sort(compareReview);
-    const filters = queryFilters(input);
-    const boundary =
-      input.cursor === undefined ? undefined : decodeCursor(input.cursor, "reviews.list", filters);
-    const remaining =
-      boundary === undefined
-        ? items
-        : items.filter((item) => compareReviewToCursor(item, boundary) > 0);
-    const limit = input.limit ?? DEFAULT_PAGE_LIMIT;
-    const selected = remaining.slice(0, limit);
-    const last = selected.at(-1);
-    const result: ReviewPage = {
-      items: selected,
-      ...(remaining.length <= limit || last === undefined
-        ? {}
-        : {
-            nextCursor: encodeCursor("reviews.list", filters, [
-              last.candidate.createdAt,
-              last.candidate.subjectId,
-              last.candidate.id,
-            ]),
-          }),
-    };
-    return result;
+      items.sort(compareReview);
+      const filters = queryFilters(input);
+      const boundary =
+        input.cursor === undefined
+          ? undefined
+          : decodeCursor(input.cursor, "reviews.list", filters);
+      const remaining =
+        boundary === undefined
+          ? items
+          : items.filter((item) => compareReviewToCursor(item, boundary) > 0);
+      const limit = input.limit ?? DEFAULT_PAGE_LIMIT;
+      const selected = remaining.slice(0, limit);
+      const last = selected.at(-1);
+      const result: ReviewPage = {
+        items: selected,
+        ...(remaining.length <= limit || last === undefined
+          ? {}
+          : {
+              nextCursor: encodeCursor("reviews.list", filters, [
+                last.candidate.createdAt,
+                last.candidate.subjectId,
+                last.candidate.id,
+              ]),
+            }),
+      };
+      return result;
+    });
   }
 }

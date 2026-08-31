@@ -9,6 +9,9 @@ import { CommitService } from "../distill/commit-service.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
+import { ReviewQueryService } from "../review/query-service.js";
+import type { ReviewServiceHooks } from "../review/service.js";
+import { ReviewService } from "../review/service.js";
 import { ContentAddressedBlobStore } from "../storage/content-addressed-blob-store.js";
 import { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
 import type { SubjectCreateServiceHooks } from "../subject/service.js";
@@ -26,6 +29,7 @@ export interface InternalEngineCompositionOptions {
   readonly ingestHooks?: IngestServiceHooks;
   readonly leaseHooks?: DistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
+  readonly reviewHooks?: ReviewServiceHooks;
   readonly promptCatalog?: PromptCatalog;
 }
 
@@ -35,6 +39,8 @@ export interface InternalEngineComposition {
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
   readonly commits: CommitService;
+  readonly review: ReviewService;
+  readonly reviews: ReviewQueryService;
   readonly blobs: ContentAddressedBlobStore;
   readonly events: EventBus;
   close(): void;
@@ -89,11 +95,21 @@ export const createInternalEngineComposition = async (
       eventBus,
       ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
     });
+    const review = new ReviewService({
+      store,
+      ids,
+      clock,
+      eventBus,
+      ...(options.reviewHooks === undefined ? {} : { hooks: options.reviewHooks }),
+    });
+    const reviews = new ReviewQueryService({ store });
     return {
       subjects,
       ingest,
       leases,
       commits,
+      review,
+      reviews,
       blobs,
       events: eventBus,
       close: () => store.close(),

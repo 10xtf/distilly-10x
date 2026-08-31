@@ -202,6 +202,16 @@ function scriptKind(path) {
   return ts.ScriptKind.TS;
 }
 
+function isTestOnlySource(path) {
+  return /(?:^|\/)(?:[^/]+\.)?(?:test|fixture|test-support)(?:\.[^/]*)?\.[cm]?[jt]sx?$/u.test(
+    path,
+  );
+}
+
+function isLegacyTestingSpecifier(specifier) {
+  return /(?:^|\/)legacy-(?:file|sqlite)-/u.test(specifier);
+}
+
 function targetForBareSpecifier(specifier, packageNames) {
   for (const packageName of packageNames) {
     if (specifier === packageName || specifier.startsWith(`${packageName}/`)) {
@@ -471,6 +481,15 @@ export async function verify(root = process.cwd()) {
           continue;
         }
         if (specifier.value.startsWith(".")) {
+          if (
+            packageEntry.name === "@distilly/engine" &&
+            isLegacyTestingSpecifier(specifier.value) &&
+            !isTestOnlySource(path)
+          ) {
+            errors.push(
+              `${location}: [legacy-test-only-import] production Engine source cannot import a legacy test fixture`,
+            );
+          }
           const targetPackage = packageForPath(
             resolve(dirname(path), specifier.value),
             packagesByPath,

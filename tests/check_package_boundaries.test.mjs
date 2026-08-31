@@ -71,6 +71,20 @@ test("accepts engine to protocol", async (testContext) => {
   assert.equal(result.stderr, "");
 });
 
+test("rejects production Engine source importing a legacy test fixture", async (testContext) => {
+  const root = await workspace(testContext, {
+    protocolSource: "export interface EngineClient {}\n",
+    engineSource:
+      'import { ReviewService } from "./testing/legacy-file-review-service.test.fixture.js";\n' +
+      "export { ReviewService };\n",
+  });
+
+  const result = run(root);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[legacy-test-only-import\]/u);
+});
+
 test("accepts adapters, facade, MCP, bindings, and Panel along their reviewed edges", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",

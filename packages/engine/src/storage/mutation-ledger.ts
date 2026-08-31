@@ -28,6 +28,8 @@ import type {
   RequestId,
   SubjectId,
   SubjectSummary,
+  VersionSummary,
+  VersionId,
 } from "@distilly/protocol";
 
 import { canonicalJson } from "../facts/canonical-json.js";
@@ -41,7 +43,10 @@ export type SqliteLedgerMethod =
   | "distill.brief"
   | "distill.renew"
   | "distill.release"
-  | "distill.commit";
+  | "distill.commit"
+  | "versions.promote"
+  | "versions.reject"
+  | "versions.rollback";
 
 /** SQLite mutations whose stable result remains small enough for inline JSON. */
 export type SqliteInlineLedgerMethod = Exclude<SqliteLedgerMethod, "distill.brief">;
@@ -93,6 +98,8 @@ export interface MutationEventInput {
   readonly event: EngineEvent;
   readonly actor: ActorContext;
   readonly requestId: RequestId;
+  readonly reason?: string;
+  readonly relatedVersionId?: VersionId;
 }
 
 interface OperationRow {
@@ -189,6 +196,10 @@ const operationResultSubjectId = (
       const commit = result as CommitResult;
       return commit.kind === "current" ? commit.version.subjectId : commit.candidate.subjectId;
     }
+    case "versions.promote":
+    case "versions.reject":
+    case "versions.rollback":
+      return (result as VersionSummary).subjectId;
     case "distill.renew":
     case "distill.release":
       return undefined;
@@ -201,7 +212,10 @@ const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
   value === "distill.brief" ||
   value === "distill.renew" ||
   value === "distill.release" ||
-  value === "distill.commit";
+  value === "distill.commit" ||
+  value === "versions.promote" ||
+  value === "versions.reject" ||
+  value === "versions.rollback";
 
 interface BriefTemplateOperationEnvelope {
   readonly kind: "brief_template_v1";
@@ -607,6 +621,10 @@ export const insertEventInTransaction = (
           event: input.event,
           actor: input.actor,
           requestId: input.requestId,
+          ...(input.reason === undefined ? {} : { reason: input.reason }),
+          ...(input.relatedVersionId === undefined
+            ? {}
+            : { relatedVersionId: input.relatedVersionId }),
         }),
       ) as EventRecord,
     "event record",

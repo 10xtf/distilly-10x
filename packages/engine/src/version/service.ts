@@ -13,7 +13,6 @@ import type {
   VersionQuery,
   VersionRecord,
   VersionStatus,
-  VersionSummary,
   VersionId,
 } from "@distilly/protocol";
 
@@ -23,34 +22,9 @@ import { compareUtf8 } from "../profile/claim-id.js";
 import { diffProfiles } from "../profile/diff.js";
 import type { CommittedVersionReader } from "../read/committed-version-reader.js";
 import { decodeCursor, encodeCursor } from "../read/cursor.js";
+import { summarizeVersion } from "./summary.js";
 
 const DEFAULT_PAGE_LIMIT = 50;
-
-/**
- * Projects immutable version metadata with its state/event-derived lifecycle status.
- *
- * @param version - Verified immutable version fact.
- * @param status - Lifecycle status derived from current state and events.
- * @returns The public version summary.
- */
-export const summarizeVersion = (
-  version: VersionRecord,
-  status: VersionStatus,
-): VersionSummary => ({
-  id: version.id,
-  subjectId: version.subjectId,
-  ...(version.parentId === undefined ? {} : { parentId: version.parentId }),
-  ...(version.derivedFromCandidateVersionId === undefined
-    ? {}
-    : { derivedFromCandidateVersionId: version.derivedFromCandidateVersionId }),
-  generation: version.generation,
-  materialSetHash: version.materialSetHash,
-  creation: version.creation,
-  status,
-  actor: version.actor,
-  quality: version.quality,
-  createdAt: version.createdAt,
-});
 
 const statusFor = (
   version: VersionRecord,

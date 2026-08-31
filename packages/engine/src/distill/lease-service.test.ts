@@ -35,10 +35,12 @@ import { FileSpaceStore } from "../facts/space-store.js";
 import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
-import { createInternalEngineComposition } from "../ingest/composition.js";
-import type { InternalEngineComposition } from "../ingest/composition.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
+import {
+  createLegacyFileEngineTestSupport,
+  type LegacyFileEngineTestSupport,
+} from "../testing/legacy-file-engine.test.fixture.js";
 import type { RecoveryHooks } from "../transaction/recovery.js";
 import type { DistillLeaseServiceHooks } from "./lease-service.js";
 
@@ -160,14 +162,14 @@ const open = async (
     readonly recoveryHooks?: RecoveryHooks;
     readonly published?: EngineEvent[];
   } = {},
-): Promise<InternalEngineComposition> => {
+): Promise<LegacyFileEngineTestSupport> => {
   const eventBus = new InProcessEventBus();
   if (options.published !== undefined) {
     eventBus.subscribe((event) => {
       options.published?.push(event);
     });
   }
-  return createInternalEngineComposition({
+  return createLegacyFileEngineTestSupport({
     root,
     ids,
     clock,
@@ -196,7 +198,7 @@ const failOnce = (): (() => void) => {
   };
 };
 
-const createPending = async (composition: InternalEngineComposition, requestId = request(1)) => {
+const createPending = async (composition: LegacyFileEngineTestSupport, requestId = request(1)) => {
   const result = await composition.ingest.ingest(createInput(), ACTOR, { requestId });
   if (result.job === undefined) throw new Error("expected enqueue=now to create a pending job");
   return result;

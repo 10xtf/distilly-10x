@@ -1,96 +1,37 @@
-import { DatabaseSync } from "node:sqlite";
-import { mkdir, mkdtemp, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  BUILTIN_PEOPLE_SPACE_ID,
   DistillyError,
-  contentDigestSchema,
-  materialIdSchema,
   requestIdSchema,
-  subjectStateRecordSchema,
-  transactionRecordSchema,
-  versionIdSchema,
   type ActorContext,
   type EngineEvent,
   type EventId,
   type IngestInput,
-  type IngestTransactionRecord,
   type IsoDateTime,
   type JobId,
   type LeaseId,
   type LeaseOwnerId,
-  type OperationRecord,
-  type Profile,
   type RequestId,
-  type RuntimeSchema,
   type SpaceId,
   type SubjectId,
-  type SubjectStateRecord,
-  type VersionClaimsSnapshot,
-  type VersionMaterialManifest,
-  type VersionRecord,
 } from "@distilly/protocol";
 
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
-import { computeFactChecksum, sealFact } from "../facts/checksum.js";
-import { replaceFactFile } from "../facts/fact-file.js";
-import { FileMaterialStore } from "../facts/material-store.js";
-import { FileOperationStore } from "../facts/operation-store.js";
-import { FileSpaceStore } from "../facts/space-store.js";
-import { FileStateStore } from "../facts/state-store.js";
-import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
-import { FileVersionStore } from "../facts/version-store.js";
-import { Layout } from "../layout.js";
-import { PROFILE_RENDERER_VERSION, renderProfile, renderPrompt } from "../profile/render.js";
-import type { VersionIdentityPayload } from "../profile/version-id.js";
-import { deriveVersionId } from "../profile/version-id.js";
+import { digestContent } from "../facts/digests.js";
 import type { IdGenerator } from "../ports/id-generator.js";
-import type { RecoveryHooks } from "../transaction/recovery.js";
-import { FileVersionStaging } from "../transaction/version-staging.js";
 import { createInternalEngineComposition } from "./composition.js";
 import type { InternalEngineComposition } from "./composition.js";
 import type { IngestServiceHooks } from "./service.js";
 
 const AT = "2026-08-20T10:30:00.000Z" as IsoDateTime;
-const ACTOR: ActorContext = { kind: "sdk", id: "step5-integration" };
-const QUALITY = {
-  sourceGroupingVersion: "source-groups-v1",
-  activeClaimCount: 0,
-  contestedClaimCount: 0,
-  userAssertedClaimCount: 0,
-  corroboratedClaimCount: 0,
-  sourceGroupCount: 0,
-  diversityEligibleSourceGroupCount: 0,
-  unknownSourceGroupCount: 0,
-  coveredCoreFacets: [],
-  uncoveredCoreFacets: [
-    "identity",
-    "voice",
-    "psyche",
-    "relations",
-    "boundaries",
-    "texture",
-    "timeline",
-  ],
-  maturity: "sparse",
-} as const;
-const STATE_SCHEMA: RuntimeSchema<SubjectStateRecord> = {
-  parse(value) {
-    return subjectStateRecordSchema.parse(value) as SubjectStateRecord;
-  },
-};
-const TRANSACTION_SCHEMA: RuntimeSchema<IngestTransactionRecord> = {
-  parse(value) {
-    return transactionRecordSchema.parse(value) as IngestTransactionRecord;
-  },
-};
-const roots: string[] = [];
+const LATER = "2026-08-20T11:30:00.000Z" as IsoDateTime;
+const ACTOR: ActorContext = { kind: "sdk", id: "sqlite-ingest-test" };
 
 class FakeClock implements Clock {
   current = AT;
@@ -133,14 +74,11 @@ class SequenceIds implements IdGenerator {
   }
 }
 
-interface OpenOptions {
-  readonly ingestHooks?: IngestServiceHooks;
-  readonly recoveryHooks?: RecoveryHooks;
-  readonly published?: EngineEvent[];
-}
+const roots: string[] = [];
+const compositions: InternalEngineComposition[] = [];
 
 const makeRoot = async (): Promise<string> => {
-  const root = await mkdtemp(join(tmpdir(), "distilly-ingest-service-"));
+  const root = await mkdtemp(join(tmpdir(), "distilly-sqlite-ingest-"));
   roots.push(root);
   return root;
 };
@@ -148,21 +86,29 @@ const makeRoot = async (): Promise<string> => {
 const request = (digit: number): RequestId =>
   requestIdSchema.parse(`req_${digit.toString(16).padStart(32, "0")}`);
 
-const material = (digit: number): IngestInput["materials"][number] => ({
+const material = (
+  digit: number,
+  overrides: Partial<IngestInput["materials"][number]> = {},
+): IngestInput["materials"][number] => ({
   clientRef: `source-${digit}`,
   kind: "web",
   content: `Verified source ${digit}.`,
   source: {
     uri: `https://example.com/source-${digit}`,
+    title: `Source ${digit}`,
     medium: "article",
     access: "public",
     role: "reference",
     capturedAt: AT,
   },
   derivation: { kind: "native_text" },
+  ...overrides,
 });
 
-const createInput = (materials: IngestInput["materials"] = [material(1)]): IngestInput => ({
+const createInput = (
+  materials: IngestInput["materials"] = [material(1)],
+  enqueue: IngestInput["enqueue"] = "now",
+): IngestInput => ({
   subject: {
     kind: "create",
     input: {
@@ -172,20 +118,7 @@ const createInput = (materials: IngestInput["materials"] = [material(1)]): Inges
     },
   },
   materials,
-  enqueue: "now",
-});
-
-const inlineCreateInput = (): IngestInput => ({
-  subject: {
-    kind: "create",
-    input: {
-      displayName: "Ada Lovelace",
-      space: { displayName: "Mathematicians", kind: "custom" },
-      identityHints: [{ kind: "url", value: "https://example.com/ada" }],
-    },
-  },
-  materials: [material(1)],
-  enqueue: "now",
+  enqueue,
 });
 
 const existingInput = (
@@ -196,915 +129,842 @@ const existingInput = (
 
 const open = async (
   root: string,
-  ids: SequenceIds,
-  clock: FakeClock,
-  options: OpenOptions = {},
+  ids = new SequenceIds(),
+  clock = new FakeClock(),
+  hooks?: IngestServiceHooks,
+  published?: EngineEvent[],
 ): Promise<InternalEngineComposition> => {
   const eventBus = new InProcessEventBus();
-  if (options.published !== undefined) {
+  if (published !== undefined) {
     eventBus.subscribe((event) => {
-      options.published?.push(event);
+      published.push(event);
     });
   }
-  return createInternalEngineComposition({
+  const composition = await createInternalEngineComposition({
     root,
     ids,
     clock,
     eventBus,
-    ...(options.ingestHooks === undefined ? {} : { ingestHooks: options.ingestHooks }),
-    ...(options.recoveryHooks === undefined ? {} : { recoveryHooks: options.recoveryHooks }),
+    ...(hooks === undefined ? {} : { ingestHooks: hooks }),
   });
+  compositions.push(composition);
+  return composition;
 };
 
-const stores = (root: string) => {
-  const layout = new Layout(root);
-  const spaces = new FileSpaceStore(layout);
-  const subjects = new FileSubjectStore(layout, spaces);
-  const materials = new FileMaterialStore(layout, subjects);
-  return {
-    layout,
-    spaces,
-    subjects,
-    materials,
-    states: new FileStateStore(layout, subjects, materials),
-    operations: new FileOperationStore(layout, subjects),
-    transactions: new FileTransactionStore(layout),
-  };
-};
-
-const queueRows = (root: string): readonly Record<string, unknown>[] => {
-  const database = new DatabaseSync(new Layout(root).queueDatabaseFile(), { readOnly: true });
+const inspect = <T>(root: string, read: (database: DatabaseSync) => T): T => {
+  const database = new DatabaseSync(join(root, "store.sqlite3"), { readOnly: true });
   try {
-    return database.prepare("SELECT * FROM queue_jobs ORDER BY subject_id").all();
+    return read(database);
   } finally {
     database.close();
   }
 };
 
-const rejectCode = async (promise: Promise<unknown>, code: string): Promise<void> => {
+const scalar = (database: DatabaseSync, sql: string): unknown => {
+  const row = database.prepare(sql).get();
+  return row === undefined ? undefined : Object.values(row)[0];
+};
+
+const blobPath = (root: string, content: string): string => {
+  const digest = digestContent(content);
+  const hexadecimal = digest.slice("sha256_".length);
+  return join(root, "blobs", "sha256", hexadecimal.slice(0, 2), digest);
+};
+
+const deferred = (): { readonly promise: Promise<void>; readonly resolve: () => void } => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+const within = async <T>(promise: Promise<T>, milliseconds = 1_000): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Timed out waiting for the operation.")),
+          milliseconds,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+};
+
+const expectCode = async (promise: Promise<unknown>, code: string): Promise<DistillyError> => {
   try {
     await promise;
     throw new Error(`Expected ${code}.`);
   } catch (error) {
     expect(error).toBeInstanceOf(DistillyError);
     expect(error).toMatchObject({ code });
+    return error as DistillyError;
   }
 };
 
-const failOnce = (): (() => void) => {
-  let failed = false;
-  return () => {
-    if (failed) return;
-    failed = true;
-    throw new Error("simulated process crash");
-  };
-};
-
-const barrier = (): {
-  readonly entered: Promise<void>;
-  readonly release: () => void;
-  readonly wait: () => Promise<void>;
-} => {
-  let enter!: () => void;
-  let release!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    enter = resolve;
-  });
-  const released = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  return {
-    entered,
-    release,
-    async wait() {
-      enter();
-      await released;
-    },
-  };
-};
-
 afterEach(async () => {
+  for (const composition of compositions.splice(0)) composition.close();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("Step 5 atomic ingest composition", { timeout: 15_000 }, () => {
-  it("creates the first subject/material/state/job atomically and replays one exact result", async () => {
+describe("SQLite ingest service", () => {
+  it("atomically creates subject, material, pending job, operation, events, and exact replay", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
     const published: EngineEvent[] = [];
-    const composition = await open(root, ids, clock, { published });
-    const input = createInput();
-    const result = await composition.ingest.ingest(input, ACTOR, { requestId: request(1) });
+    const composition = await open(root, new SequenceIds(), new FakeClock(), undefined, published);
 
-    expect(result).toMatchObject({
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    expect(first).toMatchObject({
       kind: "ingested",
       created: true,
       generation: 1,
       items: [{ clientRef: "source-1", kind: "accepted" }],
-      job: { generation: 1, addedMaterialCount: 1, totalMaterialCount: 1 },
+      job: { generation: 1, state: "pending" },
     });
-    const subjectId = result.subject.id;
-    const facts = stores(root);
-    expect(await facts.spaces.read(BUILTIN_PEOPLE_SPACE_ID)).toMatchObject({
-      displayName: "People",
-      kind: "people",
-    });
-    expect(await facts.subjects.read(subjectId)).toMatchObject({ displayName: "Ada Lovelace" });
-    const state = await facts.states.read(subjectId);
-    expect(state).toMatchObject({ generation: 1, pending: { jobId: result.job?.id } });
-    expect(state.materialManifest).toHaveLength(1);
-    await expect(
-      facts.materials.read(subjectId, state.materialManifest[0]!.materialId),
-    ).resolves.toMatchObject({ content: "Verified source 1." });
-    await expect(facts.operations.read(request(1))).resolves.toMatchObject({
-      recordKind: "completed",
-      result,
-    });
-    await expect(facts.transactions.read(request(1))).resolves.toMatchObject({
-      state: "committed",
-      subjectId,
-    });
-    expect(queueRows(root)).toEqual([
-      expect.objectContaining({
-        subject_id: subjectId,
-        job_id: result.job?.id,
-        generation: 1,
-      }),
-    ]);
     expect(published.map((event) => event.kind)).toEqual([
       "subject.created",
       "material.ingested",
       "job.changed",
     ]);
+    expect(
+      inspect(root, (database) => ({
+        spaces: scalar(database, "SELECT count(*) FROM spaces"),
+        subjects: scalar(database, "SELECT count(*) FROM subjects"),
+        aliases: scalar(database, "SELECT count(*) FROM subject_aliases"),
+        identityHints: scalar(database, "SELECT count(*) FROM subject_identity_hints"),
+        subjectStates: scalar(database, "SELECT count(*) FROM subject_states"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        pending: scalar(database, "SELECT count(*) FROM pending_jobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+        integrity: scalar(database, "PRAGMA quick_check(1)"),
+      })),
+    ).toEqual({
+      spaces: 1,
+      subjects: 1,
+      aliases: 1,
+      identityHints: 1,
+      subjectStates: 1,
+      blobs: 1,
+      materials: 1,
+      pending: 1,
+      operations: 1,
+      events: 3,
+      integrity: "ok",
+    });
 
-    const replay = await composition.ingest.ingest(input, ACTOR, { requestId: request(1) });
-    expect(replay).toEqual(result);
+    expect(
+      await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
+    ).toEqual(first);
     expect(published).toHaveLength(3);
-    const equivalent: IngestInput = {
-      subject: {
-        kind: "create",
-        input: {
-          displayName: " Ada Lovelace ",
-          aliases: ["Ada", "Ada"],
-          identityHints: [{ kind: "url", value: "HTTPS://EXAMPLE.com:443/ada#profile" }],
-        },
-      },
-      materials: [
-        {
-          ...material(1),
-          content: "Verified source 1.  ",
-          source: {
-            ...material(1).source,
-            uri: "HTTPS://EXAMPLE.com:443/source-1#copy",
-            authors: [],
-          },
-          sensitivity: "private",
-          flags: [],
-          participants: [],
-        },
-      ],
-      enqueue: "now",
-    };
-    await expect(
-      composition.ingest.ingest(equivalent, ACTOR, { requestId: request(1) }),
-    ).resolves.toEqual(result);
-    await rejectCode(
-      composition.ingest.ingest(
-        input,
-        { ...ACTOR, id: "different-actor" },
-        {
-          requestId: request(1),
-        },
-      ),
-      "idempotency_conflict",
-    );
-    await rejectCode(
-      composition.ingest.ingest(inlineCreateInput(), ACTOR, { requestId: request(1) }),
-      "idempotency_conflict",
+    composition.close();
+    compositions.splice(compositions.indexOf(composition), 1);
+
+    const reopened = await open(root, new SequenceIds());
+    expect(await reopened.ingest.ingest(createInput(), ACTOR, { requestId: request(1) })).toEqual(
+      first,
     );
   });
 
-  it("adds an existing material, then reports duplicate-only now without replacing the job", async () => {
+  it("fails closed when ingest(create) resolves a locator with a missing subject parent", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    try {
+      database.exec("PRAGMA foreign_keys = OFF");
+      database.prepare("DELETE FROM subjects WHERE id = ?").run(first.subject.id);
+    } finally {
+      database.close();
+    }
+
+    await expectCode(
+      composition.ingest.ingest(createInput(), ACTOR, { requestId: request(2) }),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (sqlite) => ({
+        subjects: scalar(sqlite, "SELECT count(*) FROM subjects"),
+        operations: scalar(sqlite, "SELECT count(*) FROM operations"),
+        events: scalar(sqlite, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ subjects: 0, operations: 1, events: 3 });
+  });
+
+  it("appends to an existing subject and shares one blob for equal content", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const subjectId = first.subject.id;
+    const sameBody = material(2, { content: material(1).content });
+
+    const second = await composition.ingest.ingest(existingInput(subjectId, [sameBody]), ACTOR, {
+      requestId: request(2),
+    });
+    expect(second).toMatchObject({ kind: "ingested", created: false, generation: 2 });
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+      })),
+    ).toEqual({ materials: 2, blobs: 1 });
+  });
+
+  it("does not mistake a concurrent new reference for a previously missing blob", async () => {
     const root = await makeRoot();
     const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const created = await composition.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
+    const firstPut = deferred();
+    const releaseFirst = deferred();
+    let coordinate = false;
+    let coordinatedPuts = 0;
+    const composition = await open(root, ids, new FakeClock(), {
+      afterBlobPut: async () => {
+        if (!coordinate || ++coordinatedPuts !== 1) return;
+        firstPut.resolve();
+        await releaseFirst.promise;
+      },
     });
-    const added = await composition.ingest.ingest(
-      existingInput(created.subject.id, [material(2)]),
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const sharedContent = "One newly published shared body.";
+    coordinate = true;
+    const earlier = composition.ingest.ingest(
+      existingInput(first.subject.id, [material(2, { content: sharedContent })]),
       ACTOR,
       { requestId: request(2) },
     );
-    expect(added).toMatchObject({
-      kind: "ingested",
-      created: false,
-      generation: 2,
-      job: { generation: 2, addedMaterialCount: 2, totalMaterialCount: 2 },
-    });
-    expect(added.job?.id).not.toBe(created.job?.id);
-
-    const duplicate = await composition.ingest.ingest(
-      existingInput(created.subject.id, [material(2)]),
+    await firstPut.promise;
+    const later = await composition.ingest.ingest(
+      existingInput(first.subject.id, [material(3, { content: sharedContent })]),
       ACTOR,
       { requestId: request(3) },
     );
-    expect(duplicate).toMatchObject({
-      kind: "unchanged",
-      generation: 2,
-      items: [{ kind: "duplicate" }],
-      job: { id: added.job?.id },
-    });
-    expect(queueRows(root)).toHaveLength(1);
+    releaseFirst.resolve();
+
+    await expect(earlier).resolves.toMatchObject({ kind: "ingested" });
+    expect(later).toMatchObject({ kind: "ingested" });
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+      })),
+    ).toEqual({ materials: 3, blobs: 2 });
   });
 
-  it("rejects a RequestId already completed by another mutation method", async () => {
+  it("finishes a multi-blob transaction before queued maintenance enters", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const created = await composition.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
+    let putCount = 0;
+    let maintenanceEntered = false;
+    let maintenancePromise:
+      ReturnType<InternalEngineComposition["blobs"]["acquireMaintenanceAccess"]> | undefined;
+    const composition = await open(root, new SequenceIds(), new FakeClock(), {
+      afterBlobPut: () => {
+        if (++putCount !== 1) return;
+        maintenancePromise = composition.blobs.acquireMaintenanceAccess().then((lease) => {
+          maintenanceEntered = true;
+          return lease;
+        });
+      },
+      beforeTransactionCommit: () => {
+        expect(maintenanceEntered).toBe(false);
+      },
     });
-    const inputChecksum = computeFactChecksum({
-      method: "subjects.archive",
-      subjectId: created.subject.id,
-    });
-    await stores(root).operations.write(
-      sealFact<OperationRecord<"subjects.archive">>({
-        schemaVersion: 1,
-        recordKind: "completed",
-        requestId: request(2),
-        method: "subjects.archive",
-        scope: { kind: "subject", subjectId: created.subject.id },
-        actor: ACTOR,
-        inputChecksum,
-        result: null,
-        completedAt: AT,
-      }),
-    );
 
-    await rejectCode(
-      composition.ingest.ingest(existingInput(created.subject.id, [material(2)]), ACTOR, {
-        requestId: request(2),
-      }),
-      "idempotency_conflict",
-    );
+    await expect(
+      within(
+        composition.ingest.ingest(createInput([material(1), material(2)]), ACTOR, {
+          requestId: request(1),
+        }),
+      ),
+    ).resolves.toMatchObject({ kind: "ingested" });
+    expect(maintenancePromise).toBeDefined();
+    const maintenance = await within(maintenancePromise!);
+    expect(maintenanceEntered).toBe(true);
+    await maintenance.release();
   });
 
-  it.each([
-    ["built-in People", createInput()],
-    ["inline space", inlineCreateInput()],
-  ])("serializes concurrent duplicate creation in %s", async (_label, input) => {
+  it("releases blob access after COMMIT before a post-commit observer completes", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const attempts = await Promise.allSettled([
-      composition.ingest.ingest(input, ACTOR, { requestId: request(1) }),
-      composition.ingest.ingest(input, ACTOR, { requestId: request(2) }),
-    ]);
-    expect(attempts.filter((attempt) => attempt.status === "fulfilled")).toHaveLength(1);
-    const rejected = attempts.find((attempt) => attempt.status === "rejected");
-    expect(rejected).toBeDefined();
-    if (rejected?.status === "rejected") {
-      expect(rejected.reason).toBeInstanceOf(DistillyError);
-      if (rejected.reason instanceof DistillyError) {
-        expect(["busy", "already_exists"]).toContain(rejected.reason.code);
-      }
-    }
-    expect(await stores(root).subjects.listAll()).toHaveLength(1);
-    expect(await stores(root).spaces.list()).toHaveLength(1);
+    const composition = await open(root);
+    const listenerStarted = deferred();
+    const releaseListener = deferred();
+    const unsubscribe = composition.events.subscribe(async () => {
+      listenerStarted.resolve();
+      await releaseListener.promise;
+    });
+    const ingest = composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    await listenerStarted.promise;
+
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+      })),
+    ).toEqual({ materials: 1, operations: 1 });
+    const maintenance = await within(composition.blobs.acquireMaintenanceAccess());
+    await maintenance.release();
+    releaseListener.resolve();
+    await expect(ingest).resolves.toMatchObject({ kind: "ingested" });
+    unsubscribe();
   });
 
-  it("holds the create identity lock until the prepared journal is durable", async () => {
+  it("keeps title, capturedAt, and storedAt first-seen for a duplicate material", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
     const clock = new FakeClock();
-    const gate = barrier();
-    const composition = await open(root, ids, clock, {
-      ingestHooks: { beforePrepared: gate.wait },
+    const composition = await open(root, new SequenceIds(), clock);
+    const firstInput = createInput();
+    const first = await composition.ingest.ingest(firstInput, ACTOR, { requestId: request(1) });
+    const subjectId = first.subject.id;
+    clock.current = LATER;
+    const changedDisplay = material(1, {
+      source: { ...material(1).source, title: "Later title", capturedAt: LATER },
     });
-    const first = composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
-    await gate.entered;
-    try {
-      await rejectCode(
-        composition.ingest.ingest(createInput(), ACTOR, { requestId: request(2) }),
-        "busy",
-      );
-    } finally {
-      gate.release();
-    }
-    await expect(first).resolves.toMatchObject({ kind: "ingested", created: true });
-  });
 
-  it("holds the existing-subject lock until the prepared journal is durable", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const initial = await open(root, ids, clock);
-    const created = await initial.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
-    const gate = barrier();
-    const composition = await open(root, ids, clock, {
-      ingestHooks: { beforePrepared: gate.wait },
-    });
-    const first = composition.ingest.ingest(
-      existingInput(created.subject.id, [material(2)]),
+    const duplicate = await composition.ingest.ingest(
+      existingInput(subjectId, [changedDisplay]),
       ACTOR,
       { requestId: request(2) },
     );
-    await gate.entered;
-    try {
-      await rejectCode(
-        composition.ingest.ingest(existingInput(created.subject.id, [material(3)]), ACTOR, {
-          requestId: request(3),
-        }),
-        "busy",
-      );
-    } finally {
-      gate.release();
-    }
-    await expect(first).resolves.toMatchObject({ kind: "ingested", generation: 2 });
+    expect(duplicate).toMatchObject({
+      kind: "unchanged",
+      generation: 1,
+      items: [{ kind: "duplicate" }],
+    });
+    const record = inspect(root, (database) => {
+      const row = database.prepare("SELECT record_json FROM materials").get();
+      return JSON.parse(String(row?.record_json)) as {
+        readonly source: { readonly title: string; readonly capturedAt: string };
+        readonly storedAt: string;
+      };
+    });
+    expect(record.source).toMatchObject({ title: "Source 1", capturedAt: AT });
+    expect(record.storedAt).toBe(AT);
   });
 
-  it("rejects an invalid batch before publishing a space or subject", async () => {
+  it("validates the full batch before publishing any blob or database row", async () => {
     const root = await makeRoot();
-    const composition = await open(root, new SequenceIds(), new FakeClock());
-    await rejectCode(
-      composition.ingest.ingest({ ...createInput(), materials: [] }, ACTOR, {
+    const composition = await open(root);
+    const invalid = createInput([material(1), material(2, { content: "   \n" })]);
+
+    await expectCode(
+      composition.ingest.ingest(invalid, ACTOR, { requestId: request(1) }),
+      "invalid_input",
+    );
+    expect(
+      inspect(root, (database) => ({
+        subjects: scalar(database, "SELECT count(*) FROM subjects"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+      })),
+    ).toEqual({ subjects: 0, blobs: 0, operations: 0 });
+    const prefixes = await readdir(join(root, "blobs", "sha256"));
+    expect(prefixes).toEqual([]);
+  });
+
+  it("rejects computer-use transcripts outside a trusted private capture session", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const privateTranscript = material(1, {
+      kind: "transcript",
+      source: {
+        medium: "conversation",
+        access: "private",
+        role: "personal_communication",
+        capturedAt: AT,
+      },
+      derivation: {
+        kind: "host_extract",
+        method: "computer_use_transcript",
+        producer: "codex-private-capture",
+      },
+      sensitivity: "private",
+    });
+
+    await expectCode(
+      composition.ingest.ingest(createInput([privateTranscript]), ACTOR, {
         requestId: request(1),
       }),
       "invalid_input",
     );
-    expect(await stores(root).spaces.list()).toEqual([]);
-    expect(await stores(root).subjects.listAll()).toEqual([]);
+    expect(
+      inspect(root, (database) => ({
+        spaces: scalar(database, "SELECT count(*) FROM spaces"),
+        subjects: scalar(database, "SELECT count(*) FROM subjects"),
+        aliases: scalar(database, "SELECT count(*) FROM subject_aliases"),
+        identityHints: scalar(database, "SELECT count(*) FROM subject_identity_hints"),
+        subjectStates: scalar(database, "SELECT count(*) FROM subject_states"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        pending: scalar(database, "SELECT count(*) FROM pending_jobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({
+      spaces: 0,
+      subjects: 0,
+      aliases: 0,
+      identityHints: 0,
+      subjectStates: 0,
+      blobs: 0,
+      materials: 0,
+      pending: 0,
+      operations: 0,
+      events: 0,
+    });
+    expect(await readdir(join(root, "blobs", "sha256"))).toEqual([]);
   });
 
-  it("treats a published subject without state as corruption before journaling", async () => {
+  it("shares ambiguous exact-locator resolution with standalone subject creation", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const created = await composition.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
-    });
-    const facts = stores(root);
-    await unlink(facts.layout.stateFile(created.subject.id));
-
-    await rejectCode(
-      composition.ingest.ingest(existingInput(created.subject.id, [material(2)]), ACTOR, {
-        requestId: request(2),
-      }),
-      "storage_corrupt",
-    );
-    await expect(facts.transactions.readOptional(request(2))).resolves.toBeUndefined();
-  });
-
-  it("treats a state pointer to a missing current version as corruption before journaling", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const created = await composition.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
-    });
-    const facts = stores(root);
-    const state = await facts.states.read(created.subject.id);
-    const missingVersionId = versionIdSchema.parse(`version_${"a".repeat(64)}`);
-    const invalidState = sealFact<SubjectStateRecord>({
-      ...state,
-      currentVersionId: missingVersionId,
-      ...(state.pending === undefined
-        ? {}
-        : { pending: { ...state.pending, baseVersionId: missingVersionId } }),
-    });
-    await replaceFactFile(
-      root,
-      facts.layout.stateFile(created.subject.id),
-      invalidState,
-      STATE_SCHEMA,
-    );
-
-    await rejectCode(
-      composition.ingest.ingest(existingInput(created.subject.id, [material(2)]), ACTOR, {
-        requestId: request(2),
-      }),
-      "storage_corrupt",
-    );
-    await expect(facts.transactions.readOptional(request(2))).resolves.toBeUndefined();
-  });
-
-  it("uses the verified current-version baseline and never queues on elapsed time alone", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const composition = await open(root, ids, clock);
-    const created = await composition.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
-    });
-    const facts = stores(root);
-    const state = await facts.states.read(created.subject.id);
-    if (state.materialSetHash === undefined) throw new Error("Expected a non-empty material set.");
-    const identity: VersionIdentityPayload = {
-      subjectId: created.subject.id,
-      subjectDisplayName: created.subject.displayName,
-      generation: state.generation,
-      materialSetHash: state.materialSetHash,
-      creation: {
-        kind: "bundle_import",
-        bundleDigest: contentDigestSchema.parse(`sha256_${"b".repeat(64)}`),
+    const composition = await open(root);
+    const ada = await composition.subjects.create(
+      {
+        displayName: "Ada",
+        identityHints: [{ kind: "url", value: "https://example.com/ada" }],
       },
-      createdDisposition: "current",
-      actor: { kind: "system", id: "step5-integration" },
-      quality: QUALITY,
-      rendererVersion: PROFILE_RENDERER_VERSION,
-    };
-    const versionId = deriveVersionId(identity, []);
-    const version = sealFact<VersionRecord>({
-      schemaVersion: 1,
-      id: versionId,
-      ...identity,
-      materialCount: state.materialManifest.length,
-      createdAt: AT,
-    });
-    const manifest = sealFact<VersionMaterialManifest>({
-      schemaVersion: 1,
-      items: state.materialManifest,
-    });
-    const claims = sealFact<VersionClaimsSnapshot>({
-      schemaVersion: 1,
-      subjectId: created.subject.id,
-      versionId,
-      claims: [],
-    });
-    const rendering = renderProfile({
-      subjectId: created.subject.id,
-      displayName: created.subject.displayName,
-      versionId,
-      claims: [],
-      quality: QUALITY,
-    });
-    const profile: Profile = {
-      subjectId: created.subject.id,
-      displayName: created.subject.displayName,
-      versionId,
-      claims: [],
-      core: rendering.core,
-      domains: rendering.domains,
-      rendered: rendering.markdown,
-      quality: QUALITY,
-    };
-    const artifacts = { version, manifest, claims, profile, prompt: renderPrompt(profile) };
-    const versionStaging = new FileVersionStaging(
-      facts.layout,
-      new FileVersionStore(facts.layout, facts.materials),
+      ACTOR,
+      { requestId: request(1) },
     );
-    await versionStaging.prepare(request(99), artifacts);
-    await versionStaging.publish(request(99), artifacts);
-    const committedState = sealFact<SubjectStateRecord>({
-      schemaVersion: 2,
-      subjectId: state.subjectId,
-      generation: state.generation,
-      materialSetHash: state.materialSetHash,
-      materialManifest: state.materialManifest,
-      currentVersionId: versionId,
-      ...(state.suspendedVersionId === undefined
-        ? {}
-        : { suspendedVersionId: state.suspendedVersionId }),
-    });
-    await facts.states.write(committedState);
-    await unlink(facts.layout.queueDatabaseFile());
-    await open(root, ids, clock);
-    expect(queueRows(root)).toEqual([]);
-
-    clock.current = "2026-08-20T11:00:00.000Z" as IsoDateTime;
-    await expect(facts.states.read(created.subject.id)).resolves.toEqual(committedState);
-    expect(queueRows(root)).toEqual([]);
-
-    const first = await composition.ingest.ingest(
-      existingInput(created.subject.id, [material(2)], "auto"),
+    const grace = await composition.subjects.create(
+      {
+        displayName: "Grace",
+        identityHints: [{ kind: "account", provider: "x", handle: "grace" }],
+      },
       ACTOR,
       { requestId: request(2) },
     );
-    const second = await composition.ingest.ingest(
-      existingInput(created.subject.id, [material(3)], "auto"),
+
+    const error = await expectCode(
+      composition.ingest.ingest(
+        {
+          subject: {
+            kind: "create",
+            input: {
+              displayName: "Mixed target",
+              identityHints: [
+                { kind: "url", value: "https://example.com/ada" },
+                { kind: "account", provider: "x", handle: "grace" },
+              ],
+            },
+          },
+          materials: [material(1)],
+          enqueue: "now",
+        },
+        ACTOR,
+        { requestId: request(3) },
+      ),
+      "ambiguous_subject",
+    );
+    const candidates =
+      error.subjectResolution?.kind === "ambiguous" ? error.subjectResolution.candidates : [];
+    expect(candidates.map((candidate) => candidate.id)).toEqual([ada.id, grace.id].sort());
+    expect(
+      inspect(root, (database) => ({
+        subjects: scalar(database, "SELECT count(*) FROM subjects"),
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        pending: scalar(database, "SELECT count(*) FROM pending_jobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ subjects: 2, materials: 0, blobs: 0, pending: 0, operations: 2, events: 2 });
+  });
+
+  it("queues at the auto threshold, replaces stale pending on append, and reuses on duplicate", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(
+      createInput([material(1), material(2)], "auto"),
+      ACTOR,
+      { requestId: request(1) },
+    );
+    expect(first.job).toBeUndefined();
+
+    const third = await composition.ingest.ingest(
+      existingInput(first.subject.id, [material(3)], "auto"),
+      ACTOR,
+      { requestId: request(2) },
+    );
+    expect(third.job).toMatchObject({ generation: 2, addedMaterialCount: 3 });
+    const thirdJob = third.job?.id;
+
+    const fourth = await composition.ingest.ingest(
+      existingInput(first.subject.id, [material(4)], "auto"),
       ACTOR,
       { requestId: request(3) },
     );
-    const third = await composition.ingest.ingest(
-      existingInput(created.subject.id, [material(4)], "auto"),
+    expect(fourth.job?.id).not.toBe(thirdJob);
+    expect(fourth).toMatchObject({ generation: 3, job: { addedMaterialCount: 4 } });
+
+    const duplicate = await composition.ingest.ingest(
+      existingInput(first.subject.id, [material(4)], "now"),
       ACTOR,
       { requestId: request(4) },
     );
-    expect(first.job).toBeUndefined();
-    expect(second.job).toBeUndefined();
-    expect(third.job).toMatchObject({
-      baseVersionId: versionId,
-      addedMaterialCount: 3,
-      totalMaterialCount: 4,
-    });
+    expect(duplicate).toMatchObject({ kind: "unchanged", generation: 3 });
+    expect(duplicate.job?.id).toBe(fourth.job?.id);
   });
 
-  it.each(["afterPrepared", "afterFactCommit"] as const)(
-    "recovers create crashes at %s without changing the original result",
-    async (point) => {
-      const root = await makeRoot();
-      const ids = new SequenceIds();
-      const clock = new FakeClock();
-      const hook = failOnce();
-      const crashed = await open(root, ids, clock, {
-        ingestHooks: { [point]: hook },
-      });
-      const input = createInput();
-      await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(1) })).rejects.toThrow(
-        "simulated process crash",
-      );
-      const prepared = await stores(root).transactions.read(request(1));
-
-      const recovered = await open(root, ids, clock);
-      const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(1) });
-      expect(result).toMatchObject({ kind: "ingested", created: true, generation: 1 });
-      expect(result.subject.id).toBe(prepared.subjectId);
-      expect(await stores(root).subjects.listAll()).toHaveLength(1);
-      await expect(stores(root).transactions.read(request(1))).resolves.toMatchObject({
-        state: "committed",
-      });
-    },
-  );
-
-  it("fails closed when create recovery finds a partial stable subject directory", async () => {
+  it("rolls back every authority row on a pre-commit failure and retries without a journal", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterPrepared: failOnce() },
-    });
-    await expect(
-      crashed.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
-    ).rejects.toThrow("simulated process crash");
-
-    const transaction = await stores(root).transactions.read(request(1));
-    await mkdir(new Layout(root).subjectDirectory(transaction.subjectId), { mode: 0o700 });
-
-    await rejectCode(open(root, ids, clock), "storage_corrupt");
-    await expect(stores(root).transactions.read(request(1))).resolves.toMatchObject({
-      state: "prepared",
-    });
-  });
-
-  it("removes only the journal-owned partial create staging before an exact retry", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const input = createInput();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterPrepared: failOnce() },
-    });
-    await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(1) })).rejects.toThrow(
-      "simulated process crash",
-    );
-    const facts = stores(root);
-    const transaction = await facts.transactions.read(request(1));
-    if (transaction.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
-    const staging = facts.layout.ingestStagingDirectory(request(1), transaction.subjectId);
-    await mkdir(staging, { recursive: true, mode: 0o700 });
-    await writeFile(join(staging, "partial"), "partial", { mode: 0o600 });
-
-    const recovered = await open(root, ids, clock);
-    await expect(readdir(staging)).rejects.toMatchObject({ code: "ENOENT" });
-    const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(1) });
-    expect(result.subject.id).toBe(transaction.subjectId);
-  });
-
-  it("keeps an aborted create request bound to its input, actor, and candidate subject", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const input = createInput();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterPrepared: failOnce() },
-    });
-    await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(1) })).rejects.toThrow(
-      "simulated process crash",
-    );
-    const prepared = await stores(root).transactions.read(request(1));
-
-    const recovered = await open(root, ids, clock);
-    await rejectCode(
-      recovered.ingest.ingest(createInput([material(2)]), ACTOR, { requestId: request(1) }),
-      "idempotency_conflict",
-    );
-    await rejectCode(
-      recovered.ingest.ingest(
-        input,
-        { ...ACTOR, id: "different-actor" },
-        {
-          requestId: request(1),
-        },
-      ),
-      "idempotency_conflict",
-    );
-    const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(1) });
-    expect(result.subject.id).toBe(prepared.subjectId);
-  });
-
-  it("completes a duplicate-only prepared no-op target before considering abort", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const initial = await open(root, ids, clock);
-    const created = await initial.ingest.ingest(createInput(), ACTOR, {
-      requestId: request(1),
-    });
-    const input = existingInput(created.subject.id, [material(1)]);
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterPrepared: failOnce() },
-    });
-    await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(2) })).rejects.toThrow(
-      "simulated process crash",
-    );
-    const prepared = await stores(root).transactions.read(request(2));
-    if (prepared.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
-    const before = await stores(root).states.read(created.subject.id);
-    expect(prepared.targetStateChecksum).toBe(before.checksum);
-    expect(prepared).toMatchObject({ state: "prepared", previousStateChecksum: before.checksum });
-
-    const recovered = await open(root, ids, clock);
-    const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(2) });
-    expect(result).toMatchObject({
-      kind: "unchanged",
-      generation: created.generation,
-      job: { id: created.job?.id },
-    });
-    await expect(stores(root).transactions.read(request(2))).resolves.toMatchObject({
-      state: "committed",
-    });
-    await expect(stores(root).operations.read(request(2))).resolves.toMatchObject({ result });
-  });
-
-  it("rejects a committed target whose stored result summary disagrees with facts", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterFactCommit: failOnce() },
-    });
-    await expect(
-      crashed.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
-    ).rejects.toThrow("simulated process crash");
-
-    const facts = stores(root);
-    const transaction = await facts.transactions.read(request(1));
-    if (transaction.transactionKind !== "ingest") {
-      throw new Error("expected an ingest transaction fixture");
-    }
-    const operationPayload = {
-      ...transaction.operation,
-      result: {
-        ...transaction.operation.result,
-        subject: { ...transaction.operation.result.subject, displayName: "Forged summary" },
+    let fail = true;
+    const composition = await open(root, new SequenceIds(), new FakeClock(), {
+      beforeTransactionCommit: () => {
+        if (!fail) return;
+        fail = false;
+        throw new Error("stop before commit");
       },
-    };
-    const operation = {
-      ...operationPayload,
-      checksum: computeFactChecksum(operationPayload),
-    };
-    const transactionPayload = { ...transaction, operation };
-    const forged = TRANSACTION_SCHEMA.parse({
-      ...transactionPayload,
-      checksum: computeFactChecksum(transactionPayload),
     });
-    await replaceFactFile(
-      root,
-      facts.layout.transactionFile(request(1)),
-      forged,
-      TRANSACTION_SCHEMA,
-    );
 
-    await rejectCode(open(root, ids, clock), "storage_corrupt");
-    await expect(facts.operations.readOptional(request(1))).resolves.toBeUndefined();
-    await expect(facts.transactions.read(request(1))).resolves.toMatchObject({
-      state: "prepared",
-    });
     await expect(
-      readdir(join(facts.layout.subjectDirectory(transaction.subjectId), "events")),
-    ).rejects.toMatchObject({ code: "ENOENT" });
-  });
-
-  it("rejects a committed target whose duplicate result is outside the target manifest", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterFactCommit: failOnce() },
+      composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
+    ).rejects.toThrow("stop before commit");
+    expect(
+      inspect(root, (database) => ({
+        spaces: scalar(database, "SELECT count(*) FROM spaces"),
+        subjects: scalar(database, "SELECT count(*) FROM subjects"),
+        aliases: scalar(database, "SELECT count(*) FROM subject_aliases"),
+        identityHints: scalar(database, "SELECT count(*) FROM subject_identity_hints"),
+        subjectStates: scalar(database, "SELECT count(*) FROM subject_states"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        pending: scalar(database, "SELECT count(*) FROM pending_jobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({
+      spaces: 0,
+      subjects: 0,
+      aliases: 0,
+      identityHints: 0,
+      subjectStates: 0,
+      blobs: 0,
+      materials: 0,
+      pending: 0,
+      operations: 0,
+      events: 0,
     });
+    const expectedContent = material(1).content;
+    const unreferencedBlob = blobPath(root, expectedContent);
+    expect((await lstat(unreferencedBlob)).isFile()).toBe(true);
+    expect(await readFile(unreferencedBlob, "utf8")).toBe(expectedContent);
+
     await expect(
-      crashed.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
-    ).rejects.toThrow("simulated process crash");
+      composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) }),
+    ).resolves.toMatchObject({ kind: "ingested", created: true });
+  });
 
-    const facts = stores(root);
-    const transaction = await facts.transactions.read(request(1));
-    if (transaction.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
-    const operationPayload = {
-      ...transaction.operation,
-      result: {
-        ...transaction.operation.result,
-        items: [
-          ...transaction.operation.result.items,
-          {
-            clientRef: "forged-duplicate",
-            kind: "duplicate" as const,
-            materialId: materialIdSchema.parse(`mat_${"c".repeat(64)}`),
-            contentDigest: contentDigestSchema.parse(`sha256_${"d".repeat(64)}`),
-          },
-        ],
-      },
+  it("fails closed when pending metadata disagrees with its empty-version baseline", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(
+      createInput([material(1), material(2), material(3)]),
+      ACTOR,
+      { requestId: request(1) },
+    );
+    composition.close();
+    compositions.splice(compositions.indexOf(composition), 1);
+
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    database.prepare("UPDATE pending_jobs SET added_material_count = 1").run();
+    database.close();
+
+    const reopened = await open(root);
+    await expectCode(
+      reopened.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (authority) => ({
+        operations: scalar(authority, "SELECT count(*) FROM operations"),
+        events: scalar(authority, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ operations: 1, events: 3 });
+  });
+
+  it("maps an out-of-range SQLite integer to storage corruption", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    database.exec("PRAGMA ignore_check_constraints = ON");
+    database
+      .prepare("UPDATE pending_jobs SET total_material_count = ?")
+      .run(9_223_372_036_854_775_807n);
+    database.close();
+
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
+    );
+  });
+
+  it("fails closed when the reserved People space drifts", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    database
+      .prepare(
+        `UPDATE spaces
+         SET display_name = 'Persons', canonical_label = 'Persons', kind = 'custom'
+         WHERE id = ?`,
+      )
+      .run(first.subject.space.id);
+    database.close();
+
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(2)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (authority) => ({
+        materials: scalar(authority, "SELECT count(*) FROM materials"),
+        operations: scalar(authority, "SELECT count(*) FROM operations"),
+        events: scalar(authority, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ materials: 1, operations: 1, events: 3 });
+  });
+
+  it("fails closed on v1 version pointers without committing an ingest", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const danglingVersion = `version_${"a".repeat(64)}`;
+    const tamper = (column: "current_version_id" | "suspended_version_id"): void => {
+      const database = new DatabaseSync(join(root, "store.sqlite3"));
+      database.exec("PRAGMA ignore_check_constraints = ON");
+      database
+        .prepare(
+          `UPDATE subject_states
+           SET current_version_id = NULL, suspended_version_id = NULL, ${column} = ?`,
+        )
+        .run(danglingVersion);
+      database.exec("PRAGMA ignore_check_constraints = OFF");
+      database.close();
     };
-    const operation = {
-      ...operationPayload,
-      checksum: computeFactChecksum(operationPayload),
-    };
-    const transactionPayload = { ...transaction, operation };
-    const forged = TRANSACTION_SCHEMA.parse({
-      ...transactionPayload,
-      checksum: computeFactChecksum(transactionPayload),
-    });
-    await replaceFactFile(
-      root,
-      facts.layout.transactionFile(request(1)),
-      forged,
-      TRANSACTION_SCHEMA,
+
+    tamper("current_version_id");
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(2)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
     );
-
-    await rejectCode(open(root, ids, clock), "storage_corrupt");
-    await expect(facts.operations.readOptional(request(1))).resolves.toBeUndefined();
-    await expect(facts.transactions.read(request(1))).resolves.toMatchObject({
-      state: "prepared",
-    });
-  });
-
-  it("removes only journal-owned material after an existing-subject pre-commit crash", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const initial = await open(root, ids, clock);
-    const created = await initial.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
-    const hook = failOnce();
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterMaterialWrite: hook },
-    });
-    const nextInput = existingInput(created.subject.id, [material(2)]);
-    await expect(
-      crashed.ingest.ingest(nextInput, ACTOR, { requestId: request(2) }),
-    ).rejects.toThrow("simulated process crash");
-
-    const recovered = await open(root, ids, clock);
-    const result = await recovered.ingest.ingest(nextInput, ACTOR, { requestId: request(2) });
-    expect(result).toMatchObject({ kind: "ingested", generation: 2 });
-    expect((await stores(root).states.read(created.subject.id)).materialManifest).toHaveLength(2);
-  });
-
-  it("completes an existing-subject target after the state commit point", async () => {
-    const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const initial = await open(root, ids, clock);
-    const created = await initial.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
-    const input = existingInput(created.subject.id, [material(2)]);
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterFactCommit: failOnce() },
-    });
-    await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(2) })).rejects.toThrow(
-      "simulated process crash",
+    tamper("suspended_version_id");
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(3)]), ACTOR, {
+        requestId: request(3),
+      }),
+      "storage_corrupt",
     );
-    const facts = stores(root);
-    await expect(facts.transactions.read(request(2))).resolves.toMatchObject({
-      state: "prepared",
-    });
-    expect((await facts.states.read(created.subject.id)).materialManifest).toHaveLength(2);
-
-    const recovered = await open(root, ids, clock);
-    const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(2) });
-    expect(result).toMatchObject({ kind: "ingested", created: false, generation: 2 });
-    await expect(facts.transactions.read(request(2))).resolves.toMatchObject({
-      state: "committed",
-    });
-    await expect(facts.operations.read(request(2))).resolves.toMatchObject({ result });
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        blobs: scalar(database, "SELECT count(*) FROM blobs"),
+        pending: scalar(database, "SELECT count(*) FROM pending_jobs"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ materials: 1, blobs: 1, pending: 1, operations: 1, events: 3 });
   });
 
-  it("fails closed when an existing-subject state is neither previous nor target", async () => {
+  it("verifies redundant material kind and blob length before accepting a duplicate", async () => {
     const root = await makeRoot();
-    const ids = new SequenceIds();
-    const clock = new FakeClock();
-    const initial = await open(root, ids, clock);
-    const created = await initial.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
-    const facts = stores(root);
-    const previous = await facts.states.read(created.subject.id);
-    const input = existingInput(created.subject.id, [material(2)]);
-    const crashed = await open(root, ids, clock, {
-      ingestHooks: { afterPrepared: failOnce() },
-    });
-    await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(2) })).rejects.toThrow(
-      "simulated process crash",
+    let composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    composition.close();
+    compositions.splice(compositions.indexOf(composition), 1);
+
+    let database = new DatabaseSync(join(root, "store.sqlite3"));
+    database.prepare("UPDATE materials SET kind = 'document'").run();
+    database.close();
+    composition = await open(root);
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
     );
-    const prepared = await facts.transactions.read(request(2));
-    if (prepared.transactionKind !== "ingest") throw new Error("Expected an ingest journal.");
+    composition.close();
+    compositions.splice(compositions.indexOf(composition), 1);
 
-    if (previous.materialSetHash === undefined) {
-      throw new Error("Expected a non-empty previous material set.");
-    }
-    const thirdState = sealFact<SubjectStateRecord>({
-      schemaVersion: 2,
-      subjectId: previous.subjectId,
-      generation: previous.generation + 1,
-      materialSetHash: previous.materialSetHash,
-      materialManifest: previous.materialManifest,
-      ...(previous.currentVersionId === undefined
-        ? {}
-        : { currentVersionId: previous.currentVersionId }),
-      ...(previous.suspendedVersionId === undefined
-        ? {}
-        : { suspendedVersionId: previous.suspendedVersionId }),
-    });
-    expect(thirdState.checksum).not.toBe(previous.checksum);
-    expect(thirdState.checksum).not.toBe(prepared.targetStateChecksum);
-    await facts.states.write(thirdState);
-
-    await rejectCode(open(root, ids, clock), "storage_corrupt");
-    await expect(facts.transactions.read(request(2))).resolves.toMatchObject({
-      state: "prepared",
-    });
-    await expect(facts.operations.readOptional(request(2))).resolves.toBeUndefined();
+    database = new DatabaseSync(join(root, "store.sqlite3"));
+    database.prepare("UPDATE materials SET kind = 'web'").run();
+    database.prepare("UPDATE blobs SET byte_length = byte_length + 1").run();
+    database.close();
+    composition = await open(root);
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(3),
+      }),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (authority) => ({
+        operations: scalar(authority, "SELECT count(*) FROM operations"),
+        events: scalar(authority, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ operations: 1, events: 3 });
   });
 
-  it.each(["afterOperation", "afterEvent", "afterQueue"] as const)(
-    "idempotently finishes post-commit recovery after %s",
-    async (point) => {
-      const root = await makeRoot();
-      const ids = new SequenceIds();
-      const clock = new FakeClock();
-      const hook = failOnce();
-      const recoveryHooks: RecoveryHooks =
-        point === "afterEvent" ? { afterEvent: hook } : { [point]: hook };
-      const crashed = await open(root, ids, clock, { recoveryHooks });
-      const input = createInput();
-      await expect(crashed.ingest.ingest(input, ACTOR, { requestId: request(1) })).rejects.toThrow(
-        "simulated process crash",
-      );
+  it("fails closed when stored fact, identity semantics, or immutable blob bytes are corrupt", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const digest = first.items[0]!.contentDigest;
+    composition.close();
+    compositions.splice(compositions.indexOf(composition), 1);
 
-      clock.current = "2026-08-20T10:29:59.000Z" as IsoDateTime;
-      const published: EngineEvent[] = [];
-      const recovered = await open(root, ids, clock, { published });
-      const result = await recovered.ingest.ingest(input, ACTOR, { requestId: request(1) });
-      expect(result).toMatchObject({ kind: "ingested", created: true, generation: 1 });
-      expect(await stores(root).operations.read(request(1))).toMatchObject({ result });
-      expect(await stores(root).transactions.read(request(1))).toMatchObject({
-        state: "committed",
-        finishedAt: AT,
-      });
-      const eventFiles = await readdir(
-        join(stores(root).layout.subjectDirectory(result.subject.id), "events"),
-      );
-      expect(eventFiles).toHaveLength(3);
-      expect(queueRows(root)).toEqual([
-        expect.objectContaining({ job_id: result.job?.id, subject_id: result.subject.id }),
-      ]);
-      expect(published.map((event) => event.kind)).toEqual([
-        "subject.created",
-        "material.ingested",
-        "job.changed",
-      ]);
-    },
-  );
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    const originalRecord = String(
+      database.prepare("SELECT record_json FROM materials").get()?.record_json,
+    );
+    const originalIdentity = String(
+      database.prepare("SELECT identity_json FROM materials").get()?.identity_json,
+    );
+    const tamperedRecord = JSON.parse(originalRecord) as { source: { title?: string } };
+    tamperedRecord.source.title = "Tampered without resealing";
+    database.prepare("UPDATE materials SET record_json = ?").run(JSON.stringify(tamperedRecord));
+    database.close();
+    const badChecksum = await open(root);
+    await expectCode(
+      badChecksum.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
+    );
+    badChecksum.close();
+    compositions.splice(compositions.indexOf(badChecksum), 1);
 
-  it.each([
-    ["deleted", async (layout: Layout) => unlink(layout.queueDatabaseFile())],
-    [
-      "dirty",
-      async (layout: Layout) =>
-        writeFile(layout.queueDirtyFile(), '{"projection":"queue","schemaVersion":1}\n', {
-          mode: 0o600,
+    const identityDatabase = new DatabaseSync(join(root, "store.sqlite3"));
+    identityDatabase
+      .prepare("UPDATE materials SET record_json = ?, identity_json = '{}'")
+      .run(originalRecord);
+    identityDatabase.close();
+    const reopened = await open(root);
+    await expectCode(
+      reopened.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(3),
+      }),
+      "storage_corrupt",
+    );
+    reopened.close();
+    compositions.splice(compositions.indexOf(reopened), 1);
+
+    const hexadecimal = digest.slice("sha256_".length);
+    const repair = new DatabaseSync(join(root, "store.sqlite3"));
+    repair.prepare("UPDATE materials SET identity_json = ?").run(originalIdentity);
+    repair.close();
+    await writeFile(join(root, "blobs", "sha256", hexadecimal.slice(0, 2), digest), "bad");
+    const blobCorrupt = await open(root);
+    await expectCode(
+      blobCorrupt.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(4),
+      }),
+      "storage_corrupt",
+    );
+    expect(await readFile(join(root, "store.sqlite3"))).not.toHaveLength(0);
+  });
+
+  it("fails closed without repairing a referenced blob missing from disk", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const digest = first.items[0]!.contentDigest;
+    const hexadecimal = digest.slice("sha256_".length);
+    const target = join(root, "blobs", "sha256", hexadecimal.slice(0, 2), digest);
+    await rm(target);
+
+    await expectCode(
+      composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+        requestId: request(2),
+      }),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ materials: 1, operations: 1, events: 3 });
+    await expect(readFile(target, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+
+    const concurrent = await Promise.all([
+      expectCode(
+        composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+          requestId: request(3),
         }),
-    ],
-    ["corrupt", async (layout: Layout) => writeFile(layout.queueDatabaseFile(), "not sqlite")],
-  ] as const)(
-    "rebuilds a %s queue database from authoritative pending markers",
-    async (_kind, damage) => {
-      const root = await makeRoot();
-      const ids = new SequenceIds();
-      const clock = new FakeClock();
-      const composition = await open(root, ids, clock);
-      const result = await composition.ingest.ingest(createInput(), ACTOR, {
-        requestId: request(1),
-      });
-      await damage(new Layout(root));
+        "storage_corrupt",
+      ),
+      expectCode(
+        composition.ingest.ingest(existingInput(first.subject.id, [material(1)]), ACTOR, {
+          requestId: request(4),
+        }),
+        "storage_corrupt",
+      ),
+    ]);
+    expect(concurrent).toHaveLength(2);
+    expect(
+      inspect(root, (database) => ({
+        materials: scalar(database, "SELECT count(*) FROM materials"),
+        operations: scalar(database, "SELECT count(*) FROM operations"),
+        events: scalar(database, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ materials: 1, operations: 1, events: 3 });
+    await expect(readFile(target, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
 
-      await open(root, ids, clock);
-      expect(queueRows(root)).toEqual([
-        expect.objectContaining({ subject_id: result.subject.id, job_id: result.job?.id }),
-      ]);
-    },
-  );
+  it("fails closed without recreating a blob authority row required by existing material", async () => {
+    const root = await makeRoot();
+    const composition = await open(root);
+    const first = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
+    const grace = await composition.subjects.create(
+      {
+        displayName: "Grace",
+        identityHints: [{ kind: "account", provider: "x", handle: "grace" }],
+      },
+      ACTOR,
+      { requestId: request(2) },
+    );
+    const database = new DatabaseSync(join(root, "store.sqlite3"));
+    try {
+      database.exec("PRAGMA foreign_keys = OFF");
+      database.prepare("DELETE FROM blobs WHERE digest = ?").run(first.items[0]!.contentDigest);
+    } finally {
+      database.close();
+    }
+
+    await expectCode(
+      composition.ingest.ingest(
+        existingInput(grace.id, [material(2, { content: material(1).content })]),
+        ACTOR,
+        { requestId: request(3) },
+      ),
+      "storage_corrupt",
+    );
+    expect(
+      inspect(root, (sqlite) => ({
+        subjects: scalar(sqlite, "SELECT count(*) FROM subjects"),
+        blobs: scalar(sqlite, "SELECT count(*) FROM blobs"),
+        materials: scalar(sqlite, "SELECT count(*) FROM materials"),
+        operations: scalar(sqlite, "SELECT count(*) FROM operations"),
+        events: scalar(sqlite, "SELECT count(*) FROM events"),
+      })),
+    ).toEqual({ subjects: 2, blobs: 0, materials: 1, operations: 2, events: 4 });
+  });
 });

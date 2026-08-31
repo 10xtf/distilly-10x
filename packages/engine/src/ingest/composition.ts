@@ -1,323 +1,74 @@
-import { DistillyError } from "@distilly/protocol";
-import type { FactChecksum, PendingJobMarker, SubjectId } from "@distilly/protocol";
-
 import { CryptoIdGenerator } from "../defaults/crypto-id-generator.js";
 import { InProcessEventBus } from "../defaults/in-process-event-bus.js";
 import type { Clock } from "../defaults/system-clock.js";
 import { SystemClock } from "../defaults/system-clock.js";
-import type { DistillLeaseServiceHooks } from "../distill/lease-service.js";
-import { DistillLeaseService } from "../distill/lease-service.js";
-import type { CommitServiceHooks } from "../distill/commit-service.js";
-import { CommitService } from "../distill/commit-service.js";
-import { PromptCatalog } from "../distill/prompt-catalog.js";
-import { FileEventStore } from "../facts/event-store.js";
-import { FileCurrentProfileProjection } from "../facts/current-profile-projection.js";
-import { FileMaterialStore } from "../facts/material-store.js";
-import { FileOperationStore } from "../facts/operation-store.js";
-import { FileSpaceStore } from "../facts/space-store.js";
-import { FileStateStore } from "../facts/state-store.js";
-import { FileSubjectStore } from "../facts/subject-store.js";
-import { FileTransactionStore } from "../facts/transaction-store.js";
-import { FileVersionManifestStore } from "../facts/version-manifest-store.js";
-import { FileVersionStore } from "../facts/version-store.js";
-import { Layout } from "../layout.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
-import type { JsonLibraryProjectionHooks } from "../projection/json-library-projection.js";
-import { JsonLibraryProjection } from "../projection/json-library-projection.js";
-import { LibraryCoordinatedSubjectLock } from "../projection/library-coordinated-subject-lock.js";
-import { LibraryService } from "../projection/library-service.js";
-import { ProjectionService } from "../projection/projection-service.js";
-import type { SqliteQueueRepositoryHooks } from "../queue/sqlite-projection.js";
-import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
-import { MaterialQueryService } from "../material/query-service.js";
-import { ProfileService } from "../profile/service.js";
-import { CommittedVersionReader } from "../read/committed-version-reader.js";
-import { ReviewQueryService } from "../review/query-service.js";
-import type { ReviewServiceHooks } from "../review/service.js";
-import { ReviewService } from "../review/service.js";
-import { SubjectService } from "../subject/service.js";
-import { FileIngestStaging } from "../transaction/ingest-staging.js";
-import { RecoveryService } from "../transaction/recovery.js";
-import type { RecoveryHooks } from "../transaction/recovery.js";
-import { FileRequestLock } from "../transaction/request-lock.js";
-import { FileSpaceCatalogLock } from "../transaction/space-catalog-lock.js";
-import { FileSpaceIdentityLock } from "../transaction/space-identity-lock.js";
-import { FileSubjectLock } from "../transaction/subject-lock.js";
-import type { VersionStagingHooks } from "../transaction/version-staging.js";
-import { FileVersionStaging } from "../transaction/version-staging.js";
-import { VersionService } from "../version/service.js";
+import { ContentAddressedBlobStore } from "../storage/content-addressed-blob-store.js";
+import { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
+import type { SubjectCreateServiceHooks } from "../subject/service.js";
+import { SubjectCreateService } from "../subject/service.js";
 import { IngestService } from "./service.js";
 import type { IngestServiceHooks } from "./service.js";
 
-/** Trusted seams used only by the package-internal Engine composition. */
+/** Trusted seams used only by the package-private SQLite create/ingest composition. */
 export interface InternalEngineCompositionOptions {
   readonly root: string;
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
   readonly eventBus?: EventBus;
+  readonly subjectHooks?: SubjectCreateServiceHooks;
   readonly ingestHooks?: IngestServiceHooks;
-  readonly recoveryHooks?: RecoveryHooks;
-  readonly queueHooks?: SqliteQueueRepositoryHooks;
-  readonly leaseHooks?: DistillLeaseServiceHooks;
-  readonly commitHooks?: CommitServiceHooks;
-  readonly reviewHooks?: ReviewServiceHooks;
-  readonly libraryHooks?: JsonLibraryProjectionHooks;
-  readonly versionStagingHooks?: VersionStagingHooks;
-  readonly promptCatalog?: PromptCatalog;
 }
 
-/** Runnable internal V3 slices without claiming the full EngineRuntime API. */
+/** Runnable SQLite create/ingest slice without claiming the full EngineRuntime API. */
 export interface InternalEngineComposition {
+  readonly subjects: SubjectCreateService;
   readonly ingest: IngestService;
-  readonly leases: DistillLeaseService;
-  readonly commits: CommitService;
-  readonly review: ReviewService;
-  readonly materials: MaterialQueryService;
-  readonly profiles: ProfileService;
-  readonly versions: VersionService;
-  readonly reviews: ReviewQueryService;
-  readonly library: LibraryService;
-  readonly libraryProjection: ProjectionService;
-  readonly recovery: RecoveryService;
+  readonly blobs: ContentAddressedBlobStore;
   readonly events: EventBus;
+  close(): void;
 }
-
-const rebuildQueueSeeds = async function* (
-  subjects: FileSubjectStore,
-  states: FileStateStore,
-): AsyncGenerator<{
-  readonly subjectId: SubjectId;
-  readonly stateChecksum: FactChecksum;
-  readonly pending?: PendingJobMarker;
-}> {
-  for (const subject of await subjects.listAll()) {
-    const state = await states.read(subject.id);
-    yield {
-      subjectId: subject.id,
-      stateChecksum: state.checksum,
-      ...(state.pending === undefined ? {} : { pending: state.pending }),
-    };
-  }
-};
 
 /**
- * Opens the implemented internal Engine slices and reconciles them before use.
+ * Opens the first single-writer SQLite business-method slice.
  *
- * This module is deliberately absent from the package root. It proves the vertical
- * slice without exposing a partial CoreEngineClient or createEngine contract.
- *
- * @param options - Local root and optional deterministic test seams.
- * @returns The initialized internal ingest and recovery services.
+ * @param options - Root path and trusted composition seams.
+ * @returns The runnable create/ingest slice and its owned close operation.
  */
 export const createInternalEngineComposition = async (
   options: InternalEngineCompositionOptions,
 ): Promise<InternalEngineComposition> => {
-  const layout = new Layout(options.root);
-  const clock = options.clock ?? new SystemClock();
-  const ids = options.ids ?? new CryptoIdGenerator();
-  const eventBus = options.eventBus ?? new InProcessEventBus();
-  const spaces = new FileSpaceStore(layout);
-  const subjects = new FileSubjectStore(layout, spaces);
-  const materials = new FileMaterialStore(layout, subjects);
-  const states = new FileStateStore(layout, subjects, materials);
-  const versions = new FileVersionManifestStore(layout, materials);
-  const completeVersions = new FileVersionStore(layout, materials);
-  const versionStaging = new FileVersionStaging(
-    layout,
-    completeVersions,
-    options.versionStagingHooks,
-  );
-  const currentProfiles = new FileCurrentProfileProjection(layout, completeVersions);
-  const operations = new FileOperationStore(layout, subjects);
-  const transactions = new FileTransactionStore(layout);
-  const events = new FileEventStore(layout, subjects);
-  const staging = new FileIngestStaging(layout, spaces);
-  const requestLocks = new FileRequestLock(layout, clock);
-  const spaceCatalogLocks = new FileSpaceCatalogLock(layout, clock);
-  const spaceIdentityLocks = new FileSpaceIdentityLock(layout, clock);
-  const readSubjectLocks = new FileSubjectLock(layout, clock);
-  const queue = new SqliteQueueRepository(
-    {
-      root: layout.root,
-      indexDirectory: layout.indexDirectory(),
-      databaseFile: layout.queueDatabaseFile(),
-      dirtyFile: layout.queueDirtyFile(),
-    },
-    options.queueHooks,
-  );
-  const libraryIndex = new JsonLibraryProjection(layout, clock, options.libraryHooks);
-  const subjectLocks = new LibraryCoordinatedSubjectLock(layout, libraryIndex, clock);
-  const recoverySubjectLocks = new LibraryCoordinatedSubjectLock(
-    layout,
-    libraryIndex,
-    clock,
-    "recovery",
-  );
-  const libraryProjection: ProjectionService = new ProjectionService({
-    spaces,
-    subjects,
-    states,
-    materials,
-    versions: completeVersions,
-    events,
-    projection: libraryIndex,
-    reconcile: async (): Promise<void> => {
-      await recovery.reconcilePending();
-    },
-  });
-  const recovery = new RecoveryService({
-    transactions,
-    operations,
-    spaces,
-    subjects,
-    states,
-    materials,
-    events,
-    versions: completeVersions,
-    versionStaging,
-    currentProfiles,
-    staging,
-    requestLocks,
-    spaceIdentityLocks,
-    subjectLocks: recoverySubjectLocks,
-    queue,
-    library: libraryProjection,
-    eventBus,
-    clock,
-    ...(options.recoveryHooks === undefined ? {} : { hooks: options.recoveryHooks }),
-  });
-  const subjectService = new SubjectService(
-    spaces,
-    subjects,
-    states,
-    spaceCatalogLocks,
-    spaceIdentityLocks,
-    ids,
-  );
-  const committedVersions = new CommittedVersionReader({
-    spaces,
-    subjects,
-    states,
-    materials,
-    versions: completeVersions,
-    events,
-    subjectLocks: readSubjectLocks,
-    reconcile: () => recovery.reconcilePending().then(() => undefined),
-    writerPending: () => libraryIndex.hasWriterIntent(),
-  });
-  const ingest = new IngestService({
-    spaces,
-    subjects,
-    states,
-    materials,
-    versions,
-    operations,
-    transactions,
-    staging,
-    requestLocks,
-    spaceIdentityLocks,
-    subjectLocks,
-    subjectService,
-    recovery,
-    ids,
-    clock,
-    eventBus,
-    ...(options.ingestHooks === undefined ? {} : { hooks: options.ingestHooks }),
-  });
-  const promptCatalog = options.promptCatalog ?? new PromptCatalog();
-  const leases = new DistillLeaseService({
-    spaces,
-    subjects,
-    states,
-    materials,
-    versions: completeVersions,
-    operations,
-    transactions,
-    requestLocks,
-    subjectLocks,
-    queue,
-    recovery,
-    promptCatalog,
-    ids,
-    clock,
-    eventBus,
-    ...(options.leaseHooks === undefined ? {} : { hooks: options.leaseHooks }),
-  });
-  const commits = new CommitService({
-    subjects,
-    states,
-    materials,
-    versions: completeVersions,
-    versionStaging,
-    operations,
-    transactions,
-    requestLocks,
-    subjectLocks,
-    queue,
-    recovery,
-    promptCatalog,
-    ids,
-    clock,
-    eventBus,
-    ...(options.commitHooks === undefined ? {} : { hooks: options.commitHooks }),
-  });
-  const review = new ReviewService({
-    subjects,
-    states,
-    materials,
-    versions: completeVersions,
-    versionStaging,
-    operations,
-    transactions,
-    events,
-    requestLocks,
-    subjectLocks,
-    recovery,
-    ids,
-    clock,
-    eventBus,
-    ...(options.reviewHooks === undefined ? {} : { hooks: options.reviewHooks }),
-  });
-  const materialQueries = new MaterialQueryService({
-    materials,
-    committedVersions,
-  });
-  const profiles = new ProfileService({
-    committedVersions,
-  });
-  const versionQueries = new VersionService({
-    committedVersions,
-  });
-  const reviews = new ReviewQueryService({
-    subjects,
-    committedVersions,
-  });
-  const library = new LibraryService({
-    projection: libraryIndex,
-    reconcile: () => recovery.reconcilePending().then(() => undefined),
-  });
-
+  const store = await SqliteEngineStore.open(options.root);
   try {
-    await queue.verifyAvailable();
+    const blobs = await ContentAddressedBlobStore.open(options.root);
+    const eventBus = options.eventBus ?? new InProcessEventBus();
+    const ids = options.ids ?? new CryptoIdGenerator();
+    const clock = options.clock ?? new SystemClock();
+    const subjects = new SubjectCreateService({
+      store,
+      ids,
+      clock,
+      eventBus,
+      ...(options.subjectHooks === undefined ? {} : { hooks: options.subjectHooks }),
+    });
+    const ingest = new IngestService({
+      store,
+      blobs,
+      ids,
+      clock,
+      eventBus,
+      ...(options.ingestHooks === undefined ? {} : { hooks: options.ingestHooks }),
+    });
+    return {
+      subjects,
+      ingest,
+      blobs,
+      events: eventBus,
+      close: () => store.close(),
+    };
   } catch (error) {
-    if (!(error instanceof DistillyError) || error.code !== "index_unavailable") throw error;
-    await queue.rebuild(() => rebuildQueueSeeds(subjects, states), clock.now());
+    store.close();
+    throw error;
   }
-  await recovery.reconcileAll();
-  await queue.verifyAvailable();
-  return {
-    ingest,
-    leases,
-    commits,
-    review,
-    materials: materialQueries,
-    profiles,
-    versions: versionQueries,
-    reviews,
-    library,
-    libraryProjection,
-    recovery,
-    events: eventBus,
-  };
 };

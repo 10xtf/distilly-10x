@@ -44,11 +44,11 @@ import { FileStateStore } from "../facts/state-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
 import { FileVersionStore } from "../facts/version-store.js";
-import { createInternalEngineComposition } from "../ingest/composition.js";
 import type {
-  InternalEngineComposition,
-  InternalEngineCompositionOptions,
-} from "../ingest/composition.js";
+  LegacyFileEngineTestSupport,
+  LegacyFileEngineTestSupportOptions,
+} from "../testing/legacy-file-engine.test.fixture.js";
+import { createLegacyFileEngineTestSupport } from "../testing/legacy-file-engine.test.fixture.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import type { VersionStagingArtifactLabel } from "../transaction/version-staging.js";
@@ -160,12 +160,12 @@ const open = async (
   root: string,
   ids: SequenceIds,
   clock: FakeClock,
-  options: Omit<InternalEngineCompositionOptions, "root" | "ids" | "clock"> = {},
-): Promise<InternalEngineComposition> =>
-  createInternalEngineComposition({ root, ids, clock, ...options });
+  options: Omit<LegacyFileEngineTestSupportOptions, "root" | "ids" | "clock"> = {},
+): Promise<LegacyFileEngineTestSupport> =>
+  createLegacyFileEngineTestSupport({ root, ids, clock, ...options });
 
 const commitInput = (
-  briefing: Awaited<ReturnType<InternalEngineComposition["leases"]["brief"]>>,
+  briefing: Awaited<ReturnType<LegacyFileEngineTestSupport["leases"]["brief"]>>,
   patch: CommitInput["patch"],
 ): CommitInput => ({
   jobId: briefing.job.id,
@@ -369,7 +369,7 @@ const oversizedPatch = (): CommitInput["patch"] => {
   return oversized;
 };
 
-const setupLease = async (composition: InternalEngineComposition) => {
+const setupLease = async (composition: LegacyFileEngineTestSupport) => {
   const ingest = await composition.ingest.ingest(createInput(), ACTOR, { requestId: request(1) });
   if (ingest.job === undefined) throw new Error("Expected enqueue=now to create a job.");
   const briefing = await composition.leases.brief({ jobId: ingest.job.id }, session(), {
@@ -613,7 +613,7 @@ const failOnCall = (target: number): (() => void) => {
 
 const postStateRecoveryCases: readonly {
   readonly label: string;
-  readonly options: () => Omit<InternalEngineCompositionOptions, "root" | "ids" | "clock">;
+  readonly options: () => Omit<LegacyFileEngineTestSupportOptions, "root" | "ids" | "clock">;
 }[] = [
   {
     label: "state commit point",

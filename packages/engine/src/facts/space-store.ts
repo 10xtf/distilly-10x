@@ -17,28 +17,6 @@ const isFileCollision = (error: unknown): boolean =>
 
 const SPACE_FILE_PATTERN = /^(space_[0-9a-f]{32})\.json$/u;
 const SPACE_FILE_TEMP_PATTERN = /^\.space_[0-9a-f]{32}\.json\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp$/u;
-const LOCK_SUFFIX = String.raw`(?:\.transition)?(?:\.fence\.[0-9]+-[0-9]+-[0-9a-f]{32}|\.retired\.[0-9a-f]{32})?`;
-const SPACE_LOCK_PATTERN = new RegExp(
-  String.raw`^space_[0-9a-f]{32}\.identity\.lock${LOCK_SUFFIX}$`,
-  "u",
-);
-const CATALOG_LOCK_PATTERN = new RegExp(String.raw`^\.catalog\.lock${LOCK_SUFFIX}$`, "u");
-const ATOMIC_DIRECTORY_TEMP_SUFFIX = String.raw`(?:\.transition)?\.[1-9][0-9]*\.[0-9a-f]{16}\.tmp`;
-const SPACE_LOCK_TEMP_PATTERN = new RegExp(
-  String.raw`^\.space_[0-9a-f]{32}\.identity\.lock${ATOMIC_DIRECTORY_TEMP_SUFFIX}$`,
-  "u",
-);
-const CATALOG_LOCK_TEMP_PATTERN = new RegExp(
-  String.raw`^\.\.catalog\.lock${ATOMIC_DIRECTORY_TEMP_SUFFIX}$`,
-  "u",
-);
-
-const isKnownLockEntry = (name: string): boolean =>
-  SPACE_LOCK_PATTERN.test(name) ||
-  CATALOG_LOCK_PATTERN.test(name) ||
-  SPACE_LOCK_TEMP_PATTERN.test(name) ||
-  CATALOG_LOCK_TEMP_PATTERN.test(name);
-
 const assertBuiltinPeopleRecord = (record: SpaceRecord): void => {
   if (
     record.id === BUILTIN_PEOPLE_SPACE_ID &&
@@ -126,7 +104,6 @@ export class FileSpaceStore {
         records.push(await this.read(spaceIdSchema.parse(match[1])));
         continue;
       }
-      if (isKnownLockEntry(entry.name) && entry.kind === "directory") continue;
       if (SPACE_FILE_TEMP_PATTERN.test(entry.name) && entry.kind === "file") continue;
       throw storageCorrupt("Spaces directory contains an unknown entry.");
     }

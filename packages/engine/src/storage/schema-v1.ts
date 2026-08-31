@@ -1,0 +1,304 @@
+import type { DatabaseSync } from "node:sqlite";
+
+import { schemaUnsupported, storageCorrupt } from "../internal-errors.js";
+
+/** First private SQLite authority schema shipped by the TypeScript engine. */
+export const SQLITE_STORAGE_SCHEMA_VERSION = 1;
+
+interface SchemaObject {
+  readonly type: "index" | "table";
+  readonly name: string;
+  readonly tableName: string;
+  readonly sql: string;
+}
+
+const table = (name: string, sql: string): SchemaObject => ({
+  type: "table",
+  name,
+  tableName: name,
+  sql,
+});
+
+const index = (name: string, tableName: string, sql: string): SchemaObject => ({
+  type: "index",
+  name,
+  tableName,
+  sql,
+});
+
+const SCHEMA_OBJECTS = [
+  table(
+    "spaces",
+    `CREATE TABLE spaces (
+  id TEXT PRIMARY KEY NOT NULL,
+  display_name TEXT NOT NULL,
+  canonical_label TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('people', 'fictional', 'custom')),
+  CHECK (length(display_name) > 0),
+  CHECK (length(canonical_label) > 0)
+) STRICT`,
+  ),
+  table(
+    "subjects",
+    `CREATE TABLE subjects (
+  id TEXT PRIMARY KEY NOT NULL,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE RESTRICT,
+  display_name TEXT NOT NULL,
+  canonical_label TEXT NOT NULL,
+  domain_pack TEXT,
+  lifecycle TEXT NOT NULL CHECK (lifecycle IN ('active', 'archived')),
+  CHECK (length(display_name) > 0),
+  CHECK (length(canonical_label) > 0)
+) STRICT`,
+  ),
+  table(
+    "subject_aliases",
+    `CREATE TABLE subject_aliases (
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  alias TEXT NOT NULL,
+  canonical_label TEXT NOT NULL,
+  PRIMARY KEY (subject_id, canonical_label),
+  CHECK (length(alias) > 0),
+  CHECK (length(canonical_label) > 0)
+) STRICT`,
+  ),
+  table(
+    "subject_identity_hints",
+    `CREATE TABLE subject_identity_hints (
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  hint_key TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('url', 'account', 'external_id', 'description')),
+  provider TEXT,
+  value TEXT NOT NULL,
+  locator_key TEXT,
+  PRIMARY KEY (subject_id, hint_key),
+  CHECK (length(hint_key) > 0),
+  CHECK (length(value) > 0),
+  CHECK (
+    (kind = 'url' AND provider IS NULL AND locator_key IS NOT NULL) OR
+    (kind IN ('account', 'external_id') AND provider IS NOT NULL AND locator_key IS NOT NULL) OR
+    (kind = 'description' AND provider IS NULL AND locator_key IS NULL)
+  )
+) STRICT`,
+  ),
+  table(
+    "subject_states",
+    `CREATE TABLE subject_states (
+  subject_id TEXT PRIMARY KEY NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  generation INTEGER NOT NULL CHECK (generation >= 0 AND generation <= 9007199254740991),
+  material_set_hash TEXT,
+  current_version_id TEXT,
+  suspended_version_id TEXT,
+  CHECK (
+    (generation = 0 AND material_set_hash IS NULL) OR
+    (generation > 0 AND material_set_hash IS NOT NULL)
+  ),
+  CHECK (current_version_id IS NULL AND suspended_version_id IS NULL)
+) STRICT`,
+  ),
+  table(
+    "blobs",
+    `CREATE TABLE blobs (
+  digest TEXT PRIMARY KEY NOT NULL,
+  byte_length INTEGER NOT NULL CHECK (byte_length >= 0 AND byte_length <= 9007199254740991)
+) STRICT`,
+  ),
+  table(
+    "materials",
+    `CREATE TABLE materials (
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  material_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (
+    kind IN ('web', 'document', 'message', 'email', 'transcript', 'derived_text', 'correction')
+  ),
+  content_digest TEXT NOT NULL,
+  provenance_digest TEXT NOT NULL,
+  source_identity BLOB NOT NULL,
+  record_json TEXT NOT NULL CHECK (json_valid(record_json)),
+  identity_json TEXT NOT NULL CHECK (json_valid(identity_json)),
+  blob_digest TEXT NOT NULL REFERENCES blobs(digest) ON DELETE RESTRICT,
+  stored_at TEXT NOT NULL,
+  PRIMARY KEY (subject_id, material_id),
+  CHECK (length(source_identity) > 0),
+  CHECK (blob_digest = content_digest)
+) STRICT`,
+  ),
+  table(
+    "pending_jobs",
+    `CREATE TABLE pending_jobs (
+  subject_id TEXT PRIMARY KEY NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL UNIQUE,
+  generation INTEGER NOT NULL CHECK (generation >= 0 AND generation <= 9007199254740991),
+  base_version_id TEXT,
+  material_set_hash TEXT NOT NULL,
+  added_material_count INTEGER NOT NULL CHECK (
+    added_material_count > 0 AND added_material_count <= 9007199254740991
+  ),
+  total_material_count INTEGER NOT NULL CHECK (
+    total_material_count >= 0 AND total_material_count <= 9007199254740991
+  ),
+  queued_at TEXT NOT NULL,
+  CHECK (added_material_count <= total_material_count)
+) STRICT`,
+  ),
+  table(
+    "operations",
+    `CREATE TABLE operations (
+  request_id TEXT PRIMARY KEY NOT NULL,
+  method TEXT NOT NULL,
+  scope_subject_id TEXT REFERENCES subjects(id) ON DELETE SET NULL,
+  actor_json TEXT NOT NULL CHECK (json_valid(actor_json)),
+  input_checksum TEXT NOT NULL,
+  result_json TEXT NOT NULL CHECK (json_valid(result_json)),
+  completed_at TEXT NOT NULL,
+  CHECK (length(method) > 0)
+) STRICT`,
+  ),
+  table(
+    "events",
+    `CREATE TABLE events (
+  sequence INTEGER PRIMARY KEY AUTOINCREMENT CHECK (sequence <= 9007199254740991),
+  event_id TEXT NOT NULL UNIQUE,
+  request_id TEXT NOT NULL REFERENCES operations(request_id) ON DELETE RESTRICT,
+  subject_id TEXT REFERENCES subjects(id) ON DELETE SET NULL,
+  actor_json TEXT NOT NULL CHECK (json_valid(actor_json)),
+  event_json TEXT NOT NULL CHECK (json_valid(event_json)),
+  occurred_at TEXT NOT NULL
+) STRICT`,
+  ),
+  index(
+    "space_kind_label_unique",
+    "spaces",
+    "CREATE UNIQUE INDEX space_kind_label_unique ON spaces(kind, canonical_label)",
+  ),
+  index(
+    "subject_name_lookup",
+    "subjects",
+    "CREATE INDEX subject_name_lookup ON subjects(space_id, canonical_label, id)",
+  ),
+  index(
+    "subject_alias_lookup",
+    "subject_aliases",
+    "CREATE INDEX subject_alias_lookup ON subject_aliases(canonical_label, subject_id)",
+  ),
+  index(
+    "subject_identity_locator_unique",
+    "subject_identity_hints",
+    `CREATE UNIQUE INDEX subject_identity_locator_unique
+ON subject_identity_hints(locator_key)
+WHERE locator_key IS NOT NULL`,
+  ),
+  index(
+    "material_id_lookup",
+    "materials",
+    "CREATE INDEX material_id_lookup ON materials(material_id, subject_id)",
+  ),
+  index(
+    "pending_job_order",
+    "pending_jobs",
+    "CREATE INDEX pending_job_order ON pending_jobs(queued_at, job_id)",
+  ),
+  index(
+    "operation_subject_lookup",
+    "operations",
+    "CREATE INDEX operation_subject_lookup ON operations(scope_subject_id, completed_at, request_id)",
+  ),
+  index(
+    "event_subject_sequence",
+    "events",
+    "CREATE INDEX event_subject_sequence ON events(subject_id, sequence)",
+  ),
+] as const satisfies readonly SchemaObject[];
+
+interface SchemaRow {
+  readonly type: unknown;
+  readonly name: unknown;
+  readonly tbl_name: unknown;
+  readonly sql: unknown;
+}
+
+const readUserVersion = (database: DatabaseSync): number => {
+  const row = database.prepare("PRAGMA user_version").get() as
+    { readonly user_version?: unknown } | undefined;
+  if (typeof row?.user_version !== "number" || !Number.isSafeInteger(row.user_version)) {
+    throw storageCorrupt("SQLite storage schema version is unreadable.");
+  }
+  return row.user_version;
+};
+
+const readSchemaRows = (database: DatabaseSync): readonly SchemaRow[] =>
+  database
+    .prepare(
+      `SELECT type, name, tbl_name, sql
+       FROM sqlite_schema
+       WHERE name NOT GLOB 'sqlite_*'
+       ORDER BY type, name`,
+    )
+    .all() as unknown as readonly SchemaRow[];
+
+const sortedExpectedSchema = (): readonly SchemaObject[] =>
+  [...SCHEMA_OBJECTS].sort((left, right) => {
+    if (left.type !== right.type) return left.type < right.type ? -1 : 1;
+    return left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
+  });
+
+/**
+ * Creates schema v1 inside the caller's active write transaction.
+ *
+ * @param database - Open SQLite connection already configured by the store.
+ */
+export const createStorageSchemaV1 = (database: DatabaseSync): void => {
+  for (const object of SCHEMA_OBJECTS) database.exec(object.sql);
+  database.exec(`PRAGMA user_version = ${SQLITE_STORAGE_SCHEMA_VERSION}`);
+};
+
+/**
+ * Returns whether a version-zero database contains no Distilly schema objects.
+ *
+ * @param database - Open SQLite connection to inspect.
+ * @returns Whether schema v1 can be initialized without overwriting unknown data.
+ */
+export const isEmptyStorageDatabase = (database: DatabaseSync): boolean =>
+  readUserVersion(database) === 0 && readSchemaRows(database).length === 0;
+
+/**
+ * Verifies the exact private schema-v1 shape and relational integrity.
+ *
+ * @param database - Open SQLite connection configured with foreign keys enabled.
+ */
+export const verifyStorageSchemaV1 = (database: DatabaseSync): void => {
+  const version = readUserVersion(database);
+  if (version !== SQLITE_STORAGE_SCHEMA_VERSION) {
+    throw schemaUnsupported(`SQLite storage schema version ${String(version)} is unsupported.`);
+  }
+
+  const actual = readSchemaRows(database);
+  const expected = sortedExpectedSchema();
+  if (
+    actual.length !== expected.length ||
+    !expected.every((object, position) => {
+      const row = actual[position];
+      return (
+        row?.type === object.type &&
+        row.name === object.name &&
+        row.tbl_name === object.tableName &&
+        row.sql === object.sql
+      );
+    })
+  ) {
+    throw storageCorrupt("SQLite storage schema v1 does not match its canonical shape.");
+  }
+
+  const integrityRows = database.prepare("PRAGMA quick_check").all() as unknown as readonly Record<
+    string,
+    unknown
+  >[];
+  if (integrityRows.length !== 1 || integrityRows[0]?.quick_check !== "ok") {
+    throw storageCorrupt("SQLite storage failed its integrity check.");
+  }
+
+  const foreignKeyFailures = database.prepare("PRAGMA foreign_key_check").all();
+  if (foreignKeyFailures.length !== 0) {
+    throw storageCorrupt("SQLite storage contains invalid foreign-key references.");
+  }
+};

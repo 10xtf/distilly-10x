@@ -128,7 +128,7 @@ export class FileSubjectStore {
       this.#layout.root,
       this.#layout.subjectsDirectory(),
     )) {
-      if (entry.name === ".locks" || entry.name === ".staging") {
+      if (entry.name === ".locks") {
         if (entry.kind !== "directory") {
           throw storageCorrupt("Reserved subjects entry is not a real directory.");
         }

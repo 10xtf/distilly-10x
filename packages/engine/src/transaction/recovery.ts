@@ -7,7 +7,6 @@ import type {
   EngineEvent,
   EventId,
   EventRecord,
-  IngestTransactionRecord,
   IsoDateTime,
   OperationFact,
   PendingJob,
@@ -30,9 +29,7 @@ import type { Clock } from "../defaults/system-clock.js";
 import { digestBriefContract, digestDistillPatch } from "../facts/digests.js";
 import type { FileEventStore } from "../facts/event-store.js";
 import type { FileCurrentProfileProjection } from "../facts/current-profile-projection.js";
-import type { FileMaterialStore } from "../facts/material-store.js";
 import type { FileOperationStore } from "../facts/operation-store.js";
-import type { FileSpaceStore } from "../facts/space-store.js";
 import { computeFactChecksum, verifyFactChecksum } from "../facts/checksum.js";
 import { canonicalJson } from "../facts/canonical-json.js";
 import type { FileStateStore } from "../facts/state-store.js";
@@ -45,12 +42,9 @@ import { storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { QueueRepository } from "../queue/sqlite-projection.js";
 import { validateRollbackHistoricalCopy } from "../read/committed-version-reader.js";
-import type { FileIngestStaging } from "./ingest-staging.js";
 import type { FileRequestLock } from "./request-lock.js";
-import type { FileSpaceIdentityLock } from "./space-identity-lock.js";
 import type { FileSubjectLock } from "./subject-lock.js";
 import type { FileVersionStaging } from "./version-staging.js";
-import { summarizeSubject } from "../subject/service.js";
 
 /** Fault-injection hooks for idempotent post-commit recovery tests. */
 export interface RecoveryHooks {
@@ -123,40 +117,6 @@ const requiredVersion = async (
     }
     throw error;
   }
-};
-
-const terminalIngestTransaction = (
-  transaction: IngestTransactionRecord,
-  state: "committed" | "aborted",
-  finishedAt: IsoDateTime,
-): IngestTransactionRecord => {
-  const common = {
-    schemaVersion: 1,
-    transactionKind: "ingest",
-    requestId: transaction.requestId,
-    spaceId: transaction.spaceId,
-    subjectId: transaction.subjectId,
-    targetStateChecksum: transaction.targetStateChecksum,
-    newMaterials: transaction.newMaterials,
-    operation: transaction.operation,
-    events: transaction.events,
-    preparedAt: transaction.preparedAt,
-    ...(transaction.createdSubject
-      ? {
-          createdSubject: true,
-          targetSubjectChecksum: transaction.targetSubjectChecksum,
-        }
-      : {
-          createdSubject: false,
-          previousStateChecksum: transaction.previousStateChecksum,
-        }),
-    finishedAt,
-  } as const;
-  const payload = { ...common, state };
-  return transactionRecordSchema.parse({
-    ...payload,
-    checksum: computeFactChecksum(payload),
-  }) as IngestTransactionRecord;
 };
 
 const terminalLeaseTransaction = (
@@ -448,11 +408,6 @@ const transactionReferencesVersion = (
   versionId: VersionId,
 ): boolean => {
   switch (transaction.transactionKind) {
-    case "ingest":
-      return (
-        operationReferencesVersion(transaction.operation, versionId) ||
-        transaction.events.some((event) => eventReferencesVersion(event.event, versionId))
-      );
     case "distill_lease":
       return (
         pendingReferencesVersion(transaction.previousPending, versionId) ||
@@ -933,78 +888,6 @@ const assertLeaseState = (
   }
 };
 
-const assertTargetState = (
-  transaction: IngestTransactionRecord,
-  state: SubjectStateRecord,
-): void => {
-  if (
-    state.subjectId !== transaction.subjectId ||
-    state.generation !== transaction.operation.result.generation ||
-    state.materialSetHash !== transaction.operation.result.materialSetHash
-  ) {
-    throw storageCorrupt("Recovered state does not match the stored ingest result.");
-  }
-
-  const byId = new Map(state.materialManifest.map((entry) => [entry.materialId, entry]));
-  for (const item of transaction.operation.result.items) {
-    const target = byId.get(item.materialId);
-    if (target === undefined || target.contentDigest !== item.contentDigest) {
-      throw storageCorrupt("Recovered ingest result references material outside its target state.");
-    }
-  }
-  for (const entry of transaction.newMaterials) {
-    const target = byId.get(entry.materialId);
-    if (
-      target === undefined ||
-      target.contentDigest !== entry.contentDigest ||
-      target.provenanceDigest !== entry.provenanceDigest
-    ) {
-      throw storageCorrupt("Recovered state is missing a journal-owned material.");
-    }
-  }
-  if (
-    transaction.createdSubject &&
-    state.materialManifest.length !== transaction.newMaterials.length
-  ) {
-    throw storageCorrupt("A newly created subject contains material outside its ingest journal.");
-  }
-
-  const job = transaction.operation.result.job;
-  const pending = state.pending;
-  if ((job === undefined) !== (pending === undefined)) {
-    throw storageCorrupt("Recovered pending state does not match the stored ingest result.");
-  }
-  if (
-    job !== undefined &&
-    pending !== undefined &&
-    (job.id !== pending.jobId ||
-      job.subjectId !== state.subjectId ||
-      job.generation !== pending.generation ||
-      job.baseVersionId !== pending.baseVersionId ||
-      job.materialSetHash !== pending.materialSetHash ||
-      job.addedMaterialCount !== pending.addedMaterialCount ||
-      job.totalMaterialCount !== pending.totalMaterialCount ||
-      job.queuedAt !== pending.queuedAt ||
-      job.failure !== undefined)
-  ) {
-    throw storageCorrupt("Recovered pending marker does not match the stored ingest job.");
-  }
-  if (job !== undefined && pending !== undefined) {
-    const activeLease =
-      pending.lease !== undefined && transaction.operation.completedAt < pending.lease.expiresAt
-        ? pending.lease
-        : undefined;
-    if (
-      (activeLease === undefined &&
-        (job.state !== "pending" || job.leaseExpiresAt !== undefined)) ||
-      (activeLease !== undefined &&
-        (job.state !== "leased" || job.leaseExpiresAt !== activeLease.expiresAt))
-    ) {
-      throw storageCorrupt("Recovered ingest job lease state does not match its pending marker.");
-    }
-  }
-};
-
 /** Optional subject projection updated only after authoritative fact commit. */
 export interface SubjectProjection {
   apply(subjectId: SubjectId): Promise<"clean" | "dirty">;
@@ -1019,17 +902,13 @@ export interface SubjectProjection {
 export interface RecoveryDependencies {
   readonly transactions: FileTransactionStore;
   readonly operations: FileOperationStore;
-  readonly spaces: FileSpaceStore;
   readonly subjects: FileSubjectStore;
   readonly states: FileStateStore;
-  readonly materials: FileMaterialStore;
   readonly events: FileEventStore;
   readonly versions: FileVersionStore;
   readonly versionStaging: FileVersionStaging;
   readonly currentProfiles: FileCurrentProfileProjection;
-  readonly staging: FileIngestStaging;
   readonly requestLocks: FileRequestLock;
-  readonly spaceIdentityLocks: FileSpaceIdentityLock;
   readonly subjectLocks: FileSubjectLock;
   readonly queue: QueueRepository;
   readonly library?: SubjectProjection;
@@ -1038,21 +917,17 @@ export interface RecoveryDependencies {
   readonly hooks?: RecoveryHooks;
 }
 
-/** Reconciles prepared ingest, lease, and commit journals without regenerating semantic output. */
+/** Reconciles prepared lease, commit, review, and rollback journals. */
 export class RecoveryService {
   readonly #transactions: FileTransactionStore;
   readonly #operations: FileOperationStore;
-  readonly #spaces: FileSpaceStore;
   readonly #subjects: FileSubjectStore;
   readonly #states: FileStateStore;
-  readonly #materials: FileMaterialStore;
   readonly #events: FileEventStore;
   readonly #versions: FileVersionStore;
   readonly #versionStaging: FileVersionStaging;
   readonly #currentProfiles: FileCurrentProfileProjection;
-  readonly #staging: FileIngestStaging;
   readonly #requestLocks: FileRequestLock;
-  readonly #spaceIdentityLocks: FileSpaceIdentityLock;
   readonly #subjectLocks: FileSubjectLock;
   readonly #queue: QueueRepository;
   readonly #library: SubjectProjection | undefined;
@@ -1068,17 +943,13 @@ export class RecoveryService {
   constructor(input: RecoveryDependencies) {
     this.#transactions = input.transactions;
     this.#operations = input.operations;
-    this.#spaces = input.spaces;
     this.#subjects = input.subjects;
     this.#states = input.states;
-    this.#materials = input.materials;
     this.#events = input.events;
     this.#versions = input.versions;
     this.#versionStaging = input.versionStaging;
     this.#currentProfiles = input.currentProfiles;
-    this.#staging = input.staging;
     this.#requestLocks = input.requestLocks;
-    this.#spaceIdentityLocks = input.spaceIdentityLocks;
     this.#subjectLocks = input.subjectLocks;
     this.#queue = input.queue;
     this.#library = input.library;
@@ -1131,19 +1002,11 @@ export class RecoveryService {
       const transaction = await this.#transactions.readOptional(requestId);
       if (transaction === undefined || transaction.state !== "prepared") return;
 
-      const identityLease =
-        transaction.transactionKind === "ingest" && transaction.createdSubject
-          ? await this.#spaceIdentityLocks.acquire(transaction.spaceId)
-          : undefined;
+      const subjectLease = await this.#subjectLocks.acquire(transaction.subjectId);
       try {
-        const subjectLease = await this.#subjectLocks.acquire(transaction.subjectId);
-        try {
-          publishedEvents = await this.reconcileLocked(transaction);
-        } finally {
-          await subjectLease.release();
-        }
+        publishedEvents = await this.reconcileLocked(transaction);
       } finally {
-        await identityLease?.release();
+        await subjectLease.release();
       }
     } finally {
       await requestLease.release();
@@ -1156,57 +1019,6 @@ export class RecoveryService {
     return this.#library.settleReconciledIntent(async () =>
       (await this.#transactions.list()).some((transaction) => transaction.state === "prepared"),
     );
-  }
-
-  /**
-   * Materializes post-commit facts and the queue from one already-visible target state.
-   *
-   * The caller must hold the journal's request and subject locks. The returned
-   * events are published only after those locks have been released.
-   *
-   * @param transaction - Prepared journal whose target crossed the fact commit point.
-   * @param state - Verified target state currently visible at the subject path.
-   * @returns The exact persisted invalidations ready for post-lock publication.
-   */
-  async materializeCommitted(
-    transaction: IngestTransactionRecord,
-    state: SubjectStateRecord,
-  ): Promise<readonly EngineEvent[]> {
-    if (transaction.state !== "prepared" || state.checksum !== transaction.targetStateChecksum) {
-      throw storageCorrupt("Only a visible prepared ingest target can be materialized.");
-    }
-    assertTargetState(transaction, state);
-    const subject = await this.#subjects.read(transaction.subjectId);
-    const space = await this.#spaces.read(transaction.spaceId);
-    if (
-      subject.spaceId !== space.id ||
-      canonicalJson(summarizeSubject(subject, space, state)) !==
-        canonicalJson(transaction.operation.result.subject)
-    ) {
-      throw storageCorrupt("Recovered subject summary does not match the stored ingest result.");
-    }
-    await this.#operations.write(transaction.operation);
-    await this.#hooks.afterOperation?.();
-    for (const record of transaction.events) {
-      await this.#events.write(transaction.subjectId, record);
-      await this.#hooks.afterEvent?.(record.eventId);
-    }
-    await this.#queue.apply({
-      subjectId: transaction.subjectId,
-      stateChecksum: state.checksum,
-      ...(state.pending === undefined ? {} : { pending: state.pending }),
-    });
-    await this.#hooks.afterQueue?.();
-    const libraryStatus = await this.applyLibrary(transaction.subjectId);
-    await this.#transactions.write(
-      terminalIngestTransaction(
-        transaction,
-        "committed",
-        terminalTime(transaction.preparedAt, this.#clock.now()),
-      ),
-    );
-    if (libraryStatus === "clean") await this.completeLibraryWriter(transaction.subjectId);
-    return transaction.events.map((record) => record.event);
   }
 
   /**
@@ -1565,8 +1377,6 @@ export class RecoveryService {
 
   private async reconcileLocked(transaction: TransactionRecord): Promise<readonly EngineEvent[]> {
     switch (transaction.transactionKind) {
-      case "ingest":
-        return this.reconcileIngestLocked(transaction);
       case "distill_lease":
         return this.reconcileLeaseLocked(transaction);
       case "distill_commit":
@@ -1580,56 +1390,6 @@ export class RecoveryService {
         return exhaustive;
       }
     }
-  }
-
-  private async reconcileIngestLocked(
-    transaction: IngestTransactionRecord,
-  ): Promise<readonly EngineEvent[]> {
-    const subject = await optionalSubject(this.#subjects, transaction.subjectId);
-    const state =
-      subject === undefined ? undefined : await optionalState(this.#states, transaction.subjectId);
-    if (subject !== undefined && subject.spaceId !== transaction.spaceId) {
-      throw storageCorrupt("Recovered subject space does not match its ingest journal.");
-    }
-    const targetStateVisible = state?.checksum === transaction.targetStateChecksum;
-    const targetSubjectVisible = transaction.createdSubject
-      ? subject?.checksum === transaction.targetSubjectChecksum
-      : subject !== undefined;
-
-    if (targetStateVisible && targetSubjectVisible && state !== undefined) {
-      return this.materializeCommitted(transaction, state);
-    }
-
-    const previousVisible = transaction.createdSubject
-      ? subject === undefined && state === undefined
-      : subject !== undefined && state?.checksum === transaction.previousStateChecksum;
-    if (!previousVisible) {
-      throw storageCorrupt("Prepared ingest is neither at its target nor its previous fact state.");
-    }
-
-    if (transaction.createdSubject) {
-      await this.#subjects.assertDirectoryAbsent(transaction.subjectId);
-      await this.#staging.cleanup(transaction.requestId, transaction.subjectId);
-    } else {
-      if (state === undefined) {
-        throw storageCorrupt("An existing-subject abort is missing its previous state.");
-      }
-      const previousMaterialIds = new Set(state.materialManifest.map((entry) => entry.materialId));
-      for (const entry of transaction.newMaterials) {
-        if (previousMaterialIds.has(entry.materialId)) {
-          throw storageCorrupt("An ingest journal cannot clean a previously committed material.");
-        }
-        await this.#materials.removeJournalMaterial(transaction.subjectId, entry);
-      }
-    }
-    await this.#transactions.write(
-      terminalIngestTransaction(
-        transaction,
-        "aborted",
-        terminalTime(transaction.preparedAt, this.#clock.now()),
-      ),
-    );
-    return [];
   }
 
   private async reconcileLeaseLocked(

@@ -138,41 +138,12 @@ export interface OperationTombstoneRecord extends FactEnvelope<1> {
 /** Completed result or its durable privacy-purge marker. */
 export type OperationFact = OperationRecord | OperationTombstoneRecord;
 
-interface IngestTransactionBase extends FactEnvelope<1> {
-  readonly transactionKind: "ingest";
-  readonly requestId: RequestId;
-  readonly spaceId: SpaceId;
-  readonly subjectId: SubjectId;
-  readonly targetStateChecksum: FactChecksum;
-  readonly newMaterials: readonly VersionMaterialEntry[];
-  readonly operation: OperationRecord<"materials.ingest">;
-  readonly events: readonly EventRecord[];
-  readonly preparedAt: IsoDateTime;
-}
-
-type IngestTransactionTarget =
-  | {
-      readonly createdSubject: true;
-      readonly previousStateChecksum?: never;
-      readonly targetSubjectChecksum: FactChecksum;
-    }
-  | {
-      readonly createdSubject: false;
-      readonly previousStateChecksum: FactChecksum;
-      readonly targetSubjectChecksum?: never;
-    };
-
 type TransactionLifecycle =
   | { readonly state: "prepared" }
   | {
       readonly state: "committed" | "aborted";
       readonly finishedAt: IsoDateTime;
     };
-
-/** Crash-recoverable journal for one atomic material ingest. */
-export type IngestTransactionRecord = IngestTransactionBase &
-  IngestTransactionTarget &
-  TransactionLifecycle;
 
 /** Short lease mutation name persisted by a distillation journal. */
 export type DistillLeaseTransactionMethod = "brief" | "renew" | "release";
@@ -278,7 +249,6 @@ export type RollbackTransactionRecord = RollbackTransactionBase & TransactionLif
 
 /** Root transaction fact union for every atomic fact-layer mutation. */
 export type TransactionRecord =
-  | IngestTransactionRecord
   | DistillLeaseTransactionRecord
   | DistillCommitTransactionRecord
   | ReviewDecisionTransactionRecord

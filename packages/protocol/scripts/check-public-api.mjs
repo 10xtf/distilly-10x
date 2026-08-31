@@ -103,7 +103,6 @@ IngestSubjectTarget
 IngestToolInput
 IngestToolOutput
 IngestToolValue
-IngestTransactionRecord
 InstallInput
 InstallOptions
 InstallRef
@@ -335,7 +334,6 @@ ingestInputSchema
 ingestItemResultSchema
 ingestResultSchema
 ingestSubjectTargetSchema
-ingestTransactionRecordSchema
 installInputSchema
 installOptionsSchema
 installRefSchema

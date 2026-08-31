@@ -8,7 +8,6 @@ import {
   distillLeaseTransactionRecordSchema,
   eventRecordSchema,
   factEnvelopeSchema,
-  ingestTransactionRecordSchema,
   operationFactSchema,
   operationRecordSchema,
   operationScopeSchema,
@@ -52,7 +51,6 @@ import type {
   DistillLeaseTransactionMethod,
   DistillLeaseTransactionRecord,
   EventRecord,
-  IngestTransactionRecord,
   OperationFact,
   OperationRecord,
   OperationScope,
@@ -80,7 +78,6 @@ const THIRD_HEX_64 = "2".repeat(64);
 const subjectId = subjectIdSchema.parse(`subject_${HEX_32}`);
 const otherSubjectId = subjectIdSchema.parse(`subject_${ALT_HEX_32}`);
 const spaceId = spaceIdSchema.parse(`space_${HEX_32}`);
-const otherSpaceId = spaceIdSchema.parse(`space_${ALT_HEX_32}`);
 const materialId = materialIdSchema.parse(`mat_${HEX_64}`);
 const secondMaterialId = materialIdSchema.parse(`mat_${ALT_HEX_64}`);
 const contentDigest = contentDigestSchema.parse(`sha256_${HEX_64}`);
@@ -635,12 +632,6 @@ const jobChangedEvent = {
   event: { kind: "job.changed", subjectId, at },
 } satisfies EventRecord;
 
-const subjectCreatedEvent = {
-  ...eventRecord,
-  eventId: eventIdSchema.parse(`event_${THIRD_HEX_32}`),
-  event: { kind: "subject.created", subjectId, at },
-} satisfies EventRecord;
-
 const versionRecord = {
   schemaVersion: 1,
   checksum: factChecksum,
@@ -663,43 +654,6 @@ const versionManifest = {
   checksum: factChecksum,
   items: [firstEntry],
 } satisfies VersionMaterialManifest;
-
-const preparedTransaction = {
-  schemaVersion: 1,
-  checksum: factChecksum,
-  transactionKind: "ingest",
-  requestId,
-  spaceId,
-  subjectId,
-  createdSubject: false,
-  previousStateChecksum: otherFactChecksum,
-  targetStateChecksum: factChecksum,
-  newMaterials: [firstEntry],
-  operation: operationRecords["materials.ingest"],
-  events: [eventRecord, jobChangedEvent],
-  preparedAt: at,
-  state: "prepared",
-} satisfies IngestTransactionRecord;
-
-const createTransaction = {
-  schemaVersion: 1,
-  checksum: factChecksum,
-  transactionKind: "ingest",
-  requestId,
-  spaceId,
-  subjectId,
-  createdSubject: true,
-  targetSubjectChecksum: otherFactChecksum,
-  targetStateChecksum: factChecksum,
-  newMaterials: [firstEntry],
-  operation: {
-    ...operationRecords["materials.ingest"],
-    result: { ...ingestResult, created: true },
-  },
-  events: [subjectCreatedEvent, eventRecord, jobChangedEvent],
-  preparedAt: at,
-  state: "prepared",
-} satisfies IngestTransactionRecord;
 
 const preparedBriefTransaction = {
   schemaVersion: 1,
@@ -1001,7 +955,6 @@ describe("persisted fact runtime schemas", () => {
     expectTypeOf<keyof typeof operationRecords>().toEqualTypeOf<MutationMethodName>();
     expectTypeOf<OperationFact>().toEqualTypeOf<OperationRecord | OperationTombstoneRecord>();
     expectTypeOf<TransactionRecord>().toEqualTypeOf<
-      | IngestTransactionRecord
       | DistillLeaseTransactionRecord
       | DistillCommitTransactionRecord
       | ReviewDecisionTransactionRecord
@@ -1105,11 +1058,6 @@ describe("persisted fact runtime schemas", () => {
       [operationTombstoneRecordSchema, operationTombstone],
       [versionRecordSchema, versionRecord],
       [versionMaterialManifestSchema, versionManifest],
-      [ingestTransactionRecordSchema, preparedTransaction],
-      [ingestTransactionRecordSchema, createTransaction],
-      [ingestTransactionRecordSchema, { ...preparedTransaction, state: "committed", finishedAt }],
-      [ingestTransactionRecordSchema, { ...preparedTransaction, state: "aborted", finishedAt }],
-      [transactionRecordSchema, preparedTransaction],
       [distillLeaseTransactionRecordSchema, preparedBriefTransaction],
       [distillLeaseTransactionRecordSchema, preparedRenewTransaction],
       [distillLeaseTransactionRecordSchema, preparedReleaseTransaction],
@@ -1192,9 +1140,6 @@ describe("persisted fact runtime schemas", () => {
       operationFactSchema.parse({ ...operationTombstone, recordKind: "future" }),
     ).toThrow();
     expect(() =>
-      ingestTransactionRecordSchema.parse({ ...preparedTransaction, state: "future" }),
-    ).toThrow();
-    expect(() =>
       versionRecordSchema.parse({
         ...versionRecord,
         creation: { kind: "future" },
@@ -1202,7 +1147,7 @@ describe("persisted fact runtime schemas", () => {
     ).toThrow();
   });
 
-  it("enforces safe integers, string limits, and bounded ingest arrays", () => {
+  it("enforces safe integers and string limits", () => {
     expect(() =>
       subjectStateRecordSchema.parse({
         ...subjectStateRecord,
@@ -1218,14 +1163,6 @@ describe("persisted fact runtime schemas", () => {
       subjectRecordSchema.parse({
         ...subjectRecord,
         aliases: Array.from({ length: WIRE_LIMITS.smallArrayItems + 1 }, () => "alias"),
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        newMaterials: Array.from({ length: WIRE_LIMITS.ingestMaterials + 1 }, (_, index) =>
-          makeEntry(index),
-        ),
       }),
     ).toThrow();
   });
@@ -1916,204 +1853,12 @@ describe("persisted fact runtime schemas", () => {
     ).toThrow();
   });
 
-  it("enforces ingest transaction branch and correlation invariants", () => {
+  it("rejects the retired ingest journal discriminant", () => {
     expect(() =>
-      ingestTransactionRecordSchema.parse({ ...preparedTransaction, finishedAt }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        state: "committed",
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        previousStateChecksum: undefined,
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        targetSubjectChecksum: factChecksum,
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...createTransaction,
-        targetSubjectChecksum: undefined,
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...createTransaction,
-        previousStateChecksum: factChecksum,
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          result: { ...preparedTransaction.operation.result, created: true },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: { ...preparedTransaction.operation, requestId: otherRequestId },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          scope: { kind: "global" },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          scope: { kind: "subject", subjectId: otherSubjectId },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          result: {
-            ...preparedTransaction.operation.result,
-            subject: { ...subject, id: otherSubjectId },
-          },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        spaceId: otherSpaceId,
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          result: {
-            ...preparedTransaction.operation.result,
-            subject: {
-              ...subject,
-              space: { ...subject.space, id: otherSpaceId },
-            },
-          },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        operation: {
-          ...preparedTransaction.operation,
-          result: {
-            ...preparedTransaction.operation.result,
-            job: { ...pendingJob, subjectId: otherSubjectId },
-          },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        newMaterials: [secondEntry],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [eventRecord],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [jobChangedEvent, eventRecord],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [eventRecord, { ...jobChangedEvent, eventId }],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [
-          { ...eventRecord, event: { ...eventRecord.event, subjectId: otherSubjectId } },
-          jobChangedEvent,
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [{ ...eventRecord, actor: { kind: "sdk", id: "other-sdk" } }, jobChangedEvent],
-      }),
-    ).toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        events: [{ ...eventRecord, requestId: otherRequestId }, jobChangedEvent],
-      }),
-    ).toThrow();
-
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        targetStateChecksum: preparedTransaction.previousStateChecksum,
-      }),
-    ).not.toThrow();
-
-    const unchangedOperation = {
-      ...preparedTransaction.operation,
-      result: {
-        kind: "unchanged",
-        subject,
-        items: [{ ...ingestItem, kind: "duplicate" }],
-        materialSetHash,
-        generation: 1,
-        job: pendingJob,
-      },
-    } as const;
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        newMaterials: [],
-        operation: unchangedOperation,
-        events: [],
-      }),
-    ).not.toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...preparedTransaction,
-        newMaterials: [],
-        operation: unchangedOperation,
-        events: [jobChangedEvent],
-      }),
-    ).not.toThrow();
-    expect(() =>
-      ingestTransactionRecordSchema.parse({
-        ...createTransaction,
-        operation: unchangedOperation,
-        newMaterials: [],
-        events: [],
+      transactionRecordSchema.parse({
+        schemaVersion: 1,
+        checksum: factChecksum,
+        transactionKind: "ingest",
       }),
     ).toThrow();
   });

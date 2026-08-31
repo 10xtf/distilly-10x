@@ -46,11 +46,11 @@ import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
 import type { VersionArtifactSet } from "../facts/version-store.js";
 import { FileVersionStore } from "../facts/version-store.js";
-import { createInternalEngineComposition } from "../ingest/composition.js";
 import type {
-  InternalEngineComposition,
-  InternalEngineCompositionOptions,
-} from "../ingest/composition.js";
+  LegacyFileEngineTestSupport,
+  LegacyFileEngineTestSupportOptions,
+} from "../testing/legacy-file-engine.test.fixture.js";
+import { createLegacyFileEngineTestSupport } from "../testing/legacy-file-engine.test.fixture.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
 import { renderProfile, renderPrompt } from "../profile/render.js";
@@ -183,7 +183,7 @@ const validPatch = (suspended: boolean): CommitInput["patch"] => ({
 });
 
 const commitInput = (
-  briefing: Awaited<ReturnType<InternalEngineComposition["leases"]["brief"]>>,
+  briefing: Awaited<ReturnType<LegacyFileEngineTestSupport["leases"]["brief"]>>,
   suspended: boolean,
 ): CommitInput => ({
   jobId: briefing.job.id,
@@ -201,9 +201,9 @@ const open = async (
   root: string,
   ids: SequenceIds,
   clock: FakeClock,
-  options: Omit<InternalEngineCompositionOptions, "root" | "ids" | "clock"> = {},
-): Promise<InternalEngineComposition> =>
-  createInternalEngineComposition({ root, ids, clock, ...options });
+  options: Omit<LegacyFileEngineTestSupportOptions, "root" | "ids" | "clock"> = {},
+): Promise<LegacyFileEngineTestSupport> =>
+  createLegacyFileEngineTestSupport({ root, ids, clock, ...options });
 
 const stores = (root: string) => {
   const layout = new Layout(root);

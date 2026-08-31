@@ -17,7 +17,10 @@
   "files": [
     "lib",
     "prompts",
-    "!lib/**/*.test.*"
+    "!lib/**/*.test.*",
+    "!lib/**/*test-support*",
+    "!lib/**/*fixture*",
+    "!lib/testing/**"
   ],
   "sideEffects": false,
   "dependencies": {

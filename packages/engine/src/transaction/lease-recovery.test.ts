@@ -59,10 +59,8 @@ import { FileVersionStore } from "../facts/version-store.js";
 import { Layout } from "../layout.js";
 import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
 import { createBriefContract } from "../distill/prompt-catalog.js";
-import { FileIngestStaging } from "./ingest-staging.js";
 import { RecoveryService, type RecoveryHooks } from "./recovery.js";
 import { FileRequestLock } from "./request-lock.js";
-import { FileSpaceIdentityLock } from "./space-identity-lock.js";
 import { FileSubjectLock } from "./subject-lock.js";
 import { FileVersionStaging } from "./version-staging.js";
 
@@ -467,17 +465,13 @@ const createFixture = async (
     new RecoveryService({
       transactions,
       operations,
-      spaces,
       subjects,
       states,
-      materials,
       versions,
       versionStaging,
       currentProfiles,
       events,
-      staging: new FileIngestStaging(layout, spaces),
       requestLocks: new FileRequestLock(layout, clock),
-      spaceIdentityLocks: new FileSpaceIdentityLock(layout, clock),
       subjectLocks: new FileSubjectLock(layout, clock),
       queue,
       eventBus,

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { spaceIdSchema, subjectIdSchema } from "@distilly/protocol";
+import { subjectIdSchema } from "@distilly/protocol";
 import type { IsoDateTime } from "@distilly/protocol";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -14,7 +14,6 @@ import { atomicReplaceFile } from "../facts/atomic-write.js";
 import { Layout } from "../layout.js";
 import { FileLock } from "./file-lock.js";
 import type { FileLockLease } from "./file-lock.js";
-import { FileSpaceIdentityLock } from "./space-identity-lock.js";
 import { FileSubjectLock } from "./subject-lock.js";
 
 const roots: string[] = [];
@@ -569,24 +568,19 @@ describe("cross-process file locks", () => {
     ).toEqual([]);
   });
 
-  it("uses the space path and candidate-safe subject path from Layout", async () => {
+  it("uses the candidate-safe subject path from Layout", async () => {
     const root = await makeRoot();
     const layout = new Layout(root);
-    const spaceId = spaceIdSchema.parse(`space_${"1".repeat(32)}`);
     const subjectId = subjectIdSchema.parse(`subject_${"2".repeat(32)}`);
-    const spaceLock = new FileSpaceIdentityLock(layout);
     const subjectLock = new FileSubjectLock(layout);
 
-    const spaceLease = await spaceLock.acquire(spaceId);
     const subjectLease = await subjectLock.acquire(subjectId);
 
-    expect((await lstat(layout.spaceIdentityLock(spaceId))).isDirectory()).toBe(true);
     expect((await lstat(layout.subjectLock(subjectId))).isDirectory()).toBe(true);
     await expect(lstat(layout.subjectDirectory(subjectId))).rejects.toMatchObject({
       code: "ENOENT",
     });
 
     await subjectLease.release();
-    await spaceLease.release();
   });
 });

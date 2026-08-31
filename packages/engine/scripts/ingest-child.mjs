@@ -37,8 +37,9 @@ const actor = { kind: "sdk", id: "built-ingest-smoke" };
 const deadline = Date.now() + 10_000;
 
 for (;;) {
+  let composition;
   try {
-    const composition = await createInternalEngineComposition({ root });
+    composition = await createInternalEngineComposition({ root });
     const result = await composition.ingest.ingest(input, actor, { requestId });
     process.stdout.write(
       `result:${JSON.stringify({ kind: "success", subjectId: result.subject.id })}\n`,
@@ -51,5 +52,7 @@ for (;;) {
     }
     if (error?.code !== "busy" || Date.now() >= deadline) throw error;
     await delay(20);
+  } finally {
+    composition?.close();
   }
 }

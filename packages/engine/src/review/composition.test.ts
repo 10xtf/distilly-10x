@@ -32,12 +32,12 @@ import { FileSpaceStore } from "../facts/space-store.js";
 import { FileSubjectStore } from "../facts/subject-store.js";
 import { FileTransactionStore } from "../facts/transaction-store.js";
 import { FileVersionStore } from "../facts/version-store.js";
-import {
-  createInternalEngineComposition,
-  type InternalEngineComposition,
-} from "../ingest/composition.js";
 import { Layout } from "../layout.js";
 import type { IdGenerator } from "../ports/id-generator.js";
+import {
+  createLegacyFileEngineTestSupport,
+  type LegacyFileEngineTestSupport,
+} from "../testing/legacy-file-engine.test.fixture.js";
 
 const TIMES = [
   "2026-08-21T08:00:00.000Z",
@@ -118,7 +118,7 @@ const material = (digit: number, content: string): IngestInput["materials"][numb
 });
 
 const commitInput = (
-  briefing: Awaited<ReturnType<InternalEngineComposition["leases"]["brief"]>>,
+  briefing: Awaited<ReturnType<LegacyFileEngineTestSupport["leases"]["brief"]>>,
   patch: CommitInput["patch"],
 ): CommitInput => ({
   jobId: briefing.job.id,
@@ -195,7 +195,7 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     try {
       const root = await mkdtemp(join(tmpdir(), "distilly-library-clean-path-"));
       roots.push(root);
-      const composition = await createInternalEngineComposition({
+      const composition = await createLegacyFileEngineTestSupport({
         root,
         clock: new MutableClock(),
         ids: new SequenceIds(),
@@ -214,7 +214,7 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     const root = await mkdtemp(join(tmpdir(), "distilly-review-composition-"));
     roots.push(root);
     const clock = new MutableClock();
-    const composition = await createInternalEngineComposition({
+    const composition = await createLegacyFileEngineTestSupport({
       root,
       clock,
       ids: new SequenceIds(),
@@ -409,7 +409,7 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     });
 
     expect(await stored.operations.list()).toHaveLength(9);
-    expect(await stored.transactions.list()).toHaveLength(9);
+    expect(await stored.transactions.list()).toHaveLength(6);
     await expect(stored.transactions.read(request(8))).resolves.toMatchObject({
       transactionKind: "review_decision",
       state: "committed",
@@ -464,97 +464,6 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     await expect(stored.transactions.readOptional(request(13))).resolves.toBeUndefined();
   });
 
-  it("keeps committed facts terminal while a durable Library marker makes reads unavailable", async () => {
-    const root = await mkdtemp(join(tmpdir(), "distilly-library-dirty-recovery-"));
-    roots.push(root);
-    let failApply = false;
-    const composition = await createInternalEngineComposition({
-      root,
-      clock: new MutableClock(),
-      ids: new SequenceIds(),
-      libraryHooks: {
-        afterDirtyMarker() {
-          if (failApply) throw new Error("simulated failure after durable Library marker");
-        },
-      },
-    });
-    await composition.libraryProjection.rebuild();
-    failApply = true;
-    const requestId = request(30);
-
-    const created = await composition.ingest.ingest(
-      {
-        subject: { kind: "create", input: { displayName: "Dirty Library facts" } },
-        materials: [material(30, "Facts remain committed when Library becomes unavailable.")],
-        enqueue: "now",
-      },
-      ACTOR,
-      { requestId },
-    );
-    if (created.job === undefined) throw new Error("Expected a committed pending job.");
-
-    const stored = facts(root);
-    await expect(stored.transactions.read(requestId)).resolves.toMatchObject({
-      transactionKind: "ingest",
-      state: "committed",
-    });
-    await expect(stored.operations.read(requestId)).resolves.toMatchObject({
-      method: "materials.ingest",
-    });
-    expect(await readFile(stored.layout.stateFile(created.subject.id), "utf8")).toContain(
-      created.job.id,
-    );
-    await expect(composition.library.list({})).rejects.toMatchObject({
-      code: "index_unavailable",
-      retryable: true,
-    });
-  });
-
-  it("retains writer intent until a clean apply is followed by a terminal journal", async () => {
-    const root = await mkdtemp(join(tmpdir(), "distilly-library-terminal-intent-"));
-    roots.push(root);
-    let failAfterLibrary = true;
-    const composition = await createInternalEngineComposition({
-      root,
-      clock: new MutableClock(),
-      ids: new SequenceIds(),
-      recoveryHooks: {
-        afterLibrary() {
-          if (!failAfterLibrary) return;
-          failAfterLibrary = false;
-          throw new Error("simulated crash after clean Library apply");
-        },
-      },
-    });
-    await composition.libraryProjection.rebuild();
-    const requestId = request(31);
-    const input: IngestInput = {
-      subject: { kind: "create", input: { displayName: "Intent survives apply" } },
-      materials: [material(31, "The terminal journal owns intent removal.")],
-      enqueue: "now",
-    };
-
-    await expect(composition.ingest.ingest(input, ACTOR, { requestId })).rejects.toThrow(
-      "simulated crash after clean Library apply",
-    );
-    const stored = facts(root);
-    await expect(stored.transactions.read(requestId)).resolves.toMatchObject({ state: "prepared" });
-    await expect(readFile(stored.layout.libraryIntentFile(), "utf8")).resolves.toMatch(
-      /^distilly-library-intent-v1 [0-9a-f]{32}\n$/u,
-    );
-
-    const replay = await composition.ingest.ingest(input, ACTOR, { requestId });
-    await expect(stored.transactions.read(requestId)).resolves.toMatchObject({
-      state: "committed",
-    });
-    await expect(readFile(stored.layout.libraryIntentFile(), "utf8")).rejects.toMatchObject({
-      code: "ENOENT",
-    });
-    await expect(composition.library.list({})).resolves.toMatchObject({
-      items: [{ subject: { id: replay.subject.id } }],
-    });
-  });
-
   it("does not expose a physically published candidate before its state commit point", async () => {
     const root = await mkdtemp(join(tmpdir(), "distilly-committed-read-composition-"));
     roots.push(root);
@@ -569,7 +478,7 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     const mayCommit = new Promise<void>((resolve) => {
       releaseCommit = resolve;
     });
-    const composition = await createInternalEngineComposition({
+    const composition = await createLegacyFileEngineTestSupport({
       root,
       clock,
       ids: new SequenceIds(),
@@ -694,34 +603,20 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
     expect(visibleDiff.added).toHaveLength(1);
   });
 
-  it("keeps Library rebuild and list linearizable with a committing writer", async () => {
+  it("keeps Library rebuild linearizable with a committing writer", async () => {
     const root = await mkdtemp(join(tmpdir(), "distilly-library-writer-barrier-"));
     roots.push(root);
     const clock = new MutableClock();
     let blockVersionPublish = false;
-    let blockQuery = false;
-    let blockIngestCommit = false;
     let signalPublished: (() => void) | undefined;
     let releasePublish: (() => void) | undefined;
-    let signalQuery: (() => void) | undefined;
-    let releaseQuery: (() => void) | undefined;
-    let signalIngestCommit: (() => void) | undefined;
     const published = new Promise<void>((resolve) => {
       signalPublished = resolve;
     });
     const mayPublish = new Promise<void>((resolve) => {
       releasePublish = resolve;
     });
-    const queryAtLock = new Promise<void>((resolve) => {
-      signalQuery = resolve;
-    });
-    const mayQuery = new Promise<void>((resolve) => {
-      releaseQuery = resolve;
-    });
-    const ingestCommitted = new Promise<void>((resolve) => {
-      signalIngestCommit = resolve;
-    });
-    const composition = await createInternalEngineComposition({
+    const composition = await createLegacyFileEngineTestSupport({
       root,
       clock,
       ids: new SequenceIds(),
@@ -733,28 +628,12 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
           return mayPublish;
         },
       },
-      ingestHooks: {
-        afterFactCommit() {
-          if (!blockIngestCommit) return;
-          blockIngestCommit = false;
-          signalIngestCommit?.();
-          throw new Error("simulated crash after the ingest fact commit");
-        },
-      },
     });
     await composition.libraryProjection.rebuild();
-    const reader = await createInternalEngineComposition({
+    const reader = await createLegacyFileEngineTestSupport({
       root,
       clock,
       ids: new SequenceIds(),
-      libraryHooks: {
-        beforeQueryLock() {
-          if (!blockQuery) return;
-          blockQuery = false;
-          signalQuery?.();
-          return mayQuery;
-        },
-      },
     });
     const created = await composition.ingest.ingest(
       {
@@ -814,52 +693,5 @@ describe("review and rollback composition", { timeout: 60_000 }, () => {
       items: [expect.objectContaining({ suspendedVersions: 1 })],
     });
     await expect(reader.libraryProjection.rebuild()).resolves.toMatchObject({ subjects: 1 });
-
-    clock.current = TIMES[2]!;
-    await composition.review.promote(
-      {
-        subjectId: created.subject.id,
-        candidateVersionId: suspended.candidate.id,
-        reason: "Candidate reviewed before the list race.",
-      },
-      ACTOR,
-      { requestId: request(46) },
-    );
-
-    blockQuery = true;
-    const listing = reader.library.list({});
-    await queryAtLock;
-    blockIngestCommit = true;
-    const ingesting = composition.ingest.ingest(
-      {
-        subject: { kind: "existing", subjectId: created.subject.id },
-        materials: [material(42, "Mira adds one more post-review source.")],
-        enqueue: "now",
-      },
-      ACTOR,
-      { requestId: request(47) },
-    );
-    const failedIngest = expect(ingesting).rejects.toThrow(
-      "simulated crash after the ingest fact commit",
-    );
-    await ingestCommitted;
-    await failedIngest;
-    releaseQuery?.();
-    const page = await listing;
-    expect(page).toMatchObject({
-      items: [
-        expect.objectContaining({
-          pendingJobs: 1,
-          newMaterialCount: 1,
-          suspendedVersions: 0,
-        }),
-      ],
-    });
-    await expect(facts(root).transactions.read(request(47))).resolves.toMatchObject({
-      state: "committed",
-    });
-    await expect(readFile(new Layout(root).libraryDirtyFile())).rejects.toMatchObject({
-      code: "ENOENT",
-    });
   });
 });

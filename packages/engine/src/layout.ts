@@ -92,25 +92,6 @@ export class Layout {
   }
 
   /**
-   * Cross-process identity lock for one space.
-   *
-   * @param spaceId - Space whose identity mutation is serialized.
-   * @returns The confined absolute identity-lock path.
-   */
-  spaceIdentityLock(spaceId: SpaceId): string {
-    return this.inside("spaces", `${spaceIdSchema.parse(spaceId)}.identity.lock`);
-  }
-
-  /**
-   * Global catalog lock used while resolving or creating an inline space.
-   *
-   * @returns The confined absolute catalog-lock path.
-   */
-  spaceCatalogLock(): string {
-    return this.inside("spaces", ".catalog.lock");
-  }
-
-  /**
    * Directory containing one subject's facts.
    *
    * @param subjectId - Subject whose fact directory is requested.
@@ -128,92 +109,6 @@ export class Layout {
    */
   subjectLock(subjectId: SubjectId): string {
     return this.inside("subjects", ".locks", `${subjectIdSchema.parse(subjectId)}.lock`);
-  }
-
-  /**
-   * Fixed create-and-first-ingest staging directory named by its journal.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @returns The confined absolute staging-directory path.
-   */
-  ingestStagingDirectory(requestId: RequestId, subjectId: SubjectId): string {
-    return this.inside(
-      "subjects",
-      ".staging",
-      `${requestIdSchema.parse(requestId)}.${subjectIdSchema.parse(subjectId)}`,
-    );
-  }
-
-  /**
-   * Subject record inside one fixed ingest staging directory.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @returns The absolute staged subject-record path.
-   */
-  stagedSubjectFile(requestId: RequestId, subjectId: SubjectId): string {
-    return resolve(this.ingestStagingDirectory(requestId, subjectId), "subject.json");
-  }
-
-  /**
-   * State record inside one fixed ingest staging directory.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @returns The absolute staged state-record path.
-   */
-  stagedStateFile(requestId: RequestId, subjectId: SubjectId): string {
-    return resolve(this.ingestStagingDirectory(requestId, subjectId), "state.json");
-  }
-
-  /**
-   * One material directory inside a fixed ingest staging directory.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @param materialId - Staged material identifier.
-   * @returns The absolute staged material-directory path.
-   */
-  stagedMaterialDirectory(
-    requestId: RequestId,
-    subjectId: SubjectId,
-    materialId: MaterialId,
-  ): string {
-    return resolve(
-      this.ingestStagingDirectory(requestId, subjectId),
-      "knowledge",
-      "materials",
-      materialIdSchema.parse(materialId),
-    );
-  }
-
-  /**
-   * Material record inside a fixed ingest staging directory.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @param materialId - Staged material identifier.
-   * @returns The absolute staged material-record path.
-   */
-  stagedMaterialFile(requestId: RequestId, subjectId: SubjectId, materialId: MaterialId): string {
-    return resolve(this.stagedMaterialDirectory(requestId, subjectId, materialId), "material.json");
-  }
-
-  /**
-   * Material body inside a fixed ingest staging directory.
-   *
-   * @param requestId - Journal request that owns the staging directory.
-   * @param subjectId - Candidate subject staged for publication.
-   * @param materialId - Staged material identifier.
-   * @returns The absolute staged material-content path.
-   */
-  stagedMaterialContentFile(
-    requestId: RequestId,
-    subjectId: SubjectId,
-    materialId: MaterialId,
-  ): string {
-    return resolve(this.stagedMaterialDirectory(requestId, subjectId, materialId), "content.txt");
   }
 
   /**

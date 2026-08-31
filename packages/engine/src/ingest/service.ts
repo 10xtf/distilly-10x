@@ -1,60 +1,80 @@
+import type { DatabaseSync } from "node:sqlite";
+
 import {
   DistillyError,
   actorContextSchema,
+  contentDigestSchema,
   engineMethodSchemas,
+  ingestResultSchema,
+  isoDateTimeSchema,
+  jobIdSchema,
+  materialIdSchema,
+  materialRecordSchema,
+  materialSetHashSchema,
   mutationContextSchema,
-  transactionRecordSchema,
+  provenanceDigestSchema,
+  subjectStateRecordSchema,
+  versionIdSchema,
 } from "@distilly/protocol";
 import type {
   ActorContext,
+  ContentDigest,
   EngineEvent,
-  EventRecord,
+  FactChecksum,
   IngestInput,
   IngestItemResult,
   IngestResult,
-  IngestTransactionRecord,
   IsoDateTime,
   MaterialId,
+  MaterialRecord,
   MutationContext,
-  OperationFact,
-  OperationRecord,
-  SpaceRecord,
+  PendingJobMarker,
   SubjectId,
-  SubjectRecord,
   SubjectStateRecord,
+  SubjectSummary,
   VersionMaterialEntry,
 } from "@distilly/protocol";
 
 import type { Clock } from "../defaults/system-clock.js";
-import { computeFactChecksum, sealFact } from "../facts/checksum.js";
-import type { FileMaterialStore, StoredMaterial } from "../facts/material-store.js";
-import type { FileOperationStore } from "../facts/operation-store.js";
-import type { FileSpaceStore } from "../facts/space-store.js";
-import type { FileStateStore } from "../facts/state-store.js";
-import type { FileSubjectStore } from "../facts/subject-store.js";
-import type { FileTransactionStore } from "../facts/transaction-store.js";
-import type { FileVersionManifestStore } from "../facts/version-manifest-store.js";
-import {
-  factNotFound,
-  idempotencyConflict,
-  invalidInput,
-  lockBusy,
-  storageCorrupt,
-} from "../internal-errors.js";
+import { canonicalJson } from "../facts/canonical-json.js";
+import { sealFact, verifyFactChecksum } from "../facts/checksum.js";
+import { deriveMaterialId, digestMaterialProvenance, hashMaterialSet } from "../facts/digests.js";
+import { factNotFound, invalidInput, storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
-import type { FileIngestStaging } from "../transaction/ingest-staging.js";
-import type { FileRequestLock } from "../transaction/request-lock.js";
-import type { RecoveryService } from "../transaction/recovery.js";
-import type { FileSpaceIdentityLock } from "../transaction/space-identity-lock.js";
-import type { FileSubjectLock } from "../transaction/subject-lock.js";
+import type {
+  BlobPutResult,
+  ContentAddressedBlobStore,
+} from "../storage/content-addressed-blob-store.js";
+import {
+  computeMutationInputChecksum,
+  insertCompletedOperationInTransaction,
+  insertEventInTransaction,
+  replayCompletedMutation,
+} from "../storage/mutation-ledger.js";
+import type { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
+import {
+  createSubjectIdentityInTransaction,
+  loadSubjectSummaryInTransaction,
+} from "../subject/transactional-identity.js";
 import type { NormalizedIngestSubjectTarget } from "../subject/identity.js";
 import { canonicalizeIngestSubjectTarget } from "../subject/identity.js";
-import { SubjectService, summarizeSubject } from "../subject/service.js";
 import type { PreparedMaterial } from "./normalize.js";
 import { normalizeMaterial, prepareMaterial } from "./normalize.js";
-import type { IngestBaseline } from "./state-transition.js";
 import { deriveIngestState } from "./state-transition.js";
+
+interface StoredMaterialRow {
+  readonly materialId: MaterialId;
+  readonly kind: MaterialRecord["kind"];
+  readonly contentDigest: ContentDigest;
+  readonly provenanceDigest: VersionMaterialEntry["provenanceDigest"];
+  readonly sourceIdentity: string;
+  readonly identityJson: string;
+  readonly record: MaterialRecord;
+  readonly blobDigest: ContentDigest;
+  readonly blobByteLength: number;
+  readonly storedAt: IsoDateTime;
+}
 
 interface PreparedBatch {
   readonly accepted: readonly PreparedMaterial[];
@@ -63,81 +83,72 @@ interface PreparedBatch {
   readonly storedAtByMaterialId: ReadonlyMap<MaterialId, IsoDateTime>;
 }
 
-interface LockedOutcome {
+interface TransactionOutcome {
   readonly result: IngestResult;
   readonly events: readonly EngineEvent[];
+  readonly committed: boolean;
 }
 
-/** Fault-injection hooks for the package-internal Step 5 transaction tests. */
+/** Fault hooks used by real process-crash tests at durable boundaries. */
 export interface IngestServiceHooks {
-  /** Runs while canonical subject locks are held, immediately before journal publication. */
-  readonly beforePrepared?: (transaction: IngestTransactionRecord) => void | Promise<void>;
-  /** Runs after the complete prepared journal is durable. */
-  readonly afterPrepared?: (transaction: IngestTransactionRecord) => void | Promise<void>;
-  /** Runs after one existing-subject material directory is durable. */
-  readonly afterMaterialWrite?: (materialId: MaterialId) => void | Promise<void>;
-  /** Runs after the subject target state or complete create directory is visible. */
-  readonly afterFactCommit?: (transaction: IngestTransactionRecord) => void | Promise<void>;
+  /** Runs after each unique immutable content blob is published. */
+  readonly afterBlobPut?: (contentDigest: ContentDigest) => void | Promise<void>;
+  /** Runs synchronously after all SQL writes and immediately before COMMIT. */
+  readonly beforeTransactionCommit?: (requestId: MutationContext["requestId"]) => void;
+  /** Runs after COMMIT and before post-commit invalidation publication. */
+  readonly afterTransactionCommit?: (
+    requestId: MutationContext["requestId"],
+  ) => void | Promise<void>;
 }
 
-/** Concrete dependencies for the package-internal Step 5 ingest service. */
+/** Concrete dependencies for the package-private SQLite ingest slice. */
 export interface IngestServiceDependencies {
-  readonly spaces: FileSpaceStore;
-  readonly subjects: FileSubjectStore;
-  readonly states: FileStateStore;
-  readonly materials: FileMaterialStore;
-  readonly versions: FileVersionManifestStore;
-  readonly operations: FileOperationStore;
-  readonly transactions: FileTransactionStore;
-  readonly staging: FileIngestStaging;
-  readonly requestLocks: FileRequestLock;
-  readonly spaceIdentityLocks: FileSpaceIdentityLock;
-  readonly subjectLocks: FileSubjectLock;
-  readonly subjectService: SubjectService;
-  readonly recovery: RecoveryService;
+  readonly store: SqliteEngineStore;
+  readonly blobs: ContentAddressedBlobStore;
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly eventBus: EventBus;
   readonly hooks?: IngestServiceHooks;
 }
 
-const optionalMaterial = async (
-  materials: FileMaterialStore,
-  subjectId: SubjectId,
-  materialId: MaterialId,
-): Promise<StoredMaterial | undefined> => {
-  try {
-    return await materials.read(subjectId, materialId);
-  } catch (error) {
-    if (error instanceof DistillyError && error.code === "not_found") return undefined;
-    throw error;
-  }
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+
+const text = (row: Readonly<Record<string, unknown>>, key: string): string => {
+  const value = row[key];
+  if (typeof value !== "string") throw storageCorrupt(`SQLite ${key} is invalid.`);
+  return value;
 };
 
-const requiredState = async (
-  states: FileStateStore,
-  subjectId: SubjectId,
-): Promise<SubjectStateRecord> => {
-  try {
-    return await states.read(subjectId);
-  } catch (error) {
-    if (error instanceof DistillyError && error.code === "not_found") {
-      throw storageCorrupt("A published subject is missing its authoritative state.", error);
-    }
-    throw error;
-  }
+const nullableText = (row: Readonly<Record<string, unknown>>, key: string): string | undefined => {
+  const value = row[key];
+  if (value === null) return undefined;
+  if (typeof value !== "string") throw storageCorrupt(`SQLite ${key} is invalid.`);
+  return value;
 };
 
-const initialState = (subjectId: SubjectId): SubjectStateRecord =>
-  sealFact<SubjectStateRecord>({
-    schemaVersion: 2,
-    subjectId,
-    generation: 0,
-    materialManifest: [],
-  });
+const integer = (row: Readonly<Record<string, unknown>>, key: string): number => {
+  const value = row[key];
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    throw storageCorrupt(`SQLite ${key} is invalid.`);
+  }
+  return value;
+};
 
-const actorEquals = (left: ActorContext, right: ActorContext): boolean =>
-  left.kind === right.kind && left.id === right.id && left.host === right.host;
+const sqliteBoolean = (row: Readonly<Record<string, unknown>>, key: string): boolean => {
+  const value = integer(row, key);
+  if (value !== 0 && value !== 1) throw storageCorrupt(`SQLite ${key} is not boolean.`);
+  return value === 1;
+};
+
+const utf8Blob = (row: Readonly<Record<string, unknown>>, key: string): string => {
+  const value = row[key];
+  if (!(value instanceof Uint8Array)) throw storageCorrupt(`SQLite ${key} is invalid.`);
+  try {
+    return UTF8_DECODER.decode(value);
+  } catch (error) {
+    throw storageCorrupt(`SQLite ${key} is not canonical UTF-8.`, error);
+  }
+};
 
 const parseBoundary = <T>(parse: () => T, fieldPath: string): T => {
   try {
@@ -148,115 +159,405 @@ const parseBoundary = <T>(parse: () => T, fieldPath: string): T => {
   }
 };
 
-const sortedEntries = (materials: readonly PreparedMaterial[]): readonly VersionMaterialEntry[] =>
-  materials
-    .map(({ record }) => ({
+const parseStored = <T>(parse: () => T, label: string): T => {
+  try {
+    return parse();
+  } catch (error) {
+    if (error instanceof DistillyError && error.code === "storage_corrupt") throw error;
+    throw storageCorrupt(`SQLite ${label} is invalid.`, error);
+  }
+};
+
+const parseJson = (value: string, label: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw storageCorrupt(`SQLite ${label} is not valid JSON.`, error);
+  }
+};
+
+const queryOne = (
+  database: DatabaseSync,
+  sql: string,
+  values: readonly (string | number | bigint | Uint8Array | null)[],
+  label: string,
+): Readonly<Record<string, unknown>> | undefined => {
+  try {
+    return database.prepare(sql).get(...values);
+  } catch (error) {
+    throw storageCorrupt(`SQLite could not read ${label}.`, error);
+  }
+};
+
+const queryAll = (
+  database: DatabaseSync,
+  sql: string,
+  values: readonly (string | number | bigint | Uint8Array | null)[],
+  label: string,
+): readonly Readonly<Record<string, unknown>>[] => {
+  try {
+    return database.prepare(sql).all(...values);
+  } catch (error) {
+    throw storageCorrupt(`SQLite could not read ${label}.`, error);
+  }
+};
+
+/**
+ * Selects the material fields that determine immutable identity.
+ *
+ * @param record - The canonical stored material record.
+ * @returns Identity-bearing semantics without first-seen display metadata.
+ */
+const materialIdentitySemantics = (record: MaterialRecord): unknown => {
+  const source = Object.fromEntries(
+    Object.entries(record.source).filter(([key]) => key !== "title" && key !== "capturedAt"),
+  );
+  return {
+    id: record.id,
+    subjectId: record.subjectId,
+    kind: record.kind,
+    contentDigest: record.contentDigest,
+    provenanceDigest: record.provenanceDigest,
+    sourceIdentity: record.sourceIdentity,
+    source,
+    derivation: record.derivation,
+    participants: record.participants,
+    sensitivity: record.sensitivity,
+    ...(record.correctionProvenance === undefined
+      ? {}
+      : { correctionProvenance: record.correctionProvenance }),
+    ...(record.captureAuditRef === undefined ? {} : { captureAuditRef: record.captureAuditRef }),
+    ...(record.conversationSourceKey === undefined
+      ? {}
+      : { conversationSourceKey: record.conversationSourceKey }),
+    flags: record.flags,
+  };
+};
+
+const identityJson = (record: MaterialRecord): string =>
+  canonicalJson(materialIdentitySemantics(record));
+
+const loadMaterialRows = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+): readonly StoredMaterialRow[] =>
+  queryAll(
+    database,
+    `SELECT materials.material_id, materials.kind, materials.content_digest,
+              materials.provenance_digest, materials.source_identity,
+              materials.identity_json, materials.record_json, materials.blob_digest,
+              materials.stored_at, blobs.byte_length AS blob_byte_length
+       FROM materials
+       LEFT JOIN blobs ON blobs.digest = materials.blob_digest
+       WHERE materials.subject_id = ?
+       ORDER BY materials.material_id`,
+    [subjectId],
+    "subject materials",
+  ).map((row) => {
+    const recordJson = text(row, "record_json");
+    const record = parseStored(
+      () => materialRecordSchema.parse(parseJson(recordJson, "material record")),
+      "material record",
+    ) as MaterialRecord;
+    verifyFactChecksum(record);
+    const materialId = parseStored(
+      () => materialIdSchema.parse(text(row, "material_id")),
+      "material id",
+    );
+    const kind = text(row, "kind") as MaterialRecord["kind"];
+    const contentDigest = parseStored(
+      () => contentDigestSchema.parse(text(row, "content_digest")),
+      "content digest",
+    );
+    const provenanceDigest = parseStored(
+      () => provenanceDigestSchema.parse(text(row, "provenance_digest")),
+      "provenance digest",
+    );
+    const sourceIdentity = utf8Blob(row, "source_identity");
+    const storedIdentityJson = text(row, "identity_json");
+    const blobDigest = parseStored(
+      () => contentDigestSchema.parse(text(row, "blob_digest")),
+      "blob digest",
+    );
+    const blobByteLength = integer(row, "blob_byte_length");
+    const storedAt = parseStored(
+      () => isoDateTimeSchema.parse(text(row, "stored_at")),
+      "stored timestamp",
+    );
+    if (
+      record.id !== materialId ||
+      record.kind !== kind ||
+      record.subjectId !== subjectId ||
+      record.contentDigest !== contentDigest ||
+      record.provenanceDigest !== provenanceDigest ||
+      record.sourceIdentity !== sourceIdentity ||
+      record.storedAt !== storedAt ||
+      blobDigest !== contentDigest ||
+      canonicalJson(record) !== recordJson ||
+      digestMaterialProvenance(record) !== provenanceDigest ||
+      deriveMaterialId(sourceIdentity, provenanceDigest, contentDigest) !== materialId ||
+      identityJson(record) !== storedIdentityJson
+    ) {
+      throw storageCorrupt("SQLite material columns disagree with its canonical record.");
+    }
+    return {
+      materialId,
+      kind,
+      contentDigest,
+      provenanceDigest,
+      sourceIdentity,
+      identityJson: storedIdentityJson,
+      record,
+      blobDigest,
+      blobByteLength,
+      storedAt,
+    };
+  });
+
+const loadPending = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+): PendingJobMarker | undefined => {
+  const row = queryOne(
+    database,
+    `SELECT job_id, generation, base_version_id, material_set_hash,
+              added_material_count, total_material_count, queued_at
+       FROM pending_jobs
+       WHERE subject_id = ?`,
+    [subjectId],
+    "a pending job",
+  );
+  if (row === undefined) return undefined;
+  const baseVersionId = nullableText(row, "base_version_id");
+  return {
+    jobId: parseStored(() => jobIdSchema.parse(text(row, "job_id")), "job id"),
+    generation: integer(row, "generation"),
+    ...(baseVersionId === undefined
+      ? {}
+      : {
+          baseVersionId: parseStored(
+            () => versionIdSchema.parse(baseVersionId),
+            "pending base version id",
+          ),
+        }),
+    materialSetHash: parseStored(
+      () => materialSetHashSchema.parse(text(row, "material_set_hash")),
+      "material-set hash",
+    ),
+    addedMaterialCount: integer(row, "added_material_count"),
+    totalMaterialCount: integer(row, "total_material_count"),
+    queuedAt: parseStored(
+      () => isoDateTimeSchema.parse(text(row, "queued_at")),
+      "queued timestamp",
+    ),
+  };
+};
+
+const loadState = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+): { readonly state: SubjectStateRecord; readonly rows: readonly StoredMaterialRow[] } => {
+  const row = queryOne(
+    database,
+    `SELECT generation, material_set_hash, current_version_id, suspended_version_id
+       FROM subject_states
+       WHERE subject_id = ?`,
+    [subjectId],
+    "subject state",
+  );
+  if (row === undefined) {
+    const exists = queryOne(
+      database,
+      "SELECT 1 FROM subjects WHERE id = ?",
+      [subjectId],
+      "subject existence",
+    );
+    if (exists === undefined) throw factNotFound("The requested subject does not exist.");
+    throw storageCorrupt("A subject is missing its authoritative state row.");
+  }
+  const rows = loadMaterialRows(database, subjectId);
+  const materialManifest = rows.map((material) => ({
+    materialId: material.materialId,
+    contentDigest: material.contentDigest,
+    provenanceDigest: material.provenanceDigest,
+  }));
+  const storedHash = nullableText(row, "material_set_hash");
+  if (materialManifest.length === 0 && storedHash !== undefined) {
+    throw storageCorrupt("An empty subject has a material-set hash.");
+  }
+  if (materialManifest.length > 0 && storedHash !== hashMaterialSet(materialManifest)) {
+    throw storageCorrupt("The subject material-set hash does not match its material rows.");
+  }
+  const pending = loadPending(database, subjectId);
+  const currentVersionId = nullableText(row, "current_version_id");
+  const suspendedVersionId = nullableText(row, "suspended_version_id");
+  if (currentVersionId !== undefined || suspendedVersionId !== undefined) {
+    throw storageCorrupt("SQLite v1 cannot contain version pointers before version storage lands.");
+  }
+  const state = parseStored(
+    () =>
+      subjectStateRecordSchema.parse(
+        sealFact<SubjectStateRecord>({
+          schemaVersion: 2,
+          subjectId,
+          generation: integer(row, "generation"),
+          ...(storedHash === undefined
+            ? {}
+            : {
+                materialSetHash: parseStored(
+                  () => materialSetHashSchema.parse(storedHash),
+                  "material-set hash",
+                ),
+              }),
+          materialManifest,
+          ...(currentVersionId === undefined
+            ? {}
+            : {
+                currentVersionId: parseStored(
+                  () => versionIdSchema.parse(currentVersionId),
+                  "current version id",
+                ),
+              }),
+          ...(suspendedVersionId === undefined
+            ? {}
+            : {
+                suspendedVersionId: parseStored(
+                  () => versionIdSchema.parse(suspendedVersionId),
+                  "suspended version id",
+                ),
+              }),
+          ...(pending === undefined ? {} : { pending }),
+        }),
+      ),
+    "subject state",
+  ) as SubjectStateRecord;
+  if (
+    currentVersionId === undefined &&
+    pending !== undefined &&
+    (pending.baseVersionId !== undefined ||
+      pending.addedMaterialCount !== materialManifest.length ||
+      pending.totalMaterialCount !== materialManifest.length)
+  ) {
+    throw storageCorrupt("A pending job disagrees with its empty-version material baseline.");
+  }
+  return { state, rows };
+};
+
+const classifyBatch = (
+  existing: readonly StoredMaterialRow[],
+  prepared: readonly PreparedMaterial[],
+  publishedBlobs: ReadonlyMap<ContentDigest, BlobPutResult>,
+): PreparedBatch => {
+  const existingById = new Map(existing.map((material) => [material.materialId, material]));
+  const seen = new Map<MaterialId, PreparedMaterial>();
+  const accepted: PreparedMaterial[] = [];
+  const items: IngestItemResult[] = [];
+  const storedAtByMaterialId = new Map(existing.map((row) => [row.materialId, row.storedAt]));
+
+  for (const material of prepared) {
+    const duplicateInBatch = seen.get(material.record.id);
+    const stored = existingById.get(material.record.id);
+    let kind: IngestItemResult["kind"];
+    if (duplicateInBatch !== undefined) {
+      if (
+        duplicateInBatch.content !== material.content ||
+        identityJson(duplicateInBatch.record) !== identityJson(material.record)
+      ) {
+        throw storageCorrupt("One material id resolved to conflicting batch semantics.");
+      }
+      kind = "duplicate";
+    } else if (stored !== undefined) {
+      const published = publishedBlobs.get(material.record.contentDigest);
+      if (
+        published === undefined ||
+        stored.blobByteLength !== published.byteLength ||
+        stored.contentDigest !== material.record.contentDigest ||
+        stored.provenanceDigest !== material.record.provenanceDigest ||
+        stored.sourceIdentity !== material.record.sourceIdentity ||
+        stored.blobDigest !== material.record.contentDigest ||
+        stored.identityJson !== identityJson(material.record)
+      ) {
+        throw storageCorrupt("A stored material id resolves to conflicting identity semantics.");
+      }
+      seen.set(material.record.id, material);
+      kind = "duplicate";
+    } else {
+      seen.set(material.record.id, material);
+      accepted.push(material);
+      storedAtByMaterialId.set(material.record.id, material.record.storedAt);
+      kind = "accepted";
+    }
+    items.push({
+      clientRef: material.clientRef,
+      kind,
+      materialId: material.record.id,
+      contentDigest: material.record.contentDigest,
+    });
+  }
+
+  const targetManifest = [
+    ...existing.map((row) => ({
+      materialId: row.materialId,
+      contentDigest: row.contentDigest,
+      provenanceDigest: row.provenanceDigest,
+    })),
+    ...accepted.map(({ record }) => ({
       materialId: record.id,
       contentDigest: record.contentDigest,
       provenanceDigest: record.provenanceDigest,
-    }))
-    .sort((left, right) =>
-      left.materialId < right.materialId ? -1 : left.materialId > right.materialId ? 1 : 0,
-    );
-
-const requireMaterialSetHash = (
-  state: SubjectStateRecord,
-): NonNullable<SubjectStateRecord["materialSetHash"]> => {
-  if (state.materialSetHash === undefined) {
-    throw storageCorrupt("A non-empty ingest target is missing its material-set hash.");
-  }
-  return state.materialSetHash;
+    })),
+  ].sort((left, right) =>
+    left.materialId < right.materialId ? -1 : left.materialId > right.materialId ? 1 : 0,
+  );
+  return { accepted, items, targetManifest, storedAtByMaterialId };
 };
 
-const replayOperation = (
-  operation: OperationFact,
-  inputChecksum: OperationRecord<"materials.ingest">["inputChecksum"],
-): IngestResult => {
-  if (operation.method !== "materials.ingest" || operation.inputChecksum !== inputChecksum) {
-    throw idempotencyConflict("RequestId was already used by a different mutation input.");
-  }
-  if (operation.recordKind === "tombstone") {
-    throw factNotFound("The subject previously owned by this request was purged.");
-  }
-  return operation.result;
-};
-
-const makeEventRecord = (
-  kind: EngineEvent["kind"],
+const writePending = (
+  database: DatabaseSync,
   subjectId: SubjectId,
-  at: IsoDateTime,
-  actor: ActorContext,
-  requestId: MutationContext["requestId"],
-  ids: IdGenerator,
-): EventRecord =>
-  sealFact<EventRecord>({
-    schemaVersion: 1,
-    eventId: ids.eventId(),
-    event: { kind, subjectId, at },
-    actor,
-    requestId,
-  });
-
-const makePreparedTransaction = (input: {
-  readonly requestId: MutationContext["requestId"];
-  readonly space: SpaceRecord;
-  readonly subject: SubjectRecord;
-  readonly previous: SubjectStateRecord;
-  readonly target: SubjectStateRecord;
-  readonly created: boolean;
-  readonly accepted: readonly PreparedMaterial[];
-  readonly operation: OperationRecord<"materials.ingest">;
-  readonly events: readonly EventRecord[];
-  readonly preparedAt: IsoDateTime;
-}): IngestTransactionRecord => {
-  const payload = {
-    schemaVersion: 1,
-    transactionKind: "ingest",
-    requestId: input.requestId,
-    spaceId: input.space.id,
-    subjectId: input.subject.id,
-    targetStateChecksum: input.target.checksum,
-    newMaterials: sortedEntries(input.accepted),
-    operation: input.operation,
-    events: input.events,
-    preparedAt: input.preparedAt,
-    ...(input.created
-      ? {
-          createdSubject: true,
-          targetSubjectChecksum: input.subject.checksum,
-        }
-      : {
-          createdSubject: false,
-          previousStateChecksum: input.previous.checksum,
-        }),
-    state: "prepared",
-  } as const;
-  return transactionRecordSchema.parse({
-    ...payload,
-    checksum: computeFactChecksum(payload),
-  }) as IngestTransactionRecord;
+  pending: PendingJobMarker | undefined,
+): void => {
+  database.prepare("DELETE FROM pending_jobs WHERE subject_id = ?").run(subjectId);
+  if (pending === undefined) return;
+  database
+    .prepare(
+      `INSERT INTO pending_jobs(
+         subject_id, job_id, generation, base_version_id, material_set_hash,
+         added_material_count, total_material_count, queued_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      subjectId,
+      pending.jobId,
+      pending.generation,
+      pending.baseVersionId ?? null,
+      pending.materialSetHash,
+      pending.addedMaterialCount,
+      pending.totalMaterialCount,
+      pending.queuedAt,
+    );
 };
 
-/** Atomic create-or-existing text ingest below the public CoreEngineClient boundary. */
+/** Atomic SQLite/WAL text ingest below the public EngineClient boundary. */
 export class IngestService {
   readonly #dependencies: IngestServiceDependencies;
 
   /**
-   * Creates the package-internal ingest coordinator.
+   * Creates the SQLite-backed ingest mutation.
    *
-   * @param dependencies - Concrete stores, locks, recovery, and trusted seams.
+   * @param dependencies - SQLite, blob, identity, clock, and event seams.
    */
   constructor(dependencies: IngestServiceDependencies) {
     this.#dependencies = dependencies;
   }
 
   /**
-   * Performs one globally idempotent atomic text ingest.
+   * Performs one globally keyed atomic text ingest.
    *
    * @param rawInput - Untrusted method parameters parsed at this boundary.
-   * @param rawActor - Trusted session actor attached by the composition.
-   * @param rawMutation - Caller-generated RequestId retained across retries.
-   * @returns The exact stored operation result.
+   * @param rawActor - Trusted actor attached by the calling client composition.
+   * @param rawMutation - Caller-owned RequestId retained across retries.
+   * @returns The exact stored ingest result on first execution or replay.
    */
   async ingest(
     rawInput: IngestInput,
@@ -274,405 +575,288 @@ export class IngestService {
     );
     const canonicalTarget = canonicalizeIngestSubjectTarget(input.subject).target;
     const normalizedMaterials = input.materials.map(normalizeMaterial);
-    const inputChecksum = computeFactChecksum({
-      method: "materials.ingest",
-      params: {
-        subject: canonicalTarget,
-        materials: normalizedMaterials,
-        enqueue: input.enqueue,
-      },
+    if (
+      normalizedMaterials.some(
+        (material) =>
+          material.derivation.kind === "host_extract" &&
+          material.derivation.method === "computer_use_transcript",
+      )
+    ) {
+      throw invalidInput(
+        "Computer-use transcripts require a trusted private capture session.",
+        "materials.derivation.method",
+      );
+    }
+    const inputChecksum = computeMutationInputChecksum(
+      "materials.ingest",
+      { subject: canonicalTarget, materials: normalizedMaterials, enqueue: input.enqueue },
       actor,
-    });
-    let candidateSubjectId =
+    );
+    const replay = this.#dependencies.store.read((database) =>
+      replayCompletedMutation(database, {
+        requestId: mutation.requestId,
+        method: "materials.ingest",
+        inputChecksum,
+        actor,
+      }),
+    );
+    if (replay !== undefined) return replay;
+
+    const candidateSubjectId =
       canonicalTarget.kind === "existing"
         ? canonicalTarget.subjectId
         : this.#dependencies.ids.subjectId();
-
-    for (;;) {
-      await this.#dependencies.recovery.reconcilePending();
-      const requestLease = await this.#dependencies.requestLocks.acquire(mutation.requestId);
-      let outcome: LockedOutcome;
-      try {
-        const operation = await this.#dependencies.operations.readOptional(mutation.requestId);
-        if (operation !== undefined) {
-          return replayOperation(operation, inputChecksum);
-        }
-        const journal = await this.#dependencies.transactions.readOptional(mutation.requestId);
-        if (journal !== undefined) {
-          if (
-            journal.operation.method !== "materials.ingest" ||
-            journal.operation.inputChecksum !== inputChecksum ||
-            !actorEquals(journal.operation.actor, actor)
-          ) {
-            throw idempotencyConflict("RequestId was already used by a different mutation input.");
-          }
-          if (journal.state === "prepared") {
-            continue;
-          }
-          if (journal.state === "committed") {
-            throw storageCorrupt("A committed ingest journal is missing its operation fact.");
-          }
-          candidateSubjectId = journal.subjectId;
-        }
-
-        const now = this.#dependencies.clock.now();
-        const preparedMaterials = normalizedMaterials.map((material) =>
-          prepareMaterial(material, candidateSubjectId, mutation.requestId, now),
-        );
-        outcome =
-          canonicalTarget.kind === "existing"
-            ? await this.ingestExisting(
-                input,
-                actor,
-                mutation,
-                inputChecksum,
-                canonicalTarget,
-                preparedMaterials,
-                now,
-              )
-            : await this.ingestCreate(
-                input,
-                actor,
-                mutation,
-                inputChecksum,
-                canonicalTarget,
-                candidateSubjectId,
-                preparedMaterials,
-                now,
-              );
-      } finally {
-        await requestLease.release();
+    const now = this.#dependencies.clock.now();
+    const prepared = normalizedMaterials.map((material) =>
+      prepareMaterial(material, candidateSubjectId, mutation.requestId, now),
+    );
+    const uniqueContent = new Map<ContentDigest, PreparedMaterial>();
+    for (const material of prepared) {
+      const previous = uniqueContent.get(material.record.contentDigest);
+      if (previous !== undefined && previous.content !== material.content) {
+        throw storageCorrupt("One content digest resolved to conflicting batch bytes.");
       }
-
-      for (const event of outcome.events) await this.#dependencies.eventBus.publish(event);
-      return outcome.result;
+      uniqueContent.set(material.record.contentDigest, material);
     }
-  }
 
-  private async ingestExisting(
-    input: IngestInput,
-    actor: ActorContext,
-    mutation: MutationContext,
-    inputChecksum: OperationRecord<"materials.ingest">["inputChecksum"],
-    target: Extract<NormalizedIngestSubjectTarget, { readonly kind: "existing" }>,
-    preparedMaterials: readonly PreparedMaterial[],
-    now: IsoDateTime,
-  ): Promise<LockedOutcome> {
-    const lease = await this.#dependencies.subjectLocks.acquire(target.subjectId);
-    try {
-      const subject = await this.#dependencies.subjects.read(target.subjectId);
-      const space = await this.#dependencies.spaces.read(subject.spaceId);
-      const previous = await requiredState(this.#dependencies.states, subject.id);
-      await this.assertNoRelevantPrepared(mutation.requestId, space.id, subject.id, false);
-      return await this.commitLocked({
-        input,
-        actor,
-        mutation,
-        inputChecksum,
-        subject,
-        space,
-        previous,
-        created: false,
-        preparedMaterials,
-        now,
-      });
-    } finally {
-      await lease.release();
-    }
-  }
-
-  private async ingestCreate(
-    input: IngestInput,
-    actor: ActorContext,
-    mutation: MutationContext,
-    inputChecksum: OperationRecord<"materials.ingest">["inputChecksum"],
-    target: Extract<NormalizedIngestSubjectTarget, { readonly kind: "create" }>,
-    subjectId: SubjectId,
-    preparedMaterials: readonly PreparedMaterial[],
-    now: IsoDateTime,
-  ): Promise<LockedOutcome> {
-    const space = await this.#dependencies.subjectService.resolveCreateSpace(target.input);
-    const identityLease = await this.#dependencies.spaceIdentityLocks.acquire(space.id);
-    try {
-      await this.#dependencies.subjectService.assertCreateAvailable(target.input, space);
-      const subjectLease = await this.#dependencies.subjectLocks.acquire(subjectId);
+    const outcome = await (async (): Promise<TransactionOutcome> => {
+      const blobAccess = await this.#dependencies.blobs.acquireMutationAccess();
       try {
-        await this.assertNoRelevantPrepared(mutation.requestId, space.id, subjectId, true);
-        await this.#dependencies.subjects.assertDirectoryAbsent(subjectId);
-        const subject = this.#dependencies.subjectService.createRecord(
-          target.input,
-          space,
-          subjectId,
-        );
-        return await this.commitLocked({
-          input,
-          actor,
-          mutation,
-          inputChecksum,
-          subject,
-          space,
-          previous: initialState(subjectId),
-          created: true,
-          preparedMaterials,
-          now,
+        const blobRowsBeforePublish = this.#dependencies.store.read((database) => {
+          const existing = new Set<ContentDigest>();
+          for (const digest of uniqueContent.keys()) {
+            const row = queryOne(
+              database,
+              `SELECT
+                 EXISTS(SELECT 1 FROM blobs WHERE digest = ?) AS blob_present,
+                 EXISTS(SELECT 1 FROM materials WHERE blob_digest = ?) AS material_present`,
+              [digest, digest],
+              "pre-publish blob references",
+            );
+            if (row === undefined) {
+              throw storageCorrupt("SQLite did not return a blob-reference snapshot.");
+            }
+            const blobPresent = sqliteBoolean(row, "blob_present");
+            const materialPresent = sqliteBoolean(row, "material_present");
+            if (materialPresent && !blobPresent) {
+              throw storageCorrupt("A material references a missing blob authority row.");
+            }
+            if (blobPresent) existing.add(digest);
+          }
+          return existing;
+        });
+        const publishedBlobs = new Map<ContentDigest, BlobPutResult>();
+        for (const material of uniqueContent.values()) {
+          if (!blobRowsBeforePublish.has(material.record.contentDigest)) continue;
+          const verified = await blobAccess.verify(material.record.contentDigest, material.content);
+          if (verified === undefined) {
+            throw storageCorrupt("A referenced content blob is missing from local storage.");
+          }
+          publishedBlobs.set(verified.digest, verified);
+        }
+        for (const material of uniqueContent.values()) {
+          if (publishedBlobs.has(material.record.contentDigest)) continue;
+          const published = await blobAccess.put(material.record.contentDigest, material.content);
+          publishedBlobs.set(published.digest, published);
+          await this.#dependencies.hooks?.afterBlobPut?.(material.record.contentDigest);
+        }
+        return this.#dependencies.store.write((database) => {
+          const storedReplay = replayCompletedMutation(database, {
+            requestId: mutation.requestId,
+            method: "materials.ingest",
+            inputChecksum,
+            actor,
+          });
+          if (storedReplay !== undefined) {
+            return { result: storedReplay, events: [], committed: false };
+          }
+          return this.#commit(
+            database,
+            input,
+            actor,
+            mutation,
+            canonicalTarget,
+            candidateSubjectId,
+            prepared,
+            blobRowsBeforePublish,
+            publishedBlobs,
+            inputChecksum,
+            now,
+          );
         });
       } finally {
-        await subjectLease.release();
+        await blobAccess.release();
       }
-    } finally {
-      await identityLease.release();
+    })();
+    if (outcome.committed) {
+      await this.#dependencies.hooks?.afterTransactionCommit?.(mutation.requestId);
+      for (const event of outcome.events) await this.#dependencies.eventBus.publish(event);
     }
+    return outcome.result;
   }
 
-  private async commitLocked(input: {
-    readonly input: IngestInput;
-    readonly actor: ActorContext;
-    readonly mutation: MutationContext;
-    readonly inputChecksum: OperationRecord<"materials.ingest">["inputChecksum"];
-    readonly subject: SubjectRecord;
-    readonly space: SpaceRecord;
-    readonly previous: SubjectStateRecord;
-    readonly created: boolean;
-    readonly preparedMaterials: readonly PreparedMaterial[];
-    readonly now: IsoDateTime;
-  }): Promise<LockedOutcome> {
-    const batch = await this.classifyBatch(
-      input.subject.id,
-      input.previous,
-      input.preparedMaterials,
-      input.created,
-    );
-    const baseline = await this.readBaseline(input.subject.id, input.previous);
+  #commit(
+    database: DatabaseSync,
+    input: IngestInput,
+    actor: ActorContext,
+    mutation: MutationContext,
+    target: NormalizedIngestSubjectTarget,
+    candidateSubjectId: SubjectId,
+    prepared: readonly PreparedMaterial[],
+    blobRowsBeforePublish: ReadonlySet<ContentDigest>,
+    publishedBlobs: ReadonlyMap<ContentDigest, BlobPutResult>,
+    inputChecksum: FactChecksum,
+    now: IsoDateTime,
+  ): TransactionOutcome {
+    const created = target.kind === "create";
+    const subject =
+      target.kind === "existing"
+        ? loadSubjectSummaryInTransaction(database, target.subjectId)
+        : createSubjectIdentityInTransaction(
+            database,
+            target.input,
+            this.#dependencies.ids,
+            candidateSubjectId,
+          );
+    const previous = loadState(database, subject.id);
+    const batch = classifyBatch(previous.rows, prepared, publishedBlobs);
+    if (previous.state.currentVersionId !== undefined) {
+      throw storageCorrupt("A current version cannot exist before version storage is migrated.");
+    }
     const derived = deriveIngestState({
-      subjectId: input.subject.id,
-      previous: input.previous,
+      subjectId: subject.id,
+      previous: previous.state,
       targetManifest: batch.targetManifest,
-      ...(baseline === undefined ? {} : { baseline }),
       storedAtByMaterialId: batch.storedAtByMaterialId,
-      enqueue: input.input.enqueue,
-      now: input.now,
+      enqueue: input.enqueue,
+      now,
       nextJobId: () => this.#dependencies.ids.jobId(),
     });
-    const subjectSummary = summarizeSubject(input.subject, input.space, derived.state);
-    const materialSetHash = requireMaterialSetHash(derived.state);
+    if (derived.state.materialSetHash === undefined) {
+      throw storageCorrupt("A non-empty ingest target is missing its material-set hash.");
+    }
+
+    for (const material of batch.accepted) {
+      const published = publishedBlobs.get(material.record.contentDigest);
+      if (published === undefined) throw storageCorrupt("A material blob was not published.");
+      let blobRow = queryOne(
+        database,
+        "SELECT byte_length FROM blobs WHERE digest = ?",
+        [material.record.contentDigest],
+        "a blob authority row",
+      );
+      if (blobRow === undefined) {
+        const dependent = queryOne(
+          database,
+          "SELECT 1 AS present FROM materials WHERE blob_digest = ? LIMIT 1",
+          [material.record.contentDigest],
+          "material references to a blob",
+        );
+        if (blobRowsBeforePublish.has(material.record.contentDigest) || dependent !== undefined) {
+          throw storageCorrupt("A referenced blob authority row disappeared before commit.");
+        }
+        database
+          .prepare(
+            `INSERT INTO blobs(digest, byte_length)
+             VALUES (?, ?)`,
+          )
+          .run(material.record.contentDigest, published.byteLength);
+        blobRow = queryOne(
+          database,
+          "SELECT byte_length FROM blobs WHERE digest = ?",
+          [material.record.contentDigest],
+          "a newly inserted blob authority row",
+        );
+      }
+      if (blobRow === undefined || integer(blobRow, "byte_length") !== published.byteLength) {
+        throw storageCorrupt("A blob authority row conflicts with immutable bytes.");
+      }
+      database
+        .prepare(
+          `INSERT INTO materials(
+             subject_id, material_id, kind, content_digest, provenance_digest,
+             source_identity, identity_json, record_json, blob_digest, stored_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          subject.id,
+          material.record.id,
+          material.record.kind,
+          material.record.contentDigest,
+          material.record.provenanceDigest,
+          Buffer.from(material.record.sourceIdentity, "utf8"),
+          identityJson(material.record),
+          canonicalJson(material.record),
+          material.record.contentDigest,
+          material.record.storedAt,
+        );
+    }
+
+    database
+      .prepare(
+        `UPDATE subject_states
+         SET generation = ?, material_set_hash = ?
+         WHERE subject_id = ?`,
+      )
+      .run(derived.state.generation, derived.state.materialSetHash, subject.id);
+    writePending(database, subject.id, derived.state.pending);
+
+    const resultSubject: SubjectSummary = {
+      ...subject,
+      ...(derived.state.currentVersionId === undefined
+        ? {}
+        : { currentVersionId: derived.state.currentVersionId }),
+    };
     const result: IngestResult =
       batch.accepted.length === 0
         ? {
             kind: "unchanged",
-            subject: subjectSummary,
+            subject: resultSubject,
             items: batch.items,
-            materialSetHash,
+            materialSetHash: derived.state.materialSetHash,
             generation: derived.state.generation,
             ...(derived.job === undefined ? {} : { job: derived.job }),
           }
         : {
             kind: "ingested",
-            subject: subjectSummary,
-            created: input.created,
+            subject: resultSubject,
+            created,
             items: batch.items,
-            materialSetHash,
+            materialSetHash: derived.state.materialSetHash,
             generation: derived.state.generation,
             ...(derived.job === undefined ? {} : { job: derived.job }),
           };
-    const operation = sealFact<OperationRecord<"materials.ingest">>({
-      schemaVersion: 1,
-      recordKind: "completed",
-      requestId: input.mutation.requestId,
+    const parsedResult = parseStored(
+      () => ingestResultSchema.parse(result),
+      "ingest result",
+    ) as IngestResult;
+    insertCompletedOperationInTransaction(database, {
+      requestId: mutation.requestId,
       method: "materials.ingest",
-      scope: { kind: "subject", subjectId: input.subject.id },
-      actor: input.actor,
-      inputChecksum: input.inputChecksum,
-      result,
-      completedAt: input.now,
+      subjectId: subject.id,
+      actor,
+      inputChecksum,
+      result: parsedResult,
+      completedAt: now,
     });
-    const events: EventRecord[] = [];
-    if (input.created) {
-      events.push(
-        makeEventRecord(
-          "subject.created",
-          input.subject.id,
-          input.now,
-          input.actor,
-          input.mutation.requestId,
-          this.#dependencies.ids,
-        ),
-      );
-    }
-    if (batch.accepted.length !== 0) {
-      events.push(
-        makeEventRecord(
-          "material.ingested",
-          input.subject.id,
-          input.now,
-          input.actor,
-          input.mutation.requestId,
-          this.#dependencies.ids,
-        ),
-      );
+
+    const events: EngineEvent[] = [];
+    if (created) events.push({ kind: "subject.created", subjectId: subject.id, at: now });
+    if (batch.accepted.length > 0) {
+      events.push({ kind: "material.ingested", subjectId: subject.id, at: now });
     }
     if (derived.pendingChanged) {
-      events.push(
-        makeEventRecord(
-          "job.changed",
-          input.subject.id,
-          input.now,
-          input.actor,
-          input.mutation.requestId,
-          this.#dependencies.ids,
-        ),
-      );
+      events.push({ kind: "job.changed", subjectId: subject.id, at: now });
     }
-    const transaction = makePreparedTransaction({
-      requestId: input.mutation.requestId,
-      space: input.space,
-      subject: input.subject,
-      previous: input.previous,
-      target: derived.state,
-      created: input.created,
-      accepted: batch.accepted,
-      operation,
-      events,
-      preparedAt: input.now,
-    });
-    await this.#dependencies.hooks?.beforePrepared?.(transaction);
-    await this.#dependencies.transactions.write(transaction);
-    await this.#dependencies.hooks?.afterPrepared?.(transaction);
-
-    if (input.created) {
-      await this.#dependencies.staging.cleanup(input.mutation.requestId, input.subject.id);
-      await this.#dependencies.staging.prepare(input.mutation.requestId, {
-        subject: input.subject,
-        materials: batch.accepted,
-        state: derived.state,
-      });
-      await this.#dependencies.staging.publish(input.mutation.requestId, input.subject.id);
-    } else {
-      for (const material of batch.accepted) {
-        await this.#dependencies.materials.write(material.record, material.content);
-        await this.#dependencies.hooks?.afterMaterialWrite?.(material.record.id);
-      }
-      if (derived.state.checksum !== input.previous.checksum) {
-        await this.#dependencies.states.write(derived.state);
-      }
-    }
-    await this.#dependencies.hooks?.afterFactCommit?.(transaction);
-
-    const publishedEvents = await this.#dependencies.recovery.materializeCommitted(
-      transaction,
-      derived.state,
-    );
-    return { result, events: publishedEvents };
-  }
-
-  private async classifyBatch(
-    subjectId: SubjectId,
-    previous: SubjectStateRecord,
-    prepared: readonly PreparedMaterial[],
-    creating: boolean,
-  ): Promise<PreparedBatch> {
-    const previousById = new Map(
-      previous.materialManifest.map((entry) => [entry.materialId, entry]),
-    );
-    const storedAtByMaterialId = new Map<MaterialId, IsoDateTime>();
-    for (const entry of previous.materialManifest) {
-      const existing = await this.#dependencies.materials.read(subjectId, entry.materialId);
-      storedAtByMaterialId.set(entry.materialId, existing.record.storedAt);
-    }
-
-    const seen = new Map<MaterialId, PreparedMaterial>();
-    const accepted: PreparedMaterial[] = [];
-    const items: IngestItemResult[] = [];
-    for (const material of prepared) {
-      let disposition: IngestItemResult["kind"];
-      const duplicateInBatch = seen.get(material.record.id);
-      if (duplicateInBatch !== undefined) {
-        if (
-          duplicateInBatch.record.contentDigest !== material.record.contentDigest ||
-          duplicateInBatch.record.provenanceDigest !== material.record.provenanceDigest ||
-          duplicateInBatch.content !== material.content
-        ) {
-          throw storageCorrupt("One material id resolved to conflicting batch contents.");
-        }
-        disposition = "duplicate";
-      } else {
-        seen.set(material.record.id, material);
-        const previousEntry = previousById.get(material.record.id);
-        if (previousEntry !== undefined) {
-          if (
-            previousEntry.contentDigest !== material.record.contentDigest ||
-            previousEntry.provenanceDigest !== material.record.provenanceDigest
-          ) {
-            throw storageCorrupt("Existing material id disagrees with its state manifest.");
-          }
-          disposition = "duplicate";
-        } else {
-          if (!creating) {
-            const orphan = await optionalMaterial(
-              this.#dependencies.materials,
-              subjectId,
-              material.record.id,
-            );
-            if (orphan !== undefined) {
-              throw storageCorrupt(
-                "A material directory exists outside the authoritative manifest.",
-              );
-            }
-          }
-          disposition = "accepted";
-          accepted.push(material);
-          storedAtByMaterialId.set(material.record.id, material.record.storedAt);
-        }
-      }
-      items.push({
-        clientRef: material.clientRef,
-        kind: disposition,
-        materialId: material.record.id,
-        contentDigest: material.record.contentDigest,
+    for (const event of events) {
+      insertEventInTransaction(database, {
+        eventId: this.#dependencies.ids.eventId(),
+        event,
+        actor,
+        requestId: mutation.requestId,
       });
     }
-    const targetManifest = [...previous.materialManifest, ...sortedEntries(accepted)].sort(
-      (left, right) =>
-        left.materialId < right.materialId ? -1 : left.materialId > right.materialId ? 1 : 0,
-    );
-    return { accepted, items, targetManifest, storedAtByMaterialId };
-  }
-
-  private async readBaseline(
-    subjectId: SubjectId,
-    state: SubjectStateRecord,
-  ): Promise<IngestBaseline | undefined> {
-    if (state.currentVersionId === undefined) return undefined;
-    let stored;
-    try {
-      stored = await this.#dependencies.versions.read(subjectId, state.currentVersionId);
-    } catch (error) {
-      if (error instanceof DistillyError && error.code === "not_found") {
-        throw storageCorrupt("Subject state points to a missing current version.", error);
-      }
-      throw error;
-    }
-    return { versionId: stored.version.id, manifest: stored.manifest.items };
-  }
-
-  private async assertNoRelevantPrepared(
-    requestId: MutationContext["requestId"],
-    spaceId: SpaceRecord["id"],
-    subjectId: SubjectId,
-    creating: boolean,
-  ): Promise<void> {
-    for (const transaction of await this.#dependencies.transactions.list()) {
-      if (transaction.requestId === requestId || transaction.state !== "prepared") continue;
-      if (
-        transaction.subjectId === subjectId ||
-        (creating &&
-          transaction.transactionKind === "ingest" &&
-          transaction.createdSubject &&
-          transaction.spaceId === spaceId)
-      ) {
-        throw lockBusy(
-          "Another prepared transaction must be reconciled before this subject can change.",
-        );
-      }
-    }
+    this.#dependencies.hooks?.beforeTransactionCommit?.(mutation.requestId);
+    return { result: parsedResult, events, committed: true };
   }
 }

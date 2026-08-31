@@ -570,42 +570,6 @@ describe("concrete fact stores", () => {
     await expectErrorCode(harness.materials.list(SUBJECT_ID), "storage_corrupt");
   });
 
-  it("removes only a matching journal material and makes missing cleanup idempotent", async () => {
-    const harness = await createHarness();
-    await seedSubject(harness);
-    const material = makeMaterial();
-    const entry = materialEntry(material);
-    await harness.materials.write(material, "Evidence-bound material.\n");
-
-    await expectErrorCode(
-      harness.materials.removeJournalMaterial(SUBJECT_ID, {
-        ...entry,
-        provenanceDigest: provenanceDigestSchema.parse(`provenance_sha256_${ALT_HEX_64}`),
-      }),
-      "storage_corrupt",
-    );
-
-    const unknown = join(harness.layout.materialDirectory(SUBJECT_ID, material.id), "unknown");
-    await writeFile(unknown, "unknown");
-    await expectErrorCode(
-      harness.materials.removeJournalMaterial(SUBJECT_ID, entry),
-      "storage_corrupt",
-    );
-    await rm(unknown);
-
-    const linked = join(harness.layout.materialDirectory(SUBJECT_ID, material.id), "linked");
-    await symlink(harness.root, linked);
-    await expectErrorCode(
-      harness.materials.removeJournalMaterial(SUBJECT_ID, entry),
-      "storage_corrupt",
-    );
-    await unlink(linked);
-
-    await harness.materials.removeJournalMaterial(SUBJECT_ID, entry);
-    await harness.materials.removeJournalMaterial(SUBJECT_ID, entry);
-    await expectErrorCode(harness.materials.read(SUBJECT_ID, material.id), "not_found");
-  });
-
   it("validates state subject ownership, manifest facts, digests, and set hash", async () => {
     const harness = await createHarness();
     await seedSubject(harness);

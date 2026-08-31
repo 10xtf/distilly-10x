@@ -1,10 +1,5 @@
 import { DistillyError, requestIdSchema, transactionRecordSchema } from "@distilly/protocol";
-import type {
-  IngestTransactionRecord,
-  RequestId,
-  RuntimeSchema,
-  TransactionRecord,
-} from "@distilly/protocol";
+import type { RequestId, RuntimeSchema, TransactionRecord } from "@distilly/protocol";
 
 import { storageCorrupt } from "../internal-errors.js";
 import { Layout } from "../layout.js";
@@ -30,21 +25,6 @@ const withoutLifecycle = (record: TransactionRecord): Readonly<Record<string, un
   return payload;
 };
 
-const sameIngestRetryIdentity = (
-  left: IngestTransactionRecord,
-  right: IngestTransactionRecord,
-): boolean =>
-  left.requestId === right.requestId &&
-  left.spaceId === right.spaceId &&
-  left.subjectId === right.subjectId &&
-  left.createdSubject === right.createdSubject &&
-  left.operation.method === right.operation.method &&
-  left.operation.inputChecksum === right.operation.inputChecksum &&
-  canonicalJson(left.operation.actor) === canonicalJson(right.operation.actor) &&
-  (!left.createdSubject ||
-    !right.createdSubject ||
-    left.targetSubjectChecksum === right.targetSubjectChecksum);
-
 const sameExactRetryPayload = (left: TransactionRecord, right: TransactionRecord): boolean =>
   canonicalJson(withoutLifecycle(left)) === canonicalJson(withoutLifecycle(right));
 
@@ -60,8 +40,6 @@ const verifyNestedFacts = (record: TransactionRecord): void => {
 const mayReprepareTransaction = (previous: TransactionRecord, next: TransactionRecord): boolean => {
   if (previous.transactionKind !== next.transactionKind) return false;
   switch (previous.transactionKind) {
-    case "ingest":
-      return sameIngestRetryIdentity(previous, next as IngestTransactionRecord);
     case "distill_lease":
       return sameExactRetryPayload(previous, next);
     case "distill_commit":

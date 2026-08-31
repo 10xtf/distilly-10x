@@ -58,14 +58,8 @@ describe("fact foundation defaults", () => {
       [layout.transactionsDirectory(), "transactions"],
       [layout.indexDirectory(), ".index"],
       [layout.spaceFile(spaceId), join("spaces", `${spaceId}.json`)],
-      [layout.spaceCatalogLock(), join("spaces", ".catalog.lock")],
-      [layout.spaceIdentityLock(spaceId), join("spaces", `${spaceId}.identity.lock`)],
       [layout.subjectDirectory(subjectId), join("subjects", subjectId)],
       [layout.subjectLock(subjectId), join("subjects", ".locks", `${subjectId}.lock`)],
-      [
-        layout.ingestStagingDirectory(requestId, subjectId),
-        join("subjects", ".staging", `${requestId}.${subjectId}`),
-      ],
       [layout.subjectFile(subjectId), join("subjects", subjectId, "subject.json")],
       [layout.stateFile(subjectId), join("subjects", subjectId, "state.json")],
       [

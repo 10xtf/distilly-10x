@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { lstat, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 
 const rootModule = await import("@distilly/engine");
 assert.deepEqual(Object.keys(rootModule), [], "the Engine root export must remain empty");
@@ -17,77 +19,75 @@ assert.equal(
   "the built package must load the exact packed host-distill prompt",
 );
 
-const startChild = (root, eventFile, label, holdMilliseconds) => {
-  const child = spawn(
-    process.execPath,
-    [
-      fileURLToPath(new URL("./lock-child.mjs", import.meta.url)),
-      root,
-      eventFile,
-      label,
-      String(holdMilliseconds),
-    ],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  const state = { child, stdout: "", stderr: "" };
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => {
-    state.stdout += chunk;
-  });
-  child.stderr.on("data", (chunk) => {
-    state.stderr += chunk;
-  });
-  state.exited = new Promise((resolve) => {
-    child.once("close", (code, signal) => resolve({ code, signal }));
-  });
-  return state;
+const { createInternalEngineComposition } = await import("../lib/ingest/composition.js");
+
+const actor = { kind: "sdk", id: "sqlite-crash-child" };
+const input = {
+  subject: {
+    kind: "create",
+    input: {
+      displayName: "Ada Lovelace",
+      aliases: ["Ada"],
+      identityHints: [{ kind: "url", value: "https://example.com/ada" }],
+    },
+  },
+  materials: [
+    {
+      clientRef: "sqlite-crash-source",
+      kind: "web",
+      content: "Verified SQLite crash evidence.",
+      source: {
+        uri: "https://example.com/sqlite-crash",
+        medium: "article",
+        access: "public",
+        role: "reference",
+        capturedAt: "2026-08-30T00:00:00.000Z",
+      },
+      derivation: { kind: "native_text" },
+    },
+  ],
+  enqueue: "now",
 };
 
-const startIngestChild = (root, requestId) => {
-  const child = spawn(
-    process.execPath,
-    [fileURLToPath(new URL("./ingest-child.mjs", import.meta.url)), root, requestId],
-    { stdio: ["ignore", "pipe", "pipe"] },
+const requestIdFor = (digit) => `req_${digit.toString(16).padStart(32, "0")}`;
+
+const blobPath = (root, content) => {
+  const digest = `sha256_${createHash("sha256").update(content).digest("hex")}`;
+  return join(
+    root,
+    "blobs",
+    "sha256",
+    digest.slice("sha256_".length, "sha256_".length + 2),
+    digest,
   );
-  const state = { child, stdout: "", stderr: "" };
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => {
-    state.stdout += chunk;
-  });
-  child.stderr.on("data", (chunk) => {
-    state.stderr += chunk;
-  });
-  state.exited = new Promise((resolve) => {
-    child.once("close", (code, signal) => resolve({ code, signal }));
-  });
-  return state;
 };
 
-const startCommitChild = (root, payloadFile, requestId) => {
-  const child = spawn(
-    process.execPath,
-    [fileURLToPath(new URL("./commit-child.mjs", import.meta.url)), root, payloadFile, requestId],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  const state = { child, stdout: "", stderr: "" };
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => {
-    state.stdout += chunk;
-  });
-  child.stderr.on("data", (chunk) => {
-    state.stderr += chunk;
-  });
-  state.exited = new Promise((resolve) => {
-    child.once("close", (code, signal) => resolve({ code, signal }));
-  });
-  return state;
+const inspect = (root) => {
+  const database = new DatabaseSync(join(root, "store.sqlite3"), { readOnly: true });
+  try {
+    const count = (table) => database.prepare(`SELECT count(*) AS count FROM ${table}`).get().count;
+    return {
+      spaces: count("spaces"),
+      subjects: count("subjects"),
+      aliases: count("subject_aliases"),
+      identityHints: count("subject_identity_hints"),
+      subjectStates: count("subject_states"),
+      blobRows: count("blobs"),
+      materials: count("materials"),
+      pending: count("pending_jobs"),
+      operations: count("operations"),
+      events: count("events"),
+      journalMode: database.prepare("PRAGMA journal_mode").get().journal_mode,
+      quickCheck: database.prepare("PRAGMA quick_check(1)").get().quick_check,
+      foreignKeyFailures: database.prepare("PRAGMA foreign_key_check").all(),
+    };
+  } finally {
+    database.close();
+  }
 };
 
 const waitForOutput = async (state, expected) => {
-  const deadline = Date.now() + 3_000;
+  const deadline = Date.now() + 5_000;
   while (!state.stdout.includes(expected)) {
     if (state.child.exitCode !== null || Date.now() >= deadline) {
       throw new Error(
@@ -98,266 +98,237 @@ const waitForOutput = async (state, expected) => {
   }
 };
 
-const withDeadline = async (promise, milliseconds, label) => {
-  let timer;
+const withDeadline = (promise, milliseconds, label) =>
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`${label} exceeded its deadline`)),
+      milliseconds,
+    );
+    timeout.unref();
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+
+const reapChild = async (state, label) => {
+  if (state.child.exitCode === null && state.child.signalCode === null) {
+    state.child.kill("SIGKILL");
+  }
+  return withDeadline(state.exited, 5_000, `${label} close`);
+};
+
+const startCrashChild = (root, phase, requestId) => {
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL("./sqlite-crash-child.mjs", import.meta.url)), root, phase, requestId],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const state = { child, stdout: "", stderr: "" };
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    state.stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    state.stderr += chunk;
+  });
+  state.exited = new Promise((resolve) => {
+    child.once("close", (code, signal) => resolve({ code, signal }));
+  });
+  return state;
+};
+
+const runIngestChild = async (root, requestId) => {
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL("./ingest-child.mjs", import.meta.url)), root, requestId],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, NODE_NO_WARNINGS: "1" },
+    },
+  );
+  const state = { child, stdout: "", stderr: "" };
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    state.stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    state.stderr += chunk;
+  });
+  state.exited = new Promise((resolve) => {
+    child.once("close", (code, signal) => resolve({ code, signal }));
+  });
   try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`${label} exceeded ${milliseconds}ms`)),
-          milliseconds,
-        );
-      }),
-    ]);
+    const exit = await withDeadline(state.exited, 15_000, "ingest child");
+    assert.deepEqual(exit, { code: 0, signal: null }, `ingest child failed: ${state.stderr}`);
+    assert.equal(state.stderr, "", "ingest child must not emit stderr");
+    const line = state.stdout
+      .trim()
+      .split("\n")
+      .find((candidate) => candidate.startsWith("result:"));
+    assert.ok(line, `ingest child did not emit a result: ${state.stdout}`);
+    return JSON.parse(line.slice("result:".length));
   } finally {
-    clearTimeout(timer);
+    await reapChild(state, "ingest child");
   }
 };
 
-const root = await mkdtemp(join(tmpdir(), "distilly-engine-built-lock-"));
-const eventFile = join(root, "events.log");
-let first;
-let second;
+const killAt = async (root, phase, requestId) => {
+  const state = startCrashChild(root, phase, requestId);
+  try {
+    await waitForOutput(state, `phase:${phase}`);
+    assert.equal(state.child.kill("SIGKILL"), true, `the ${phase} child must accept SIGKILL`);
+    const exit = await withDeadline(state.exited, 5_000, `${phase} child`);
+    if (process.platform !== "win32") {
+      assert.equal(exit.signal, "SIGKILL", `the ${phase} child must die from real SIGKILL`);
+    }
+    assert.equal(exit.code, null, `the ${phase} child must not exit normally`);
+  } finally {
+    await reapChild(state, `${phase} child`);
+  }
+};
+
+const roots = [];
 try {
-  first = startChild(root, eventFile, "first", 350);
-  await waitForOutput(first, "acquired:first");
-  second = startChild(root, eventFile, "second", 25);
-
-  await delay(100);
-  assert.equal(
-    second.stdout.includes("acquired:second"),
-    false,
-    "the second process acquired while the first still held the lock",
+  const normalRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-sqlite-"));
+  roots.push(normalRoot);
+  const first = await createInternalEngineComposition({ root: normalRoot });
+  const normalRequest = requestIdFor(1);
+  const normalResult = await first.ingest.ingest(input, actor, { requestId: normalRequest });
+  assert.equal(normalResult.kind, "ingested");
+  assert.equal(normalResult.created, true);
+  first.close();
+  const reopened = await createInternalEngineComposition({ root: normalRoot });
+  assert.deepEqual(
+    await reopened.ingest.ingest(input, actor, { requestId: normalRequest }),
+    normalResult,
+    "reopen must replay the exact stored result",
   );
+  reopened.close();
+  assert.deepEqual(inspect(normalRoot), {
+    spaces: 1,
+    subjects: 1,
+    aliases: 1,
+    identityHints: 1,
+    subjectStates: 1,
+    blobRows: 1,
+    materials: 1,
+    pending: 1,
+    operations: 1,
+    events: 3,
+    journalMode: "wal",
+    quickCheck: "ok",
+    foreignKeyFailures: [],
+  });
 
-  const [firstExit, secondExit] = await withDeadline(
-    Promise.all([first.exited, second.exited]),
-    15_000,
-    "built lock children",
-  );
-  assert.deepEqual(firstExit, { code: 0, signal: null }, first.stderr);
-  assert.deepEqual(secondExit, { code: 0, signal: null }, second.stderr);
-  assert.deepEqual((await readFile(eventFile, "utf8")).trim().split("\n"), [
-    "acquired:first",
-    "releasing:first",
-    "acquired:second",
-    "releasing:second",
+  const concurrentRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-concurrent-"));
+  roots.push(concurrentRoot);
+  const concurrent = await Promise.all([
+    runIngestChild(concurrentRoot, requestIdFor(5)),
+    runIngestChild(concurrentRoot, requestIdFor(6)),
   ]);
-} finally {
-  const stopped = [];
-  if (first?.child.exitCode === null) {
-    first.child.kill();
-    stopped.push(first.exited);
-  }
-  if (second?.child.exitCode === null) {
-    second.child.kill();
-    stopped.push(second.exited);
-  }
-  await Promise.all(stopped);
-  await rm(root, { recursive: true, force: true });
-}
-
-const ingestRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-ingest-"));
-let left;
-let right;
-try {
-  const { createInternalEngineComposition } = await import("../lib/ingest/composition.js");
-  await createInternalEngineComposition({ root: ingestRoot });
-  left = startIngestChild(ingestRoot, `req_${"1".repeat(32)}`);
-  right = startIngestChild(ingestRoot, `req_${"2".repeat(32)}`);
-  const [leftExit, rightExit] = await withDeadline(
-    Promise.all([left.exited, right.exited]),
-    15_000,
-    "built ingest children",
-  );
-  assert.deepEqual(leftExit, { code: 0, signal: null }, left.stderr);
-  assert.deepEqual(rightExit, { code: 0, signal: null }, right.stderr);
-  const results = [left.stdout, right.stdout].map((stdout) => {
-    const line = stdout
-      .trim()
-      .split("\n")
-      .find((candidate) => candidate.startsWith("result:"));
-    assert.notEqual(line, undefined, `missing ingest result in ${JSON.stringify(stdout)}`);
-    return JSON.parse(line.slice("result:".length));
-  });
-  assert.equal(results.filter((result) => result.kind === "success").length, 1);
-  assert.equal(results.filter((result) => result.kind === "already_exists").length, 1);
-} finally {
-  const stopped = [];
-  if (left?.child.exitCode === null) {
-    left.child.kill();
-    stopped.push(left.exited);
-  }
-  if (right?.child.exitCode === null) {
-    right.child.kill();
-    stopped.push(right.exited);
-  }
-  await Promise.all(stopped);
-  await rm(ingestRoot, { recursive: true, force: true });
-}
-
-const commitRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-commit-"));
-const commitPayloadFile = join(commitRoot, "commit-payload.json");
-const leftCommitRequest = `req_${"6".repeat(32)}`;
-const rightCommitRequest = `req_${"7".repeat(32)}`;
-let commitLeft;
-let commitRight;
-try {
-  const { createInternalEngineComposition } = await import("../lib/ingest/composition.js");
-  const { Layout } = await import("../lib/layout.js");
-  const composition = await createInternalEngineComposition({ root: commitRoot });
-  const actor = { kind: "sdk", id: "built-commit-smoke" };
-  const session = {
-    actor,
-    leaseOwner: `lease_owner_${"3".repeat(32)}`,
-    capacity: {
-      maximumInputTokens: 1_000_000,
-      maximumToolResultBytes: 1_000_000,
-      source: "sdk_explicit",
-    },
-  };
-  const ingest = await composition.ingest.ingest(
-    {
-      subject: {
-        kind: "create",
-        input: {
-          displayName: "Grace Hopper",
-          aliases: ["Grace"],
-          identityHints: [{ kind: "url", value: "https://example.com/grace" }],
-        },
-      },
-      materials: [
-        {
-          clientRef: "built-commit-source",
-          kind: "web",
-          content: "Grace Hopper built reliable computing systems.",
-          source: {
-            uri: "https://example.com/grace",
-            medium: "article",
-            access: "public",
-            role: "reference",
-            capturedAt: "2026-08-21T00:00:00.000Z",
-          },
-          derivation: { kind: "native_text" },
-        },
-      ],
-      enqueue: "now",
-    },
-    actor,
-    { requestId: `req_${"4".repeat(32)}` },
-  );
-  assert.notEqual(ingest.job, undefined, "commit smoke ingest did not enqueue a job");
-  const briefing = await composition.leases.brief({ jobId: ingest.job.id }, session, {
-    requestId: `req_${"5".repeat(32)}`,
-  });
-  const input = {
-    jobId: briefing.job.id,
-    generation: briefing.job.generation,
-    leaseId: briefing.lease.id,
-    briefContractDigest: briefing.contract.digest,
-    materialSetHash: briefing.job.materialSetHash,
-    patch: {
-      operations: [
-        {
-          op: "add",
-          claim: {
-            facet: "identity.biography",
-            text: "Grace Hopper built reliable computing systems.",
-            evidence: [
-              {
-                kind: "brief_material",
-                materialRef: "m001",
-                quote: "Grace Hopper built reliable computing systems.",
-              },
-            ],
-          },
-        },
-      ],
-    },
-  };
-  await writeFile(commitPayloadFile, `${JSON.stringify({ input, session })}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  const layout = new Layout(commitRoot);
-  const eventDirectory = join(layout.subjectDirectory(ingest.subject.id), "events");
-  const eventsBefore = new Set(await readdir(eventDirectory));
-
-  commitLeft = startCommitChild(commitRoot, commitPayloadFile, leftCommitRequest);
-  commitRight = startCommitChild(commitRoot, commitPayloadFile, rightCommitRequest);
-  const [leftExit, rightExit] = await withDeadline(
-    Promise.all([commitLeft.exited, commitRight.exited]),
-    15_000,
-    "built commit children",
-  );
-  assert.deepEqual(leftExit, { code: 0, signal: null }, commitLeft.stderr);
-  assert.deepEqual(rightExit, { code: 0, signal: null }, commitRight.stderr);
-  const results = [
-    { requestId: leftCommitRequest, stdout: commitLeft.stdout },
-    { requestId: rightCommitRequest, stdout: commitRight.stdout },
-  ].map(({ requestId, stdout }) => {
-    const line = stdout
-      .trim()
-      .split("\n")
-      .find((candidate) => candidate.startsWith("result:"));
-    assert.notEqual(line, undefined, `missing commit result in ${JSON.stringify(stdout)}`);
-    return { requestId, value: JSON.parse(line.slice("result:".length)) };
-  });
-  const winner = results.find(({ value }) => value.kind === "success");
-  const loser = results.find(({ value }) => value.kind === "stale_job");
-  assert.notEqual(winner, undefined, "exactly one commit process must succeed");
-  assert.notEqual(loser, undefined, "exactly one commit process must become stale");
-  assert.equal(results.filter(({ value }) => value.kind === "success").length, 1);
-  assert.equal(results.filter(({ value }) => value.kind === "stale_job").length, 1);
-  assert.deepEqual(await composition.leases.pending({}), []);
-
-  const state = JSON.parse(await readFile(layout.stateFile(ingest.subject.id), "utf8"));
-  assert.equal(state.currentVersionId, winner.value.result.version.id);
-  assert.equal(state.suspendedVersionId, undefined);
-  assert.equal(state.pending, undefined);
-  const versionEntries = (
-    await readdir(layout.versionsDirectory(ingest.subject.id), {
-      withFileTypes: true,
-    })
-  ).filter((entry) => entry.isDirectory() && entry.name !== ".staging");
   assert.deepEqual(
-    versionEntries.map((entry) => entry.name),
-    [state.currentVersionId],
-    "concurrent commit must publish exactly one immutable version",
+    concurrent.map((result) => result.kind).sort(),
+    ["already_exists", "success"],
+    "two process create/ingest must publish one identity and reject the competing request",
   );
+  assert.deepEqual(inspect(concurrentRoot), {
+    spaces: 1,
+    subjects: 1,
+    aliases: 1,
+    identityHints: 1,
+    subjectStates: 1,
+    blobRows: 1,
+    materials: 1,
+    pending: 1,
+    operations: 1,
+    events: 3,
+    journalMode: "wal",
+    quickCheck: "ok",
+    foreignKeyFailures: [],
+  });
 
-  const winnerOperation = JSON.parse(
-    await readFile(layout.operationFile(winner.requestId), "utf8"),
+  for (const [offset, phase] of ["after_blob", "before_commit"].entries()) {
+    const root = await mkdtemp(join(tmpdir(), `distilly-engine-built-${phase}-`));
+    roots.push(root);
+    const requestId = requestIdFor(offset + 2);
+    await killAt(root, phase, requestId);
+    assert.deepEqual(inspect(root), {
+      spaces: 0,
+      subjects: 0,
+      aliases: 0,
+      identityHints: 0,
+      subjectStates: 0,
+      blobRows: 0,
+      materials: 0,
+      pending: 0,
+      operations: 0,
+      events: 0,
+      journalMode: "wal",
+      quickCheck: "ok",
+      foreignKeyFailures: [],
+    });
+    const expectedContent = input.materials[0].content;
+    const unreferencedBlob = blobPath(root, expectedContent);
+    assert.equal(
+      (await lstat(unreferencedBlob)).isFile(),
+      true,
+      `${phase} must leave the published blob as a regular file`,
+    );
+    assert.equal(
+      await readFile(unreferencedBlob, "utf8"),
+      expectedContent,
+      `${phase} must leave exact immutable blob bytes`,
+    );
+    const retry = await createInternalEngineComposition({ root });
+    const result = await retry.ingest.ingest(input, actor, { requestId });
+    assert.equal(result.kind, "ingested", `${phase} exact retry must succeed without recovery`);
+    retry.close();
+  }
+
+  const committedRoot = await mkdtemp(join(tmpdir(), "distilly-engine-built-after-commit-"));
+  roots.push(committedRoot);
+  const committedRequest = requestIdFor(4);
+  await killAt(committedRoot, "after_commit", committedRequest);
+  assert.deepEqual(inspect(committedRoot), {
+    spaces: 1,
+    subjects: 1,
+    aliases: 1,
+    identityHints: 1,
+    subjectStates: 1,
+    blobRows: 1,
+    materials: 1,
+    pending: 1,
+    operations: 1,
+    events: 3,
+    journalMode: "wal",
+    quickCheck: "ok",
+    foreignKeyFailures: [],
+  });
+  const operationDatabase = new DatabaseSync(join(committedRoot, "store.sqlite3"), {
+    readOnly: true,
+  });
+  const storedResult = JSON.parse(
+    operationDatabase
+      .prepare("SELECT result_json FROM operations WHERE request_id = ?")
+      .get(committedRequest).result_json,
   );
-  const winnerJournal = JSON.parse(
-    await readFile(layout.transactionFile(winner.requestId), "utf8"),
-  );
-  assert.equal(winnerOperation.result.version.id, state.currentVersionId);
-  assert.equal(winnerJournal.state, "committed");
-  assert.equal(winnerJournal.version.id, state.currentVersionId);
-  const newEvents = (await readdir(eventDirectory))
-    .filter((entry) => !eventsBefore.has(entry))
-    .sort();
+  operationDatabase.close();
+  const committedReplay = await createInternalEngineComposition({ root: committedRoot });
   assert.deepEqual(
-    newEvents,
-    winnerJournal.events.map((event) => `${event.eventId}.json`).sort(),
-    "concurrent commit must durably write exactly its two journaled events",
+    await committedReplay.ingest.ingest(input, actor, { requestId: committedRequest }),
+    storedResult,
+    "post-COMMIT SIGKILL must replay exact SubjectId, MaterialId, and JobId",
   );
-  await assert.rejects(access(layout.operationFile(loser.requestId)), { code: "ENOENT" });
-  await assert.rejects(access(layout.transactionFile(loser.requestId)), { code: "ENOENT" });
+  committedReplay.close();
 } finally {
-  const stopped = [];
-  if (commitLeft?.child.exitCode === null) {
-    commitLeft.child.kill();
-    stopped.push(commitLeft.exited);
-  }
-  if (commitRight?.child.exitCode === null) {
-    commitRight.child.kill();
-    stopped.push(commitRight.exited);
-  }
-  await Promise.all(stopped);
-  await rm(commitRoot, { recursive: true, force: true });
+  await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })));
 }
-
-process.stdout.write("engine built prompt, lock, ingest, and commit smoke passed\n");

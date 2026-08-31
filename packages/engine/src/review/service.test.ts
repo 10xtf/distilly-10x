@@ -68,14 +68,12 @@ import type { IdGenerator } from "../ports/id-generator.js";
 import { renderProfile, renderPrompt } from "../profile/render.js";
 import { deriveVersionId } from "../profile/version-id.js";
 import { SqliteQueueRepository } from "../queue/sqlite-projection.js";
-import { FileIngestStaging } from "../transaction/ingest-staging.js";
 import { FileRequestLock } from "../transaction/request-lock.js";
 import {
   RecoveryService,
   type RecoveryHooks,
   type SubjectProjection,
 } from "../transaction/recovery.js";
-import { FileSpaceIdentityLock } from "../transaction/space-identity-lock.js";
 import { FileSubjectLock } from "../transaction/subject-lock.js";
 import { FileVersionStaging, type VersionStagingHooks } from "../transaction/version-staging.js";
 import { ReviewService, type ReviewServiceHooks } from "./service.js";
@@ -290,17 +288,13 @@ const openHarness = (input: {
   const recovery = new RecoveryService({
     transactions,
     operations,
-    spaces: fixture.spaces,
     subjects: fixture.subjects,
     states,
-    materials: fixture.materials,
     events,
     versions,
     versionStaging,
     currentProfiles,
-    staging: new FileIngestStaging(layout, fixture.spaces),
     requestLocks,
-    spaceIdentityLocks: new FileSpaceIdentityLock(layout, clock),
     subjectLocks,
     queue,
     ...(input.library === undefined ? {} : { library: input.library }),

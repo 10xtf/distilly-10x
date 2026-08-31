@@ -7,7 +7,6 @@ import type {
   DistillLeaseTransactionRecord,
   EventRecord,
   FactEnvelope,
-  IngestTransactionRecord,
   OperationScope,
   OperationTombstoneRecord,
   PendingLeaseMarker,
@@ -646,200 +645,10 @@ export const operationFactSchema = z.discriminatedUnion("recordKind", [
   operationTombstoneRecordSchema,
 ]);
 
-const ingestTransactionBaseShape = {
-  ...factEnvelopeV1Shape,
-  transactionKind: z.literal("ingest"),
-  requestId: requestIdSchema,
-  spaceId: spaceIdSchema,
-  subjectId: subjectIdSchema,
-  targetStateChecksum: factChecksumSchema,
-  newMaterials: sortedMaterialEntriesSchema.max(WIRE_LIMITS.ingestMaterials),
-  operation: operationRecordVariants["materials.ingest"],
-  events: z.array(eventRecordSchema).max(3),
-  preparedAt: isoDateTimeSchema,
-} as const;
-
-const createdIngestTargetShape = {
-  createdSubject: z.literal(true),
-  targetSubjectChecksum: factChecksumSchema,
-} as const;
-
-const existingIngestTargetShape = {
-  createdSubject: z.literal(false),
-  previousStateChecksum: factChecksumSchema,
-} as const;
-
 const actorsEqual = (
   left: { readonly kind: string; readonly id: string; readonly host?: string | undefined },
   right: { readonly kind: string; readonly id: string; readonly host?: string | undefined },
 ): boolean => left.kind === right.kind && left.id === right.id && left.host === right.host;
-
-/** Runtime discriminated union for a crash-recoverable ingest journal. */
-export const ingestTransactionRecordSchema = schemaFor<IngestTransactionRecord>()(
-  z
-    .union([
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...createdIngestTargetShape,
-        state: z.literal("prepared"),
-      }),
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...existingIngestTargetShape,
-        state: z.literal("prepared"),
-      }),
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...createdIngestTargetShape,
-        state: z.literal("committed"),
-        finishedAt: isoDateTimeSchema,
-      }),
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...existingIngestTargetShape,
-        state: z.literal("committed"),
-        finishedAt: isoDateTimeSchema,
-      }),
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...createdIngestTargetShape,
-        state: z.literal("aborted"),
-        finishedAt: isoDateTimeSchema,
-      }),
-      z.strictObject({
-        ...ingestTransactionBaseShape,
-        ...existingIngestTargetShape,
-        state: z.literal("aborted"),
-        finishedAt: isoDateTimeSchema,
-      }),
-    ])
-    .superRefine((transaction, context) => {
-      if (transaction.operation.requestId !== transaction.requestId) {
-        context.addIssue({
-          code: "custom",
-          path: ["operation", "requestId"],
-          message: "operation request id must match the ingest journal",
-        });
-      }
-      if (
-        transaction.operation.scope.kind !== "subject" ||
-        transaction.operation.scope.subjectId !== transaction.subjectId
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["operation", "scope"],
-          message: "operation scope must match the ingest journal subject",
-        });
-      }
-
-      const result = transaction.operation.result;
-      if (result.subject.id !== transaction.subjectId) {
-        context.addIssue({
-          code: "custom",
-          path: ["operation", "result", "subject", "id"],
-          message: "operation result subject must match the ingest journal",
-        });
-      }
-      if (result.subject.space.id !== transaction.spaceId) {
-        context.addIssue({
-          code: "custom",
-          path: ["operation", "result", "subject", "space", "id"],
-          message: "operation result space must match the ingest journal",
-        });
-      }
-      if (result.job !== undefined && result.job.subjectId !== transaction.subjectId) {
-        context.addIssue({
-          code: "custom",
-          path: ["operation", "result", "job", "subjectId"],
-          message: "operation result job must belong to the journal subject",
-        });
-      }
-
-      const resultCreated = result.kind === "ingested" && result.created;
-      if (transaction.createdSubject !== resultCreated) {
-        context.addIssue({
-          code: "custom",
-          path: ["createdSubject"],
-          message: "journal subject creation must match the stored ingest result",
-        });
-      }
-
-      const acceptedItems = result.items.filter((item) => item.kind === "accepted");
-      const acceptedByMaterialId = new Map(
-        acceptedItems.map((item) => [item.materialId, item.contentDigest] as const),
-      );
-      if (
-        acceptedItems.length !== transaction.newMaterials.length ||
-        acceptedByMaterialId.size !== acceptedItems.length ||
-        transaction.newMaterials.some(
-          (entry) => acceptedByMaterialId.get(entry.materialId) !== entry.contentDigest,
-        )
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["newMaterials"],
-          message: "journal materials must match the accepted operation result items",
-        });
-      }
-
-      const requiredEventKinds: string[] = [];
-      if (transaction.createdSubject) requiredEventKinds.push("subject.created");
-      if (transaction.newMaterials.length !== 0) requiredEventKinds.push("material.ingested");
-      if (result.kind === "ingested" && result.job !== undefined) {
-        requiredEventKinds.push("job.changed");
-      }
-      const actualEventKinds = transaction.events.map((record) => record.event.kind);
-      const optionalUnchangedJobEvent = result.kind === "unchanged" && result.job !== undefined;
-      const allowedEventSequences = optionalUnchangedJobEvent
-        ? [requiredEventKinds, [...requiredEventKinds, "job.changed"]]
-        : [requiredEventKinds];
-      const eventsAreComplete = allowedEventSequences.some(
-        (sequence) =>
-          sequence.length === actualEventKinds.length &&
-          sequence.every((kind, index) => kind === actualEventKinds[index]),
-      );
-      if (!eventsAreComplete) {
-        context.addIssue({
-          code: "custom",
-          path: ["events"],
-          message: "journal events must be the complete applicable ingest event sequence",
-        });
-      }
-
-      const eventIds = new Set<string>();
-      for (const [index, record] of transaction.events.entries()) {
-        if (eventIds.has(record.eventId)) {
-          context.addIssue({
-            code: "custom",
-            path: ["events", index, "eventId"],
-            message: "ingest event ids must be unique",
-          });
-        }
-        eventIds.add(record.eventId);
-        if (record.event.subjectId !== transaction.subjectId) {
-          context.addIssue({
-            code: "custom",
-            path: ["events", index, "event", "subjectId"],
-            message: "ingest event subject must match the journal",
-          });
-        }
-        if (record.requestId !== transaction.requestId) {
-          context.addIssue({
-            code: "custom",
-            path: ["events", index, "requestId"],
-            message: "ingest event request id must match the journal",
-          });
-        }
-        if (!actorsEqual(record.actor, transaction.operation.actor)) {
-          context.addIssue({
-            code: "custom",
-            path: ["events", index, "actor"],
-            message: "ingest event actor must match the stored operation",
-          });
-        }
-      }
-    }),
-);
 
 const distillLeaseTransactionBaseShape = {
   ...factEnvelopeV1Shape,
@@ -1825,7 +1634,6 @@ export const rollbackTransactionRecordSchema = schemaFor<RollbackTransactionReco
 /** Runtime schema for the root transaction fact union. */
 export const transactionRecordSchema = schemaFor<TransactionRecord>()(
   z.union([
-    ingestTransactionRecordSchema,
     distillLeaseTransactionRecordSchema,
     distillCommitTransactionRecordSchema,
     reviewDecisionTransactionRecordSchema,

@@ -20,7 +20,7 @@ import type {
 import { HttpEngineClient } from "./web-client.js";
 import { consumePanelFragment } from "./web-fragment.js";
 import type { PanelInitialRoute } from "./web-fragment.js";
-import { fullPanelReread } from "./web-recovery.js";
+import { fullPanelReread, isDeferredPreviewDoctor } from "./web-recovery.js";
 
 type UiRoute =
   | { readonly kind: "library" }
@@ -754,7 +754,21 @@ const renderSettings = async (
   main: HTMLElement,
 ): Promise<void> => {
   main.append(textElement(document, "h1", "Settings & Doctor"));
-  const snapshot = await client.call("system.doctor", {});
+  let snapshot;
+  try {
+    snapshot = await client.call("system.doctor", {});
+  } catch (error) {
+    if (!isDeferredPreviewDoctor(error)) throw error;
+    main.append(
+      textElement(
+        document,
+        "p",
+        "Deep Doctor is not enabled in this Developer Preview.",
+        "empty-state",
+      ),
+    );
+    return;
+  }
   const sections = [
     ["Runtime", snapshot.runtime],
     ["Storage", snapshot.storage],

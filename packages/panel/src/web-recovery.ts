@@ -1,4 +1,18 @@
+import { DistillyError } from "@distilly/protocol";
 import type { EngineClient, LibraryPage } from "@distilly/protocol";
+
+/**
+ * Identifies the one deep Doctor response intentionally deferred by the Preview.
+ *
+ * @param error - Failure returned by the Doctor read.
+ * @returns Whether recovery may continue without a Doctor snapshot.
+ */
+export const isDeferredPreviewDoctor = (error: unknown): boolean =>
+  error instanceof DistillyError &&
+  error.code === "schema_unsupported" &&
+  error.retryable === false &&
+  error.details?.["kind"] === "preview_method_deferred" &&
+  error.details["method"] === "system.doctor";
 
 /**
  * Discards all page cursors and completes the three Panel-wide recovery reads.
@@ -37,5 +51,12 @@ export const fullPanelReread = async (client: EngineClient): Promise<void> => {
       }
     } while (cursor !== undefined);
   };
-  await Promise.all([readLibrary(), readReviews(), client.call("system.doctor", {})]);
+  const readDoctor = async (): Promise<void> => {
+    try {
+      await client.call("system.doctor", {});
+    } catch (error) {
+      if (!isDeferredPreviewDoctor(error)) throw error;
+    }
+  };
+  await Promise.all([readLibrary(), readReviews(), readDoctor()]);
 };

@@ -60,6 +60,7 @@ const previewUnsupported = (method: RuntimeOwnedMethodName): DistillyError =>
     message: `${method} is not enabled in Distilly 0.1 Developer Preview.`,
     retryable: false,
     remediation: "Use a method enabled by the 0.1 Developer Preview.",
+    details: { kind: "preview_method_deferred", method },
   });
 
 const hostUnavailable = (): DistillyError =>

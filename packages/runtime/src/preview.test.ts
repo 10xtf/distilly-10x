@@ -490,5 +490,10 @@ describe("Developer Preview LocalRuntime", () => {
     await expect(second.call("subjects.list", {})).resolves.toMatchObject({
       items: [{ id: subject.id, displayName: "Persistent Subject" }],
     });
+    await expect(second.call("system.doctor", {})).rejects.toMatchObject({
+      code: "schema_unsupported",
+      retryable: false,
+      details: { kind: "preview_method_deferred", method: "system.doctor" },
+    });
   });
 });

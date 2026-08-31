@@ -1,3 +1,5 @@
+import { createServer } from "node:net";
+
 import { createMcpServer, type McpServer } from "@distilly/mcp";
 import { runStdio } from "@distilly/mcp/stdio";
 import { PanelLauncher, startPanelServer } from "@distilly/panel/server";
@@ -12,10 +14,11 @@ const DIRECT_USER_CAPACITY = {
   source: "sdk_explicit" as const,
 };
 
-/** Fixed Panel coordinates supplied by the outer launcher or a test fixture. */
+/** Panel assets plus an optional fixed listener port for tests. */
 export interface PreviewPanelOptions {
   readonly assetsDir: string;
-  readonly port: number;
+  /** Fixed test port; production Preview chooses one at each lazy start attempt. */
+  readonly port?: number;
 }
 
 /** Trusted host identity and local paths needed by the Preview composition. */
@@ -37,6 +40,23 @@ export interface PreviewMcpApplication {
   /** Closes presenters and clients before releasing the single-writer runtime. */
   close(): Promise<void>;
 }
+
+const freePanelPort = async (): Promise<number> => {
+  const server = createServer();
+  await new Promise<void>((resolvePromise, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolvePromise);
+  });
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    await new Promise<void>((resolvePromise) => server.close(() => resolvePromise()));
+    throw new Error("Could not select a local Panel port.");
+  }
+  await new Promise<void>((resolvePromise, reject) =>
+    server.close((error) => (error === undefined ? resolvePromise() : reject(error))),
+  );
+  return address.port;
+};
 
 class PreviewMcpApplicationImplementation implements PreviewMcpApplication {
   readonly distilly: Distilly;
@@ -99,7 +119,7 @@ class PreviewMcpApplicationImplementation implements PreviewMcpApplication {
  * The caller is a trusted binding. Model input cannot supply actor identity,
  * capacity, storage root, Panel assets, or listener coordinates.
  *
- * @param options - Trusted host session, local root, and Panel coordinates.
+ * @param options - Trusted host session, local root, Panel assets, and optional test port.
  * @returns The owned facade, MCP transport entry, and teardown handle.
  */
 export const openPreviewMcpApplication = async (
@@ -123,11 +143,11 @@ export const openPreviewMcpApplication = async (
       capacity: DIRECT_USER_CAPACITY,
     });
     const panel = new PanelLauncher({
-      start: () =>
+      start: async () =>
         startPanelServer({
           client: userClient,
           assetsDir: options.panel.assetsDir,
-          port: options.panel.port,
+          port: options.panel.port ?? (await freePanelPort()),
         }),
     });
     const mcp = createMcpServer({ client: hostClient, reviewPresenter: panel });

@@ -35,7 +35,8 @@
     "distilly": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.0.0"
+    "@modelcontextprotocol/client": "2.0.0",
+    "playwright": "1.62.1"
   },
   "scripts": {
     "serve:host-capacity-fixture": "node scripts/host-capacity-fixture-server.mjs",

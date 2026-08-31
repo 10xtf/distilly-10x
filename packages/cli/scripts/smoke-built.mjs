@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { distillyMcpTools } from "@distilly/protocol";
+import { chromium } from "playwright";
 
 const rootExports = await import("@distilly/cli");
 const previewExports = await import("@distilly/cli/preview");
@@ -18,22 +18,11 @@ const packageRoot = dirname(fileURLToPath(new URL("../package.json", import.meta
 const fixturePath = fileURLToPath(new URL("./stdio-preview.mjs", import.meta.url));
 const panelAssets = fileURLToPath(new URL("../../panel/web/", import.meta.url));
 const root = await mkdtemp(join(tmpdir(), "distilly-preview-mcp-built-"));
+const initialClaim = "Mira builds reliable local-first systems.";
+const promotedClaim = "Mira prioritizes auditable local-first systems.";
+const rejectedClaim = "Mira delegates only after defining an auditable boundary.";
 let requestCounter = 10;
 const requestId = () => `req_${(requestCounter++).toString(16).padStart(32, "0")}`;
-
-const freePort = async () => {
-  const server = createServer();
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  const address = server.address();
-  assert.ok(address && typeof address !== "string");
-  await new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
-  return address.port;
-};
 
 const withTimeout = async (label, operation, milliseconds = 10_000) => {
   let timer;
@@ -61,7 +50,6 @@ const connect = async () => {
       NODE_NO_WARNINGS: "1",
       DISTILLY_PREVIEW_ROOT: root,
       DISTILLY_PREVIEW_PANEL_ASSETS: panelAssets,
-      DISTILLY_PREVIEW_PANEL_PORT: String(await freePort()),
     },
     stderr: "pipe",
   });
@@ -79,6 +67,73 @@ const output = (toolIndex, result) => {
   const contract = distillyMcpTools[toolIndex];
   assert.ok(contract);
   return contract.output.parse(result.structuredContent);
+};
+
+const currentProfile = async (client, subjectId) => {
+  const result = output(
+    0,
+    await client.callTool({
+      name: "distilly_get",
+      arguments: {
+        wireVersion: "3",
+        requestId: requestId(),
+        action: "profile",
+        subject: { kind: "id", subjectId },
+      },
+    }),
+  );
+  assert.equal(result.ok && result.value.kind, "profile");
+  return result.value.profile;
+};
+
+const assertCurrentClaims = async (client, subjectId, { includes, excludes = [] }) => {
+  const profile = await currentProfile(client, subjectId);
+  const texts = profile.claims.map((claim) => claim.text);
+  for (const text of includes) {
+    assert.ok(texts.includes(text), `Current Profile does not include: ${text}`);
+  }
+  for (const text of excludes) {
+    assert.equal(texts.includes(text), false, `Current Profile unexpectedly includes: ${text}`);
+  }
+};
+
+const acceptReviewAction = async (page, buttonName, reason) => {
+  const dialogs = [];
+  const listener = async (dialog) => {
+    dialogs.push(dialog.type());
+    if (dialog.type() === "confirm") await dialog.accept();
+    else if (dialog.type() === "prompt") await dialog.accept(reason);
+    else throw new Error(`Unexpected review dialog type: ${dialog.type()}`);
+  };
+  page.on("dialog", listener);
+  try {
+    await page.getByRole("button", { name: buttonName }).click();
+    await page.getByText("No active suspended candidates.", { exact: true }).waitFor();
+  } finally {
+    page.off("dialog", listener);
+  }
+  assert.deepEqual(dialogs, ["confirm", "prompt"]);
+};
+
+const acceptRollback = async (page) => {
+  const dialogs = [];
+  const listener = async (dialog) => {
+    dialogs.push(dialog.type());
+    if (dialog.type() === "prompt") await dialog.accept("Restore the initial Profile.");
+    else if (dialog.type() === "confirm") await dialog.accept();
+    else throw new Error(`Unexpected rollback dialog type: ${dialog.type()}`);
+  };
+  page.on("dialog", listener);
+  try {
+    await page.getByRole("button", { name: "Rollback to this version" }).first().click();
+    await page
+      .getByText("Mira prioritizes auditable local-first systems.", { exact: true })
+      .first()
+      .waitFor({ state: "detached" });
+  } finally {
+    page.off("dialog", listener);
+  }
+  assert.deepEqual(dialogs, ["prompt", "confirm"]);
 };
 
 try {
@@ -227,6 +282,83 @@ try {
       status: "ready",
       wireVersion: "3",
     });
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const pageErrors = [];
+      const trackPageErrors = (browserPage) => {
+        browserPage.on("pageerror", (error) => pageErrors.push(error));
+        browserPage.on("console", (message) => {
+          if (message.type() === "error") pageErrors.push(new Error(message.text()));
+        });
+      };
+      let page = await browser.newPage();
+      trackPageErrors(page);
+
+      await page.goto(corrected.value.review.url);
+      await page.getByRole("heading", { name: "Review" }).waitFor();
+      await page
+        .getByRole("heading", { name: corrected.value.candidate.id, exact: true })
+        .waitFor();
+      await page.getByText(promotedClaim, { exact: true }).first().waitFor();
+
+      await page.getByRole("link", { name: "Library" }).click();
+      await page.getByRole("heading", { name: "Library" }).waitFor();
+      await page.getByRole("link", { name: "Mira Chen", exact: true }).click();
+      await page.getByRole("heading", { name: "Subject" }).waitFor();
+      await page.getByText(initialClaim, { exact: true }).first().waitFor();
+
+      await page.getByRole("link", { name: "Review" }).click();
+      await page
+        .getByRole("heading", { name: corrected.value.candidate.id, exact: true })
+        .waitFor();
+      await acceptReviewAction(page, "Promote candidate", "Promote the first correction.");
+      await assertCurrentClaims(first.client, subjectId, {
+        includes: [initialClaim, promotedClaim],
+      });
+
+      const secondCorrection = output(
+        4,
+        await first.client.callTool({
+          name: "distilly_correct",
+          arguments: {
+            wireVersion: "3",
+            requestId: requestId(),
+            subjectId,
+            text: rejectedClaim,
+          },
+        }),
+      );
+      assert.equal(secondCorrection.ok && secondCorrection.value.kind, "suspended");
+      await page.close();
+      page = await browser.newPage();
+      trackPageErrors(page);
+      await page.goto(secondCorrection.value.review.url);
+      await page.getByRole("heading", { name: "Review" }).waitFor();
+      await page
+        .getByRole("heading", { name: secondCorrection.value.candidate.id, exact: true })
+        .waitFor();
+      await page.getByText(rejectedClaim, { exact: true }).first().waitFor();
+      await page.getByRole("link", { name: "Review" }).click();
+      await acceptReviewAction(page, "Reject candidate", "Reject the second correction.");
+      await assertCurrentClaims(first.client, subjectId, {
+        includes: [initialClaim, promotedClaim],
+        excludes: [rejectedClaim],
+      });
+
+      await page.getByRole("link", { name: "Library" }).click();
+      await page.getByRole("link", { name: "Mira Chen", exact: true }).click();
+      await page.getByRole("heading", { name: "Subject" }).waitFor();
+      await acceptRollback(page);
+      await assertCurrentClaims(first.client, subjectId, {
+        includes: [initialClaim],
+        excludes: [promotedClaim, rejectedClaim],
+      });
+
+      assert.equal(pageErrors.length, 0, pageErrors.map((error) => error.stack).join("\n"));
+    } finally {
+      await browser.close();
+    }
   } finally {
     await withTimeout("first Preview MCP close", first.client.close(), 5_000);
     await withTimeout(
@@ -253,6 +385,10 @@ try {
     );
     assert.equal(profile.ok && profile.value.kind, "profile");
     assert.equal(profile.value.subject.id, subjectId);
+    const reopenedClaims = profile.value.profile.claims.map((claim) => claim.text);
+    assert.ok(reopenedClaims.includes(initialClaim));
+    assert.equal(reopenedClaims.includes(promotedClaim), false);
+    assert.equal(reopenedClaims.includes(rejectedClaim), false);
   } finally {
     await withTimeout("reopened Preview MCP close", reopened.client.close(), 5_000);
     await withTimeout(

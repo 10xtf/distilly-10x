@@ -1,4 +1,3 @@
-import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,23 +38,6 @@ const hostOption = (args: readonly string[], required: boolean): HostName | unde
   return parseHost(args[1]);
 };
 
-const freePanelPort = async (): Promise<number> => {
-  const server = createServer();
-  await new Promise<void>((resolvePromise, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolvePromise);
-  });
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    await new Promise<void>((resolvePromise) => server.close(() => resolvePromise()));
-    throw new Error("Could not reserve a local Panel port.");
-  }
-  await new Promise<void>((resolvePromise, reject) =>
-    server.close((error) => (error === undefined ? resolvePromise() : reject(error))),
-  );
-  return address.port;
-};
-
 const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promise<void> => {
   const binding = await requireInstalledPreviewBinding(environment.lifecycle, host);
   const hostContext = {
@@ -72,7 +54,6 @@ const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promi
     capacity: preflight.capacity,
     panel: {
       assetsDir: environment.panelAssetsPath,
-      port: await freePanelPort(),
     },
   });
   try {

@@ -27,6 +27,7 @@ import {
   createInternalEngineComposition,
   type InternalEngineComposition,
 } from "./ingest/composition.js";
+import type { TrustedFileLoader } from "./ingest/service.js";
 
 type CoreQueryMethodName = Extract<CoreMethodName, QueryMethodName>;
 type CoreMutationMethodName = Extract<CoreMethodName, MutationMethodName>;
@@ -82,7 +83,7 @@ const normalizeRoot = (value: OpenPreviewEngineOptions): string => {
     typeof options !== "object" ||
     options === null ||
     Array.isArray(options) ||
-    Object.keys(options).length !== 1 ||
+    Object.keys(options).some((key) => key !== "root" && key !== "fileLoader") ||
     !("root" in options) ||
     typeof options.root !== "string" ||
     options.root.trim().length === 0
@@ -167,6 +168,7 @@ export interface PreviewEngineSessionOptions {
 /** Filesystem root owned by one in-process Preview Engine runtime. */
 export interface OpenPreviewEngineOptions {
   readonly root: string;
+  readonly fileLoader?: TrustedFileLoader;
 }
 
 /** Explicitly incomplete Developer Preview runtime over the real SQLite core. */
@@ -381,7 +383,6 @@ class PreviewEngineRuntimeImplementation implements PreviewEngineRuntime {
         );
       case "subjects.archive":
       case "subjects.purge":
-      case "materials.ingestFiles":
       case "distill.redistill":
       case "library.rebuild":
       case "bundles.import":
@@ -389,6 +390,14 @@ class PreviewEngineRuntimeImplementation implements PreviewEngineRuntime {
         parseParams(method, params);
         parseMutation(context);
         throw previewUnsupported(method);
+      case "materials.ingestFiles": {
+        const result = await this.#composition.ingest.ingestFiles(
+          parseParams(method, params),
+          session.actor,
+          parseMutation(context),
+        );
+        return parseResult(method, result);
+      }
       case "materials.ingest": {
         const result = await this.#composition.ingest.ingest(
           parseParams(method, params),
@@ -538,7 +547,11 @@ export const openPreviewEngine = async (
   ownedRoots.add(root);
   try {
     const ids = new CryptoIdGenerator();
-    const composition = await createInternalEngineComposition({ root, ids });
+    const composition = await createInternalEngineComposition({
+      root,
+      ids,
+      ...(options.fileLoader === undefined ? {} : { fileLoader: options.fileLoader }),
+    });
     return new PreviewEngineRuntimeImplementation(root, composition, ids);
   } catch (error) {
     ownedRoots.delete(root);

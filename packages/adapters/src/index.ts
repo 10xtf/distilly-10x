@@ -1,4 +1,6 @@
 export { AdapterRegistry } from "./registry.js";
+export { createBuiltinParserRegistry } from "./builtin-parsers.js";
+export { ParserRegistry } from "./parser-registry.js";
 export { userCollectionMethodSchemas } from "./schemas.js";
 export type {
   AdapterCapabilities,
@@ -11,6 +13,12 @@ export type {
   DelegatedSourceAdapter,
   DirectSourceAdapter,
   ExternalSubjectRef,
+  MaterialParser,
+  ParseContext,
+  ParsedMaterial,
+  ParsedMaterialDraft,
+  ParserTextExtraction,
+  RawMaterial,
   SourceActionInput,
   SourceAdapter,
   SourceAdapterBase,

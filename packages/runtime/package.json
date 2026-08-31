@@ -24,6 +24,7 @@
   ],
   "sideEffects": false,
   "dependencies": {
+    "@distilly/adapters": "workspace:*",
     "@distilly/engine": "workspace:*",
     "@distilly/protocol": "workspace:*"
   },

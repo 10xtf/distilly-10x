@@ -89,6 +89,30 @@ const SCHEMA_OBJECTS = [
 ) STRICT`,
   ),
   table(
+    "raw_materials",
+    `CREATE TABLE raw_materials (
+  raw_id TEXT PRIMARY KEY NOT NULL,
+  blob_digest TEXT NOT NULL UNIQUE REFERENCES blobs(digest) ON DELETE RESTRICT,
+  byte_length INTEGER NOT NULL CHECK (byte_length >= 0 AND byte_length <= 9007199254740991),
+  canonical_text_json TEXT CHECK (
+    canonical_text_json IS NULL OR json_valid(canonical_text_json)
+  ),
+  CHECK (substr(raw_id, 5) = substr(blob_digest, 8))
+) STRICT`,
+  ),
+  table(
+    "subject_raw_materials",
+    `CREATE TABLE subject_raw_materials (
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  raw_id TEXT NOT NULL REFERENCES raw_materials(raw_id) ON DELETE RESTRICT,
+  media_type TEXT NOT NULL,
+  source_json TEXT NOT NULL CHECK (json_valid(source_json)),
+  stored_at TEXT NOT NULL,
+  PRIMARY KEY (subject_id, raw_id),
+  CHECK (length(media_type) > 0)
+) STRICT`,
+  ),
+  table(
     "materials",
     `CREATE TABLE materials (
   subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
@@ -355,6 +379,11 @@ WHERE locator_key IS NOT NULL`,
     "material_id_lookup",
     "materials",
     "CREATE INDEX material_id_lookup ON materials(material_id, subject_id)",
+  ),
+  index(
+    "subject_raw_material_lookup",
+    "subject_raw_materials",
+    "CREATE INDEX subject_raw_material_lookup ON subject_raw_materials(raw_id, subject_id)",
   ),
   index(
     "version_subject_created_lookup",

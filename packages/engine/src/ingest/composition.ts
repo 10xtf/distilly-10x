@@ -20,7 +20,7 @@ import { SqliteEngineStore } from "../storage/sqlite-engine-store.js";
 import type { SubjectCreateServiceHooks } from "../subject/service.js";
 import { SubjectCreateService } from "../subject/service.js";
 import { IngestService } from "./service.js";
-import type { IngestServiceHooks } from "./service.js";
+import type { IngestServiceHooks, TrustedFileLoader } from "./service.js";
 
 /** Trusted seams used only by the package-private SQLite Preview composition. */
 export interface InternalEngineCompositionOptions {
@@ -30,6 +30,7 @@ export interface InternalEngineCompositionOptions {
   readonly eventBus?: EventBus;
   readonly subjectHooks?: SubjectCreateServiceHooks;
   readonly ingestHooks?: IngestServiceHooks;
+  readonly fileLoader?: TrustedFileLoader;
   readonly leaseHooks?: DistillLeaseServiceHooks;
   readonly commitHooks?: CommitServiceHooks;
   readonly correctionHooks?: CorrectionServiceHooks;
@@ -101,6 +102,7 @@ export const createInternalEngineComposition = async (
       ids,
       clock,
       eventBus,
+      ...(options.fileLoader === undefined ? {} : { fileLoader: options.fileLoader }),
       ...(options.ingestHooks === undefined ? {} : { hooks: options.ingestHooks }),
     });
     const leases = new DistillLeaseService({

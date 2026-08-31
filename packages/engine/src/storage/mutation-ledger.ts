@@ -23,6 +23,7 @@ import type {
   FactChecksum,
   HostDistillBriefing,
   IngestResult,
+  IngestFilesResult,
   IsoDateTime,
   JobLease,
   RequestId,
@@ -40,6 +41,7 @@ import { idempotencyConflict, storageCorrupt } from "../internal-errors.js";
 export type SqliteLedgerMethod =
   | "subjects.create"
   | "materials.ingest"
+  | "materials.ingestFiles"
   | "distill.brief"
   | "distill.renew"
   | "distill.release"
@@ -191,6 +193,8 @@ const operationResultSubjectId = (
       return (result as SubjectSummary).id;
     case "materials.ingest":
       return (result as IngestResult).subject.id;
+    case "materials.ingestFiles":
+      return (result as IngestFilesResult).subject.id;
     case "distill.brief":
       return (result as HostDistillBriefing).subject.id;
     case "distill.commit":
@@ -211,6 +215,7 @@ const operationResultSubjectId = (
 const isSqliteLedgerMethod = (value: string): value is SqliteLedgerMethod =>
   value === "subjects.create" ||
   value === "materials.ingest" ||
+  value === "materials.ingestFiles" ||
   value === "distill.brief" ||
   value === "distill.renew" ||
   value === "distill.release" ||

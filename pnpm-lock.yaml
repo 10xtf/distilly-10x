@@ -134,6 +134,9 @@ importers:
 
   packages/runtime:
     dependencies:
+      "@distilly/adapters":
+        specifier: workspace:*
+        version: link:../adapters
       "@distilly/engine":
         specifier: workspace:*
         version: link:../engine

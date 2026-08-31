@@ -105,8 +105,12 @@ test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along rev
       [
         "runtime",
         "@distilly/runtime",
-        'export type { EngineRuntime } from "@distilly/engine/preview";\nexport type { EngineClient } from "@distilly/protocol";\n',
-        { "@distilly/engine": "workspace:*", "@distilly/protocol": "workspace:*" },
+        'export type { Adapter } from "@distilly/adapters";\nexport type { EngineRuntime } from "@distilly/engine/preview";\nexport type { EngineClient } from "@distilly/protocol";\n',
+        {
+          "@distilly/adapters": "workspace:*",
+          "@distilly/engine": "workspace:*",
+          "@distilly/protocol": "workspace:*",
+        },
       ],
       [
         "mcp",
@@ -152,18 +156,18 @@ test("accepts adapters, runtime, facade, MCP, bindings, Panel, and CLI along rev
   assert.equal(result.stderr, "");
 });
 
-test("rejects runtime depending on adapters", async (testContext) => {
+test("rejects runtime depending on bindings", async (testContext) => {
   const root = await workspace(testContext, {
     protocolSource: "export interface EngineClient {}\n",
     engineSource: "export interface EngineRuntime {}\n",
     additionalPackages: [
-      ["adapters", "@distilly/adapters", "export interface Adapter {}\n", {}],
+      ["bindings", "@distilly/bindings", "export interface HostBinding {}\n", {}],
       [
         "runtime",
         "@distilly/runtime",
-        'export type { Adapter } from "@distilly/adapters";\n',
+        'export type { HostBinding } from "@distilly/bindings";\n',
         {
-          "@distilly/adapters": "workspace:*",
+          "@distilly/bindings": "workspace:*",
           "@distilly/engine": "workspace:*",
           "@distilly/protocol": "workspace:*",
         },
@@ -174,7 +178,7 @@ test("rejects runtime depending on adapters", async (testContext) => {
   const result = run(root);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /@distilly\/runtime may not depend on @distilly\/adapters/u);
+  assert.match(result.stderr, /@distilly\/runtime may not depend on @distilly\/bindings/u);
   assert.match(result.stderr, /\[forbidden-internal-dependency\]/u);
   assert.match(result.stderr, /\[forbidden-internal-import\]/u);
 });

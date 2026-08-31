@@ -6,6 +6,7 @@ import {
   briefContractSchema,
   contentDigestSchema,
   engineMethodSchemas,
+  ingestFilesResultSchema,
   ingestResultSchema,
   isoDateTimeSchema,
   jobIdSchema,
@@ -13,8 +14,10 @@ import {
   leaseOwnerIdSchema,
   materialIdSchema,
   materialRecordSchema,
+  materialSourceInputSchema,
   materialSetHashSchema,
   mutationContextSchema,
+  rawIdSchema,
   provenanceDigestSchema,
   pendingJobMarkerSchema,
   subjectStateRecordSchema,
@@ -26,13 +29,18 @@ import type {
   EngineEvent,
   FactChecksum,
   IngestInput,
+  IngestFilesInput,
+  IngestFilesResult,
   IngestItemResult,
   IngestResult,
   IsoDateTime,
   MaterialId,
   MaterialRecord,
   MutationContext,
+  PendingJob,
   PendingJobMarker,
+  RawId,
+  MaterialSourceInput,
   SubjectId,
   SubjectStateRecord,
   SubjectSummary,
@@ -41,8 +49,9 @@ import type {
 
 import type { Clock } from "../defaults/system-clock.js";
 import { canonicalJson } from "../facts/canonical-json.js";
-import { sealFact, verifyFactChecksum } from "../facts/checksum.js";
+import { sealFact, sha256Hex, verifyFactChecksum } from "../facts/checksum.js";
 import { deriveMaterialId, digestMaterialProvenance, hashMaterialSet } from "../facts/digests.js";
+import { canonicalRawTextJson } from "../facts/raw-extraction.js";
 import { factNotFound, invalidInput, storageCorrupt } from "../internal-errors.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
@@ -64,8 +73,8 @@ import {
 } from "../subject/transactional-identity.js";
 import type { NormalizedIngestSubjectTarget } from "../subject/identity.js";
 import { canonicalizeIngestSubjectTarget } from "../subject/identity.js";
-import type { PreparedMaterial } from "./normalize.js";
-import { normalizeMaterial, prepareMaterial } from "./normalize.js";
+import type { PreparedMaterial, TrustedParsedMaterialDraft } from "./normalize.js";
+import { bindParsedMaterial, normalizeMaterial, prepareMaterial } from "./normalize.js";
 import { deriveIngestState } from "./state-transition.js";
 import type { IngestBaseline } from "./state-transition.js";
 import { createBriefContract } from "../distill/prompt-catalog.js";
@@ -96,6 +105,38 @@ interface TransactionOutcome {
   readonly committed: boolean;
 }
 
+/** One explicit local file after the Runtime has safely read and parsed it. */
+interface TrustedLoadedFile {
+  readonly pathLabel: string;
+  readonly mediaType: string;
+  readonly bytes: Uint8Array;
+  readonly source: MaterialSourceInput;
+  readonly parsed?: TrustedParsedMaterialDraft;
+  readonly warnings: readonly string[];
+}
+
+/** Minimal trusted seam that keeps filesystem and parser dependencies outside Engine. */
+export interface TrustedFileLoader {
+  load(input: {
+    readonly paths: readonly string[];
+    readonly subjectId: SubjectId;
+    readonly requestId: MutationContext["requestId"];
+    readonly sensitivity: "private" | "shareable";
+  }): Promise<readonly TrustedLoadedFile[]>;
+}
+
+interface PreparedRawFile extends TrustedLoadedFile {
+  readonly rawId: RawId;
+  readonly blobDigest: ContentDigest;
+  readonly prepared?: PreparedMaterial;
+}
+
+interface FileTransactionOutcome {
+  readonly result: IngestFilesResult;
+  readonly events: readonly EngineEvent[];
+  readonly committed: boolean;
+}
+
 /** Fault hooks used by real process-crash tests at durable boundaries. */
 export interface IngestServiceHooks {
   /** Runs after each unique immutable content blob is published. */
@@ -115,6 +156,7 @@ export interface IngestServiceDependencies {
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly eventBus: EventBus;
+  readonly fileLoader?: TrustedFileLoader;
   readonly hooks?: IngestServiceHooks;
 }
 
@@ -651,6 +693,114 @@ const writePending = (
   }
 };
 
+const pendingJobView = (
+  subjectId: SubjectId,
+  marker: PendingJobMarker,
+  now: IsoDateTime,
+): PendingJob => {
+  const common = {
+    id: marker.jobId,
+    subjectId,
+    generation: marker.generation,
+    ...(marker.baseVersionId === undefined ? {} : { baseVersionId: marker.baseVersionId }),
+    materialSetHash: marker.materialSetHash,
+    addedMaterialCount: marker.addedMaterialCount,
+    totalMaterialCount: marker.totalMaterialCount,
+    queuedAt: marker.queuedAt,
+  };
+  return marker.lease !== undefined && now < marker.lease.expiresAt
+    ? { ...common, state: "leased", leaseExpiresAt: marker.lease.expiresAt }
+    : { ...common, state: "pending" };
+};
+
+const rawIdentity = (
+  bytes: Uint8Array,
+): { readonly rawId: RawId; readonly digest: ContentDigest } => {
+  const hex = sha256Hex(bytes);
+  return {
+    rawId: rawIdSchema.parse(`raw_${hex}`),
+    digest: contentDigestSchema.parse(`sha256_${hex}`),
+  };
+};
+
+const assertTrustedLoadedFiles = (
+  loaded: readonly TrustedLoadedFile[],
+  expectedCount: number,
+): readonly TrustedLoadedFile[] => {
+  if (loaded.length !== expectedCount) {
+    throw storageCorrupt("The trusted file loader returned an invalid item count.");
+  }
+  for (const item of loaded) {
+    if (
+      item.pathLabel.length === 0 ||
+      item.pathLabel.includes("/") ||
+      item.pathLabel.includes("\\") ||
+      item.mediaType.length === 0 ||
+      !(item.bytes instanceof Uint8Array)
+    ) {
+      throw storageCorrupt("The trusted file loader returned an invalid item.");
+    }
+  }
+  return loaded;
+};
+
+const ensureBlobAuthority = (
+  database: DatabaseSync,
+  digest: ContentDigest,
+  published: BlobPutResult,
+  existedBeforePublish: boolean,
+): void => {
+  let blobRow = queryOne(
+    database,
+    "SELECT byte_length FROM blobs WHERE digest = ?",
+    [digest],
+    "a blob authority row",
+  );
+  if (blobRow === undefined) {
+    if (existedBeforePublish) {
+      throw storageCorrupt("A referenced blob authority row disappeared before commit.");
+    }
+    database
+      .prepare("INSERT INTO blobs(digest, byte_length) VALUES (?, ?)")
+      .run(digest, published.byteLength);
+    blobRow = queryOne(
+      database,
+      "SELECT byte_length FROM blobs WHERE digest = ?",
+      [digest],
+      "a newly inserted blob authority row",
+    );
+  }
+  if (blobRow === undefined || integer(blobRow, "byte_length") !== published.byteLength) {
+    throw storageCorrupt("A blob authority row conflicts with immutable bytes.");
+  }
+};
+
+const insertAcceptedMaterial = (
+  database: DatabaseSync,
+  subjectId: SubjectId,
+  material: PreparedMaterial,
+): void => {
+  database
+    .prepare(
+      `INSERT INTO materials(
+         subject_id, material_id, kind, content_digest, provenance_digest,
+         source_identity, identity_json, record_json, blob_digest, stored_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      subjectId,
+      material.record.id,
+      material.record.kind,
+      material.record.contentDigest,
+      material.record.provenanceDigest,
+      Buffer.from(material.record.sourceIdentity, "utf8"),
+      identityJson(material.record),
+      canonicalJson(material.record),
+      material.record.contentDigest,
+      material.record.storedAt,
+    );
+};
+
 /** Atomic SQLite/WAL text ingest below the public EngineClient boundary. */
 export class IngestService {
   readonly #dependencies: IngestServiceDependencies;
@@ -808,6 +958,358 @@ export class IngestService {
     return outcome.result;
   }
 
+  /**
+   * Stores explicit local raw files and any deterministic parser outputs atomically.
+   *
+   * @param rawInput - Explicit file paths and create-or-existing subject target.
+   * @param rawActor - Trusted actor bound by the Runtime session.
+   * @param rawMutation - Caller-owned RequestId retained across retries.
+   * @returns Stable per-path parsed/unparsed outcomes from the SQLite operation ledger.
+   */
+  async ingestFiles(
+    rawInput: IngestFilesInput,
+    rawActor: ActorContext,
+    rawMutation: MutationContext,
+  ): Promise<IngestFilesResult> {
+    const input = parseBoundary(
+      () => engineMethodSchemas["materials.ingestFiles"].params.parse(rawInput),
+      "params",
+    );
+    const actor = parseBoundary(() => actorContextSchema.parse(rawActor) as ActorContext, "actor");
+    const mutation = parseBoundary(
+      () => mutationContextSchema.parse(rawMutation) as MutationContext,
+      "requestId",
+    );
+    const target = canonicalizeIngestSubjectTarget(input.subject).target;
+    const inputChecksum = computeMutationInputChecksum(
+      "materials.ingestFiles",
+      {
+        subject: target,
+        paths: input.paths,
+        enqueue: input.enqueue,
+        sensitivity: input.sensitivity ?? "private",
+      },
+      actor,
+    );
+    const replay = this.#dependencies.store.read((database) =>
+      replayCompletedMutation(database, {
+        requestId: mutation.requestId,
+        method: "materials.ingestFiles",
+        inputChecksum,
+        actor,
+      }),
+    );
+    if (replay !== undefined) return replay;
+    if (this.#dependencies.fileLoader === undefined) {
+      throw invalidInput("Local file ingest is unavailable in this Engine composition.");
+    }
+
+    const candidateSubjectId =
+      target.kind === "existing" ? target.subjectId : this.#dependencies.ids.subjectId();
+    const loaded = assertTrustedLoadedFiles(
+      await this.#dependencies.fileLoader.load({
+        paths: input.paths,
+        subjectId: candidateSubjectId,
+        requestId: mutation.requestId,
+        sensitivity: input.sensitivity ?? "private",
+      }),
+      input.paths.length,
+    );
+    const now = this.#dependencies.clock.now();
+    const preparedFiles: PreparedRawFile[] = loaded.map((file) => {
+      const source = parseBoundary(
+        () => materialSourceInputSchema.parse(file.source) as MaterialSourceInput,
+        "raw source",
+      );
+      if (source.title !== file.pathLabel) {
+        throw storageCorrupt("The trusted file loader exposed an invalid source label.");
+      }
+      const identity = rawIdentity(file.bytes);
+      const prepared =
+        file.parsed === undefined
+          ? undefined
+          : prepareMaterial(
+              parseBoundary(
+                () => bindParsedMaterial(identity.rawId, file.parsed!),
+                "parsed material",
+              ),
+              candidateSubjectId,
+              mutation.requestId,
+              now,
+            );
+      return {
+        ...file,
+        source,
+        rawId: identity.rawId,
+        blobDigest: identity.digest,
+        ...(prepared === undefined ? {} : { prepared }),
+      };
+    });
+
+    const values = new Map<ContentDigest, string | Uint8Array>();
+    for (const file of preparedFiles) {
+      const previousRaw = values.get(file.blobDigest);
+      if (
+        previousRaw !== undefined &&
+        Buffer.compare(Buffer.from(previousRaw), Buffer.from(file.bytes)) !== 0
+      ) {
+        throw storageCorrupt("One raw digest resolved to conflicting batch bytes.");
+      }
+      values.set(file.blobDigest, file.bytes);
+      if (file.prepared !== undefined) {
+        const existing = values.get(file.prepared.record.contentDigest);
+        if (
+          existing !== undefined &&
+          Buffer.compare(Buffer.from(existing), Buffer.from(file.prepared.content)) !== 0
+        ) {
+          throw storageCorrupt("One content digest resolved to conflicting batch bytes.");
+        }
+        values.set(file.prepared.record.contentDigest, file.prepared.content);
+      }
+    }
+
+    const outcome = await (async (): Promise<FileTransactionOutcome> => {
+      const blobAccess = await this.#dependencies.blobs.acquireMutationAccess();
+      try {
+        const existing = this.#dependencies.store.read((database) => {
+          const digests = new Set<ContentDigest>();
+          for (const digest of values.keys()) {
+            const row = queryOne(
+              database,
+              "SELECT byte_length FROM blobs WHERE digest = ?",
+              [digest],
+              "pre-publish blob authority",
+            );
+            if (row !== undefined) digests.add(digest);
+          }
+          return digests;
+        });
+        const published = new Map<ContentDigest, BlobPutResult>();
+        for (const [digest, value] of values) {
+          const result = existing.has(digest)
+            ? await blobAccess.verify(digest, value)
+            : await blobAccess.put(digest, value);
+          if (result === undefined) {
+            throw storageCorrupt("A referenced content blob is missing from local storage.");
+          }
+          published.set(digest, result);
+          if (!existing.has(digest)) await this.#dependencies.hooks?.afterBlobPut?.(digest);
+        }
+        return this.#dependencies.store.write((database) => {
+          const storedReplay = replayCompletedMutation(database, {
+            requestId: mutation.requestId,
+            method: "materials.ingestFiles",
+            inputChecksum,
+            actor,
+          });
+          if (storedReplay !== undefined) {
+            return { result: storedReplay, events: [], committed: false };
+          }
+          return this.#commitFiles(
+            database,
+            input,
+            actor,
+            mutation,
+            target,
+            candidateSubjectId,
+            preparedFiles,
+            existing,
+            published,
+            inputChecksum,
+            now,
+          );
+        });
+      } finally {
+        await blobAccess.release();
+      }
+    })();
+    if (outcome.committed) {
+      await this.#dependencies.hooks?.afterTransactionCommit?.(mutation.requestId);
+      for (const event of outcome.events) await this.#dependencies.eventBus.publish(event);
+    }
+    return outcome.result;
+  }
+
+  #commitFiles(
+    database: DatabaseSync,
+    input: IngestFilesInput,
+    actor: ActorContext,
+    mutation: MutationContext,
+    target: NormalizedIngestSubjectTarget,
+    candidateSubjectId: SubjectId,
+    files: readonly PreparedRawFile[],
+    blobsBeforePublish: ReadonlySet<ContentDigest>,
+    publishedBlobs: ReadonlyMap<ContentDigest, BlobPutResult>,
+    inputChecksum: FactChecksum,
+    now: IsoDateTime,
+  ): FileTransactionOutcome {
+    const created = target.kind === "create";
+    const subject =
+      target.kind === "existing"
+        ? loadSubjectSummaryInTransaction(database, target.subjectId)
+        : createSubjectIdentityInTransaction(
+            database,
+            target.input,
+            this.#dependencies.ids,
+            candidateSubjectId,
+          );
+    const previous = loadState(database, subject.id);
+    const prepared = files.flatMap((file) => (file.prepared === undefined ? [] : [file.prepared]));
+    const batch = classifyBatch(previous.rows, prepared, publishedBlobs);
+    const derived =
+      prepared.length === 0
+        ? undefined
+        : deriveIngestState({
+            subjectId: subject.id,
+            previous: previous.state,
+            targetManifest: batch.targetManifest,
+            ...(previous.baseline === undefined ? {} : { baseline: previous.baseline }),
+            storedAtByMaterialId: batch.storedAtByMaterialId,
+            enqueue: input.enqueue,
+            now,
+            nextJobId: () => this.#dependencies.ids.jobId(),
+          });
+
+    for (const [digest, published] of publishedBlobs) {
+      ensureBlobAuthority(database, digest, published, blobsBeforePublish.has(digest));
+    }
+    for (const file of files) {
+      const rawRow = queryOne(
+        database,
+        `SELECT blob_digest, byte_length, canonical_text_json
+         FROM raw_materials
+         WHERE raw_id = ?`,
+        [file.rawId],
+        "a raw material",
+      );
+      const published = publishedBlobs.get(file.blobDigest);
+      if (published === undefined) throw storageCorrupt("A raw blob was not published.");
+      const canonicalTextJson =
+        file.prepared === undefined ? undefined : canonicalRawTextJson(file.prepared.record);
+      if (rawRow === undefined) {
+        database
+          .prepare(
+            `INSERT INTO raw_materials(
+               raw_id, blob_digest, byte_length, canonical_text_json
+             ) VALUES (?, ?, ?, ?)`,
+          )
+          .run(file.rawId, file.blobDigest, published.byteLength, canonicalTextJson ?? null);
+      } else if (
+        text(rawRow, "blob_digest") !== file.blobDigest ||
+        integer(rawRow, "byte_length") !== published.byteLength
+      ) {
+        throw storageCorrupt("A raw id conflicts with its immutable blob.");
+      } else if (canonicalTextJson !== undefined) {
+        const existingCanonicalTextJson = nullableText(rawRow, "canonical_text_json");
+        if (existingCanonicalTextJson === undefined) {
+          database
+            .prepare("UPDATE raw_materials SET canonical_text_json = ? WHERE raw_id = ?")
+            .run(canonicalTextJson, file.rawId);
+        } else if (existingCanonicalTextJson !== canonicalTextJson) {
+          throw invalidInput(
+            "The selected raw bytes already have a different canonical text extraction.",
+            "paths",
+          );
+        }
+      }
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO subject_raw_materials(
+             subject_id, raw_id, media_type, source_json, stored_at
+           ) VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(subject.id, file.rawId, file.mediaType, canonicalJson(file.source), now);
+    }
+
+    for (const material of batch.accepted) {
+      const published = publishedBlobs.get(material.record.contentDigest);
+      if (published === undefined) throw storageCorrupt("A material blob was not published.");
+      insertAcceptedMaterial(database, subject.id, material);
+    }
+    if (derived !== undefined) {
+      if (derived.state.materialSetHash === undefined) {
+        throw storageCorrupt("A parsed file ingest is missing its material-set hash.");
+      }
+      database
+        .prepare(
+          `UPDATE subject_states
+           SET generation = ?, material_set_hash = ?
+           WHERE subject_id = ?`,
+        )
+        .run(derived.state.generation, derived.state.materialSetHash, subject.id);
+      writePending(database, subject.id, derived.state.pending);
+    }
+
+    let parsedIndex = 0;
+    const items = files.map((file) => {
+      if (file.prepared === undefined) {
+        return {
+          kind: "unparsed" as const,
+          pathLabel: file.pathLabel,
+          rawId: file.rawId,
+          mediaType: file.mediaType,
+          warnings: file.warnings,
+        };
+      }
+      const material = batch.items[parsedIndex++];
+      if (material === undefined) throw storageCorrupt("A parsed file has no material outcome.");
+      return { kind: "parsed" as const, pathLabel: file.pathLabel, material };
+    });
+    const state = derived?.state ?? previous.state;
+    const job =
+      derived?.job ??
+      (prepared.length === 0 && previous.state.pending !== undefined
+        ? pendingJobView(subject.id, previous.state.pending, now)
+        : undefined);
+    const result = parseStored(
+      () =>
+        ingestFilesResultSchema.parse({
+          subject: {
+            ...subject,
+            ...(state.currentVersionId === undefined
+              ? {}
+              : { currentVersionId: state.currentVersionId }),
+          },
+          created,
+          items,
+          generation: state.generation,
+          ...(state.materialSetHash === undefined
+            ? {}
+            : { materialSetHash: state.materialSetHash }),
+          ...(job === undefined ? {} : { job }),
+        }),
+      "file ingest result",
+    ) as IngestFilesResult;
+    insertCompletedOperationInTransaction(database, {
+      requestId: mutation.requestId,
+      method: "materials.ingestFiles",
+      subjectId: subject.id,
+      actor,
+      inputChecksum,
+      result,
+      completedAt: now,
+    });
+
+    const events: EngineEvent[] = [];
+    if (created) events.push({ kind: "subject.created", subjectId: subject.id, at: now });
+    if (batch.accepted.length > 0) {
+      events.push({ kind: "material.ingested", subjectId: subject.id, at: now });
+    }
+    if (derived?.pendingChanged === true) {
+      events.push({ kind: "job.changed", subjectId: subject.id, at: now });
+    }
+    for (const event of events) {
+      insertEventInTransaction(database, {
+        eventId: this.#dependencies.ids.eventId(),
+        event,
+        actor,
+        requestId: mutation.requestId,
+      });
+    }
+    this.#dependencies.hooks?.beforeTransactionCommit?.(mutation.requestId);
+    return { result, events, committed: true };
+  }
+
   #commit(
     database: DatabaseSync,
     input: IngestInput,
@@ -882,25 +1384,7 @@ export class IngestService {
       if (blobRow === undefined || integer(blobRow, "byte_length") !== published.byteLength) {
         throw storageCorrupt("A blob authority row conflicts with immutable bytes.");
       }
-      database
-        .prepare(
-          `INSERT INTO materials(
-             subject_id, material_id, kind, content_digest, provenance_digest,
-             source_identity, identity_json, record_json, blob_digest, stored_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          subject.id,
-          material.record.id,
-          material.record.kind,
-          material.record.contentDigest,
-          material.record.provenanceDigest,
-          Buffer.from(material.record.sourceIdentity, "utf8"),
-          identityJson(material.record),
-          canonicalJson(material.record),
-          material.record.contentDigest,
-          material.record.storedAt,
-        );
+      insertAcceptedMaterial(database, subject.id, material);
     }
 
     database

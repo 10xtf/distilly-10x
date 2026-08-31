@@ -1,9 +1,56 @@
 import assert from "node:assert/strict";
 
-import { AdapterRegistry, userCollectionMethodSchemas } from "@distilly/adapters";
+import {
+  AdapterRegistry,
+  ParserRegistry,
+  createBuiltinParserRegistry,
+  userCollectionMethodSchemas,
+} from "@distilly/adapters";
 
 const adapters = await import("@distilly/adapters");
-assert.deepEqual(Object.keys(adapters).sort(), ["AdapterRegistry", "userCollectionMethodSchemas"]);
+assert.deepEqual(Object.keys(adapters).sort(), [
+  "AdapterRegistry",
+  "ParserRegistry",
+  "createBuiltinParserRegistry",
+  "userCollectionMethodSchemas",
+]);
+assert.ok(new ParserRegistry());
+
+const parser = createBuiltinParserRegistry().select("text/plain");
+assert.ok(parser);
+assert.deepEqual(
+  await parser.parse(
+    {
+      clientRef: "built-smoke",
+      mediaType: "text/plain",
+      bytes: new TextEncoder().encode("built parser smoke"),
+      source: {
+        medium: "document",
+        access: "private",
+        capturedAt: "2026-08-31T00:00:00.000Z",
+      },
+    },
+    {
+      subjectId: "sub_built_smoke",
+      requestId: "req_built_smoke",
+      maximumOutputBytes: 1_048_576,
+    },
+  ),
+  {
+    material: {
+      clientRef: "built-smoke",
+      kind: "document",
+      content: "built parser smoke",
+      source: {
+        medium: "document",
+        access: "private",
+        capturedAt: "2026-08-31T00:00:00.000Z",
+      },
+      extraction: { method: "document_text", producer: "distilly-text" },
+    },
+    warnings: [],
+  },
+);
 
 const registry = new AdapterRegistry();
 registry.register({

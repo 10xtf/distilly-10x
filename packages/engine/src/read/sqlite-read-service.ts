@@ -49,12 +49,7 @@ import type {
 
 import { readSqliteReviewAuthorityInTransaction } from "../review/sqlite-authority.js";
 import type { SqliteReviewAuthority } from "../review/sqlite-authority.js";
-import {
-  factNotFound,
-  invalidInput,
-  schemaUnsupported,
-  storageCorrupt,
-} from "../internal-errors.js";
+import { factNotFound, invalidInput, storageCorrupt } from "../internal-errors.js";
 import { hashMaterialSet } from "../facts/digests.js";
 import { deriveSourceGroups } from "../ingest/source-groups.js";
 import { compareUtf8 } from "../profile/claim-id.js";
@@ -833,13 +828,6 @@ export class SqliteReadService {
       const snapshot = this.#store.read((database) =>
         materialSnapshot(database, input.subjectId, input.atVersionId),
       );
-      for (const descriptor of snapshot.records) {
-        if (descriptor.record.derivation.kind === "raw_extract") {
-          throw schemaUnsupported(
-            "Raw-extracted material reads require the future RawStore slice.",
-          );
-        }
-      }
       const groups = deriveSourceGroups(
         snapshot.records.map(({ record }) => record),
         snapshot.grouping.algorithmVersion,
@@ -867,10 +855,13 @@ export class SqliteReadService {
           const content = decodeBody(
             await access.read(descriptor.blobDigest, descriptor.blobByteLength),
           );
+          if (descriptor.rawBlob !== undefined) {
+            await access.read(descriptor.rawBlob.digest, descriptor.rawBlob.byteLength);
+          }
           return {
             record: descriptor.record,
             contentScalarCount: scalarCount(content),
-            rawAvailable: false,
+            rawAvailable: descriptor.rawBlob !== undefined,
             inCurrentGeneration: snapshot.currentMaterialIds.has(descriptor.record.id),
             sourceGroup,
             grouping: snapshot.grouping,
@@ -904,9 +895,6 @@ export class SqliteReadService {
       if (selected === undefined) {
         throw factNotFound("The selected material is not present in this subject snapshot.");
       }
-      if (selected.record.derivation.kind === "raw_extract") {
-        throw schemaUnsupported("Raw-extracted material reads require the future RawStore slice.");
-      }
       const sourceGroup = deriveSourceGroups(
         snapshot.records.map(({ record }) => record),
         snapshot.grouping.algorithmVersion,
@@ -914,10 +902,14 @@ export class SqliteReadService {
       if (sourceGroup === undefined) {
         throw storageCorrupt("A grouped material snapshot is missing the selected material.");
       }
+      const content = decodeBody(await access.read(selected.blobDigest, selected.blobByteLength));
+      if (selected.rawBlob !== undefined) {
+        await access.read(selected.rawBlob.digest, selected.rawBlob.byteLength);
+      }
       return {
         record: selected.record,
-        content: decodeBody(await access.read(selected.blobDigest, selected.blobByteLength)),
-        rawAvailable: false,
+        content,
+        rawAvailable: selected.rawBlob !== undefined,
         inCurrentGeneration: snapshot.currentMaterialIds.has(selected.record.id),
         sourceGroup,
         grouping: snapshot.grouping,

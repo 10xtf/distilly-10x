@@ -6,11 +6,12 @@ import type {
   MaterialInput,
   MaterialRecord,
   MaterialSource,
+  RawId,
   RequestId,
   SubjectId,
   TextDerivation,
 } from "@distilly/protocol";
-import { FACT_LIMITS, WIRE_LIMITS } from "@distilly/protocol";
+import { FACT_LIMITS, WIRE_LIMITS, materialInputSchema } from "@distilly/protocol";
 
 import { digestContent, digestProvenance, deriveMaterialId } from "../facts/digests.js";
 import { sealFact } from "../facts/checksum.js";
@@ -122,6 +123,44 @@ const normalizeDerivation = (input: MaterialInput["derivation"]): TextDerivation
     ...(input.language === undefined
       ? {}
       : { language: normalizedString(input.language, "derivation.language") }),
+  };
+};
+
+/** Parser extraction metadata accepted only through the trusted file-loader seam. */
+interface TrustedParserExtraction {
+  readonly method: Extract<TextDerivation, { readonly kind: "raw_extract" }>["method"];
+  readonly producer: string;
+  readonly producerVersion?: string;
+  readonly language?: string;
+}
+
+/** Parser draft that has not yet been bound to an engine-owned RawId. */
+export interface TrustedParsedMaterialDraft extends Omit<MaterialInput, "derivation"> {
+  readonly extraction: TrustedParserExtraction;
+}
+
+/**
+ * Re-validates a parser draft through the public MaterialInput boundary, then replaces its
+ * temporary host extraction with the engine-owned raw derivation root.
+ *
+ * @param rawId - Engine-owned identity of the successfully persisted raw bytes.
+ * @param draft - Trusted parser output that still requires material validation.
+ * @returns Canonical material fields rooted in the raw identity.
+ */
+export const bindParsedMaterial = (
+  rawId: RawId,
+  draft: TrustedParsedMaterialDraft,
+): NormalizedMaterial => {
+  const { extraction, ...material } = draft;
+  const parsed = normalizeMaterial(
+    materialInputSchema.parse({
+      ...material,
+      derivation: { kind: "host_extract", ...extraction },
+    }) as MaterialInput,
+  );
+  return {
+    ...parsed,
+    derivation: { kind: "raw_extract", rawId, ...extraction },
   };
 };
 

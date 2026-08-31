@@ -6,8 +6,12 @@ import type {
   IsoDateTime,
   JsonValue,
   MaterialInput,
+  MaterialSourceInput,
+  ParserExtractionMethod,
   RequestId,
+  SubjectId,
   SubjectRef,
+  SubjectSummary,
 } from "@distilly/protocol";
 
 /** Public, non-secret configuration plus opaque references to separately stored secrets. */
@@ -155,6 +159,48 @@ export interface SourcePreflightResult {
 export interface SourceCollectResult {
   readonly materialCount: number;
   readonly ingestResults: readonly IngestResult[];
+}
+
+/** Raw bytes and provenance presented to a deterministic local parser. */
+export interface RawMaterial {
+  readonly clientRef: string;
+  readonly mediaType: string;
+  readonly bytes: Uint8Array;
+  readonly source: MaterialSourceInput;
+}
+
+/** Read-only subject and request context available during parsing. */
+export interface ParseContext {
+  readonly subjectId: SubjectId;
+  readonly requestId: RequestId;
+  readonly subject?: Pick<SubjectSummary, "displayName" | "aliases" | "identityHints">;
+  readonly maximumOutputBytes: number;
+}
+
+/** Extraction metadata that the Engine later binds to the persisted RawId. */
+export interface ParserTextExtraction {
+  readonly method: ParserExtractionMethod;
+  readonly producer: string;
+  readonly producerVersion?: string;
+  readonly language?: string;
+}
+
+/** Material ready for Engine validation but not yet bound to raw storage. */
+export interface ParsedMaterialDraft extends Omit<MaterialInput, "derivation"> {
+  readonly extraction: ParserTextExtraction;
+}
+
+/** Deterministic parser result for one raw input. */
+export interface ParsedMaterial {
+  readonly material?: ParsedMaterialDraft;
+  readonly warnings: readonly string[];
+}
+
+/** Parser for an explicit set of exact lowercase media types. */
+export interface MaterialParser {
+  readonly id: string;
+  readonly accepts: readonly string[];
+  parse(input: RawMaterial, context: ParseContext): Promise<ParsedMaterial>;
 }
 
 /** Direct-user collection method table kept separate from EngineMethodMap and MCP. */

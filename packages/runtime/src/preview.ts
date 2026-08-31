@@ -1,5 +1,16 @@
+import { readFile, stat } from "node:fs/promises";
+import { basename, extname } from "node:path";
+
+import { createBuiltinParserRegistry } from "@distilly/adapters";
+import type { ParsedMaterial } from "@distilly/adapters";
 import { openPreviewEngine, type PreviewEngineRuntime } from "@distilly/engine/preview";
-import { DistillyError, engineMethodSchemas, mutationContextSchema } from "@distilly/protocol";
+import {
+  DistillyError,
+  WIRE_LIMITS,
+  engineMethodSchemas,
+  isoDateTimeSchema,
+  mutationContextSchema,
+} from "@distilly/protocol";
 import type {
   ActorContext,
   BriefCapacity,
@@ -11,7 +22,9 @@ import type {
   MutationContext,
   MutationMethodName,
   QueryMethodName,
+  RequestId,
   RuntimeOwnedMethodName,
+  SubjectId,
   Unsubscribe,
 } from "@distilly/protocol";
 
@@ -49,6 +62,113 @@ const invalidBoundary = (label: string): DistillyError =>
     message: `Invalid Developer Preview ${label}.`,
     retryable: false,
   });
+
+const mediaTypeForPath = (path: string): string => {
+  switch (extname(path).toLowerCase()) {
+    case ".txt":
+      return "text/plain";
+    case ".md":
+    case ".markdown":
+      return "text/markdown";
+    case ".json":
+      return "application/json";
+    case ".srt":
+      return "application/x-subrip";
+    case ".vtt":
+      return "text/vtt";
+    default:
+      return "application/octet-stream";
+  }
+};
+
+const parserWarning = (error: unknown): string => {
+  if (error instanceof DistillyError && error.code === "context_too_large") {
+    return "Parsed text exceeds the local material limit; narrow the file and try again.";
+  }
+  if (error instanceof DistillyError && error.code === "invalid_input") {
+    return "The local file could not be parsed as valid text for its format.";
+  }
+  return "The local parser could not extract text from this file.";
+};
+
+const createLocalFileLoader = () => {
+  const registry = createBuiltinParserRegistry();
+  return {
+    async load(input: {
+      readonly paths: readonly string[];
+      readonly subjectId: SubjectId;
+      readonly requestId: RequestId;
+      readonly sensitivity: "private" | "shareable";
+    }) {
+      return Promise.all(
+        input.paths.map(async (path, index) => {
+          const pathLabel = basename(path);
+          if (pathLabel.length === 0 || pathLabel === "." || pathLabel === "..") {
+            throw invalidBoundary(`materials.ingestFiles paths[${String(index)}]`);
+          }
+          let bytes: Uint8Array;
+          let modifiedAt: Date;
+          try {
+            const metadata = await stat(path);
+            if (!metadata.isFile()) throw new Error("not a regular file");
+            bytes = Uint8Array.from(await readFile(path));
+            modifiedAt = metadata.mtime;
+          } catch {
+            throw new DistillyError({
+              code: "invalid_input",
+              message: "A selected local file could not be read.",
+              retryable: false,
+              fieldPath: `paths[${String(index)}]`,
+            });
+          }
+          const mediaType = mediaTypeForPath(path);
+          const source = {
+            title: pathLabel,
+            medium:
+              mediaType === "application/x-subrip" || mediaType === "text/vtt"
+                ? ("video" as const)
+                : ("document" as const),
+            access: "private" as const,
+            capturedAt: isoDateTimeSchema.parse(modifiedAt.toISOString()),
+          };
+          const parser = registry.select(mediaType);
+          if (parser === undefined) {
+            return {
+              pathLabel,
+              mediaType,
+              bytes,
+              source,
+              warnings: ["No deterministic local parser supports this file format."],
+            };
+          }
+          let parsed: ParsedMaterial;
+          try {
+            parsed = await parser.parse(
+              { clientRef: pathLabel, mediaType, bytes, source },
+              {
+                subjectId: input.subjectId,
+                requestId: input.requestId,
+                maximumOutputBytes: WIRE_LIMITS.materialContentBytes,
+              },
+            );
+          } catch (error) {
+            return { pathLabel, mediaType, bytes, source, warnings: [parserWarning(error)] };
+          }
+          return {
+            pathLabel,
+            mediaType,
+            bytes,
+            source,
+            ...(parsed.material === undefined
+              ? {}
+              : { parsed: { ...parsed.material, sensitivity: input.sensitivity } }),
+            warnings: parsed.warnings,
+          };
+        }),
+      );
+    },
+  };
+};
 
 const parseRuntimeParams = <M extends RuntimeOwnedMethodName>(
   method: M,
@@ -254,6 +374,6 @@ class PreviewLocalRuntimeImplementation implements PreviewLocalRuntime {
 export const openPreviewLocalRuntime = async (
   options: OpenPreviewLocalRuntimeOptions,
 ): Promise<PreviewLocalRuntime> => {
-  const engine = await openPreviewEngine(options);
+  const engine = await openPreviewEngine({ ...options, fileLoader: createLocalFileLoader() });
   return new PreviewLocalRuntimeImplementation(engine);
 };

@@ -17,6 +17,7 @@ import type {
 import { canonicalJson } from "../facts/canonical-json.js";
 import { verifyFactChecksum } from "../facts/checksum.js";
 import { deriveMaterialId, digestMaterialProvenance } from "../facts/digests.js";
+import { canonicalRawTextJson } from "../facts/raw-extraction.js";
 import { storageCorrupt } from "../internal-errors.js";
 
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
@@ -26,6 +27,10 @@ export interface SqliteMaterialDescriptor {
   readonly record: MaterialRecord;
   readonly blobDigest: ContentDigest;
   readonly blobByteLength: number;
+  readonly rawBlob?: {
+    readonly digest: ContentDigest;
+    readonly byteLength: number;
+  };
 }
 
 const parseStored = <T>(parse: () => T, label: string): T => {
@@ -46,6 +51,13 @@ const parseJson = (value: string, label: string): unknown => {
 
 const text = (row: Readonly<Record<string, unknown>>, key: string): string => {
   const value = row[key];
+  if (typeof value !== "string") throw storageCorrupt(`SQLite ${key} is invalid.`);
+  return value;
+};
+
+const nullableText = (row: Readonly<Record<string, unknown>>, key: string): string | undefined => {
+  const value = row[key];
+  if (value === null) return undefined;
   if (typeof value !== "string") throw storageCorrupt(`SQLite ${key} is invalid.`);
   return value;
 };
@@ -174,7 +186,47 @@ export const readSqliteMaterialsInTransaction = (
     ) {
       throw storageCorrupt("SQLite material columns disagree with their canonical record.");
     }
-    return { record, blobDigest, blobByteLength: integer(row, "blob_byte_length") };
+    let rawBlob: SqliteMaterialDescriptor["rawBlob"];
+    if (record.derivation.kind === "raw_extract") {
+      let rawRow: Readonly<Record<string, unknown>> | undefined;
+      try {
+        rawRow = database
+          .prepare(
+            `SELECT raw_materials.blob_digest, raw_materials.byte_length,
+                    raw_materials.canonical_text_json
+             FROM subject_raw_materials
+             JOIN raw_materials ON raw_materials.raw_id = subject_raw_materials.raw_id
+             JOIN blobs ON blobs.digest = raw_materials.blob_digest
+             WHERE subject_raw_materials.subject_id = ?
+               AND subject_raw_materials.raw_id = ?
+               AND blobs.byte_length = raw_materials.byte_length`,
+          )
+          .get(subjectId, record.derivation.rawId);
+      } catch (error) {
+        throw storageCorrupt("SQLite could not read raw material authority.", error);
+      }
+      if (rawRow === undefined) {
+        throw storageCorrupt("A raw-extracted material is missing its raw authority relation.");
+      }
+      const rawDigest = parseStored(
+        () => contentDigestSchema.parse(text(rawRow, "blob_digest")),
+        "raw blob digest",
+      );
+      if (record.derivation.rawId.slice(4) !== rawDigest.slice(7)) {
+        throw storageCorrupt("A raw id disagrees with its immutable blob digest.");
+      }
+      const canonicalTextJson = nullableText(rawRow, "canonical_text_json");
+      if (canonicalTextJson === undefined || canonicalTextJson !== canonicalRawTextJson(record)) {
+        throw storageCorrupt("A raw-extracted material disagrees with its canonical text tuple.");
+      }
+      rawBlob = { digest: rawDigest, byteLength: integer(rawRow, "byte_length") };
+    }
+    return {
+      record,
+      blobDigest,
+      blobByteLength: integer(row, "blob_byte_length"),
+      ...(rawBlob === undefined ? {} : { rawBlob }),
+    };
   });
 };
 

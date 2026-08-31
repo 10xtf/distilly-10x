@@ -12,6 +12,12 @@ CollectRequest
 DelegatedSourceAdapter
 DirectSourceAdapter
 ExternalSubjectRef
+MaterialParser
+ParseContext
+ParsedMaterial
+ParsedMaterialDraft
+ParserTextExtraction
+RawMaterial
 SourceActionInput
 SourceAdapter
 SourceAdapterBase
@@ -28,7 +34,12 @@ UserCollectionSelection
 `
   .trim()
   .split("\n");
-const expectedRuntimeExports = ["AdapterRegistry", "userCollectionMethodSchemas"];
+const expectedRuntimeExports = [
+  "AdapterRegistry",
+  "ParserRegistry",
+  "createBuiltinParserRegistry",
+  "userCollectionMethodSchemas",
+];
 
 const source = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
 const declarationPattern = /export( type)? \{([\s\S]*?)\} from "[^"]+";/g;
@@ -81,7 +92,12 @@ assert.deepEqual(packageJson.dependencies, {
 });
 assert.deepEqual(Object.keys(packageJson.exports), ["."]);
 
-for (const path of ["src/registry.ts", "src/schemas.ts"]) {
+for (const path of [
+  "src/builtin-parsers.ts",
+  "src/parser-registry.ts",
+  "src/registry.ts",
+  "src/schemas.ts",
+]) {
   const productionSource = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
   assert.doesNotMatch(
     productionSource,

@@ -1,6 +1,8 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   briefMaterialRefSchema,
@@ -93,6 +95,225 @@ afterEach(async () => {
 });
 
 describe("Developer Preview LocalRuntime", () => {
+  it("atomically ingests parsed and unparsed local files, replays before reads, and reopens", async () => {
+    const root = await temporaryRoot();
+    const inputRoot = await temporaryRoot();
+    const markdownPath = join(inputRoot, "mira.md");
+    const binaryPath = join(inputRoot, "portrait.bin");
+    const markdown = "Mira makes careful local-first decisions.\n";
+    const binary = Uint8Array.from([0, 255, 17, 42]);
+    await writeFile(markdownPath, markdown);
+    await writeFile(binaryPath, binary);
+
+    const runtime = await open(root);
+    const client = await connect(runtime, "file-ingest");
+    const requestId = request();
+    const input = {
+      subject: {
+        kind: "create" as const,
+        input: { displayName: "Mira Files", identityHints: [] },
+      },
+      paths: [markdownPath, binaryPath],
+      enqueue: "now" as const,
+    };
+    const first = await client.call("materials.ingestFiles", input, { requestId });
+    expect(first).toMatchObject({
+      created: true,
+      generation: 1,
+      items: [
+        { kind: "parsed", pathLabel: "mira.md", material: { kind: "accepted" } },
+        {
+          kind: "unparsed",
+          pathLabel: "portrait.bin",
+          mediaType: "application/octet-stream",
+        },
+      ],
+      job: { state: "pending", generation: 1 },
+    });
+    const expectedMarkdownRaw = `raw_${createHash("sha256").update(markdown).digest("hex")}`;
+    const expectedBinaryRaw = `raw_${createHash("sha256").update(binary).digest("hex")}`;
+    const materials = await client.call("materials.list", { subjectId: first.subject.id });
+    expect(materials.items).toHaveLength(1);
+    const stored = await client.call("materials.get", {
+      subjectId: first.subject.id,
+      materialId: materials.items[0]!.record.id,
+    });
+    expect(stored.record.derivation).toMatchObject({
+      kind: "raw_extract",
+      rawId: expectedMarkdownRaw,
+      method: "document_text",
+    });
+    expect(first.items[1]).toMatchObject({ rawId: expectedBinaryRaw });
+
+    const zeroDelta = await client.call(
+      "materials.ingestFiles",
+      {
+        subject: { kind: "existing", subjectId: first.subject.id },
+        paths: [binaryPath],
+        enqueue: "now",
+      },
+      { requestId: request() },
+    );
+    expect(zeroDelta).toMatchObject({
+      created: false,
+      generation: first.generation,
+      materialSetHash: first.materialSetHash,
+      items: [{ kind: "unparsed", rawId: expectedBinaryRaw }],
+      job: { id: first.job!.id },
+    });
+    await expect(
+      client.call("distill.pending", { subjectId: first.subject.id }),
+    ).resolves.toMatchObject([{ id: first.job!.id }]);
+
+    await rm(markdownPath);
+    await rm(binaryPath);
+    await expect(client.call("materials.ingestFiles", input, { requestId })).resolves.toEqual(
+      first,
+    );
+    await expect(
+      client.call("materials.ingestFiles", { ...input, paths: [markdownPath] }, { requestId }),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+    const otherActor = await connect(runtime, "file-ingest-other");
+    await expect(
+      otherActor.call("materials.ingestFiles", input, { requestId }),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+    await expect(
+      client.call(
+        "subjects.create",
+        { displayName: "Method Conflict", identityHints: [] },
+        { requestId },
+      ),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+
+    await close(runtime);
+    const database = new DatabaseSync(join(root, "store.sqlite3"), { readOnly: true });
+    expect(database.prepare("SELECT count(*) AS count FROM raw_materials").get()).toEqual({
+      count: 2,
+    });
+    expect(database.prepare("SELECT count(*) AS count FROM subject_raw_materials").get()).toEqual({
+      count: 2,
+    });
+    const sources = database
+      .prepare("SELECT source_json FROM subject_raw_materials ORDER BY raw_id")
+      .all() as unknown as readonly { readonly source_json: string }[];
+    expect(sources.every((row) => !row.source_json.includes(inputRoot))).toBe(true);
+    database.close();
+    const binaryHex = expectedBinaryRaw.slice("raw_".length);
+    await expect(
+      readFile(join(root, "blobs", "sha256", binaryHex.slice(0, 2), `sha256_${binaryHex}`)),
+    ).resolves.toEqual(Buffer.from(binary));
+    const reopened = await open(root);
+    const reopenedClient = await connect(reopened, "file-ingest-reopened");
+    await expect(
+      reopenedClient.call("materials.list", { subjectId: first.subject.id }),
+    ).resolves.toMatchObject({ items: [{ record: { id: materials.items[0]!.record.id } }] });
+  });
+
+  it("stores invalid UTF-8 as raw-only without changing generation or enqueuing", async () => {
+    const root = await temporaryRoot();
+    const inputRoot = await temporaryRoot();
+    const invalidPath = join(inputRoot, "invalid.txt");
+    await writeFile(invalidPath, Uint8Array.from([0xc3, 0x28]));
+    const runtime = await open(root);
+    const client = await connect(runtime, "raw-only");
+    const result = await client.call(
+      "materials.ingestFiles",
+      {
+        subject: {
+          kind: "create",
+          input: { displayName: "Raw Only", identityHints: [] },
+        },
+        paths: [invalidPath],
+        enqueue: "now",
+      },
+      { requestId: request() },
+    );
+    expect(result).toMatchObject({
+      created: true,
+      generation: 0,
+      items: [{ kind: "unparsed", pathLabel: "invalid.txt", mediaType: "text/plain" }],
+    });
+    expect(result).not.toHaveProperty("materialSetHash");
+    expect(result).not.toHaveProperty("job");
+    await expect(client.call("materials.list", { subjectId: result.subject.id })).resolves.toEqual({
+      items: [],
+    });
+    await expect(client.call("distill.pending", { subjectId: result.subject.id })).resolves.toEqual(
+      [],
+    );
+  });
+
+  it("refuses a second canonical text interpretation for the same raw bytes", async () => {
+    const root = await temporaryRoot();
+    const inputRoot = await temporaryRoot();
+    const body = "1\n00:00:01,000 --> 00:00:02,000\nHello\n";
+    const textPath = join(inputRoot, "same.txt");
+    const subtitlePath = join(inputRoot, "same.srt");
+    await writeFile(textPath, body);
+    await writeFile(subtitlePath, body);
+    const runtime = await open(root);
+    const client = await connect(runtime, "canonical-raw-text");
+    const first = await client.call(
+      "materials.ingestFiles",
+      {
+        subject: {
+          kind: "create",
+          input: { displayName: "Canonical Raw Text", identityHints: [] },
+        },
+        paths: [textPath],
+        enqueue: "now",
+      },
+      { requestId: request() },
+    );
+
+    await expect(
+      client.call(
+        "materials.ingestFiles",
+        {
+          subject: { kind: "existing", subjectId: first.subject.id },
+          paths: [subtitlePath],
+          enqueue: "now",
+        },
+        { requestId: request() },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_input",
+      fieldPath: "paths",
+      message: "The selected raw bytes already have a different canonical text extraction.",
+    });
+    await expect(
+      client.call("materials.list", { subjectId: first.subject.id }),
+    ).resolves.toMatchObject({ items: [{ record: { kind: "document" } }] });
+    await expect(
+      client.call("distill.pending", { subjectId: first.subject.id }),
+    ).resolves.toMatchObject([{ id: first.job!.id, generation: first.generation }]);
+  });
+
+  it("leaves no product-visible state when an explicit local path cannot be read", async () => {
+    const root = await temporaryRoot();
+    const runtime = await open(root);
+    const client = await connect(runtime, "missing-file");
+    await expect(
+      client.call(
+        "materials.ingestFiles",
+        {
+          subject: {
+            kind: "create",
+            input: { displayName: "Must Not Persist", identityHints: [] },
+          },
+          paths: [join(root, "missing.md")],
+          enqueue: "now",
+        },
+        { requestId: request() },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_input",
+      message: "A selected local file could not be read.",
+      fieldPath: "paths[0]",
+    });
+    await expect(client.call("subjects.list", {})).resolves.toEqual({ items: [] });
+  });
+
   it("runs create, ingest, pending, capacity-bound brief, owner-bound commit, get, and prompt", async () => {
     const runtime = await open(await temporaryRoot());
     const noCapacity = await connect(runtime, "no-capacity", false);

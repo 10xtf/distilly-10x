@@ -28,7 +28,10 @@ const ALLOWED_INTERNAL_DEPENDENCIES = new Map([
   ["@distilly/protocol", new Set()],
   ["@distilly/adapters", new Set(["@distilly/protocol"])],
   ["@distilly/engine", new Set(["@distilly/protocol"])],
-  ["@distilly/runtime", new Set(["@distilly/protocol", "@distilly/engine"])],
+  [
+    "@distilly/runtime",
+    new Set(["@distilly/protocol", "@distilly/adapters", "@distilly/engine"]),
+  ],
   ["@distilly/bindings", new Set(["@distilly/protocol"])],
   ["distilly", new Set(["@distilly/protocol"])],
   ["@distilly/mcp", new Set(["@distilly/protocol"])],

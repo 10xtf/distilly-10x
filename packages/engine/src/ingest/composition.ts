@@ -11,6 +11,7 @@ import { CommitService } from "../distill/commit-service.js";
 import { PromptCatalog } from "../distill/prompt-catalog.js";
 import type { EventBus } from "../ports/event-bus.js";
 import type { IdGenerator } from "../ports/id-generator.js";
+import { SqliteReadService } from "../read/sqlite-read-service.js";
 import { ReviewQueryService } from "../review/query-service.js";
 import type { ReviewServiceHooks } from "../review/service.js";
 import { ReviewService } from "../review/service.js";
@@ -21,7 +22,7 @@ import { SubjectCreateService } from "../subject/service.js";
 import { IngestService } from "./service.js";
 import type { IngestServiceHooks } from "./service.js";
 
-/** Trusted seams used only by the package-private SQLite create/ingest composition. */
+/** Trusted seams used only by the package-private SQLite Preview composition. */
 export interface InternalEngineCompositionOptions {
   readonly root: string;
   readonly clock?: Clock;
@@ -36,9 +37,30 @@ export interface InternalEngineCompositionOptions {
   readonly promptCatalog?: PromptCatalog;
 }
 
-/** Runnable SQLite create/ingest slice without claiming the full EngineRuntime API. */
+/** Runnable SQLite Preview slice without claiming the full EngineRuntime API. */
 export interface InternalEngineComposition {
-  readonly subjects: SubjectCreateService;
+  readonly subjects: {
+    readonly create: SubjectCreateService["create"];
+    readonly list: SqliteReadService["listSubjects"];
+    readonly resolve: SqliteReadService["resolveSubject"];
+  };
+  readonly materials: {
+    readonly list: SqliteReadService["listMaterials"];
+    readonly get: SqliteReadService["getMaterial"];
+  };
+  readonly profiles: {
+    readonly get: SqliteReadService["getProfile"];
+    readonly prompt: SqliteReadService["prompt"];
+    readonly status: SqliteReadService["status"];
+  };
+  readonly versions: {
+    readonly list: SqliteReadService["listVersions"];
+    readonly diff: SqliteReadService["diffVersions"];
+    readonly lineage: SqliteReadService["lineage"];
+  };
+  readonly library: {
+    readonly list: SqliteReadService["listLibrary"];
+  };
   readonly ingest: IngestService;
   readonly leases: DistillLeaseService;
   readonly commits: CommitService;
@@ -51,10 +73,10 @@ export interface InternalEngineComposition {
 }
 
 /**
- * Opens the first single-writer SQLite business-method slice.
+ * Opens the current single-writer SQLite business-method slice.
  *
  * @param options - Root path and trusted composition seams.
- * @returns The runnable create/ingest slice and its owned close operation.
+ * @returns The runnable Preview slice and its owned close operation.
  */
 export const createInternalEngineComposition = async (
   options: InternalEngineCompositionOptions,
@@ -66,7 +88,7 @@ export const createInternalEngineComposition = async (
     const ids = options.ids ?? new CryptoIdGenerator();
     const clock = options.clock ?? new SystemClock();
     const promptCatalog = options.promptCatalog ?? new PromptCatalog();
-    const subjects = new SubjectCreateService({
+    const subjectCreate = new SubjectCreateService({
       store,
       ids,
       clock,
@@ -114,9 +136,31 @@ export const createInternalEngineComposition = async (
       eventBus,
       ...(options.correctionHooks === undefined ? {} : { hooks: options.correctionHooks }),
     });
+    const reads = new SqliteReadService({ store, blobs });
     const reviews = new ReviewQueryService({ store });
     return {
-      subjects,
+      subjects: {
+        create: (input, actor, mutation) => subjectCreate.create(input, actor, mutation),
+        list: (input) => reads.listSubjects(input),
+        resolve: (input) => reads.resolveSubject(input),
+      },
+      materials: {
+        list: (input) => reads.listMaterials(input),
+        get: (input) => reads.getMaterial(input),
+      },
+      profiles: {
+        get: (input) => reads.getProfile(input),
+        prompt: (input) => reads.prompt(input),
+        status: (input) => reads.status(input),
+      },
+      versions: {
+        list: (input) => reads.listVersions(input),
+        diff: (input) => reads.diffVersions(input),
+        lineage: (input) => reads.lineage(input),
+      },
+      library: {
+        list: (input) => reads.listLibrary(input),
+      },
       ingest,
       leases,
       commits,

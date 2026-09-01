@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   doctorPreview,
+  requireInstalledPreviewBinding,
   setupPreviewHost,
   uninstallPreviewHost,
   type PreviewLifecycleEnvironment,
@@ -150,6 +151,37 @@ const fixture = async (): Promise<{
 };
 
 describe("Developer Preview CLI lifecycle", () => {
+  it("restores the installed Codex home for every host version probe", async () => {
+    const { root, home, environment } = await fixture();
+    const codex = join(root, "host-bin", "codex");
+    const expectedCodexHome = join(home, ".codex");
+    const expectedNodeDirectory = dirname(environment.nodePath);
+    await writeFile(
+      codex,
+      `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.146.0'
+  if [ "$CODEX_HOME" != ${JSON.stringify(expectedCodexHome)} ]; then
+    printf '%s\n' 'Codex home was not restored.' >&2
+  fi
+  if [ "\${PATH%%:*}" != ${JSON.stringify(expectedNodeDirectory)} ]; then
+    printf '%s\n' 'Distilly Node was not pinned first on PATH.' >&2
+  fi
+fi
+exit 0
+`,
+      { mode: 0o755 },
+    );
+    await chmod(codex, 0o755);
+
+    await expect(setupPreviewHost(BUILTIN_HOSTS.codex, environment)).resolves.toMatchObject({
+      host: BUILTIN_HOSTS.codex,
+    });
+    await expect(
+      requireInstalledPreviewBinding(environment, BUILTIN_HOSTS.codex),
+    ).resolves.toMatchObject({ kind: "full", host: BUILTIN_HOSTS.codex });
+  });
+
   it("sets up Codex, diagnoses it, and preserves data through uninstall", async () => {
     const { home, environment } = await fixture();
 

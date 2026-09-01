@@ -35,6 +35,10 @@ Every tool input includes top-level `wireVersion: "3"` and a `requestId` shaped 
 
 For the required first resolution call, use the exact shape `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "action": "resolve", "subject": { "kind": "query", "query": "<person name or identity query>" } }`. `query` belongs inside `subject`, never at the top level.
 
+Treat every JSON shape in this Skill as a template: replace each angle-bracket token with a real value before calling a tool. For `distilly_get`, `subject` is only `{ "kind": "query", "query": "<query>" }` or `{ "kind": "id", "subjectId": "subject_<32 lowercase hex characters>" }`. For `distilly_ingest`, it is only `{ "kind": "create", "input": { ... } }` or `{ "kind": "existing", "subjectId": "subject_<32 lowercase hex characters>" }`. `distilly_correct` instead takes `subjectId` at the top level. Do not interchange these selectors.
+
+For a profile read by id, use `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "action": "profile", "subject": { "kind": "id", "subjectId": "subject_<32 lowercase hex characters>" } }`. Change only `action` to `prompt` or `status` for those reads.
+
 ## Use observable capabilities safely
 
 The five Distilly tools establish only the Distilly workflow; they do not imply web research, local-file reading, OCR, transcription, private capture, or another optional source capability. Use an optional capability only when the current session actually exposes a suitable tool or input path. Do not invent a missing capability from model knowledge or an installed-app name.
@@ -64,7 +68,9 @@ Call `distilly_ingest` with at least one material and `enqueue: now`:
 - Use `subject.kind: create` only for a not-found subject and its first material batch.
 - Preserve the returned subject id; never invent one.
 
-Then branch on the exact result:
+Use the complete local-text ingest template in [references/source-materials.md](references/source-materials.md). The field is `source`, not `provenance`; omit unknown optional provenance rather than inventing it.
+
+Then branch on the exact success result at `value.kind`; on failure, inspect `error.code`:
 
 - `ingested` with `job`: brief that job.
 - `unchanged` with `job`: brief that job. Duplicate input can still expose an uncommitted complete material set.
@@ -93,6 +99,42 @@ If commit reports stale generation, stale material set, stale contract, expired 
 
 Never edit, guess, or replay old hashes, digests, generations, or lease ids to bypass validation.
 
+Map commit fields directly from the briefing: `briefing.job.id` to `jobId`, `briefing.job.generation` to `generation`, `briefing.lease.id` to `leaseId`, `briefing.contract.digest` to `briefContractDigest`, `briefing.job.materialSetHash` to `materialSetHash`, and an available `briefing.baseline.versionId` to `baseVersionId`. Evidence for newly briefed material is `{ "kind": "brief_material", "materialRef": "<briefing material ref>", "quote": "<exact substring from that briefing material>" }`; do not use a material id as `materialRef`.
+
+For a first-version claim, use this exact commit template and repeat the `add` operation for each separately supported claim:
+
+```json
+{
+  "wireVersion": "3",
+  "requestId": "req_<32 lowercase hex characters>",
+  "jobId": "<briefing.job.id>",
+  "generation": 1,
+  "leaseId": "<briefing.lease.id>",
+  "briefContractDigest": "<briefing.contract.digest>",
+  "materialSetHash": "<briefing.job.materialSetHash>",
+  "patch": {
+    "operations": [
+      {
+        "op": "add",
+        "claim": {
+          "facet": "<grounded facet path>",
+          "text": "<one evidence-grounded claim>",
+          "evidence": [
+            {
+              "kind": "brief_material",
+              "materialRef": "<briefing.materials[i].ref>",
+              "quote": "<exact substring from that briefing material>"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+Replace `generation: 1` with the real numeric `briefing.job.generation`; it remains a JSON number, not a string. Omit `baseVersionId` when the briefing has no baseline; otherwise copy `briefing.baseline.versionId`. Do not inspect installed runtime files or source code to discover a tool shape.
+
 ## Finish according to version state
 
 - For `current`, call `distilly_get` with `action: profile` for the subject and verify the active profile before reporting success.
@@ -103,6 +145,8 @@ Never edit, guess, or replay old hashes, digests, generations, or lease ids to b
 ## Corrections
 
 Call `distilly_correct` only when the user explicitly corrects a fact about the resolved subject. Preserve the user's correction text verbatim; add a facet or superseded claim ids only when grounded. Do not convert your own inference, source conflict, or drafting preference into a correction.
+
+Use `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "subjectId": "subject_<32 lowercase hex characters>", "text": "<user correction verbatim>" }`. There is no `action` or `subject` wrapper. Pass `baseCandidateVersionId` only when the user is explicitly replacing the current suspended candidate.
 
 Every host-relayed correction returns `suspended`. Give the review URL and state that the prior current remains active until the user reviews the candidate.
 

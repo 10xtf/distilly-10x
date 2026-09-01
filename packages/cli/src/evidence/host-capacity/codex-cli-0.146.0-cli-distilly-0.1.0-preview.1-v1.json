@@ -6,7 +6,7 @@
   "environment": "cli",
   "releaseVersion": "0.1.0-preview.1",
   "wireMajor": 3,
-  "canonicalSkillDigest": "sha256_88ac7d2b8495ffb9dc9f1c3d8a011ccc7ca05ba32bee3b03a817704012c9dc15",
+  "canonicalSkillDigest": "sha256_772ff903d94a7888f9bc87b9f31291416625ac9ea83c99f8d92c835d08e263b9",
   "toolContractDigest": "sha256_a5ef4303fa29360416008448f12dd4b01f325143633e7fa2298c2094f73a6eda",
   "serializer": "structured-content-plus-json-text-v1",
   "capacity": {
@@ -18,7 +18,7 @@
     "toolResultBytes": 65536,
     "structuredTextDeepEqual": true,
     "modelObservedBothTailMarkers": true,
-    "normalizedTranscriptDigest": "sha256_5d54f32e9f93e8c35706cb2e06984d238d7b1009b58ffcef9fb58d2017407b8b"
+    "normalizedTranscriptDigest": "sha256_6654c333feecb18016a407d0ac36b50528f0f8a81466f1e757df3873be4881f6"
   },
-  "verifiedAt": "2026-09-01T03:49:04.111Z"
+  "verifiedAt": "2026-09-01T04:32:48.205Z"
 }

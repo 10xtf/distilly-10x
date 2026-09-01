@@ -488,14 +488,26 @@ const findHostExecutable = async (host: HostName, pathValue: string): Promise<st
   throw fail(`Could not find the ${name} executable on PATH.`);
 };
 
-const probeHostVersion = async (executablePath: string, homeDirectory: string): Promise<string> =>
+const probeHostVersion = async (
+  host: HostName,
+  executablePath: string,
+  homeDirectory: string,
+  nodePath: string,
+  pathValue: string,
+): Promise<string> =>
   new Promise((resolvePromise, reject) => {
     execFile(
       executablePath,
       ["--version"],
       {
         encoding: "utf8",
-        env: { ...process.env, HOME: homeDirectory, USERPROFILE: homeDirectory },
+        env: {
+          ...process.env,
+          HOME: homeDirectory,
+          USERPROFILE: homeDirectory,
+          PATH: [dirname(nodePath), pathValue].filter(Boolean).join(delimiter),
+          ...(host === BUILTIN_HOSTS.codex ? { CODEX_HOME: join(homeDirectory, ".codex") } : {}),
+        },
         maxBuffer: 4_096,
         timeout: 5_000,
       },
@@ -664,7 +676,13 @@ export const setupPreviewHost = async (
       ? environment.pluginSourcesPath
       : join(paths.runtimeDirectory, PREVIEW_PLUGIN_SOURCES);
   const executablePath = await findHostExecutable(host, environment.pathValue);
-  const hostVersion = await probeHostVersion(executablePath, environment.homeDirectory);
+  const hostVersion = await probeHostVersion(
+    host,
+    executablePath,
+    environment.homeDirectory,
+    environment.nodePath,
+    environment.pathValue,
+  );
   const binding = createBinding(host, hostVersion, environment, release, executablePath);
   const preflight = await binding.preflight({ sessionId: `setup-${host}`, environment: "cli" });
   if (!preflight.ok) throw fail(preflight.error.message);
@@ -857,9 +875,13 @@ export const doctorPreview = async (
     selected.map(async (entry) => {
       const executableOk = await executableReachable(entry.executablePath);
       const observedVersion = executableOk
-        ? await probeHostVersion(entry.executablePath, environment.homeDirectory).catch(
-            () => undefined,
-          )
+        ? await probeHostVersion(
+            entry.host,
+            entry.executablePath,
+            environment.homeDirectory,
+            environment.nodePath,
+            environment.pathValue,
+          ).catch(() => undefined)
         : undefined;
       const binding = createBinding(
         entry.host,
@@ -937,7 +959,13 @@ const requireInstalledPreviewHost = async (
   const paths = await verifyBootstrap(manifest, environment);
   const entry = manifest.hosts.find((candidate) => candidate.host === host);
   if (entry === undefined) throw fail(`Distilly is not installed for ${host}.`);
-  const observedVersion = await probeHostVersion(entry.executablePath, environment.homeDirectory);
+  const observedVersion = await probeHostVersion(
+    entry.host,
+    entry.executablePath,
+    environment.homeDirectory,
+    environment.nodePath,
+    environment.pathValue,
+  );
   if (observedVersion !== entry.hostVersion) {
     throw fail("The installed host version changed; run Distilly setup again.");
   }

@@ -269,6 +269,19 @@ try {
     cwd: null,
   });
 
+  const hostSpawnedEnvironment = { ...environment };
+  delete hostSpawnedEnvironment.CODEX_HOME;
+  const hostSpawned = await connect(launcher, hostSpawnedEnvironment, workspace);
+  try {
+    const listed = await hostSpawned.client.listTools();
+    assert.deepEqual(
+      listed.tools.map(({ name }) => name),
+      distillyMcpTools.map(({ name }) => name),
+    );
+  } finally {
+    await close(hostSpawned);
+  }
+
   const first = await connect(launcher, environment, workspace);
   let subjectId;
   try {

@@ -39,6 +39,38 @@ Create one `MaterialInput` for each traceable textual representation. Supply:
 
 Never fabricate missing provenance. Omit optional fields that are unknown.
 
+For a new subject whose first authorized source is local text, use this complete `distilly_ingest` template after replacing every angle-bracket token:
+
+```json
+{
+  "wireVersion": "3",
+  "requestId": "req_<32 lowercase hex characters>",
+  "subject": {
+    "kind": "create",
+    "input": { "displayName": "<person name>" }
+  },
+  "materials": [
+    {
+      "clientRef": "local-note-1",
+      "kind": "document",
+      "content": "<exact non-empty text>",
+      "source": {
+        "medium": "document",
+        "access": "private",
+        "capturedAt": "2026-09-01T03:58:18.000Z"
+      },
+      "derivation": { "kind": "native_text" },
+      "sensitivity": "private"
+    }
+  ],
+  "enqueue": "now"
+}
+```
+
+Use the true capture time, always normalized to UTC milliseconds as `YYYY-MM-DDTHH:mm:ss.sssZ`. An offset timestamp such as `2026-09-01T11:58:18+08:00` is invalid; its normalized form is `2026-09-01T03:58:18.000Z`. For a resolved subject, replace only the template's `subject` with `{ "kind": "existing", "subjectId": "subject_<32 lowercase hex characters>" }`.
+
+Optional artifact provenance belongs at `source.artifact`, not `artifactLocator`. Do not invent a source role such as `user_provided`; omit any unknown optional field.
+
 For a public web material, include its absolute HTTP(S) URI. For a pasted private conversation, use `medium: conversation`, `access: private`, `role: personal_communication`, and `sensitivity: private`; do not invent a public URI.
 
 ## Preserve artifact relationships

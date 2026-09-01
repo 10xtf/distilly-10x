@@ -133,7 +133,7 @@ class AssemblePluginsTests(unittest.TestCase):
         )
         self.assertEqual(
             release["canonicalSkill"]["digest"],
-            "sha256_88ac7d2b8495ffb9dc9f1c3d8a011ccc7ca05ba32bee3b03a817704012c9dc15",
+            "sha256_772ff903d94a7888f9bc87b9f31291416625ac9ea83c99f8d92c835d08e263b9",
         )
         for target in release["targets"]:
             self.assertEqual(target["skillDigest"], release["canonicalSkill"]["digest"])

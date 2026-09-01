@@ -239,8 +239,8 @@ assert.equal(
 
 const fixtureId =
   host === "codex"
-    ? "codex-cli-0.146.0-cli-distilly-0.0.0-v1"
-    : "claude-code-2.1.220-cli-distilly-0.0.0-v1";
+    ? `codex-cli-0.146.0-cli-distilly-${releaseManifest.releaseVersion}-v1`
+    : `claude-code-2.1.220-cli-distilly-${releaseManifest.releaseVersion}-v1`;
 const tuple = {
   fixtureId,
   host,

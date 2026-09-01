@@ -371,7 +371,7 @@ describe("Panel HTTP server", () => {
     expect(health.status).toBe(200);
     expect(health.headers.get("content-type")).toBe("application/json; charset=utf-8");
     expect(await health.text()).toBe(
-      '{"panelVersion":"0.0.0","status":"ready","wireVersion":"3"}\n',
+      '{"panelVersion":"0.1.0-preview.1","status":"ready","wireVersion":"3"}\n',
     );
     for (const path of [
       "/%2e%2e/app.js",

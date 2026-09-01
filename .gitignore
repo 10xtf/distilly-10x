@@ -21,6 +21,7 @@ venv/
 node_modules/
 packages/*/lib/
 coverage/
+artifacts/
 *.tsbuildinfo
 
 # Config with credentials

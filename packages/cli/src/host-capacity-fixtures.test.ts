@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { BUILTIN_HOSTS, distillyMcpTools, type ContentDigest } from "@distilly/protocol";
 import { describe, expect, it } from "vitest";
 
-import codexEvidence from "./evidence/host-capacity/codex-cli-0.146.0-cli-distilly-0.0.0-v1.json" with { type: "json" };
+import codexEvidence from "./evidence/host-capacity/codex-cli-0.146.0-cli-distilly-0.1.0-preview.1-v1.json" with { type: "json" };
 import { loadPreviewHostFixture } from "./host-capacity-fixtures.js";
 
 const canonicalize = (value: unknown): unknown => {
@@ -61,7 +61,7 @@ describe("immutable Preview host capacity evidence", () => {
   it("fails closed for an exact tuple without a real evidence record", () => {
     expect(() =>
       loadPreviewHostFixture(BUILTIN_HOSTS.claudeCode, "2.1.221 (Claude Code)", "cli", {
-        releaseVersion: "0.0.0",
+        releaseVersion: "0.1.0-preview.1",
         canonicalSkillDigest:
           "sha256_cf2952b0420672c1135dbf0329ba8495ea01903b47cff6778b25cc63cca19cb7" as ContentDigest,
       }),

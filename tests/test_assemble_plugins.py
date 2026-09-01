@@ -92,7 +92,7 @@ class AssemblePluginsTests(unittest.TestCase):
             "wire",
         ])
         self.assertEqual(release["schemaVersion"], 1)
-        self.assertEqual(release["releaseVersion"], "0.0.0")
+        self.assertEqual(release["releaseVersion"], "0.1.0-preview.1")
         self.assertEqual(release["wire"], {"maximumMajor": 3, "minimumMajor": 3})
         self.assertEqual(
             [target["host"] for target in release["targets"]],

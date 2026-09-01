@@ -88,7 +88,9 @@ export const createCodexHostBinding = (options: CodexHostBindingOptions): HostBi
           platformManifestPath: PLATFORM_MANIFEST,
           expectedSkillDigest: options.release.canonicalSkillDigest,
           mcpShape: (launcherPath) => ({
-            distilly: { command: launcherPath, args: ["mcp", "--host", host] },
+            mcpServers: {
+              distilly: { command: launcherPath, args: ["mcp", "--host", host] },
+            },
           }),
         },
         async () => {

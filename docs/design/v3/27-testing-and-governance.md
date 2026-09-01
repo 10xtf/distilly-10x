@@ -128,6 +128,8 @@ release-assembly gate 从 canonical root 递归覆盖 nested references/assets�
 - upgrade 原子切换且可 rollback；
 - uninstall 保留 DISTILLY_ROOT 人物事实。
 
+`0.1.0-preview.1` 已完成上述 Codex/macOS 纵向子集：package manifest 逐文件 digest、无 symlink/source/test/sentinel 扫描、含空格和非 ASCII 的 copy install、绝对 launcher、官方 Codex plugin/MCP/Skill 重开发现、server version 与五 descriptor、真实 SQLite/Panel/人物 Skill 主流程、解压目录移除后的运行，以及 uninstall 对 SQLite 与人物 Skill 的 byte-identical 保留。runtime 任一 owned byte 被改动时 doctor 失败且 uninstall 不删除该 runtime。尚未完成的本节项目是 Claude Code packaged host reopen、Windows separator、upgrade/rollback 与把只读 initialize smoke 内置到 setup；这些继续阻塞完整双宿主 Developer Preview，不回退 Codex-first 本地包的已验证范围。
+
 ### 27.8 门禁
 
 设计目标中的 pnpm 门禁：

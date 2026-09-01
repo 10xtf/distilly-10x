@@ -1,6 +1,17 @@
-import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import {
+  chmod,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BUILTIN_HOSTS } from "@distilly/protocol";
@@ -12,6 +23,7 @@ import {
   uninstallPreviewHost,
   type PreviewLifecycleEnvironment,
 } from "./lifecycle.js";
+import { PREVIEW_RUNTIME_MANIFEST } from "./runtime-package.js";
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const FIXED_NOW = new Date("2026-08-31T12:00:00.000Z");
@@ -30,6 +42,82 @@ const executable = async (path: string, version: string): Promise<void> => {
     { mode: 0o755 },
   );
   await chmod(path, 0o755);
+};
+
+const compareUtf8 = (left: string, right: string): number =>
+  Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
+
+const packageDigest = (bytes: Uint8Array): `sha256_${string}` =>
+  `sha256_${createHash("sha256").update(bytes).digest("hex")}`;
+
+const packageFiles = async (root: string, current = root): Promise<string[]> => {
+  const files: string[] = [];
+  for (const entry of await readdir(current, { withFileTypes: true })) {
+    const path = join(current, entry.name);
+    if (entry.isDirectory()) files.push(...(await packageFiles(root, path)));
+    else if (entry.isFile()) files.push(relative(root, path).split(sep).join("/"));
+  }
+  return files;
+};
+
+const packagedEnvironment = async (
+  root: string,
+  environment: PreviewLifecycleEnvironment,
+): Promise<PreviewLifecycleEnvironment> => {
+  const runtime = join(root, "Preview 包");
+  const contents = new Map<string, string>([
+    ["distilly", "#!/bin/sh\nexit 0\n"],
+    ["package.json", '{"name":"@distilly/codex-preview","version":"0.1.0-preview.1"}\n'],
+    ["packages/cli/lib/bin.js", "// packaged entry\n"],
+    ["packages/panel/web/index.html", "<!doctype html>\n"],
+    ["packages/prompts/host-distill-v1.md", "# Host prompt\n"],
+  ]);
+  await mkdir(runtime);
+  for (const [path, content] of contents) {
+    const target = join(runtime, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, content);
+  }
+  await mkdir(join(runtime, "plugins/codex/.codex-plugin"), { recursive: true });
+  await cp(
+    join(REPOSITORY_ROOT, "plugins/release-manifest.json"),
+    join(runtime, "plugins/release-manifest.json"),
+  );
+  await cp(
+    join(REPOSITORY_ROOT, "plugins/codex/.codex-plugin/plugin.json"),
+    join(runtime, "plugins/codex/.codex-plugin/plugin.json"),
+  );
+  await cp(join(REPOSITORY_ROOT, "plugins/codex/skills"), join(runtime, "plugins/codex/skills"), {
+    recursive: true,
+  });
+  const files = (await packageFiles(runtime)).sort(compareUtf8);
+  const records = await Promise.all(
+    files.map(async (path) => ({
+      path,
+      contentDigest: packageDigest(await readFile(join(runtime, path))),
+    })),
+  );
+  await writeFile(
+    join(runtime, PREVIEW_RUNTIME_MANIFEST),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        releaseVersion: "0.1.0-preview.1",
+        entryPath: "packages/cli/lib/bin.js",
+        pluginSourcesPath: "plugins",
+        panelAssetsPath: "packages/panel/web",
+        files: records,
+      },
+      undefined,
+      2,
+    )}\n`,
+  );
+  return {
+    ...environment,
+    entryPath: join(runtime, "packages/cli/lib/bin.js"),
+    pluginSourcesPath: join(runtime, "plugins"),
+    runtimePackagePath: runtime,
+  };
 };
 
 const fixture = async (): Promise<{
@@ -74,7 +162,9 @@ describe("Developer Preview CLI lifecycle", () => {
     expect(
       JSON.parse(await readFile(join(home, "plugins", "distilly", ".mcp.json"), "utf8")),
     ).toEqual({
-      distilly: { command: launcher, args: ["mcp", "--host", "codex"] },
+      mcpServers: {
+        distilly: { command: launcher, args: ["mcp", "--host", "codex"] },
+      },
     });
     await expect(doctorPreview(environment)).resolves.toMatchObject({
       ok: true,
@@ -118,6 +208,25 @@ describe("Developer Preview CLI lifecycle", () => {
     );
     await expect(readFile(personData, "utf8")).resolves.toBe("keep me\n");
     await expect(readFile(launcher, "utf8")).resolves.toContain("exit 9");
+  });
+
+  it("copies a packaged runtime and refuses to remove a modified installed byte", async () => {
+    const { root, home, environment } = await fixture();
+    const packaged = await packagedEnvironment(root, environment);
+    await setupPreviewHost(BUILTIN_HOSTS.codex, packaged);
+    const installedEntry = join(home, ".distilly/runtime/0.1.0-preview.1/packages/cli/lib/bin.js");
+    await writeFile(installedEntry, "// tampered packaged entry\n");
+
+    await expect(doctorPreview(packaged)).resolves.toMatchObject({
+      ok: false,
+      installed: true,
+      launcherReachable: false,
+    });
+    await expect(uninstallPreviewHost(BUILTIN_HOSTS.codex, packaged)).rejects.toThrow(/modified/u);
+    await expect(readFile(installedEntry, "utf8")).resolves.toBe("// tampered packaged entry\n");
+    await expect(readFile(join(home, "plugins/distilly/.mcp.json"), "utf8")).resolves.toContain(
+      "mcpServers",
+    );
   });
 
   it("removes a new bootstrap when no supported host executable is found", async () => {

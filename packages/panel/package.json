@@ -1,6 +1,6 @@
 {
   "name": "@distilly/panel",
-  "version": "0.0.0",
+  "version": "0.1.0-preview.1",
   "description": "Loopback-only Distilly review panel over an injected EngineClient.",
   "license": "MIT",
   "type": "module",

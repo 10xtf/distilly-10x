@@ -1,6 +1,6 @@
 {
   "name": "@distilly/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0-preview.1",
   "description": "Transport-neutral MCP presenters for an injected Distilly EngineClient.",
   "license": "MIT",
   "type": "module",

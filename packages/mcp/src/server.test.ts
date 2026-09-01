@@ -402,7 +402,10 @@ describe("Distilly MCP server", () => {
   });
 
   it("publishes exactly the canonical five descriptors and server identity", async () => {
-    expect(client.getServerVersion()).toEqual({ name: "distilly", version: "0.0.0" });
+    expect(client.getServerVersion()).toEqual({
+      name: "distilly",
+      version: "0.1.0-preview.1",
+    });
     const { tools } = await client.listTools();
     expect(
       tools.map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({

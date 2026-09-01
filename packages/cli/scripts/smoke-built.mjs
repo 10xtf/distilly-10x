@@ -278,7 +278,7 @@ try {
     const health = await fetch(`${reviewUrl.origin}/health`);
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), {
-      panelVersion: "0.0.0",
+      panelVersion: "0.1.0-preview.1",
       status: "ready",
       wireVersion: "3",
     });

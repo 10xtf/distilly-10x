@@ -26,7 +26,6 @@ import type { HostDoctorResult, InstallContext, PluginInstallResult } from "../p
 const OWNERSHIP_FILE = ".distilly-plugin-install.json";
 const TEMPLATE_FILE = ".mcp.json.template";
 const INSTALLED_MCP_FILE = ".mcp.json";
-const SENTINEL = "__DISTILLY_LAUNCHER_ABSOLUTE_PATH__";
 
 interface OwnedFile {
   readonly path: string;
@@ -187,10 +186,6 @@ const preparePlugin = async (
     throw fail("The plugin source must be a regular directory.", "pluginSourcePath");
   }
   const sourceFiles = await walkRegularFiles(context.pluginSourcePath);
-  const template = sourceFiles.get(TEMPLATE_FILE);
-  if (template === undefined || !Buffer.from(template).toString("utf8").includes(SENTINEL)) {
-    throw fail("The plugin source is missing its launcher template.");
-  }
   if (skillTreeDigest(sourceFiles) !== options.expectedSkillDigest) {
     throw fail("The plugin source canonical skill digest does not match this release.");
   }

@@ -9,7 +9,7 @@ import {
   type HostPreflight,
 } from "@distilly/protocol";
 
-import codexCapacityEvidence from "./evidence/host-capacity/codex-cli-0.146.0-cli-distilly-0.0.0-v1.json" with { type: "json" };
+import codexCapacityEvidence from "./evidence/host-capacity/codex-cli-0.146.0-cli-distilly-0.1.0-preview.1-v1.json" with { type: "json" };
 
 interface PreviewReleaseTuple {
   readonly releaseVersion: string;
@@ -59,7 +59,7 @@ const PREVIEW_CAPABILITIES = Object.freeze({
   opensLoopbackUrls: false,
 } as const satisfies HostCapabilities);
 
-const PREVIEW_RELEASE = "0.0.0";
+const PREVIEW_RELEASE = "0.1.0-preview.1";
 const PREVIEW_SKILL_DIGEST =
   "sha256_cf2952b0420672c1135dbf0329ba8495ea01903b47cff6778b25cc63cca19cb7" as ContentDigest;
 const TOOL_CONTRACT_DIGEST =

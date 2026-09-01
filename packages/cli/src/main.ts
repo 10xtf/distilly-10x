@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 
-import { BUILTIN_HOSTS, type HostName } from "@distilly/protocol";
+import { BUILTIN_HOSTS, subjectIdSchema, type HostName } from "@distilly/protocol";
 
 import {
   doctorPreview,
@@ -12,6 +12,11 @@ import {
   uninstallPreviewHost,
   type PreviewLifecycleEnvironment,
 } from "./lifecycle.js";
+import {
+  PREVIEW_PANEL_ASSETS,
+  PREVIEW_PLUGIN_SOURCES,
+  PREVIEW_RUNTIME_MANIFEST,
+} from "./runtime-package.js";
 
 /** Process streams kept injectable for focused command tests. */
 export interface PreviewCliIo {
@@ -38,7 +43,7 @@ const hostOption = (args: readonly string[], required: boolean): HostName | unde
   return parseHost(args[1]);
 };
 
-const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promise<void> => {
+const openApplication = async (host: HostName, environment: PreviewCliEnvironment) => {
   const binding = await requireInstalledPreviewBinding(environment.lifecycle, host);
   const hostContext = {
     sessionId: `${host}-preview-mcp-${process.pid}`,
@@ -47,7 +52,7 @@ const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promi
   const preflight = await binding.preflight(hostContext);
   if (!preflight.ok) throw new Error(preflight.error.message);
   const { openPreviewMcpApplication } = await import("./preview.js");
-  const application = await openPreviewMcpApplication({
+  return openPreviewMcpApplication({
     root: join(environment.lifecycle.homeDirectory, ".distilly"),
     binding,
     hostContext,
@@ -56,6 +61,10 @@ const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promi
       assetsDir: environment.panelAssetsPath,
     },
   });
+};
+
+const runMcp = async (host: HostName, environment: PreviewCliEnvironment): Promise<void> => {
+  const application = await openApplication(host, environment);
   try {
     await application.runStdio();
   } finally {
@@ -73,15 +82,29 @@ export const resolvePreviewCliEnvironment = async (): Promise<PreviewCliEnvironm
   if (!isAbsolute(configuredHome)) throw new Error("The user home path must be absolute.");
   const entryPath = await realpath(fileURLToPath(new URL("./bin.js", import.meta.url)));
   const packageRoot = resolve(dirname(entryPath), "..");
+  const runtimeRoot = resolve(packageRoot, "../..");
+  const packaged = await lstat(join(runtimeRoot, PREVIEW_RUNTIME_MANIFEST))
+    .then((metadata) => metadata.isFile() && !metadata.isSymbolicLink())
+    .catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    });
   return {
     lifecycle: {
       homeDirectory: resolve(configuredHome),
       nodePath: await realpath(process.execPath),
       entryPath,
-      pluginSourcesPath: await realpath(resolve(packageRoot, "../..", "plugins")),
+      pluginSourcesPath: await realpath(
+        packaged
+          ? join(runtimeRoot, PREVIEW_PLUGIN_SOURCES)
+          : resolve(packageRoot, "../..", "plugins"),
+      ),
+      ...(packaged ? { runtimePackagePath: runtimeRoot } : {}),
       pathValue: process.env.PATH ?? "",
     },
-    panelAssetsPath: await realpath(resolve(packageRoot, "../panel/web")),
+    panelAssetsPath: await realpath(
+      packaged ? join(runtimeRoot, PREVIEW_PANEL_ASSETS) : resolve(packageRoot, "../panel/web"),
+    ),
   };
 };
 
@@ -90,6 +113,7 @@ const help = `Distilly Developer Preview
 Usage:
   distilly setup --host codex
   distilly doctor [--host codex]
+  distilly install <subject-id> --host codex
   distilly uninstall --host codex
 `;
 
@@ -132,6 +156,21 @@ export const runPreviewCli = async (
     io.stdout.write(
       `${result.removed ? "Removed" : "No installed integration for"} ${result.host}; person data was preserved.\n`,
     );
+    return 0;
+  }
+  if (command === "install") {
+    if (args.length !== 3 || args[1] !== "--host") {
+      throw new Error("This command requires <subject-id> --host codex.");
+    }
+    const subjectId = subjectIdSchema.parse(args[0]);
+    const host = parseHost(args[2]);
+    const application = await openApplication(host, environment);
+    try {
+      const installed = await application.distilly.person(subjectId).install(host);
+      io.stdout.write(`Installed ${subjectId} for ${host} at ${installed.path}.\n`);
+    } finally {
+      await application.close();
+    }
     return 0;
   }
   if (command === "mcp") {

@@ -13,7 +13,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 
 import {
   createClaudeCodeHostBinding,
@@ -31,6 +31,15 @@ import {
 } from "@distilly/protocol";
 
 import { loadPreviewHostFixture } from "./host-capacity-fixtures.js";
+import {
+  PREVIEW_PLUGIN_SOURCES,
+  PREVIEW_RUNTIME_ENTRY,
+  PREVIEW_RUNTIME_MANIFEST,
+  inspectPreviewRuntimePackage,
+  installPreviewRuntimePackage,
+  removePreviewRuntimePackage,
+  type VerifiedPreviewRuntimePackage,
+} from "./runtime-package.js";
 
 const INSTALL_FILE = "install.json";
 const LAUNCHER_FILE = "distilly";
@@ -70,6 +79,7 @@ interface LifecyclePaths {
   readonly launcher: string;
   readonly runtimeDirectory: string;
   readonly runtime: string;
+  readonly packaged: boolean;
 }
 
 /** Trusted local paths used by the repo-local Developer Preview lifecycle. */
@@ -78,6 +88,8 @@ export interface PreviewLifecycleEnvironment {
   readonly nodePath: string;
   readonly entryPath: string;
   readonly pluginSourcesPath: string;
+  /** Present only when entryPath belongs to an assembled self-contained runtime tree. */
+  readonly runtimePackagePath?: string;
   readonly pathValue: string;
   readonly now?: () => Date;
 }
@@ -146,7 +158,11 @@ const launcherBytes = (nodePath: string, entryPath: string): Uint8Array =>
 const runtimeBytes = (releaseVersion: string, nodePath: string, entryPath: string): Uint8Array =>
   jsonBytes({ schemaVersion: 1, releaseVersion, nodePath, entryPath });
 
-const pathsFor = (homeDirectory: string, releaseVersion: string): LifecyclePaths => {
+const pathsFor = (
+  homeDirectory: string,
+  releaseVersion: string,
+  packaged: boolean,
+): LifecyclePaths => {
   const root = join(homeDirectory, ".distilly");
   const runtimeDirectory = join(root, "runtime", releaseVersion);
   return {
@@ -154,7 +170,8 @@ const pathsFor = (homeDirectory: string, releaseVersion: string): LifecyclePaths
     install: join(root, INSTALL_FILE),
     launcher: join(root, "bin", LAUNCHER_FILE),
     runtimeDirectory,
-    runtime: join(runtimeDirectory, RUNTIME_FILE),
+    runtime: join(runtimeDirectory, packaged ? PREVIEW_RUNTIME_MANIFEST : RUNTIME_FILE),
+    packaged,
   };
 };
 
@@ -207,7 +224,9 @@ const verifyLifecycleDirectories = async (
   await ensureRegularDirectory(dirname(paths.launcher), create);
   const runtimeRoot = dirname(paths.runtimeDirectory);
   await ensureRegularDirectory(runtimeRoot, create);
-  await ensureRegularDirectory(paths.runtimeDirectory, create);
+  if (!paths.packaged || !create) {
+    await ensureRegularDirectory(paths.runtimeDirectory, create);
+  }
 };
 
 const atomicWrite = async (path: string, bytes: Uint8Array, mode: number): Promise<void> => {
@@ -401,12 +420,16 @@ const verifyManifestPaths = (
   manifest: PreviewInstallManifest,
   environment: PreviewLifecycleEnvironment,
 ): LifecyclePaths => {
-  const expected = pathsFor(environment.homeDirectory, manifest.releaseVersion);
+  const packaged = environment.runtimePackagePath !== undefined;
+  const expected = pathsFor(environment.homeDirectory, manifest.releaseVersion, packaged);
+  const expectedEntry = packaged
+    ? join(expected.runtimeDirectory, PREVIEW_RUNTIME_ENTRY)
+    : environment.entryPath;
   if (
     manifest.launcherPath !== expected.launcher ||
     manifest.runtimePath !== expected.runtime ||
     manifest.nodePath !== environment.nodePath ||
-    manifest.entryPath !== environment.entryPath
+    manifest.entryPath !== expectedEntry
   ) {
     throw fail("The Preview lifecycle manifest does not match this installed entry.");
   }
@@ -420,7 +443,18 @@ const verifyBootstrap = async (
   const paths = verifyManifestPaths(manifest, environment);
   await verifyLifecycleDirectories(paths, false);
   await verifyOwnedFile(paths.launcher, manifest.launcherDigest, true);
-  await verifyOwnedFile(paths.runtime, manifest.runtimeDigest);
+  if (paths.packaged) {
+    const runtime = await inspectPreviewRuntimePackage(paths.runtimeDirectory);
+    if (
+      runtime.manifestDigest !== manifest.runtimeDigest ||
+      runtime.releaseVersion !== manifest.releaseVersion ||
+      runtime.entryPath !== manifest.entryPath
+    ) {
+      throw fail("The installed Preview runtime does not match its install manifest.");
+    }
+  } else {
+    await verifyOwnedFile(paths.runtime, manifest.runtimeDigest);
+  }
   return paths;
 };
 
@@ -526,6 +560,14 @@ const createBinding = (
 const pluginSource = (pluginSourcesPath: string, host: HostName): string =>
   join(pluginSourcesPath, host === BUILTIN_HOSTS.codex ? "codex" : "claude-code");
 
+const installedPluginSources = (
+  paths: LifecyclePaths,
+  environment: PreviewLifecycleEnvironment,
+): string =>
+  paths.packaged
+    ? join(paths.runtimeDirectory, PREVIEW_PLUGIN_SOURCES)
+    : environment.pluginSourcesPath;
+
 const installContext = (
   paths: LifecyclePaths,
   release: ReleaseManifest,
@@ -540,11 +582,21 @@ const installContext = (
 const writeManifest = async (path: string, manifest: PreviewInstallManifest): Promise<void> =>
   atomicWrite(path, jsonBytes(manifest), 0o600);
 
-const removeBootstrap = async (paths: LifecyclePaths): Promise<void> => {
+const removeBootstrap = async (
+  paths: LifecyclePaths,
+  runtimeDigest?: ContentDigest,
+): Promise<void> => {
   await removeIfPresent(paths.launcher);
-  await removeIfPresent(paths.runtime);
   await removeEmptyDirectory(dirname(paths.launcher));
-  await removeEmptyDirectory(paths.runtimeDirectory);
+  if (paths.packaged) {
+    if (runtimeDigest === undefined) {
+      throw fail("The owned packaged runtime digest is required for removal.");
+    }
+    await removePreviewRuntimePackage(paths.runtimeDirectory, runtimeDigest);
+  } else {
+    await removeIfPresent(paths.runtime);
+    await removeEmptyDirectory(paths.runtimeDirectory);
+  }
   await removeEmptyDirectory(dirname(paths.runtimeDirectory));
 };
 
@@ -553,7 +605,8 @@ const assertEnvironment = (environment: PreviewLifecycleEnvironment): void => {
     !isAbsolute(environment.homeDirectory) ||
     !isAbsolute(environment.nodePath) ||
     !isAbsolute(environment.entryPath) ||
-    !isAbsolute(environment.pluginSourcesPath)
+    !isAbsolute(environment.pluginSourcesPath) ||
+    (environment.runtimePackagePath !== undefined && !isAbsolute(environment.runtimePackagePath))
   ) {
     throw fail("Preview lifecycle paths must be absolute.");
   }
@@ -581,8 +634,35 @@ export const setupPreviewHost = async (
 ): Promise<PreviewSetupResult> => {
   assertEnvironment(environment);
   const host = previewHost(hostValue);
-  const release = await readPreviewRelease(environment.pluginSourcesPath);
-  const paths = pathsFor(environment.homeDirectory, release.releaseVersion);
+  const sourceRuntime: VerifiedPreviewRuntimePackage | undefined =
+    environment.runtimePackagePath === undefined
+      ? undefined
+      : await inspectPreviewRuntimePackage(environment.runtimePackagePath);
+  if (
+    sourceRuntime !== undefined &&
+    (sourceRuntime.entryPath !== resolve(environment.entryPath) ||
+      sourceRuntime.pluginSourcesPath !== resolve(environment.pluginSourcesPath))
+  ) {
+    throw fail("The Preview CLI entry does not match its runtime package manifest.");
+  }
+  const sourcePlugins = sourceRuntime?.pluginSourcesPath ?? environment.pluginSourcesPath;
+  const release = await readPreviewRelease(sourcePlugins);
+  if (sourceRuntime !== undefined && sourceRuntime.releaseVersion !== release.releaseVersion) {
+    throw fail("The Preview runtime and plugin release versions do not match.");
+  }
+  const paths = pathsFor(
+    environment.homeDirectory,
+    release.releaseVersion,
+    sourceRuntime !== undefined,
+  );
+  const installedEntry =
+    sourceRuntime === undefined
+      ? environment.entryPath
+      : join(paths.runtimeDirectory, PREVIEW_RUNTIME_ENTRY);
+  const installedPlugins =
+    sourceRuntime === undefined
+      ? environment.pluginSourcesPath
+      : join(paths.runtimeDirectory, PREVIEW_PLUGIN_SOURCES);
   const executablePath = await findHostExecutable(host, environment.pathValue);
   const hostVersion = await probeHostVersion(executablePath, environment.homeDirectory);
   const binding = createBinding(host, hostVersion, environment, release, executablePath);
@@ -591,28 +671,46 @@ export const setupPreviewHost = async (
   await ensureRoot(paths.root);
   await verifyLifecycleDirectories(paths, true);
   const previous = await readInstallManifest(paths.install);
-  const expectedLauncher = launcherBytes(environment.nodePath, environment.entryPath);
-  const expectedRuntime = runtimeBytes(
-    release.releaseVersion,
-    environment.nodePath,
-    environment.entryPath,
-  );
+  const expectedLauncher = launcherBytes(environment.nodePath, installedEntry);
+  const expectedRuntime =
+    sourceRuntime === undefined
+      ? runtimeBytes(release.releaseVersion, environment.nodePath, installedEntry)
+      : undefined;
   const launcherDigest = digest(expectedLauncher);
-  const runtimeDigest = digest(expectedRuntime);
+  const runtimeDigest =
+    sourceRuntime === undefined ? digest(expectedRuntime!) : sourceRuntime.manifestDigest;
   let createdBootstrap = false;
   if (previous === undefined) {
-    if (
-      (await readOptionalRegularFile(paths.launcher)) !== undefined ||
-      (await readOptionalRegularFile(paths.runtime)) !== undefined
-    ) {
+    const runtimeExists = paths.packaged
+      ? await lstat(paths.runtimeDirectory)
+          .then(() => true)
+          .catch((error: unknown) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+            throw error;
+          })
+      : (await readOptionalRegularFile(paths.runtime)) !== undefined;
+    if ((await readOptionalRegularFile(paths.launcher)) !== undefined || runtimeExists) {
       throw fail("Unowned Distilly bootstrap files already exist.");
     }
     try {
-      await atomicWrite(paths.runtime, expectedRuntime, 0o600);
+      if (sourceRuntime === undefined) {
+        await ensureRegularDirectory(paths.runtimeDirectory, true);
+        await atomicWrite(paths.runtime, expectedRuntime!, 0o600);
+      } else {
+        await installPreviewRuntimePackage(sourceRuntime, paths.runtimeDirectory);
+      }
       await atomicWrite(paths.launcher, expectedLauncher, 0o700);
       createdBootstrap = true;
     } catch (error) {
-      await removeBootstrap(paths);
+      if (sourceRuntime === undefined) {
+        await removeIfPresent(paths.runtime);
+        await removeEmptyDirectory(paths.runtimeDirectory);
+      } else {
+        await removePreviewRuntimePackage(paths.runtimeDirectory, runtimeDigest).catch(
+          () => undefined,
+        );
+      }
+      await removeIfPresent(paths.launcher);
       throw error;
     }
   } else {
@@ -630,7 +728,7 @@ export const setupPreviewHost = async (
   let bindingInstalled = false;
   try {
     const installed = await binding.installPlugin(
-      installContext(paths, release, environment.pluginSourcesPath, host),
+      installContext(paths, release, installedPlugins, host),
     );
     bindingInstalled = true;
     const health = await binding.doctor({ sessionId: `setup-${host}`, environment: "cli" });
@@ -664,7 +762,7 @@ export const setupPreviewHost = async (
       releaseVersion: release.releaseVersion,
       wireMajor: 3,
       nodePath: environment.nodePath,
-      entryPath: environment.entryPath,
+      entryPath: installedEntry,
       launcherPath: paths.launcher,
       launcherDigest,
       runtimePath: paths.runtime,
@@ -680,10 +778,10 @@ export const setupPreviewHost = async (
   } catch (error) {
     if (bindingInstalled && !existed) {
       await binding
-        .uninstallPlugin(installContext(paths, release, environment.pluginSourcesPath, host))
+        .uninstallPlugin(installContext(paths, release, installedPlugins, host))
         .catch(() => undefined);
     }
-    if (createdBootstrap) await removeBootstrap(paths).catch(() => undefined);
+    if (createdBootstrap) await removeBootstrap(paths, runtimeDigest).catch(() => undefined);
     throw error;
   }
 };
@@ -735,6 +833,7 @@ export const doctorPreview = async (
       warnings: ["Distilly Developer Preview is not installed."],
     };
   }
+  const paths = verifyManifestPaths(manifest, environment);
   let launcherReachable = true;
   try {
     await verifyBootstrap(manifest, environment);
@@ -744,7 +843,7 @@ export const doctorPreview = async (
       error instanceof Error ? error.message : "Distilly bootstrap verification failed.",
     );
   }
-  const release = await readPreviewRelease(environment.pluginSourcesPath);
+  const release = await readPreviewRelease(installedPluginSources(paths, environment));
   if (release.releaseVersion !== manifest.releaseVersion) {
     warnings.push("The installed Preview release does not match this CLI entry.");
   }
@@ -824,21 +923,25 @@ export const doctorPreview = async (
 const requireInstalledPreviewHost = async (
   environment: PreviewLifecycleEnvironment,
   hostValue: HostName,
-): Promise<InstalledHost> => {
+): Promise<{
+  readonly entry: InstalledHost;
+  readonly manifest: PreviewInstallManifest;
+  readonly paths: LifecyclePaths;
+}> => {
   assertEnvironment(environment);
   const host = previewHost(hostValue);
   const manifest = await readInstallManifest(
     join(environment.homeDirectory, ".distilly", INSTALL_FILE),
   );
   if (manifest === undefined) throw fail("Distilly Developer Preview is not installed.");
-  await verifyBootstrap(manifest, environment);
+  const paths = await verifyBootstrap(manifest, environment);
   const entry = manifest.hosts.find((candidate) => candidate.host === host);
   if (entry === undefined) throw fail(`Distilly is not installed for ${host}.`);
   const observedVersion = await probeHostVersion(entry.executablePath, environment.homeDirectory);
   if (observedVersion !== entry.hostVersion) {
     throw fail("The installed host version changed; run Distilly setup again.");
   }
-  return entry;
+  return { entry, manifest, paths };
 };
 
 /**
@@ -852,8 +955,8 @@ export const requireInstalledPreviewBinding = async (
   environment: PreviewLifecycleEnvironment,
   hostValue: HostName,
 ): Promise<HostBinding> => {
-  const entry = await requireInstalledPreviewHost(environment, hostValue);
-  const release = await readPreviewRelease(environment.pluginSourcesPath);
+  const { entry, paths } = await requireInstalledPreviewHost(environment, hostValue);
+  const release = await readPreviewRelease(installedPluginSources(paths, environment));
   return createBinding(entry.host, entry.hostVersion, environment, release, entry.executablePath);
 };
 
@@ -877,13 +980,14 @@ export const uninstallPreviewHost = async (
   const entry = manifest.hosts.find((candidate) => candidate.host === host);
   if (entry === undefined) {
     if (manifest.hosts.length === 0) {
-      await removeBootstrap(paths);
+      await removeBootstrap(paths, manifest.runtimeDigest);
       await removeIfPresent(paths.install);
       return { host, removed: false, launcherRemoved: true };
     }
     return { host, removed: false, launcherRemoved: false };
   }
-  const release = await readPreviewRelease(environment.pluginSourcesPath);
+  const pluginSources = installedPluginSources(paths, environment);
+  const release = await readPreviewRelease(pluginSources);
   const binding = createBinding(
     host,
     entry.hostVersion,
@@ -891,15 +995,13 @@ export const uninstallPreviewHost = async (
     release,
     entry.executablePath,
   );
-  await binding.uninstallPlugin(
-    installContext(paths, release, environment.pluginSourcesPath, host),
-  );
+  await binding.uninstallPlugin(installContext(paths, release, pluginSources, host));
   const remaining = manifest.hosts.filter((candidate) => candidate.host !== host);
   if (remaining.length > 0) {
     await writeManifest(paths.install, { ...manifest, hosts: remaining });
     return { host, removed: true, launcherRemoved: false };
   }
-  await removeBootstrap(paths);
+  await removeBootstrap(paths, manifest.runtimeDigest);
   await removeIfPresent(paths.install);
   return { host, removed: true, launcherRemoved: true };
 };

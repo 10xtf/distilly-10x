@@ -84,7 +84,7 @@ try {
   const codexMcp = JSON.parse(
     await readFile(join(home, "plugins", "distilly", ".mcp.json"), "utf8"),
   );
-  assert.deepEqual(codexMcp.distilly, {
+  assert.deepEqual(codexMcp.mcpServers.distilly, {
     command: launcher,
     args: ["mcp", "--host", "codex"],
   });

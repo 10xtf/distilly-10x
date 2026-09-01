@@ -22,6 +22,7 @@
     "check:boundaries": "node scripts/check_package_boundaries.mjs .",
     "check:engine-pack": "node scripts/check_engine_pack.mjs .",
     "check:plugins": "python3 -B scripts/assemble_plugins.py --check",
+    "package:preview:codex": "pnpm run build && node packages/cli/scripts/assemble-preview-package.mjs --output artifacts/distilly-0.1.0-preview.1-codex --force",
     "snapshots": "pnpm -r --if-present run snapshots",
     "docs": "python3 -B scripts/verify_docs.py",
     "notes": "python3 -B scripts/verify_agent_notes.py",

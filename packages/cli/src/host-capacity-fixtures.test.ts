@@ -63,7 +63,7 @@ describe("immutable Preview host capacity evidence", () => {
       loadPreviewHostFixture(BUILTIN_HOSTS.claudeCode, "2.1.221 (Claude Code)", "cli", {
         releaseVersion: "0.1.0-preview.1",
         canonicalSkillDigest:
-          "sha256_cf2952b0420672c1135dbf0329ba8495ea01903b47cff6778b25cc63cca19cb7" as ContentDigest,
+          "sha256_88ac7d2b8495ffb9dc9f1c3d8a011ccc7ca05ba32bee3b03a817704012c9dc15" as ContentDigest,
       }),
     ).toThrow(/No verified capacity fixture/u);
   });

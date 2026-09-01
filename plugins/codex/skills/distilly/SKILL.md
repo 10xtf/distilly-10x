@@ -17,9 +17,9 @@ Do not invent a create, research, flush, capture, or review tool. Do not use she
 
 ## Gate the runtime
 
-Before any source research or `distilly_*` call, require a trusted host-supplied `HostPreflight` success with `structuredToolCalls: true`, trusted briefing capacity and evidence, and all five exact Distilly tools available.
+The installed host binding completes trusted preflight before it starts the MCP server and binds the verified briefing capacity to the runtime session. That internal result is not model-facing: do not ask the user for it or require a `HostPreflight` object in the conversation.
 
-If preflight is missing or failed, structured tool calls are false, the runtime or MCP server is unavailable, or any of the five tools is missing, report that Distilly runtime/MCP is unavailable and stop immediately. Do not research, ingest, acquire a lease, simulate tool results, use shell commands as a fallback, or write persona content into global instruction files.
+Before any source research or `distilly_*` call, check that all five exact Distilly tools are available in the current session. Their availability is sufficient to begin; the runtime still fails closed if its trusted preflight, capacity binding, or wire handshake is invalid. If the runtime or MCP server is unavailable, any tool is missing, or a call returns a host-capability or handshake failure, report that narrow failure and stop immediately. Do not research, ingest, acquire a lease, simulate tool results, use shell commands as a fallback, or write persona content into global instruction files.
 
 ## Establish the task
 
@@ -31,18 +31,19 @@ If preflight is missing or failed, structured tool calls are false, the runtime 
    - For `not_found`, create the subject only together with the first non-empty material batch through `distilly_ingest` using `subject.kind: create`.
 4. For a retrieval-only request, call `distilly_get` with `action: profile`, `prompt`, or `status` after resolution and stop. Never create an empty subject.
 
-Use a fresh request id for each logical call. Reuse an id only when retrying the identical request; never reuse it for changed arguments.
+Every tool input includes top-level `wireVersion: "3"` and a `requestId` shaped as `req_` plus 32 lowercase hexadecimal characters. Use a fresh request id for each logical call. Reuse an id only when retrying the identical request; never reuse it for changed arguments.
 
-## Apply the preflight capabilities
+For the required first resolution call, use the exact shape `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "action": "resolve", "subject": { "kind": "query", "query": "<person name or identity query>" } }`. `query` belongs inside `subject`, never at the top level.
 
-Continue using only the capability result from the already accepted trusted host preflight. Do not infer a capability from tool names, installed apps, vision, Computer Use, or general model knowledge.
+## Use observable capabilities safely
 
-- Treat `unknown` as not available. Ask the user for input or use the minimum-capability route.
-- If web research is unavailable or unknown, request links, pasted text, an export, or readable files.
-- If local file reading is unavailable or unknown, request pasted text or an export.
+The five Distilly tools establish only the Distilly workflow; they do not imply web research, local-file reading, OCR, transcription, private capture, or another optional source capability. Use an optional capability only when the current session actually exposes a suitable tool or input path. Do not invent a missing capability from model knowledge or an installed-app name.
+
+- If web research is not available in the session, request links, pasted text, an export, or readable files.
+- If a user-selected local file cannot be read in the session, request pasted text or an export.
 - If a document, image, audio, or video cannot be converted to traceable text, prefer an official transcript or caption, then a readable user-provided representation, then say that source is unavailable.
 - Do not claim the five-tool path saved a raw or unparsed file; `distilly_ingest` accepts distillable text.
-- Treat private UI capture as unavailable unless the binding explicitly reports `available` after trusted authorization, isolation, and data-policy checks. The bundled Codex and Claude Code capability bindings report it unavailable: request a pasted or exported transcript instead. Never downgrade private capture to ordinary vision or Computer Use.
+- Private UI capture is unavailable in the bundled Preview bindings: request a pasted or exported transcript instead. Never downgrade private capture to ordinary vision or Computer Use.
 - If subruns do not inherit MCP, keep research, ingest, briefing, claim generation, commit, and verification in the parent run.
 
 Read [references/source-materials.md](references/source-materials.md) before gathering or converting sources.
@@ -111,8 +112,8 @@ Stop and explain the narrow blocker when:
 
 - subject resolution remains ambiguous;
 - no non-empty, traceable text material is available;
-- required host capability is unavailable or unknown and the user has not supplied a fallback;
+- required source acquisition or conversion is unavailable and the user has not supplied a textual fallback;
 - a private source lacks explicit authority or safe export/paste;
-- preflight, wire validation, storage, or review presentation fails.
+- runtime initialization, a tool call, wire validation, storage, or review presentation fails.
 
 Never hide these states behind a generic success message.

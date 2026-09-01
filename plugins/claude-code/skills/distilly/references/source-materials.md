@@ -55,7 +55,7 @@ The following are representations, not independent sources:
 
 Keep each useful representation traceable, but do not describe their count as independent corroboration.
 
-## Convert by explicit capability
+## Convert only with an available capability
 
 - Native page or post text: use native text when the host can read it.
 - Document: use document extraction only when available; otherwise request pasted text or a readable export.

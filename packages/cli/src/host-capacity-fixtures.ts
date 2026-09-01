@@ -61,7 +61,7 @@ const PREVIEW_CAPABILITIES = Object.freeze({
 
 const PREVIEW_RELEASE = "0.1.0-preview.1";
 const PREVIEW_SKILL_DIGEST =
-  "sha256_cf2952b0420672c1135dbf0329ba8495ea01903b47cff6778b25cc63cca19cb7" as ContentDigest;
+  "sha256_88ac7d2b8495ffb9dc9f1c3d8a011ccc7ca05ba32bee3b03a817704012c9dc15" as ContentDigest;
 const TOOL_CONTRACT_DIGEST =
   "sha256_a5ef4303fa29360416008448f12dd4b01f325143633e7fa2298c2094f73a6eda" as ContentDigest;
 

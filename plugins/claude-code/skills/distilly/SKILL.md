@@ -31,13 +31,22 @@ Before any source research or `distilly_*` call, check that all five exact Disti
    - For `not_found`, create the subject only together with the first non-empty material batch through `distilly_ingest` using `subject.kind: create`.
 4. For a retrieval-only request, call `distilly_get` with `action: profile`, `prompt`, or `status` after resolution and stop. Never create an empty subject.
 
-Every tool input includes top-level `wireVersion: "3"` and a `requestId` shaped as `req_` plus 32 lowercase hexadecimal characters. Use a fresh request id for each logical call. Reuse an id only when retrying the identical request; never reuse it for changed arguments.
+Every tool input includes top-level `wireVersion: "3"` and a `requestId` shaped as `req_` plus 32 lowercase hexadecimal characters. Use a fresh request id for each logical call. Reuse an id only when retrying the identical request; never reuse it for changed arguments. Do not hand-build variable-length counting sequences. When a safe host-local UUID or 16-byte random-hex facility is available, use it only to generate the suffix, remove UUID hyphens, lowercase it, and verify that the suffix matches `^[0-9a-f]{32}$` before the tool call; this must not read user data or mutate Distilly.
 
 For the required first resolution call, use the exact shape `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "action": "resolve", "subject": { "kind": "query", "query": "<person name or identity query>" } }`. `query` belongs inside `subject`, never at the top level.
 
 Treat every JSON shape in this Skill as a template: replace each angle-bracket token with a real value before calling a tool. For `distilly_get`, `subject` is only `{ "kind": "query", "query": "<query>" }` or `{ "kind": "id", "subjectId": "subject_<32 lowercase hex characters>" }`. For `distilly_ingest`, it is only `{ "kind": "create", "input": { ... } }` or `{ "kind": "existing", "subjectId": "subject_<32 lowercase hex characters>" }`. `distilly_correct` instead takes `subjectId` at the top level. Do not interchange these selectors.
 
 For a profile read by id, use `{ "wireVersion": "3", "requestId": "req_<32 lowercase hex characters>", "action": "profile", "subject": { "kind": "id", "subjectId": "subject_<32 lowercase hex characters>" } }`. Change only `action` to `prompt` or `status` for those reads.
+
+## Start from what the user already supplied
+
+When the request already includes pasted text, attached or named local paths, an explicitly selected directory, or public URLs, treat those as the source plan after subject resolution. Do not make the user choose a person type, repeat known metadata, fill an intake form, or choose a connector before using readable sources they already selected. Do not add broader web research unless the user requested it. If the supplied evidence cannot answer the stated objective, explain the gap and ask before expanding the source scope.
+
+- Read only the selected local files or supported regular files inside the selected directory. Do not follow symlinks or expand into adjacent paths. Skip binaries, credentials, hidden tool state, dependency trees, and unrelated project files; summarize skipped categories instead of silently treating them as evidence. Sort selected files by root-relative path and submit a repeated path only once in the intake.
+- Fetch each supplied public URL with an observable host web capability and preserve the retrieved body and URL as one traceable source. Search-result snippets are discovery hints, not ingestible source bodies. Do not crawl linked pages unless the user requested broader research, and submit a repeated URL only once in the intake.
+- Treat an explicit request to distill pasted or attached private material as authorization for exactly that supplied content. It does not authorize adjacent conversations, accounts, files, contacts, or public identity expansion.
+- Ask a question only when identity is ambiguous, the selected scope is unclear, a source cannot yield traceable text, or private authority is not established. Otherwise proceed directly.
 
 ## Use observable capabilities safely
 
@@ -62,15 +71,17 @@ Use `sensitivity: private`, `access: private`, and `role: personal_communication
 
 ## Ingest and dispatch the result
 
-Call `distilly_ingest` with at least one material and `enqueue: now`:
+Call `distilly_ingest` with at least one material. Use `enqueue: now` for the only or final batch; use `enqueue: auto` for every intermediate batch:
 
 - Use `subject.kind: existing` for a resolved subject.
 - Use `subject.kind: create` only for a not-found subject and its first material batch.
 - Preserve the returned subject id; never invent one.
 
+Finish reading the user-selected source scope before acquiring a briefing. Preserve one material per traceable file, page, post, transcript, or pasted source; never merge them into a synthetic source. One `distilly_ingest` call accepts at most 32 materials, so use multiple calls when needed, with smaller batches when required by the visible tool-input byte limit. For a new subject, only the first non-empty batch uses `subject.kind: create`; every later batch uses the returned id with `subject.kind: existing`. Retain the job from the final `enqueue: now` batch, or read status after that final batch, and never brief an intermediate generation.
+
 Use the complete local-text ingest template in [references/source-materials.md](references/source-materials.md). The field is `source`, not `provenance`; omit unknown optional provenance rather than inventing it.
 
-Then branch on the exact success result at `value.kind`; on failure, inspect `error.code`:
+After the only or final batch, branch on the exact success result at `value.kind`; on failure in any batch, inspect `error.code` and stop:
 
 - `ingested` with `job`: brief that job.
 - `unchanged` with `job`: brief that job. Duplicate input can still expose an uncommitted complete material set.

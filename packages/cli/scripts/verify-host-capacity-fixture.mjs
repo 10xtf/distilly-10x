@@ -6,8 +6,8 @@ import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  BRIEF_TAIL,
-  PROMPT_TAIL,
+  BRIEF_MARKERS,
+  PROMPT_MARKERS,
   TARGET_BRIEFING_BYTES,
   TARGET_TOOL_RESULT_BYTES,
   briefingToolInput,
@@ -198,7 +198,7 @@ const parseInvocation = (invocation, expectedOutput, expectedFinal) => {
     .find((value) => canonicalJson(value) === canonicalJson(expectedFinal));
   assert.ok(
     finalValue,
-    `the host model did not report the unseen boundary marker: ${JSON.stringify(assistantTexts.slice(-3))}`,
+    `the host model did not report every unseen distributed marker: ${JSON.stringify(assistantTexts.slice(-3))}`,
   );
   return { result, finalValue };
 };
@@ -206,13 +206,13 @@ const parseInvocation = (invocation, expectedOutput, expectedFinal) => {
 const promptInvocation = await run(
   hostArgs(`Call distilly_get exactly once with this exact JSON object: ${JSON.stringify(promptToolInput)}
 
-Return only this compact JSON shape, copying the substring after the final TAIL= token in value.prompt:
-{"tail":"copied value"}
+Return only this compact JSON shape, copying in order every value after M0= through M4= from value.prompt:
+{"markers":["M0 value","M1 value","M2 value","M3 value","M4 value"]}
 
 Do not infer or guess missing data.`),
 );
 const promptObservation = parseInvocation(promptInvocation, expectedPromptOutput, {
-  tail: PROMPT_TAIL,
+  markers: PROMPT_MARKERS,
 });
 assert.equal(Buffer.byteLength(promptObservation.result.text, "utf8"), TARGET_TOOL_RESULT_BYTES);
 assert.equal(
@@ -223,13 +223,13 @@ assert.equal(
 const briefingInvocation = await run(
   hostArgs(`Call distilly_pending exactly once with this exact JSON object: ${JSON.stringify(briefingToolInput)}
 
-Return only this compact JSON shape, copying the substring after the final TAIL= token in value.briefing.materials[0].content and the numeric limits.estimatedInputTokens value:
-{"tail":"copied value","estimatedInputTokens":"copied number"}
+Return only this compact JSON shape, copying in order every value after M0= through M4= from value.briefing.materials[0].content and the numeric limits.estimatedInputTokens value:
+{"markers":["M0 value","M1 value","M2 value","M3 value","M4 value"],"estimatedInputTokens":"copied number"}
 
 Do not infer or guess missing data.`),
 );
 const briefingObservation = parseInvocation(briefingInvocation, expectedBriefingOutput, {
-  tail: BRIEF_TAIL,
+  markers: BRIEF_MARKERS,
   estimatedInputTokens: String(TARGET_BRIEFING_BYTES),
 });
 assert.equal(

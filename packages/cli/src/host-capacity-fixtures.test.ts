@@ -47,8 +47,8 @@ describe("immutable Preview host capacity evidence", () => {
     );
     if (!preflight.ok) throw new TypeError("Expected the exact Codex evidence tuple to load.");
     expect(preflight.capacity).toEqual({
-      maximumInputTokens: codexEvidence.capacity.maximumInputTokens,
-      maximumToolResultBytes: codexEvidence.capacity.maximumToolResultBytes,
+      maximumInputTokens: 65_536,
+      maximumToolResultBytes: 65_536,
       source: "binding_fixture",
     });
     expect(preflight.evidence).toMatchObject({

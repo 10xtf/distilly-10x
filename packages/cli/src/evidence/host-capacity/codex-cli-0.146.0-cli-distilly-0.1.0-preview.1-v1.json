@@ -10,15 +10,15 @@
   "toolContractDigest": "sha256_a5ef4303fa29360416008448f12dd4b01f325143633e7fa2298c2094f73a6eda",
   "serializer": "structured-content-plus-json-text-v1",
   "capacity": {
-    "maximumInputTokens": 16384,
+    "maximumInputTokens": 65536,
     "maximumToolResultBytes": 65536
   },
   "observed": {
-    "briefingBytes": 16384,
+    "briefingBytes": 65536,
     "toolResultBytes": 65536,
     "structuredTextDeepEqual": true,
     "modelObservedBothTailMarkers": true,
-    "normalizedTranscriptDigest": "sha256_0eb83e37f755559b4af3e0159290c66362ba8fa663ba3a8b4e4304286375b978"
+    "normalizedTranscriptDigest": "sha256_0affeceaaaec7d0475f74f7ae94854fc66faf201e25e940164bd16c65ad42dbc"
   },
-  "verifiedAt": "2026-09-01T07:43:55.812Z"
+  "verifiedAt": "2026-09-01T12:09:28.180Z"
 }

@@ -2,7 +2,7 @@
 
 > **合同状态：IN FORCE。** 本文件是当前唯一生效的目标合同；它不证明任何行为已经发布。已发布状态仍以 [architecture.md](../architecture.md)、源码与测试为准。
 > **实现状态：** TypeScript 产品、MCP、插件、面板和 V3 磁盘格式尚未发布。当前 Python 技能只是迁移输入，不能当作本合同的实现。
-> **与上一版的关系：** [system-v2.md](system-v2.md) 自 2026-08-20 起 deprecated。V3 保留本地优先、多主体、证据、版本与瘦门面，修复 V2 的主体创建、宿主 briefing、证据校验、双重真相、短摘要、插件 bootstrap 与面板缺口。总体理由见 [Design V3 Agent Note](../../.agents/notes/proposed/architecture/2026-08-20-design-v3.md)；single-writer / SQLite authority 对旧文件事实机制的取代由 [Storage authority Agent Note](../../.agents/notes/implemented/simplification/2026-08-21-single-writer-sqlite-storage-authority.md) 独立拥有。
+> **版本关系：** V3 是当前唯一生效且自包含的产品合同。它保留本地优先、多主体、证据、版本与瘦门面，并以 single-writer SQLite/WAL 加 immutable blob 取代旧文件事实机制。被取代的 V1/V2 文本仍可从 Git 历史查看，但不进入当前公开 Plugin 树。
 > **章节投影：** 按章加载见 [design/README.md](README.md)；只编辑本文，再运行生成器。
 > 创建：2026-08-20
 
@@ -16,7 +16,7 @@
 
 **准备实现一个纵向切片：** §3 确认没有重新打开锁定项 → §7 协议 → §8 五工具 → 所属机制章节 → §25 包与文件树 → §27 测试 → §29 落地验收。
 
-**准备评审：** 先看 §3 与拥有决定的 Agent Note，再看 §4 的信任边界、§14 的 hard reject / suspended 分界、§27 的可执行证据。设计文本不是 shipped 证据。
+**准备评审：** 先看 §3 的决策边界，再看 §4 的信任边界、§14 的 hard reject / suspended 分界、§27 的可执行证据。设计文本不是 shipped 证据。
 
 ### 0.2 精确词汇
 
@@ -190,7 +190,7 @@ distilly_get 唯一命中后，研究新材料并 ingest。新 job 的 baseVersi
 
 ### 3.1 V3 锁定项
 
-改变以下任一项，必须新增 Agent Note，写清被打败的替代方案；不能只改代码或 generated chapter。
+改变以下任一项，必须在 PR 中写清理由、被放弃的替代方案和可执行证据；不能只改代码或 generated chapter。
 
 1. 主 UX 是 chat-first，本地面板负责可见性、证据与风险审核。
 2. 面板属于首个可用版本，但 clean commit 不要求人工点击。
@@ -2146,7 +2146,7 @@ prompt version 固定为：
   )
 ~~~
 
-PromptCatalog 将该 promptVersion、按 raw bytes 解码的 instructions 与同一 evidenceRulesV1 放进 briefing。三者任一不匹配都是 storage_corrupt，不能只信文件名。每次变更有无 key snapshot、Agent Note（若语义改变）与旧 fixture；host-distill 历史 Version 在 creation contract 中记录使用的 promptVersion。
+PromptCatalog 将该 promptVersion、按 raw bytes 解码的 instructions 与同一 evidenceRulesV1 放进 briefing。三者任一不匹配都是 storage_corrupt，不能只信文件名。每次变更都有 key snapshot 与旧 fixture；语义改变还必须在 PR 中说明理由。host-distill 历史 Version 在 creation contract 中记录使用的 promptVersion。
 
 ---
 
@@ -5162,25 +5162,20 @@ pnpm run gates
 
 - system-v3.md 是唯一父合同；
 - v3/ 编号章节只由 scripts/sync_design_chapters.py 生成；
-- V1 / V2 保留 deprecated 历史，不改正文保持一致；
+- V1 / V2 只保留在 Git 历史，不作为当前树的维护对象；
 - corpus registry 在写任何文件前验证 parent、version、chapter dir、输出路径唯一和恰好一个 in-force；
-- governed change 同 PR 更新 owning Agent Note；
+- 合同变化与当前实现文档在同一 PR 更新；
 - architecture.md 只写 shipped tree，不把 V3 目标说成已发布；
-- cookbook 只在真实入口落地后写可执行步骤；
+- 操作文档只在真实入口落地后写可执行步骤；
 - 机器验证链接、结构、生成一致性；语义 review 判断设计是否正确。
 
 ---
 
 ## 28. Python、legacy import、存储与协议演进
 
-### 28.1 当前 Python 遗产
+### 28.1 旧产品线隔离
 
-根 tools/、prompts/、skills/ 与 tests/ 服务已发布 dot-skill。distilly 产品分支上：
-
-- 只接受已发布技能缺陷修复，不增加 V3 新行为；
-- 根 prompts/ 冻结；V3 prompt 资产在 packages/engine/prompts；
-- Python 门禁在最后一个遗产产品文件删除前保留；
-- 新 TypeScript 产品不能 import 或 shell 调旧 writer 作为核心实现。
+已发布 `dot-skill` 的 Python tools、prompts、生成样例与根 Skill 留在默认维护分支；它们不复制到 `distilly-plugin`。当前分支只保留仓库构建所需的 Python 脚本，V3 prompt 资产位于 `packages/engine/prompts`，TypeScript 产品不 import 或 shell 调旧 writer。未来迁移器只读取用户明确选择的旧导出或合成 fixture，不依赖当前源码树中存在旧实现。
 
 ### 28.2 LegacySkillMigrator
 
@@ -5242,7 +5237,7 @@ import 两阶段：
 
 V2 TypeScript 产品、文件事实版 V3 与 `~/.distilly/` 产品格式都从未发布；没有真实用户事实、公开版本或 remote ref 依赖它们。因此首个 SQLite storage schema 从 v1 开始，不为工作区实验代码建迁移器、dual-write 或兼容读取器。旧代码只作为删除与语义对照，不作为磁盘输入。
 
-V1/V2 文档和旧 V3 commit 保留用于理解哪些替代曾经成立，不再作为实现要求。唯一真实 legacy 输入是已发布 dot-skill 的 `work.md` / `persona.md` / `SKILL.md`；它通过 §28.2 的用户确认 import，而不是 storage migration。
+V1/V2 文档和旧 V3 commit 可从 Git 历史查看，用于理解哪些替代曾经成立，不作为实现要求。唯一真实 legacy 输入是已发布 dot-skill 的 `work.md` / `persona.md` / `SKILL.md`；它通过 §28.2 的用户确认 import，而不是 storage migration。
 
 ### 28.4 独立版本维度
 
@@ -5276,17 +5271,9 @@ wire major 3 内允许：
 
 产品发布后的 storage migration 只前向、显式、可 dry-run：先创建完整 backup，再在 SQLite transaction 中迁移 metadata，或在 sibling root 构造并全量验证后切换；不逐文件原地猜测升级。projection version 变化不迁移 authority，只重建。首发前的内部 schema 直接随实现替换，不积累假兼容层。
 
-### 28.6 Python 退役条件
+### 28.6 旧线退役条件
 
-同时满足才删：
-
-- CLI / plugin 覆盖已发布用户入口；
-- migrator 对真实 legacy fixtures 全绿；
-- fresh-install 与升级文档发布；
-- 用户有至少一个版本周期的迁移窗口；
-- dot-skill 默认分支与 distilly 产品发布策略已明确。
-
-删除遗产时同一 change 删除对应 job、依赖、文档和冻结说明，不留永久 disabled lane。
+从默认 `dot-skill` 维护线退役旧实现，仍需同时满足：CLI / Plugin 覆盖已发布用户入口；migrator 对真实 legacy fixtures 全绿；fresh-install 与升级文档发布；用户有至少一个版本周期的迁移窗口；发布策略已明确。`distilly-plugin` 当前树不复制旧实现，不等于默认维护线已经退役。
 
 ---
 
@@ -5294,7 +5281,7 @@ wire major 3 内允许：
 
 ### 29.1 纵向切片
 
-已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
+已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现不再决定后续设计。迁移从以下独立 feature 重新编号；每项使用独立分支、可审查提交与对应测试，并在接通替代路径时删除对应旧机制：
 
 1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
 2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest(existing|create)` 所需的 spaces、subjects、aliases、identity hints、material metadata/blob references、current subject material membership、authoritative pending-job、operations 与 events 逻辑关系，以及一个短 write-transaction runner 和 ContentAddressedBlobStore。Blob put lease 保持到引用它的 transaction commit 或 rollback；两条方法共享 transaction-local create primitive，但 ingest(create) 不调用公开 create。该 commit 删除 live create/ingest 的 IngestTransactionRecord、staging、mutation-specific recovery、space catalog/identity locks 与旧 composition；仍被未迁移 brief/commit/review 测试使用的 shared file stores、request/subject locks 和 disposable queue 只能留在显式 test-only legacy fixture，不能被 SQLite composition import、不能 dual-write，也不是兼容路径，并由各自 owner migration 删除。没有当前消费者的 outbox、projection、doctor、backup 或 GC task abstraction 不提前出现。
@@ -5312,7 +5299,7 @@ wire major 3 内允许：
 14. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 Codex / Claude Code host reopen。
 15. **其它宿主、关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径或扩大 Developer Preview 的宿主宣称。
 
-前一 feature 未完成本地 commit、专属 Note、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
+前一 feature 未完成可审查提交、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
 
 ### 29.2 Chat 主路径验收
 
@@ -5379,11 +5366,11 @@ wire major 3 内允许：
 
 ### 29.6 本文怎么演进
 
-- 产品合同改变：先改 system-v3.md 与 owning Agent Note，再改实现。
+- 产品合同改变：先改 system-v3.md 并在 PR 中记录理由，再改实现。
 - 只编辑 parent；生成 v3/，门禁拒绝 drift。
-- 实现落地：同 change 更新 architecture.md、tests 与必要 cookbook；不把 task progress 写进 Agent Note。
-- §3.1 锁定项变化必须新 Note；§3.2 开放项关闭时写日期、结论和 owner Note。
-- V1 / V2 保留历史，除状态导航外不为“保持一致”重写正文。
+- 实现落地：同 change 更新 architecture.md、tests 与必要的操作文档；不把临时 task progress 写进 standing docs。
+- §3.1 锁定项变化必须在 PR 中记录替代方案；§3.2 开放项关闭时写日期与结论。
+- V1 / V2 只保留在 Git 历史，不为“保持一致”恢复到当前树。
 - 平台能力变化优先改 HostBinding / distribution 章节；只有破坏 core contract 才升设计 major。
 - 仓库外聊天、画布、未跟踪实验和模型记忆都不是规范来源。
 

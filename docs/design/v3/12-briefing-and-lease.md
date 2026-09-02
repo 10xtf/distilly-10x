@@ -190,6 +190,6 @@ prompt version 固定为：
   )
 ~~~
 
-PromptCatalog 将该 promptVersion、按 raw bytes 解码的 instructions 与同一 evidenceRulesV1 放进 briefing。三者任一不匹配都是 storage_corrupt，不能只信文件名。每次变更有无 key snapshot、Agent Note（若语义改变）与旧 fixture；host-distill 历史 Version 在 creation contract 中记录使用的 promptVersion。
+PromptCatalog 将该 promptVersion、按 raw bytes 解码的 instructions 与同一 evidenceRulesV1 放进 briefing。三者任一不匹配都是 storage_corrupt，不能只信文件名。每次变更都有 key snapshot 与旧 fixture；语义改变还必须在 PR 中说明理由。host-distill 历史 Version 在 creation contract 中记录使用的 promptVersion。
 
 ---

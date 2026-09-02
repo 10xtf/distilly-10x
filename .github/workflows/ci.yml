@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [dot-skill, distilly, main]
+    branches: [dot-skill, distilly, distilly-plugin, main]
   pull_request:
-    branches: [dot-skill, distilly, main]
+    branches: [dot-skill, distilly, distilly-plugin, main]
 
 permissions:
   contents: read
 
 jobs:
-  governance:
-    name: Governance
+  repository:
+    name: Repository checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,15 +22,14 @@ jobs:
           python-version: "3.11"
       - name: Documentation contracts
         run: python -B scripts/verify_docs.py
-      - name: Agent Note tree, governed diff, and whitespace (PR)
+      - name: Whitespace (PR)
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python -B scripts/verify_agent_notes.py --base "$BASE_SHA" --head "$HEAD_SHA" --range-mode merge-base
           git diff --check "$BASE_SHA...$HEAD_SHA"
-      - name: Agent Note tree, governed diff, and whitespace (push)
+      - name: Whitespace (push)
         if: github.event_name == 'push'
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -38,11 +37,9 @@ jobs:
         run: |
           case "$BEFORE_SHA" in
             "") echo "Push event has no before SHA" >&2; exit 1 ;;
-            *[!0]*) ;;
-            *) echo "Cannot verify a push with an all-zero before SHA" >&2; exit 1 ;;
+            *[!0]*) git diff --check "$BEFORE_SHA..$HEAD_SHA" ;;
+            *) git diff-tree --check --root "$HEAD_SHA" ;;
           esac
-          python -B scripts/verify_agent_notes.py --base "$BEFORE_SHA" --head "$HEAD_SHA" --range-mode direct
-          git diff --check "$BEFORE_SHA..$HEAD_SHA"
 
   typescript:
     name: TypeScript Node ${{ matrix.node-version }} / ${{ matrix.os }}
@@ -97,7 +94,7 @@ jobs:
         run: pnpm run hygiene
 
   test:
-    name: Python ${{ matrix.python-version }}
+    name: Repository Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -111,17 +108,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
       - name: Compile all Python sources
-        run: |
-          python -m compileall -q tools scripts tests
-          if [ -d src ]; then python -m compileall -q src; fi
+        run: python -m compileall -q scripts tests
 
       - name: Run unit tests
         run: python -B scripts/run_tests.py
@@ -138,4 +127,4 @@ jobs:
       - name: Install lint dependencies
         run: pip install -r requirements-dev.txt
       - name: Run Ruff
-        run: ruff check tools scripts tests
+        run: ruff check scripts tests

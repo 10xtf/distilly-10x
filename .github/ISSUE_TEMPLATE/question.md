@@ -1,6 +1,6 @@
 ---
 name: Question / 提问
-about: Ask how to use colleague.skill. / 咨询如何使用 colleague.skill。
+about: Ask how to use the Distilly Developer Preview. / 咨询如何使用 Distilly Developer Preview。
 title: "[Question] "
 labels: ["question"]
 assignees: []
@@ -10,7 +10,7 @@ assignees: []
 Before opening a question, please check:
 提问之前请先看：
 
-- README.md / INSTALL.md / SKILL.md
+- README.md / INSTALL.md
 - Existing issues and discussions / 已有的 issue 和讨论
 - Discord: https://discord.gg/NVX66RxWZv
 -->
@@ -22,6 +22,6 @@ Before opening a question, please check:
 ## Environment / 环境
 
 - OS:
-- Python:
-- Host: Claude Code / OpenClaw / other:
-- Data source:
+- Node.js:
+- Host and version:
+- Input type:

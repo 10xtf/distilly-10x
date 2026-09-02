@@ -1,41 +1,57 @@
-# Generated dot-skill outputs (user data, not committed)
-skills/*
-!skills/colleague/
-skills/colleague/*
-!skills/colleague/example_zhangsan/
-!skills/colleague/example_zhangsan/**
-!skills/colleague/example_tianyi/
-!skills/colleague/example_tianyi/**
-!skills/colleague/example_jiaxiu/
-!skills/colleague/example_jiaxiu/**
+# Personal agent/developer instructions (kept local, never published)
+.agents/
+.githooks/
+AGENTS.md
+CLAUDE.md
+/.codex/
+/.claude/
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-.venv/
-venv/
-*.egg-info/
+# Local configuration, credentials, and product data
+.env
+.env.*
+!.env.example
+/adapters.toml
+/distilly.toml
+/.colleague-skill/
+/.distilly/
+/knowledge/
+/skills/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 
-# TypeScript workspace
+# Old verification/community files that do not belong to the Plugin branch
+/SKILL.md
+/openarena-claim.txt
+/docs/assets/wechat-group-qr-*.png
+
+# TypeScript workspace output
 node_modules/
 packages/*/lib/
 coverage/
 artifacts/
 *.tsbuildinfo
 
-# Config with credentials
-~/.colleague-skill/
+# Python tooling output
+__pycache__/
+*.py[cod]
+*.pyo
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
 
-# Playwright browser data
+# Browser and test output
 playwright-data/
+playwright-report/
+test-results/
+*.log
 
-# Temp files
-/tmp/feishu_*.txt
-/tmp/email_*.txt
-/tmp/dingtalk_*.txt
-knowledge/
-
-# OS
+# OS files
 .DS_Store
 Thumbs.db

@@ -381,22 +381,6 @@ def _check_markdown(path: Path, root: Path) -> List[str]:
     return errors
 
 
-def _check_instruction_links(root: Path, markdown_files: Iterable[Path]) -> List[str]:
-    """Keep Claude and AGENTS discovery on the same source in governed trees."""
-    errors: List[str] = []
-    agents_files = [
-        path
-        for path in markdown_files
-        if path.name == "AGENTS.md" and path.is_file()
-    ]
-    for agents in agents_files:
-        claude = agents.with_name("CLAUDE.md")
-        rel = claude.relative_to(root).as_posix()
-        if not claude.is_symlink() or claude.readlink() != Path("AGENTS.md"):
-            errors.append(f"{rel}: must be a symlink to AGENTS.md")
-    return errors
-
-
 def verify(root: Path = ROOT, *, check_design: bool = True) -> List[str]:
     try:
         markdown_files = list(_markdown_files(root))
@@ -405,7 +389,6 @@ def verify(root: Path = ROOT, *, check_design: bool = True) -> List[str]:
     errors: List[str] = []
     for path in markdown_files:
         errors.extend(_check_markdown(path, root))
-    errors.extend(_check_instruction_links(root, markdown_files))
     if check_design:
         errors.extend(verify_design_chapters(root))
     return sorted(errors)

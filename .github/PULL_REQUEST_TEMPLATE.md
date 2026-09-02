@@ -9,7 +9,7 @@
 - Base repository/remote, ref, and resolved metadata SHA:
 - Remote review head SHA (must match current PR metadata):
 - Owning design / issue:
-- Agent Note, or why this diff is outside governed paths:
+- Rejected alternative and why:
 
 ## Changes / 变更
 
@@ -41,11 +41,11 @@
 - Workspace state and pre-existing changes to preserve:
 - External state: branch, CI, reviews, required decision:
 
-For a completed PR, the fields in this template are the handoff. Use the full contract in [docs/development.md](../docs/development.md#agent-handoff) when work is incomplete or transferred.
+For a completed PR, the fields in this template are the handoff. For incomplete work, state the exact next action and leave the branch reproducible.
 
 ## Checklist / 检查清单
 
-- [ ] I read the applicable root and local `AGENTS.md` files
+- [ ] I read the current architecture and owning V3 design chapter
 - [ ] Current behavior and target design are not presented as the same thing
 - [ ] Docs changed with behavior, and generated chapters were not hand-edited
 - [ ] Verification and unverified items above are complete and truthful

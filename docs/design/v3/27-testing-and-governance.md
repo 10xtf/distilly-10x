@@ -154,11 +154,11 @@ pnpm run gates
 
 - system-v3.md 是唯一父合同；
 - v3/ 编号章节只由 scripts/sync_design_chapters.py 生成；
-- V1 / V2 保留 deprecated 历史，不改正文保持一致；
+- V1 / V2 只保留在 Git 历史，不作为当前树的维护对象；
 - corpus registry 在写任何文件前验证 parent、version、chapter dir、输出路径唯一和恰好一个 in-force；
-- governed change 同 PR 更新 owning Agent Note；
+- 合同变化与当前实现文档在同一 PR 更新；
 - architecture.md 只写 shipped tree，不把 V3 目标说成已发布；
-- cookbook 只在真实入口落地后写可执行步骤；
+- 操作文档只在真实入口落地后写可执行步骤；
 - 机器验证链接、结构、生成一致性；语义 review 判断设计是否正确。
 
 ---

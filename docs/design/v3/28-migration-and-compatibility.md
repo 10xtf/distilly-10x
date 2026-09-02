@@ -2,14 +2,9 @@
 
 ## 28. Python、legacy import、存储与协议演进
 
-### 28.1 当前 Python 遗产
+### 28.1 旧产品线隔离
 
-根 tools/、prompts/、skills/ 与 tests/ 服务已发布 dot-skill。distilly 产品分支上：
-
-- 只接受已发布技能缺陷修复，不增加 V3 新行为；
-- 根 prompts/ 冻结；V3 prompt 资产在 packages/engine/prompts；
-- Python 门禁在最后一个遗产产品文件删除前保留；
-- 新 TypeScript 产品不能 import 或 shell 调旧 writer 作为核心实现。
+已发布 `dot-skill` 的 Python tools、prompts、生成样例与根 Skill 留在默认维护分支；它们不复制到 `distilly-plugin`。当前分支只保留仓库构建所需的 Python 脚本，V3 prompt 资产位于 `packages/engine/prompts`，TypeScript 产品不 import 或 shell 调旧 writer。未来迁移器只读取用户明确选择的旧导出或合成 fixture，不依赖当前源码树中存在旧实现。
 
 ### 28.2 LegacySkillMigrator
 
@@ -71,7 +66,7 @@ import 两阶段：
 
 V2 TypeScript 产品、文件事实版 V3 与 `~/.distilly/` 产品格式都从未发布；没有真实用户事实、公开版本或 remote ref 依赖它们。因此首个 SQLite storage schema 从 v1 开始，不为工作区实验代码建迁移器、dual-write 或兼容读取器。旧代码只作为删除与语义对照，不作为磁盘输入。
 
-V1/V2 文档和旧 V3 commit 保留用于理解哪些替代曾经成立，不再作为实现要求。唯一真实 legacy 输入是已发布 dot-skill 的 `work.md` / `persona.md` / `SKILL.md`；它通过 §28.2 的用户确认 import，而不是 storage migration。
+V1/V2 文档和旧 V3 commit 可从 Git 历史查看，用于理解哪些替代曾经成立，不作为实现要求。唯一真实 legacy 输入是已发布 dot-skill 的 `work.md` / `persona.md` / `SKILL.md`；它通过 §28.2 的用户确认 import，而不是 storage migration。
 
 ### 28.4 独立版本维度
 
@@ -105,16 +100,8 @@ wire major 3 内允许：
 
 产品发布后的 storage migration 只前向、显式、可 dry-run：先创建完整 backup，再在 SQLite transaction 中迁移 metadata，或在 sibling root 构造并全量验证后切换；不逐文件原地猜测升级。projection version 变化不迁移 authority，只重建。首发前的内部 schema 直接随实现替换，不积累假兼容层。
 
-### 28.6 Python 退役条件
+### 28.6 旧线退役条件
 
-同时满足才删：
-
-- CLI / plugin 覆盖已发布用户入口；
-- migrator 对真实 legacy fixtures 全绿；
-- fresh-install 与升级文档发布；
-- 用户有至少一个版本周期的迁移窗口；
-- dot-skill 默认分支与 distilly 产品发布策略已明确。
-
-删除遗产时同一 change 删除对应 job、依赖、文档和冻结说明，不留永久 disabled lane。
+从默认 `dot-skill` 维护线退役旧实现，仍需同时满足：CLI / Plugin 覆盖已发布用户入口；migrator 对真实 legacy fixtures 全绿；fresh-install 与升级文档发布；用户有至少一个版本周期的迁移窗口；发布策略已明确。`distilly-plugin` 当前树不复制旧实现，不等于默认维护线已经退役。
 
 ---

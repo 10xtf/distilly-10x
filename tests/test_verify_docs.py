@@ -108,12 +108,6 @@ class VerifyDocsTests(unittest.TestCase):
         errors = verify(two_newlines, check_design=False)
         self.assertTrue(any("exactly one newline" in error for error in errors), errors)
 
-    def test_requires_matching_instruction_symlink_when_repo_has_agents(self) -> None:
-        root = self._root("# Docs\n")
-        (root / "AGENTS.md").write_text("# Rules\n", encoding="utf-8")
-        errors = verify(root, check_design=False)
-        self.assertTrue(any("CLAUDE.md" in error for error in errors), errors)
-
     def test_ignores_gitignored_markdown(self) -> None:
         root = self._root("# Docs\n")
         (root / ".gitignore").write_text("ignored/\n", encoding="utf-8")

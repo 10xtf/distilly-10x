@@ -4,7 +4,7 @@
 
 ### 3.1 V3 锁定项
 
-改变以下任一项，必须新增 Agent Note，写清被打败的替代方案；不能只改代码或 generated chapter。
+改变以下任一项，必须在 PR 中写清理由、被放弃的替代方案和可执行证据；不能只改代码或 generated chapter。
 
 1. 主 UX 是 chat-first，本地面板负责可见性、证据与风险审核。
 2. 面板属于首个可用版本，但 clean commit 不要求人工点击。

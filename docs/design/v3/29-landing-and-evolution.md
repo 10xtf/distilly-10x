@@ -4,7 +4,7 @@
 
 ### 29.1 纵向切片
 
-已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现只是待替换代码，不再决定后续设计。迁移从以下独立 feature 重新编号，每项一份专属 Agent Note、一个本地 commit，并在接通替代路径时删除对应旧机制：
+已经落地的 Protocol、deterministic core、injected Facade/MCP、capability/full host bindings 与 injected Panel 保留；旧文件事实实现不再决定后续设计。迁移从以下独立 feature 重新编号；每项使用独立分支、可审查提交与对应测试，并在接通替代路径时删除对应旧机制：
 
 1. **Storage authority contract**：冻结单 writer、SQLite/WAL、blob、projection、doctor/backup 边界；只改合同与治理，不改产品代码。
 2. **SQLite + create/ingest vertical foundation**：只建立 `subjects.create` / `materials.ingest(existing|create)` 所需的 spaces、subjects、aliases、identity hints、material metadata/blob references、current subject material membership、authoritative pending-job、operations 与 events 逻辑关系，以及一个短 write-transaction runner 和 ContentAddressedBlobStore。Blob put lease 保持到引用它的 transaction commit 或 rollback；两条方法共享 transaction-local create primitive，但 ingest(create) 不调用公开 create。该 commit 删除 live create/ingest 的 IngestTransactionRecord、staging、mutation-specific recovery、space catalog/identity locks 与旧 composition；仍被未迁移 brief/commit/review 测试使用的 shared file stores、request/subject locks 和 disposable queue 只能留在显式 test-only legacy fixture，不能被 SQLite composition import、不能 dual-write，也不是兼容路径，并由各自 owner migration 删除。没有当前消费者的 outbox、projection、doctor、backup 或 GC task abstraction 不提前出现。
@@ -22,7 +22,7 @@
 14. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 Codex / Claude Code host reopen。
 15. **其它宿主、关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径或扩大 Developer Preview 的宿主宣称。
 
-前一 feature 未完成本地 commit、专属 Note、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
+前一 feature 未完成可审查提交、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
 
 ### 29.2 Chat 主路径验收
 
@@ -89,11 +89,11 @@
 
 ### 29.6 本文怎么演进
 
-- 产品合同改变：先改 system-v3.md 与 owning Agent Note，再改实现。
+- 产品合同改变：先改 system-v3.md 并在 PR 中记录理由，再改实现。
 - 只编辑 parent；生成 v3/，门禁拒绝 drift。
-- 实现落地：同 change 更新 architecture.md、tests 与必要 cookbook；不把 task progress 写进 Agent Note。
-- §3.1 锁定项变化必须新 Note；§3.2 开放项关闭时写日期、结论和 owner Note。
-- V1 / V2 保留历史，除状态导航外不为“保持一致”重写正文。
+- 实现落地：同 change 更新 architecture.md、tests 与必要的操作文档；不把临时 task progress 写进 standing docs。
+- §3.1 锁定项变化必须在 PR 中记录替代方案；§3.2 开放项关闭时写日期与结论。
+- V1 / V2 只保留在 Git 历史，不为“保持一致”恢复到当前树。
 - 平台能力变化优先改 HostBinding / distribution 章节；只有破坏 core contract 才升设计 major。
 - 仓库外聊天、画布、未跟踪实验和模型记忆都不是规范来源。
 

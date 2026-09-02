@@ -25,11 +25,10 @@
     "package:preview:codex": "pnpm run build && node packages/cli/scripts/assemble-preview-package.mjs --output artifacts/distilly-0.1.0-preview.1-codex --force",
     "snapshots": "pnpm -r --if-present run snapshots",
     "docs": "python3 -B scripts/verify_docs.py",
-    "notes": "python3 -B scripts/verify_agent_notes.py",
     "build": "node scripts/clean_build_outputs.mjs . && tsc -b --force",
     "smoke:built": "pnpm -r --if-present run smoke:built",
     "hygiene": "pnpm run check:boundaries && pnpm run check:plugins && knip && pnpm run smoke:built && pnpm run check:engine-pack && pnpm -r exec publint && pnpm -r exec attw --pack --profile esm-only .",
-    "gates": "pnpm run gates:fast && pnpm run typecheck && pnpm run test && pnpm run test:coverage && pnpm run snapshots && pnpm run docs && pnpm run notes && pnpm run build && pnpm run hygiene"
+    "gates": "pnpm run gates:fast && pnpm run typecheck && pnpm run test && pnpm run test:coverage && pnpm run snapshots && pnpm run docs && pnpm run build && pnpm run hygiene"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",

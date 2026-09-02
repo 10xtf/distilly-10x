@@ -7,11 +7,9 @@ lib/
 node_modules/
 coverage/
 
-# Python legacy tree (see design/v3/28-migration-and-compatibility.md).
-/prompts/
+# Python repository tools.
 /scripts/
 /tests/
-/tools/
 
 # Plugin release bytes are generated and verified by assemble_plugins.py.
 /plugins/release-manifest.json

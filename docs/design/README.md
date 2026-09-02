@@ -2,7 +2,7 @@
 
 This folder is the approved target contract. It describes what the product must become; it is not evidence that an API is shipped.
 
-[system-v3.md](system-v3.md) is the **only in-force** contract and is self-contained. [v3/](v3/) contains generated topic projections so an agent can load one section. [system-v2.md](system-v2.md), [v2/](v2/), [system-v1.md](system-v1.md), and [v1/](v1/) are deprecated history. V2 is the direct predecessor; V1 was directly superseded by V2. Do not cite either as a current requirement or rewrite their bodies to resemble V3.
+[system-v3.md](system-v3.md) is the **only in-force** and self-contained contract. [v3/](v3/) contains generated topic projections for loading one section at a time. Superseded V1/V2 documents remain available in Git history but are not copied into this public Plugin branch.
 
 Edit only a `system-v*.md` parent, then run `python3 scripts/sync_design_chapters.py`. `python3 -B scripts/verify_docs.py` fails if a generated chapter drifts. A new corpus is a `Corpus` entry in that script, never a hand-written folder.
 
@@ -57,8 +57,6 @@ Then load the section that owns the change.
 | [28-migration-and-compatibility.md](v3/28-migration-and-compatibility.md) | Legacy migration, protocol/disk compatibility, Python retirement |
 | [29-landing-and-evolution.md](v3/29-landing-and-evolution.md) | Vertical slices and release acceptance |
 
-Changing a locked item in §3 requires a new Agent Note that names the losing alternative. Keep rationale in the Note and the resulting rule in the parent design.
+Changing a locked item in §3 requires the pull request to name the rejected alternative, update the parent design, and include executable evidence for the new rule.
 
-## Deprecated corpora
-
-[v2/](v2/) and [v1/](v1/) retain the same generated-chapter mechanism for historical recovery. Match old and new designs by subject, not chapter number.
+Historical contracts can be read from Git history. They are not current requirements or generated outputs.

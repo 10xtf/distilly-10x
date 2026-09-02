@@ -10,13 +10,9 @@ export default tseslint.config(
       "**/lib/**",
       "**/node_modules/**",
       "coverage/**",
-      // The Python tree has its own gates (design/v3/28-migration-and-compatibility.md).
-      "prompts/**",
-      "references/**",
+      // Repository Python tools have their own gate.
       "scripts/**",
-      "skills/**",
       "tests/**",
-      "tools/**",
     ],
   },
   {

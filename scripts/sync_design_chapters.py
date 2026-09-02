@@ -37,86 +37,6 @@ class Corpus:
     preamble: str
 
 
-V1 = Corpus(
-    version=1,
-    status="deprecated",
-    successor=2,
-    parent=Path("docs/design/system-v1.md"),
-    chapter_dir=Path("docs/design/v1"),
-    names=(
-        "00-gaps.md",
-        "01-intent.md",
-        "02-philosophy.md",
-        "03-storage-choice.md",
-        "04-locked-and-open.md",
-        "05-architecture.md",
-        "06-source-tree.md",
-        "07-home-tree.md",
-        "08-capabilities.md",
-        "09-sdk-spec.md",
-        "10-source-adapters.md",
-        "11-host-injection.md",
-        "12-plugins.md",
-        "13-widget-forms.md",
-        "14-bot.md",
-        "15-profile-layer.md",
-        "16-relations.md",
-        "17-sqlite.md",
-        "18-telemetry.md",
-        "19-completeness.md",
-        "20-success-path.md",
-        "21-landing-order.md",
-        "22-doc-evolution.md",
-        "23-governance.md",
-    ),
-    preamble=(
-        "> 本章由 [system-v1.md](../system-v1.md) 生成。**v1 已 deprecated**，"
-        "直接继任者是 [system-v2.md](../system-v2.md)；当前生效合同是 "
-        "[system-v3.md](../system-v3.md)。"
-        "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
-    ),
-)
-V2 = Corpus(
-    version=2,
-    status="deprecated",
-    successor=3,
-    parent=Path("docs/design/system-v2.md"),
-    chapter_dir=Path("docs/design/v2"),
-    names=(
-        "00-how-to-read.md",
-        "01-intent.md",
-        "02-storage-choice.md",
-        "03-philosophy.md",
-        "04-language-runtime.md",
-        "05-locked-and-open.md",
-        "06-architecture.md",
-        "07-package-cut.md",
-        "08-home-tree.md",
-        "09-capabilities.md",
-        "10-value-types.md",
-        "11-public-api.md",
-        "12-engine.md",
-        "13-source-adapters.md",
-        "14-host-injection.md",
-        "15-cli-and-plugins.md",
-        "16-interactive-faces.md",
-        "17-host-forms.md",
-        "18-bot.md",
-        "19-profile-layer.md",
-        "20-completeness.md",
-        "21-relations.md",
-        "22-index.md",
-        "23-telemetry.md",
-        "24-governance-toolchain.md",
-        "25-python-migration.md",
-        "26-landing-and-evolution.md",
-    ),
-    preamble=(
-        "> 本章由 [system-v2.md](../system-v2.md) 生成。**v2 已 deprecated**，"
-        "只作历史记录；当前生效合同是 [system-v3.md](../system-v3.md)。"
-        "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
-    ),
-)
 V3 = Corpus(
     version=3,
     status="in_force",
@@ -161,7 +81,7 @@ V3 = Corpus(
         "请只编辑父文件，然后运行 `python3 scripts/sync_design_chapters.py`。\n\n"
     ),
 )
-CORPORA: Tuple[Corpus, ...] = (V1, V2, V3)
+CORPORA: Tuple[Corpus, ...] = (V3,)
 
 
 class DesignSyncError(ValueError):

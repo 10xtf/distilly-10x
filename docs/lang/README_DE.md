@@ -6,10 +6,10 @@ Distilly verwandelt ausdrücklich bereitgestelltes Material in versionierte **Pe
 
 ## Installation
 
-Die Vorschau liegt im Branch `codex/distilly-plugin` und ist derzeit für Codex verifiziert. Benötigt werden Node.js `22.19+` oder `24`, pnpm `10.32+` und eine lokale Codex-CLI:
+Die Vorschau liegt im Branch `distilly-plugin` und ist derzeit für Codex verifiziert. Benötigt werden Node.js `22.19+` oder `24`, pnpm `10.32+` und eine lokale Codex-CLI:
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

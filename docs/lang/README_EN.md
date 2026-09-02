@@ -6,10 +6,10 @@ Distilly turns explicit source material into versioned **Person Profiles for Age
 
 ## Install
 
-This preview lives on the `codex/distilly-plugin` branch and currently verifies Codex. Use Node.js `22.19+` or `24`, pnpm `10.32+`, and a local Codex CLI:
+This preview lives on the `distilly-plugin` branch and currently verifies Codex. Use Node.js `22.19+` or `24`, pnpm `10.32+`, and a local Codex CLI:
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

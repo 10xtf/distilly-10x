@@ -6,10 +6,10 @@ Distilly convierte material proporcionado explícitamente en **Person Profiles f
 
 ## Instalación
 
-La vista previa está en la rama `codex/distilly-plugin` y actualmente está verificada para Codex. Necesitas Node.js `22.19+` o `24`, pnpm `10.32+` y la CLI local de Codex:
+La vista previa está en la rama `distilly-plugin` y actualmente está verificada para Codex. Necesitas Node.js `22.19+` o `24`, pnpm `10.32+` y la CLI local de Codex:
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

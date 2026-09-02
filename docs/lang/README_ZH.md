@@ -6,10 +6,10 @@ Distilly 把用户明确提供的材料蒸馏成可供 Agent 使用的 **Person 
 
 ## 安装
 
-预览版位于 `codex/distilly-plugin` 分支，目前已经核验 Codex。需要 Node.js `22.19+` 或 `24`、pnpm `10.32+` 和本机 Codex CLI：
+预览版位于 `distilly-plugin` 分支，目前已经核验 Codex。需要 Node.js `22.19+` 或 `24`、pnpm `10.32+` 和本机 Codex CLI：
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

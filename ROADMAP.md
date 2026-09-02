@@ -4,63 +4,68 @@
 
 ### From a single Skill to a reliable Person Profile Plugin for Agents
 
-*Last updated: 2026-09-02*
+*Last updated: 2026-09-03*
 
 [README](README.md) · [Updates](UPDATES.md) · [Design](docs/design/README.md)
 
 </div>
 
-Distilly is moving from the original `colleague-skill` concept to a local-first product that can be one dependable step in an agent workflow: collect explicit evidence, distill a versioned Person Profile, review changes, and make the approved profile available to an agent. The callable surface remains a Skill, while the product around it is a Plugin with storage, runtime, host binding, and review boundaries.
+Distilly is turning the original `colleague-skill` idea into a dependable local step in an agent workflow: collect user-selected evidence, distill a versioned Person Profile, review changes, and make the approved profile available to an agent. The callable interface remains a Skill; the product around it is a Plugin with storage, runtime, host bindings, and review boundaries.
 
-## Current: Codex Developer Preview
+`[x]` means implemented and covered by the current regression suite. `[ ]` means it is not shipped yet.
 
-The `codex/distilly-plugin` branch currently provides the first end-to-end Codex path:
+## Delivered in the Codex Developer Preview
 
-- SQLite/WAL authority for subjects, materials, pending work, leases, versions, corrections, and review decisions;
-- deterministic TXT, Markdown, JSON, and SRT/VTT local parsing;
-- exactly five MCP tools: `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit`, and `distilly_correct`;
-- Codex setup, doctor, restart discovery, explicit profile installation, and safe uninstall;
-- a local review Panel for promote, reject, rollback, and correction review; and
-- a self-contained `0.1.0-preview.1` Plugin assembly with a canonical Skill shared by host mirrors.
+- [x] Install, diagnose, restart, and uninstall the Codex Plugin while preserving `~/.distilly/` person data.
+- [x] Expose exactly five MCP tools: `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit`, and `distilly_correct`.
+- [x] Create a person, ingest explicit TXT, Markdown, JSON, and SRT/VTT material, and commit a versioned Person Profile.
+- [x] Recall a complete profile or temporary prompt, submit corrections, and promote, reject, or roll back candidates in the local Panel.
+- [x] Install an approved profile as a self-contained long-lived Person Skill without copying private raw material.
+- [x] Assemble and verify the self-contained `0.1.0-preview.1` Codex package with canonical Skill bytes, release digests, and an absolute launcher.
 
-This is a public preview branch, not the default release and not an npm publication. The root [README](README.md) is the current installation source; older `dot-skill` instructions do not apply here.
+This work lives on the public [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin) branch. It is a Developer Preview, not the default release, a tag, or an npm publication. The legacy `dot-skill` instructions do not apply to this branch.
 
-## Next: make the Preview easy to trust
+## P0 — make the Codex Preview easy to run and recover
 
-1. Run the complete Codex flow on more clean machines and document recovery paths.
-2. Finish the verified Claude Code binding and its exact host-capacity fixture.
-3. Improve the Panel's profile/library experience without changing the five-tool model contract.
-4. Add migration, doctor depth checks, backup/restore, and generic maintenance after the vertical flow remains stable.
+- [ ] **Standalone Panel command.** Done when one documented `distilly panel` command starts the loopback-only Panel for the same `DISTILLY_ROOT`, reports its URL, shuts down cleanly, and passes a packaged browser smoke test.
+- [ ] **Crash-safe orphan cleanup.** Done when failed or interrupted ingestion can be followed by an exclusive maintenance run that deletes only unreferenced private blobs and is safe to retry after another interruption.
+- [ ] **Clean-machine Codex matrix.** Done when Node 22.19 and 24 fixtures prove setup → restart discovery → five tools → person creation → persistent Person Skill → Plugin uninstall with person data retained.
+- [ ] **Preview upgrade and rollback.** Done when an installed Preview can move between two signed release fixtures without overwriting modified files or losing local person data.
 
-## Community priority: more coding-agent Plugins
+## P1 — verified host Plugins
 
-Codex is only the first verified host. We need community support to build and validate Plugin packages for:
+Each host is complete only when it has its own binding, absolute launcher, setup/doctor/restart/uninstall lifecycle, exact-version capacity fixture, five-tool discovery proof, persistent Person Skill test, and packaged smoke test. A copied Skill directory or logo is not host support.
 
-| Host | Goal |
-| --- | --- |
-| Grok Bot | A reviewed binding, launcher, and restart/discovery check |
-| Claude Code | Complete the full binding and host fixture |
-| OpenCode | Add a native Plugin lifecycle and five-tool integration |
-| Pi agent | Add a native Plugin lifecycle and five-tool integration |
-| DeepSeek Harness (DSH) | Add a native Plugin lifecycle and five-tool integration |
+- [ ] Claude Code
+- [ ] Grok Bot
+- [ ] OpenCode
+- [ ] Pi agent
+- [ ] DeepSeek Harness (DSH)
 
-I will actively review these contributions. The useful contribution is a runnable host path with an isolated test and exact release evidence, not just a new logo or a copied Skill directory. See [UPDATES.md](UPDATES.md) for the contribution request.
+## P1 — local Panel marketplace
 
-## Later product work
+- [ ] **Profile library.** Search and inspect approved Person Profiles, their versions, evidence citations, and digest status from the local Panel.
+- [ ] **Install controls.** Install or uninstall a Person Skill through the existing Engine-authorized path with an explicit confirmation and visible result.
+- [ ] **Portable profile packages.** Export and import a self-contained Profile, provenance summary, and digest without private raw materials.
+- [ ] **Remote catalog decision.** Specify consent, moderation, licensing, account, and upload boundaries before adding any network marketplace. No profile or material is uploaded by default.
 
-- Local Library and Panel marketplace for discovering, reviewing, and installing approved Person Profiles.
-- Lark/Feishu, DingTalk, Slack, and other explicitly authorized source adapters.
-- Additional local parsers, including PDF, email containers, and provider export formats.
-- Two-stage migration from the original `dot-skill` data layout, with unrecoverable evidence marked `imported_unverified`.
-- Generic GC, backup/restore, deep doctor diagnostics, and cross-process single-writer hardening.
-- Additional host bindings after each host has its own fixture, launcher, lifecycle, and uninstall proof.
+## P1 — more user-selected sources
 
-## What will stay true
+- [ ] Add deterministic PDF, EML/MBOX, and provider-export parsers with real-format fixtures and explicit completeness reporting.
+- [ ] Add Lark/Feishu, DingTalk, Slack, and public X adapters with consent, scope, secret references, pagination, limit, and retry fixtures.
+- [ ] Keep DingTalk message history explicitly unsupported unless an authorized API contract can be tested; do not replace it with hidden browser capture.
+
+## P2 — migration and operations
+
+- [ ] Two-stage `dot-skill` migration with a read-only preview, explicit apply, atomic retry, and `imported_unverified` marking when sentence-level evidence cannot be recovered.
+- [ ] Deep doctor diagnostics, verified backup/restore, projection rebuild, and maintenance reporting.
+- [ ] Cross-process single-writer hardening and the remaining crash/recovery matrix.
+
+## Non-negotiable product rules
 
 - Local-first storage and zero required extra model API keys.
-- Explicit user-selected source scope; no background reading of chats, accounts, or nearby files.
-- Complete profiles and prompts are delivered or rejected visibly; they are never silently truncated.
-- Host support is earned by reproducible setup, restart, five-tool, capacity, and uninstall checks.
-- Independent feature branches remain reviewable and the default published Skill line stays untouched by Preview work.
+- Only user-selected source scope; no background reading of chats, accounts, or adjacent files.
+- Complete profiles and prompts are delivered or rejected visibly, never silently truncated.
+- A host is called supported only after reproducible setup, restart discovery, five-tool, capacity, and uninstall checks.
 
-Have a host you can test? Open a focused issue or contribution against [`codex/distilly-plugin`](https://github.com/titanwings/distilly/tree/codex/distilly-plugin). I will review it.
+Have a host you can test? Open a focused issue or pull request against [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin). Use an independent branch or worktree, add a reproducible fixture, and keep the five-tool contract. I will actively review these contributions.

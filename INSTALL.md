@@ -1,6 +1,6 @@
 # Install Distilly Developer Preview
 
-This document describes the current TypeScript Plugin preview on the `codex/distilly-plugin` branch. It supersedes the legacy Skill-only installation notes.
+This document describes the current TypeScript Plugin preview on the `distilly-plugin` branch. It supersedes the legacy Skill-only installation notes.
 
 ## Requirements
 
@@ -13,7 +13,7 @@ The current release evidence is for Codex CLI `0.146.0`. An unknown host version
 ## Source checkout
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

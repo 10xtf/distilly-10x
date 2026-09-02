@@ -6,10 +6,10 @@ Distilly превращает явно предоставленные матер
 
 ## Установка
 
-Предварительная версия находится в ветке `codex/distilly-plugin` и сейчас проверена для Codex. Нужны Node.js `22.19+` или `24`, pnpm `10.32+` и локальная CLI Codex:
+Предварительная версия находится в ветке `distilly-plugin` и сейчас проверена для Codex. Нужны Node.js `22.19+` или `24`, pnpm `10.32+` и локальная CLI Codex:
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

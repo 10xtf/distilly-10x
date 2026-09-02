@@ -1,17 +1,25 @@
 # Distilly roadmap
 
-*Zuletzt aktualisiert: 2026-09-02*
+*Zuletzt aktualisiert: 2026-09-03*
 
-Die aktuelle Produkt-Roadmap steht in [ROADMAP.md](../../ROADMAP.md). Diese Zusammenfassung beschreibt den Developer Preview auf dem Branch `codex/distilly-plugin`.
+Die aktuelle Produkt-Roadmap steht in [ROADMAP.md](../../ROADMAP.md). Diese Zusammenfassung beschreibt den Developer Preview auf dem Branch `distilly-plugin`.
 
 ## Jetzt
 
 Der Codex-Pfad ist als lokale TypeScript/SQLite-Vorschau durchgängig verifiziert: lokale Quellen, Versionen, Korrekturen, Review, fünf MCP-Tools, Plugin-Installation und sichere Deinstallation.
 
-## Nächste Priorität
+## P0
+
+- Eigenständiger `distilly panel`-Befehl mit paketiertem Browser-Smoke-Test.
+- Absturzsichere Bereinigung ausschließlich nicht referenzierter Blobs.
+- Clean-Machine-Matrix für Node 22.19 und 24 sowie verifizierte Preview-Upgrades und Rollbacks.
+
+## P1: Host-Plugins und lokaler Marketplace
 
 Wir brauchen Community-Unterstützung für geprüfte Plugin-Bindings für **Grok Bot, Claude Code, OpenCode, Pi agent und DeepSeek Harness (DSH)**. Jede Integration braucht einen isolierten Launcher, Setup/Doctor/Restart/Uninstall-Tests sowie exakte Host- und Kapazitätsnachweise. Ich reviewe diese Beiträge aktiv.
 
-## Danach
+Der lokale Panel-Marketplace soll Profile durchsuchen, Belege und Versionen prüfen, bestätigte Person Skills installieren und portable Pakete ohne private Rohmaterialien importieren oder exportieren. Ein Netzwerk-Katalog kommt erst nach festgelegten Regeln für Einwilligung, Moderation, Lizenzierung und Uploads.
 
-Panel-Marktplatz, zusätzliche lokale Parser und autorisierte Quellenadapter, Migration, Backup/Restore, tiefere Diagnose und weitere Host-Bindings folgen nach stabiler Preview.
+## P2
+
+PDF-, EML/MBOX- und Export-Parser, autorisierte Lark/Feishu-, DingTalk-, Slack- und öffentliche X-Adapter, zweistufige `dot-skill`-Migration, Backup/Restore und tiefere Diagnose folgen nach stabiler Preview.

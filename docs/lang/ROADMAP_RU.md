@@ -1,17 +1,25 @@
 # Дорожная карта Distilly
 
-*Последнее обновление: 2026-09-02*
+*Последнее обновление: 2026-09-03*
 
-Каноническая дорожная карта находится в [ROADMAP.md](../../ROADMAP.md). Здесь описана Developer Preview из ветки `codex/distilly-plugin`.
+Каноническая дорожная карта находится в [ROADMAP.md](../../ROADMAP.md). Здесь описана Developer Preview из ветки `distilly-plugin`.
 
 ## Сейчас
 
 Локальный TypeScript/SQLite-путь Codex проверен от начала до конца: локальные материалы, версии, исправления, review, ровно пять MCP-инструментов, установка Plugin и безопасное удаление.
 
-## Приоритет сообщества
+## P0
+
+- Отдельная команда `distilly panel` с браузерным smoke-тестом собранного пакета.
+- Устойчивая к сбоям очистка только тех blobs, на которые нет ссылок.
+- Проверка на чистых машинах с Node 22.19 и 24, а также проверяемые upgrade и rollback Preview.
+
+## P1: Host Plugins и локальный marketplace
 
 Нам нужна помощь сообщества для создания и проверки Plugin bindings для **Grok Bot, Claude Code, OpenCode, Pi agent и DeepSeek Harness (DSH)**. Каждая интеграция должна иметь отдельный launcher, тесты setup/doctor/перезапуска/удаления и точные свидетельства host и capacity. Я буду активно review этих вкладов.
 
-## Позже
+Локальный marketplace в Panel должен поддерживать поиск Profiles, проверку evidence и versions, установку подтверждённых Person Skills, а также import/export переносимых пакетов без приватных исходных материалов. Сетевой catalog появится только после определения правил согласия, moderation, licensing и upload.
 
-После стабилизации Preview появятся marketplace Panel, дополнительные parser и разрешённые adapter, миграция, backup/restore, глубокая диагностика и новые host bindings.
+## P2
+
+После стабилизации Preview появятся parser для PDF, EML/MBOX и exports; разрешённые adapters для Lark/Feishu, DingTalk, Slack и публичного X; двухэтапная миграция `dot-skill`; backup/restore и глубокая диагностика.

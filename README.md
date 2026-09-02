@@ -12,7 +12,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22.19%2B-339933.svg)](https://nodejs.org/)
-[![Codex Preview](https://img.shields.io/badge/Codex-Developer%20Preview-black)](https://github.com/titanwings/distilly/tree/codex/distilly-plugin)
+[![Codex Preview](https://img.shields.io/badge/Codex-Developer%20Preview-black)](https://github.com/titanwings/distilly/tree/distilly-plugin)
 
 </div>
 
@@ -20,7 +20,7 @@ Distilly is a local-first product for turning a person's source material, workin
 
 This branch is the unreleased `0.1.0-preview.1` Developer Preview. Codex is the first fully verified host. The repository is public for review, but this branch is not the default release and is not an npm package yet.
 
-[中文](docs/lang/README_ZH.md) · [Español](docs/lang/README_ES.md) · [Deutsch](docs/lang/README_DE.md) · [日本語](docs/lang/README_JA.md) · [한국어](docs/lang/README_KO.md) · [Português](docs/lang/README_PT.md) · [Русский](docs/lang/README_RU.md)
+[Chinese](docs/lang/README_ZH.md) · [Español](docs/lang/README_ES.md) · [Deutsch](docs/lang/README_DE.md) · [日本語](docs/lang/README_JA.md) · [한국어](docs/lang/README_KO.md) · [Português](docs/lang/README_PT.md) · [Русский](docs/lang/README_RU.md)
 
 ## Install the Developer Preview
 
@@ -28,7 +28,7 @@ This branch is the unreleased `0.1.0-preview.1` Developer Preview. Codex is the 
 
 Give your coding agent the following task and let it run the commands in a fresh checkout:
 
-> Install the Distilly Developer Preview from the `codex/distilly-plugin` branch, build it with Node 22.19+ (or Node 24), run `distilly setup --host codex`, run `distilly doctor --host codex`, and report the result. Do not modify another branch.
+> Install the Distilly Developer Preview from the `distilly-plugin` branch, build it with Node 22.19+ (or Node 24), run `distilly setup --host codex`, run `distilly doctor --host codex`, and report the result. Do not modify another branch.
 
 The exact checkout and setup commands are shown below so the agent can verify every step.
 
@@ -37,7 +37,7 @@ The exact checkout and setup commands are shown below so the agent can verify ev
 Requirements: Node.js `22.19+` or `24`, pnpm `10.32+`, and a locally installed Codex CLI. From a terminal:
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

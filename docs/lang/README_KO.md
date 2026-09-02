@@ -6,10 +6,10 @@ Distilly는 사용자가 명시적으로 제공한 자료를 버전이 있는 **
 
 ## 설치
 
-프리뷰는 `codex/distilly-plugin` 브랜치에 있으며 현재 Codex에서 검증되었습니다. Node.js `22.19+` 또는 `24`, pnpm `10.32+`, 로컬 Codex CLI가 필요합니다.
+프리뷰는 `distilly-plugin` 브랜치에 있으며 현재 Codex에서 검증되었습니다. Node.js `22.19+` 또는 `24`, pnpm `10.32+`, 로컬 Codex CLI가 필요합니다.
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

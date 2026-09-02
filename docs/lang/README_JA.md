@@ -6,10 +6,10 @@ Distilly は、ユーザーが明示的に提供した資料を、バージョ�
 
 ## インストール
 
-プレビューは `codex/distilly-plugin` ブランチにあり、現在は Codex で検証済みです。Node.js `22.19+` または `24`、pnpm `10.32+`、ローカルの Codex CLI が必要です。
+プレビューは `distilly-plugin` ブランチにあり、現在は Codex で検証済みです。Node.js `22.19+` または `24`、pnpm `10.32+`、ローカルの Codex CLI が必要です。
 
 ```bash
-git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+git clone --branch distilly-plugin https://github.com/titanwings/distilly.git
 cd distilly
 corepack enable
 pnpm install --frozen-lockfile

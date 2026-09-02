@@ -1,136 +1,56 @@
-# Contributing to colleague.skill / 贡献指南
+# Contributing to Distilly
 
-> English first, 中文在下方。
+Distilly has two deliberate product lines:
 
-Agents: read [AGENTS.md](AGENTS.md) first. Product work reads [docs/design/system-v3.md](docs/design/system-v3.md); product code is TypeScript. Review follows [docs/process/code-review.md](docs/process/code-review.md).
+- `dot-skill` is the published legacy Skill line.
+- `codex/distilly-plugin` is the local TypeScript Developer Preview.
 
-The published default branch is `dot-skill`. Product work lands on `distilly`.
+Preview work belongs on `codex/distilly-plugin` or a branch based on it. Do not mix Preview changes into the default legacy line.
 
-Thank you for considering a contribution! This project turns colleagues (and anyone else) into AI skills, and it's only as good as its community.
+## Start here
 
-感谢你愿意贡献。这个项目的目标是把同事（以及任何人）蒸馏成 AI skill，社区越活跃它就越好。
-
----
-
-## Ways to contribute / 贡献方式
-
-- **Report bugs** — open a [bug report](.github/ISSUE_TEMPLATE/bug_report.md)
-- **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
-- **Translate docs** — see `docs/lang/` for existing languages
-- **Add a data source collector** — e.g. `tools/slack_auto_collector.py` is a reference implementation
-- **Submit a community skill** — submit to the [gallery](https://titanwings.github.io/colleague-skill-site/)
-- **Improve prompts** — files under `prompts/` shape skill behavior; small wording tweaks are welcome
-
----
-
-## Development setup / 开发环境
+Read [AGENTS.md](AGENTS.md), the [design index](docs/design/README.md), and the [development workflow](docs/development.md). Product code is TypeScript and targets Node.js `22.19+` or `24`.
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill.git
-cd colleague-skill
-pip3 install -r requirements.txt
-pip3 install -r requirements-dev.txt
+git clone --branch codex/distilly-plugin https://github.com/titanwings/distilly.git
+cd distilly
 corepack enable
 pnpm install --frozen-lockfile
+pnpm run gates:fast
+pnpm run typecheck
 ```
 
-Python 3.9+ is required for the published skill and repository governance. Product work uses Node `^22.19 || ^24` and the pinned `pnpm` version. Optional Python extras (`openpyxl`, auto-collector credentials) are covered in [INSTALL.md](INSTALL.md).
+Keep each change focused. Governed code, Plugin files, and live product documentation need a dedicated Agent Note in the same feature commit. Tests should sit beside their TypeScript source and use offline fixtures; never put secrets or personal material in the repository.
 
----
+## Host Plugin contributions
 
-## Branch & PR workflow / 分支和 PR 流程
+The next community priority is a real, tested binding for **Grok Bot, Claude Code, OpenCode, Pi agent, and DeepSeek Harness (DSH)**. A useful host contribution includes:
 
-1. Fork the repo and create a branch from `dot-skill` (or from `distilly` for product work):
-   - `feat/<short-name>` for new features
-   - `fix/<short-name>` for bug fixes
-   - `docs/<short-name>` for docs only
-   - `chore/<short-name>` for tooling / infra
-   If `origin` is your fork, add or verify an `upstream` remote for `titanwings/colleague-skill`; pre-push and review resolve the PR base from that base-repository remote, not from `origin` by habit.
-2. Make your changes. Keep PRs focused — one concern per PR. Changes to the [governed paths](.agents/notes/README.md#when-to-write-one) add or update an Agent Note in the same PR; a reviewer can also require one when an exempt path changes a shared decision.
-3. Run the checks that match the diff. [docs/development.md](docs/development.md) is the command owner:
+- an isolated binding and launcher;
+- setup, doctor, restart/discovery, and uninstall checks;
+- exact host/version/release/capacity evidence;
+- the unchanged five-tool contract; and
+- a focused Agent Note and reproducible local test.
 
-   | Change | Minimum local evidence |
-   |---|---|
-   | Markdown | `python3 -B scripts/verify_docs.py` |
-   | Agent Note | `python3 -B scripts/verify_agent_notes.py` |
-   | Python | compile, Ruff, and the owning unittest |
-   | TypeScript formatting/lint | `pnpm run gates:fast` |
-   | TypeScript behavior/types | `pnpm run test` and `pnpm run typecheck` |
-   | Built package face | `pnpm run build` and `pnpm run hygiene` |
-   | Outgoing governed diff | Note gate against the verified PR base |
+A copied Skill directory or a logo-only entry is not host verification. Keep provider credentials in the system keychain or environment variables; configuration files may store only secret references.
 
-   Do not claim commands you did not run. CI owns the full Python-version matrix.
-4. Open a PR against `dot-skill` or `distilly`. Fill out every applicable PR-template field; that template is the completed-work handoff. Incomplete or transferred work uses the full handoff in [docs/development.md](docs/development.md#agent-handoff).
-5. CI must pass. A maintainer will review — please be patient, and feel free to ping on Discord if it's been a week.
+## Checks
 
----
+Run the narrowest checks that cover your diff, then report exactly what ran:
 
-## Commit message style / 提交信息规范
+| Change | Minimum check |
+| --- | --- |
+| Markdown | `python3 -B scripts/verify_docs.py` |
+| Agent Note | `python3 -B scripts/verify_agent_notes.py` |
+| TypeScript formatting and lint | `pnpm run gates:fast` |
+| TypeScript behavior and types | `pnpm run test` and `pnpm run typecheck` |
+| Plugin assembly | `python3 -B scripts/assemble_plugins.py --check` |
+| Built Preview | `pnpm run build` and the relevant packaged smoke |
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+Do not claim a host is verified until a clean local HOME has completed setup, restart discovery, the five-tool check, and uninstall with user data retained.
 
-```
-feat: add Notion auto-collector
-fix: handle 429 rate limit in feishu_parser
-docs: translate INSTALL to Korean
-chore: bump requests to 2.32
-test: cover skill_writer rollback edge cases
-```
+## Branches and publication
 
-Keep the subject under 72 characters. Use the body for the *why*, not the *what*.
+Use a separate worktree for independent features and make one reviewable local commit per feature. Open Preview pull requests against `codex/distilly-plugin`; keep the default `dot-skill` branch unchanged. Never push credentials or private source material.
 
----
-
-## Code style / 代码风格
-
-- Match surrounding code. Prettier and ESLint are blocking for TypeScript; Ruff is blocking for Python.
-- Python: prefer standard library where possible; add to `requirements.txt` only if necessary
-- TypeScript: keep tests beside source under `packages/*/src/`; add dependencies to the owning workspace package rather than the root unless they are repository tooling
-- Tools under `tools/` should be runnable as standalone CLIs (`if __name__ == "__main__":`)
-- Prompts under `prompts/` are plain Markdown — keep them concise and task-specific
-
----
-
-## Tests / 测试
-
-TypeScript functionality uses co-located `*.test.ts` files and Vitest. Python functionality uses `tests/test_*.py` and stdlib `unittest`. Both discovery paths fail when they find no tests.
-
-When adding a new data source collector, at minimum cover:
-- Auth modes (token / user+password / etc.)
-- Rate-limit / retry behavior (mock HTTP)
-- Output format consistency with existing collectors
-
-Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
-
----
-
-## Security / 安全
-
-- **Never commit secrets, tokens, or personal data.** If you accidentally do, rotate the credential immediately and let a maintainer know.
-- Config files that hold credentials should be written to the user's home (e.g. `~/.colleague-skill/`) with permission `0600`.
-- If you find a security issue, **do not open a public issue.** Email the maintainer or DM on Discord.
-
----
-
-## Docs / 文档
-
-- Product contract changes → edit `docs/design/system-v3.md`, then run `python3 scripts/sync_design_chapters.py`; generated chapters are never hand-edited, and deprecated V2/V1 bodies are not rewritten
-- User-facing skill behavior → update `README.md`, `SKILL.md`, and `INSTALL.md`
-- If you add a language translation of the README, also update the language nav strip in every other `docs/lang/README_*.md`
-- Prefer English for code comments; docs can be bilingual
-
----
-
-## Community / 社区
-
-- [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
-- [GitHub Discussions](https://github.com/titanwings/colleague-skill/discussions) — long-form Q&A and design threads
-- [Skill gallery](https://titanwings.github.io/colleague-skill-site/) — browse and submit skills
-
-Be kind. Assume good intent. Disagree on the idea, not the person.
-
----
-
-## License / 许可
-
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+For questions, open a focused issue or start a discussion. See [UPDATES.md](UPDATES.md) for the current host-contributor call.

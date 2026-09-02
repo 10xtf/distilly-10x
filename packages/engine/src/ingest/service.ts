@@ -730,6 +730,7 @@ const assertTrustedLoadedFiles = (
   if (loaded.length !== expectedCount) {
     throw storageCorrupt("The trusted file loader returned an invalid item count.");
   }
+  const labels = new Set<string>();
   for (const item of loaded) {
     if (
       item.pathLabel.length === 0 ||
@@ -740,6 +741,10 @@ const assertTrustedLoadedFiles = (
     ) {
       throw storageCorrupt("The trusted file loader returned an invalid item.");
     }
+    if (labels.has(item.pathLabel)) {
+      throw storageCorrupt("The trusted file loader returned duplicate path labels.");
+    }
+    labels.add(item.pathLabel);
   }
   return loaded;
 };
@@ -1018,7 +1023,11 @@ export class IngestService {
     const now = this.#dependencies.clock.now();
     const preparedFiles: PreparedRawFile[] = loaded.map((file) => {
       const source = parseBoundary(
-        () => materialSourceInputSchema.parse(file.source) as MaterialSourceInput,
+        () =>
+          materialSourceInputSchema.parse({
+            ...file.source,
+            capturedAt: now,
+          }) as MaterialSourceInput,
         "raw source",
       );
       if (source.title !== file.pathLabel) {
@@ -1030,7 +1039,14 @@ export class IngestService {
           ? undefined
           : prepareMaterial(
               parseBoundary(
-                () => bindParsedMaterial(identity.rawId, file.parsed!),
+                () =>
+                  bindParsedMaterial(identity.rawId, {
+                    ...file.parsed!,
+                    source: {
+                      ...file.parsed!.source,
+                      capturedAt: now,
+                    },
+                  }),
                 "parsed material",
               ),
               candidateSubjectId,

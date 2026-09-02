@@ -182,6 +182,31 @@ exit 0
     ).resolves.toMatchObject({ kind: "full", host: BUILTIN_HOSTS.codex });
   });
 
+  it("creates a safe Codex home before the first version probe", async () => {
+    const { root, home, environment } = await fixture();
+    const codex = join(root, "host-bin", "codex");
+    await writeFile(
+      codex,
+      `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  if [ ! -d "$CODEX_HOME" ]; then
+    printf '%s\n' 'Codex home is missing.' >&2
+    exit 1
+  fi
+  printf '%s\n' 'codex-cli 0.146.0'
+fi
+exit 0
+`,
+      { mode: 0o755 },
+    );
+    await chmod(codex, 0o755);
+
+    await expect(setupPreviewHost(BUILTIN_HOSTS.codex, environment)).resolves.toMatchObject({
+      host: BUILTIN_HOSTS.codex,
+    });
+    await expect(readdir(join(home, ".codex"))).resolves.toEqual([]);
+  });
+
   it("sets up Codex, diagnoses it, and preserves data through uninstall", async () => {
     const { home, environment } = await fixture();
 

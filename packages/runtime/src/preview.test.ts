@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -104,6 +104,11 @@ describe("Developer Preview LocalRuntime", () => {
     const binary = Uint8Array.from([0, 255, 17, 42]);
     await writeFile(markdownPath, markdown);
     await writeFile(binaryPath, binary);
+    await utimes(
+      markdownPath,
+      new Date("2000-01-01T00:00:00.000Z"),
+      new Date("2000-01-01T00:00:00.000Z"),
+    );
 
     const runtime = await open(root);
     const client = await connect(runtime, "file-ingest");
@@ -143,6 +148,7 @@ describe("Developer Preview LocalRuntime", () => {
       rawId: expectedMarkdownRaw,
       method: "document_text",
     });
+    expect(stored.record.source.capturedAt).not.toBe("2000-01-01T00:00:00.000Z");
     expect(first.items[1]).toMatchObject({ rawId: expectedBinaryRaw });
 
     const zeroDelta = await client.call(
@@ -314,6 +320,67 @@ describe("Developer Preview LocalRuntime", () => {
     await expect(client.call("subjects.list", {})).resolves.toEqual({ items: [] });
   });
 
+  it("rejects a symlinked local file without creating a subject", async () => {
+    const root = await temporaryRoot();
+    const inputRoot = await temporaryRoot();
+    const outside = await temporaryRoot();
+    const outsideFile = join(outside, "secret.md");
+    const linkedFile = join(inputRoot, "linked.md");
+    await writeFile(outsideFile, "must stay outside");
+    await symlink(outsideFile, linkedFile);
+
+    const runtime = await open(root);
+    const client = await connect(runtime, "symlink-file");
+    await expect(
+      client.call(
+        "materials.ingestFiles",
+        {
+          subject: {
+            kind: "create",
+            input: { displayName: "Symlink File", identityHints: [] },
+          },
+          paths: [linkedFile],
+          enqueue: "now",
+        },
+        { requestId: request() },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_input", fieldPath: "paths[0]" });
+    await expect(client.call("subjects.list", {})).resolves.toEqual({ items: [] });
+  });
+
+  it("rejects duplicate local file names before reading either file", async () => {
+    const root = await temporaryRoot();
+    const inputRoot = await temporaryRoot();
+    const firstDirectory = join(inputRoot, "first");
+    const secondDirectory = join(inputRoot, "second");
+    await mkdir(firstDirectory);
+    await mkdir(secondDirectory);
+    await writeFile(join(firstDirectory, "same.md"), "first");
+    await writeFile(join(secondDirectory, "same.md"), "second");
+
+    const runtime = await open(root);
+    const client = await connect(runtime, "duplicate-labels");
+    await expect(
+      client.call(
+        "materials.ingestFiles",
+        {
+          subject: {
+            kind: "create",
+            input: { displayName: "Duplicate Labels", identityHints: [] },
+          },
+          paths: [join(firstDirectory, "same.md"), join(secondDirectory, "same.md")],
+          enqueue: "now",
+        },
+        { requestId: request() },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_input",
+      message: "Selected local files must have unique file names.",
+      fieldPath: "paths[1]",
+    });
+    await expect(client.call("subjects.list", {})).resolves.toEqual({ items: [] });
+  });
+
   it("runs create, ingest, pending, capacity-bound brief, owner-bound commit, get, and prompt", async () => {
     const runtime = await open(await temporaryRoot());
     const noCapacity = await connect(runtime, "no-capacity", false);
@@ -394,6 +461,22 @@ describe("Developer Preview LocalRuntime", () => {
     await expect(first.call("profiles.prompt", { subjectId: subject.id })).resolves.toContain(
       profile.rendered,
     );
+
+    const constrained = await runtime.connectTrusted({
+      actor: { kind: "sdk", id: "constrained-prompt" },
+      capacity: { ...CAPACITY, maximumInputTokens: 1 },
+    });
+    await expect(
+      constrained.call("profiles.prompt", { subjectId: subject.id }),
+    ).rejects.toMatchObject({
+      code: "context_too_large",
+      retryable: false,
+      details: {
+        tokens: { estimatedInput: expect.any(Number) },
+        limits: { maximumInputTokens: 1 },
+      },
+    });
+    await constrained.close();
   });
 
   it("keeps client watches and closes isolated while the runtime remains usable", async () => {

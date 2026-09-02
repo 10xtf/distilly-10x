@@ -455,6 +455,38 @@ describe("Codex full binding", () => {
     await expect(readFile(marketplacePath, "utf8")).resolves.toBe(marketplace);
   });
 
+  it("cleans a registered plugin when its owned tree is already missing", async () => {
+    const home = await temporaryHome();
+    const launcherPath = await launcher(home);
+    const run = vi.fn<HostCommandRunner["run"]>(() =>
+      Promise.resolve({ exitCode: 0, stdout: "{}", stderr: "" }),
+    );
+    const options = {
+      ...sharedOptions(home),
+      executablePath: "/opt/local/bin/codex",
+      commandRunner: { run },
+    };
+    const context = {
+      launcherPath,
+      pluginSourcePath: join(REPOSITORY_ROOT, "plugins", "codex"),
+      runtimeVersion: releaseVersion,
+    };
+    const binding = createCodexHostBinding(options);
+    await binding.installPlugin(context);
+    await rm(join(home, "plugins", "distilly"), { recursive: true, force: true });
+
+    await expect(binding.uninstallPlugin(context)).resolves.toBeUndefined();
+    expect(run).toHaveBeenLastCalledWith({
+      executablePath: "/opt/local/bin/codex",
+      args: ["plugin", "remove", "distilly@personal", "--json"],
+      homeDirectory: home,
+    });
+    const marketplace = JSON.parse(
+      await readFile(join(home, ".agents", "plugins", "marketplace.json"), "utf8"),
+    ) as { plugins: { name: string }[] };
+    expect(marketplace.plugins).toEqual([]);
+  });
+
   it("refuses an unowned neighbor without damaging the active plugin", async () => {
     const home = await temporaryHome();
     const launcherPath = await launcher(home);

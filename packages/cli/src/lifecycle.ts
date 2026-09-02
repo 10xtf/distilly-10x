@@ -216,6 +216,12 @@ const ensureRegularDirectory = async (path: string, create: boolean): Promise<vo
   }
 };
 
+/** Ensures the Codex host home exists before Codex's version probe runs. */
+const ensureCodexHostHome = async (homeDirectory: string): Promise<void> => {
+  await ensureRegularDirectory(homeDirectory, true);
+  await ensureRegularDirectory(join(homeDirectory, ".codex"), true);
+};
+
 const verifyLifecycleDirectories = async (
   paths: LifecyclePaths,
   create: boolean,
@@ -676,6 +682,9 @@ export const setupPreviewHost = async (
       ? environment.pluginSourcesPath
       : join(paths.runtimeDirectory, PREVIEW_PLUGIN_SOURCES);
   const executablePath = await findHostExecutable(host, environment.pathValue);
+  if (host === BUILTIN_HOSTS.codex) {
+    await ensureCodexHostHome(environment.homeDirectory);
+  }
   const hostVersion = await probeHostVersion(
     host,
     executablePath,

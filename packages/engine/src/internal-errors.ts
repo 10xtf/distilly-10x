@@ -248,3 +248,19 @@ export const briefingTooLarge = (details: JsonObject): DistillyError =>
       "Use a larger-capacity host or reduce the new research batch; Distilly will not truncate it.",
     details,
   });
+
+/**
+ * Builds a content-free profile-prompt capacity failure.
+ *
+ * @param details - Safe aggregate measurements and the trusted session limit.
+ * @returns A non-retryable complete-prompt size error.
+ */
+export const contextTooLarge = (details: JsonObject): DistillyError =>
+  new DistillyError({
+    code: "context_too_large",
+    message: "The complete profile prompt exceeds a verified session limit.",
+    retryable: false,
+    remediation:
+      "Use a larger-capacity host or choose a smaller profile version; Distilly will not truncate it.",
+    details,
+  });

@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
 import { createBuiltinParserRegistry } from "@distilly/adapters";
@@ -113,6 +113,12 @@ const parserWarning = (error: unknown): string => {
   return "The local parser could not extract text from this file.";
 };
 
+/** Rejects a symlink at the user-selected file path before it is read. */
+const assertNoSymlinkFile = async (path: string): Promise<void> => {
+  const metadata = await lstat(path);
+  if (metadata.isSymbolicLink()) throw new Error("symlinked local path");
+};
+
 const createLocalFileLoader = () => {
   const registry = createBuiltinParserRegistry();
   return {
@@ -122,19 +128,39 @@ const createLocalFileLoader = () => {
       readonly requestId: RequestId;
       readonly sensitivity: "private" | "shareable";
     }) {
+      const labels = new Set<string>();
+      input.paths.forEach((path, index) => {
+        const pathLabel = basename(path);
+        if (pathLabel.length === 0 || pathLabel === "." || pathLabel === "..") {
+          throw invalidBoundary(`materials.ingestFiles paths[${String(index)}]`);
+        }
+        if (labels.has(pathLabel)) {
+          throw new DistillyError({
+            code: "invalid_input",
+            message: "Selected local files must have unique file names.",
+            retryable: false,
+            fieldPath: `paths[${String(index)}]`,
+          });
+        }
+        labels.add(pathLabel);
+      });
       return Promise.all(
         input.paths.map(async (path, index) => {
           const pathLabel = basename(path);
-          if (pathLabel.length === 0 || pathLabel === "." || pathLabel === "..") {
-            throw invalidBoundary(`materials.ingestFiles paths[${String(index)}]`);
-          }
           let bytes: Uint8Array;
-          let modifiedAt: Date;
           try {
-            const metadata = await stat(path);
+            await assertNoSymlinkFile(path);
+            const metadata = await lstat(path);
             if (!metadata.isFile()) throw new Error("not a regular file");
             bytes = Uint8Array.from(await readFile(path));
-            modifiedAt = metadata.mtime;
+            const after = await lstat(path);
+            if (
+              !after.isFile() ||
+              after.size !== metadata.size ||
+              after.mtimeMs !== metadata.mtimeMs
+            ) {
+              throw new Error("local file changed while reading");
+            }
           } catch {
             throw new DistillyError({
               code: "invalid_input",
@@ -151,7 +177,7 @@ const createLocalFileLoader = () => {
                 ? ("video" as const)
                 : ("document" as const),
             access: "private" as const,
-            capturedAt: isoDateTimeSchema.parse(modifiedAt.toISOString()),
+            capturedAt: isoDateTimeSchema.parse(new Date().toISOString()),
           };
           const parser = registry.select(mediaType);
           if (parser === undefined) {

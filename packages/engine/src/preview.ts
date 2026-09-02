@@ -23,6 +23,7 @@ import type {
 } from "@distilly/protocol";
 
 import { CryptoIdGenerator } from "./defaults/crypto-id-generator.js";
+import { enforcePromptCapacity } from "./distill/prompt-capacity.js";
 import type { PreviewHostMutationAuthority } from "./host/mutation-authority.js";
 import {
   createInternalEngineComposition,
@@ -472,7 +473,10 @@ class PreviewEngineRuntimeImplementation implements PreviewEngineRuntime {
       case "profiles.prompt":
         return parseResult(
           method,
-          await this.#composition.profiles.prompt(parseParams(method, params)),
+          enforcePromptCapacity(
+            await this.#composition.profiles.prompt(parseParams(method, params)),
+            session.capacity,
+          ),
         );
       case "profiles.status":
         return parseResult(

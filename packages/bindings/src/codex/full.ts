@@ -1,3 +1,4 @@
+import { lstat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
 import { BUILTIN_HOSTS, DistillyError } from "@distilly/protocol";
@@ -110,7 +111,11 @@ export const createCodexHostBinding = (options: CodexHostBindingOptions): HostBi
         },
       ),
     uninstallPlugin: async () => {
-      if (!(await verifyPluginTree(pluginRoot, host))) return;
+      const pluginMetadata = await lstat(pluginRoot).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+      if (pluginMetadata !== undefined && !(await verifyPluginTree(pluginRoot, host))) return;
       const marketplaceName = await readMarketplaceName(homeDirectory);
       if (marketplaceName !== undefined) {
         const command = await runner.run({

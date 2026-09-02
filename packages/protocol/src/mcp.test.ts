@@ -1343,7 +1343,7 @@ describe("MCP input schemas", () => {
     const correction = {
       ...wireRequest,
       subjectId: SUBJECT_ID,
-      text: "é".repeat(32_768),
+      text: "é".repeat(WIRE_LIMITS.correctionTextBytes / 2),
     };
     expect(correct.input.parse(correction)).toEqual(correction);
     expect(() => correct.input.parse({ ...correction, text: `${correction.text}é` })).toThrow();

@@ -216,7 +216,11 @@ const ensureRegularDirectory = async (path: string, create: boolean): Promise<vo
   }
 };
 
-/** Ensures the Codex host home exists before Codex's version probe runs. */
+/**
+ * Ensures the Codex host home exists before Codex's version probe runs.
+ *
+ * @param homeDirectory - User home that owns the Codex configuration directory.
+ */
 const ensureCodexHostHome = async (homeDirectory: string): Promise<void> => {
   await ensureRegularDirectory(homeDirectory, true);
   await ensureRegularDirectory(join(homeDirectory, ".codex"), true);

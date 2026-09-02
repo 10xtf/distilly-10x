@@ -113,7 +113,11 @@ const parserWarning = (error: unknown): string => {
   return "The local parser could not extract text from this file.";
 };
 
-/** Rejects a symlink at the user-selected file path before it is read. */
+/**
+ * Rejects a symlink at the user-selected file path before it is read.
+ *
+ * @param path - Explicit local file path selected by the user.
+ */
 const assertNoSymlinkFile = async (path: string): Promise<void> => {
   const metadata = await lstat(path);
   if (metadata.isSymbolicLink()) throw new Error("symlinked local path");

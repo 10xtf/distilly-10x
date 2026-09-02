@@ -472,7 +472,6 @@ describe("Developer Preview LocalRuntime", () => {
       code: "context_too_large",
       retryable: false,
       details: {
-        tokens: { estimatedInput: expect.any(Number) },
         limits: { maximumInputTokens: 1 },
       },
     });

@@ -24,13 +24,15 @@ Reinicie o Codex após a instalação. Remover a integração do host preserva p
 node packages/cli/lib/bin.js uninstall --host codex
 ```
 
+OpenClaw e Hermes já têm bindings locais de compatibilidade. O OpenClaw instala e descobre o bundle compatível com Claude; o Hermes instala o Skill gerenciado e registra o mesmo servidor MCP por meio do wrapper e da configuração. Ambos os bindings executam smoke checks de instalação, descoberta e das cinco ferramentas. Esta versão ainda não tem um fixture exato de capacidade de briefing para nenhum dos dois hosts; por isso, o setup falha de forma segura antes do briefing e não declara suporte completo à destilação.
+
 O contrato exposto ao modelo tem exatamente cinco ferramentas MCP: `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit` e `distilly_correct`.
 
 ## Compatibilidade com o Skill legado
 
 Os requisitos de Node.js, pnpm e Codex acima aplicam-se apenas ao Plugin nativo do Codex; o modo Legacy não precisa de Codex, Node.js nem pnpm, mas seu fluxo completo depende do suporte do host a Skills comuns e das capacidades de filesystem, Bash e Python.
 
-No momento, Codex é o único host verificado para o Plugin `distilly-plugin`. Em um host local de Skills sem binding de Plugin verificado, o usuário pode escolher explicitamente o Skill legado mantido na branch `dot-skill`:
+No momento, Codex é o único host com capacidade de briefing verificada para o Plugin `distilly-plugin`. OpenClaw e Hermes têm bindings de compatibilidade, mas ainda não possuem um fixture exato de capacidade. Em um host local de Skills sem binding de Plugin verificado, o usuário pode escolher explicitamente o Skill legado mantido na branch `dot-skill`:
 
 ```bash
 git clone --single-branch --branch dot-skill --depth 1 \
@@ -42,6 +44,6 @@ git -C <host-skills-dir>/distilly rev-parse HEAD
 
 ## Escopo atual
 
-A prévia aceita arquivos TXT, Markdown, JSON e SRT/VTT selecionados pelo usuário, texto colado e URLs públicas selecionadas. Codex está verificado; os bindings nativos de Plugin para Claude Code, OpenClaw, Hermes, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode e Grok Bot ainda precisam de fixtures da comunidade, e o Grok Bot não tem importação local de repositório verificada.
+A prévia aceita arquivos TXT, Markdown, JSON e SRT/VTT selecionados pelo usuário, texto colado e URLs públicas selecionadas. Codex está verificado para briefings. OpenClaw e Hermes passam pelos smoke checks locais de compatibilidade para instalação, descoberta e as cinco ferramentas, mas ainda precisam de fixtures exatos de capacidade antes que o setup de briefing possa ser concluído. Os bindings nativos de Plugin para Claude Code, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode e Grok Bot ainda precisam de fixtures da comunidade, e o Grok Bot não tem importação local de repositório verificada.
 
 Veja o [roadmap](../../ROADMAP.md) e a [atualização de 2026-09](../../UPDATES.md).

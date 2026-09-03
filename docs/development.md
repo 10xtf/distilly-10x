@@ -30,7 +30,7 @@ Run the narrowest checks that cover a change, then run the full gate before publ
 | Repository Python scripts | `python3 -B scripts/run_tests.py && ruff check scripts tests` |
 | Full outgoing candidate | `pnpm run gates` |
 
-The Codex package acceptance check is:
+The current package acceptance check covers the verified Codex path plus compatibility smoke for OpenClaw and Hermes:
 
 ```bash
 pnpm run package:preview:codex
@@ -43,6 +43,6 @@ It uses temporary homes and a self-contained package. It must not depend on an e
 
 Keep each feature focused, with its implementation, tests, generated artifacts, and current-state documentation in one reviewable commit. Use an independent branch or worktree for unrelated work. Pull requests for the Preview target `distilly-plugin`; do not mix legacy maintenance into it.
 
-Never commit local person data, source material, environment files, credentials, Agent-specific instructions, generated databases, or host state. The root `.gitignore` covers the standard local paths, but contributors must still inspect the complete outgoing diff.
+Never commit local person data, source material, environment files, credentials, Agent-specific instructions, generated databases, or host state. The root `.gitignore` covers the standard local paths, but contributors must still inspect the complete outgoing diff. Compatibility tests may use temporary homes and fake host executables; they must not add personal `.agents` files or real host state.
 
-Before calling a host verified, test setup, doctor, restart discovery, exactly five MCP tools, profile prompt/install, and uninstall with person data retained on a clean local home.
+Before calling a host verified, test setup, doctor, restart discovery, exactly five MCP tools, profile prompt/install, and uninstall with person data retained on a clean local home. OpenClaw/Hermes compatibility smoke is reported separately until an exact capacity fixture exists.

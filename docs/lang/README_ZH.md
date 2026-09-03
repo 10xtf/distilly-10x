@@ -24,13 +24,15 @@ node packages/cli/lib/bin.js doctor --host codex
 node packages/cli/lib/bin.js uninstall --host codex
 ```
 
+OpenClaw 和 Hermes 现在都有本地 compatibility binding：OpenClaw 安装并发现 Claude-compatible bundle；Hermes 安装 managed Skill，并通过 wrapper 和配置注册同一个 MCP server。两个 binding 都会运行安装、发现和五工具 smoke 检查。本版本还没有这两个宿主的 exact briefing-capacity fixture，因此 setup 会在 briefing 前 fail closed，不宣称完整蒸馏支持。
+
 面向模型的 MCP 合同固定为五个工具：`distilly_get`、`distilly_ingest`、`distilly_pending`、`distilly_commit`、`distilly_correct`。
 
 ## Legacy Skill 兼容模式
 
 上面的 Node.js、pnpm 和 Codex 前置条件只适用于原生 Codex Plugin；Legacy 模式不需要 Codex、Node.js 或 pnpm，但完整旧流程依赖宿主对普通 Skill 的支持，以及 filesystem、Bash 和 Python 能力。
 
-目前只有 Codex 通过了 `distilly-plugin` Plugin 的核验。其他尚无已核验 Plugin binding 的本地 Skill 宿主，可以由用户明确选择维护中的 `dot-skill` 分支安装 Legacy Skill：
+目前只有 Codex 具备已核验的 `distilly-plugin` briefing capacity。OpenClaw 和 Hermes 已有 compatibility binding，但还没有 exact capacity fixture。其他尚无已核验 Plugin binding 的本地 Skill 宿主，可以由用户明确选择维护中的 `dot-skill` 分支安装 Legacy Skill：
 
 ```bash
 git clone --single-branch --branch dot-skill --depth 1 \
@@ -42,6 +44,6 @@ git -C <host-skills-dir>/distilly rev-parse HEAD
 
 ## 当前范围
 
-预览版支持用户明确选择的 TXT、Markdown、JSON、SRT/VTT 文件、粘贴文本和公开 URL。它可以创建人物、生成完整临时 prompt、接收纠正、审核版本，并在确认后安装长期人物 Skill。Codex 已核验；Claude Code、OpenClaw、Hermes、DeepSeek Harness（DSH）、Pi agent、Grok Build、OpenCode 和 Grok Bot 的原生 Plugin binding 仍需社区补充 fixture，其中 Grok Bot 还没有核验的本地仓库导入。
+预览版支持用户明确选择的 TXT、Markdown、JSON、SRT/VTT 文件、粘贴文本和公开 URL。它可以创建人物、生成完整临时 prompt、接收纠正、审核版本，并在确认后安装长期人物 Skill。Codex 已核验 briefing。OpenClaw 和 Hermes 已通过安装、发现和五工具的本地 compatibility smoke 检查，但要让 briefing setup 成功仍需要 exact capacity fixture。Claude Code、DeepSeek Harness（DSH）、Pi agent、Grok Build、OpenCode 和 Grok Bot 的原生 Plugin binding 仍需社区补充 fixture，其中 Grok Bot 还没有核验的本地仓库导入。
 
 请查看[路线图](../../ROADMAP.md)和[2026-09 更新](../../UPDATES.md)。

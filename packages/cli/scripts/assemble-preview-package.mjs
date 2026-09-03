@@ -179,6 +179,21 @@ const assemble = async (staging) => {
     join(repositoryRoot, "plugins/codex/skills"),
     join(staging, "plugins/codex/skills"),
   );
+  // OpenClaw consumes the Claude-compatible bundle, while Hermes consumes the
+  // shared canonical Skill directly. Keep both source trees in the verified
+  // runtime package so lifecycle setup never reaches back into the checkout.
+  await copyRegularFile(
+    join(repositoryRoot, "plugins/claude-code/.claude-plugin/plugin.json"),
+    join(staging, "plugins/claude-code/.claude-plugin/plugin.json"),
+  );
+  await copyTree(
+    join(repositoryRoot, "plugins/claude-code/skills"),
+    join(staging, "plugins/claude-code/skills"),
+  );
+  await copyTree(
+    join(repositoryRoot, "plugins/shared/skills"),
+    join(staging, "plugins/shared/skills"),
+  );
 
   const bootstrap = `#!/bin/sh\nset -eu\nroot=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)\nexec node "$root/packages/cli/lib/bin.js" "$@"\n`;
   await writeFile(join(staging, "distilly"), bootstrap, { flag: "wx", mode: 0o700 });

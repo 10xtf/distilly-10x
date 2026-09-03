@@ -24,13 +24,15 @@ node packages/cli/lib/bin.js doctor --host codex
 node packages/cli/lib/bin.js uninstall --host codex
 ```
 
+OpenClaw와 Hermes에는 이제 로컬 호환 binding이 있습니다. OpenClaw는 Claude 호환 bundle을 설치하고 발견하며, Hermes는 관리형 Skill을 설치하고 wrapper와 설정을 통해 같은 MCP 서버를 등록합니다. 두 binding 모두 설치·발견·5개 도구 smoke check를 실행합니다. 이 릴리스에는 두 호스트의 exact briefing-capacity fixture가 아직 없으므로 setup은 briefing 전에 fail-closed하고 완전한 distillation 지원을 주장하지 않습니다.
+
 모델에 노출되는 MCP 계약은 정확히 다섯 가지 도구입니다: `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit`, `distilly_correct`.
 
 ## Legacy Skill 호환 모드
 
 위의 Node.js, pnpm, Codex 사전 조건은 네이티브 Codex Plugin에만 적용되며, Legacy 모드에는 Codex·Node.js·pnpm이 필요하지 않지만 전체 기존 흐름에는 호스트의 일반 Skill 지원과 filesystem·Bash·Python 기능이 필요합니다.
 
-현재 `distilly-plugin` Plugin이 검증된 호스트는 Codex뿐입니다. 아직 검증된 Plugin binding이 없는 로컬 Skill 호스트에서는 사용자가 `dot-skill` 브랜치의 유지 관리용 Legacy Skill을 명시적으로 설치할 수 있습니다.
+현재 `distilly-plugin` Plugin에서 briefing capacity가 검증된 호스트는 Codex뿐입니다. OpenClaw와 Hermes에는 호환 binding이 있지만 exact capacity fixture는 아직 없습니다. 아직 검증된 Plugin binding이 없는 로컬 Skill 호스트에서는 사용자가 `dot-skill` 브랜치의 유지 관리용 Legacy Skill을 명시적으로 설치할 수 있습니다.
 
 ```bash
 git clone --single-branch --branch dot-skill --depth 1 \
@@ -42,6 +44,6 @@ git -C <host-skills-dir>/distilly rev-parse HEAD
 
 ## 현재 범위
 
-사용자가 선택한 TXT, Markdown, JSON, SRT/VTT 파일과 붙여 넣은 텍스트, 공개 URL을 지원합니다. Codex는 검증 완료이며 Claude Code, OpenClaw, Hermes, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode, Grok Bot의 네이티브 Plugin binding에는 커뮤니티 fixture가 필요합니다. Grok Bot은 검증된 로컬 저장소 가져오기도 없습니다.
+사용자가 선택한 TXT, Markdown, JSON, SRT/VTT 파일과 붙여 넣은 텍스트, 공개 URL을 지원합니다. Codex는 briefing에 대해 검증 완료입니다. OpenClaw와 Hermes는 설치·발견·5개 도구 로컬 호환 smoke check를 통과하지만 briefing setup이 성공하려면 exact capacity fixture가 필요합니다. Claude Code, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode, Grok Bot의 네이티브 Plugin binding에는 커뮤니티 fixture가 필요하며, Grok Bot은 검증된 로컬 저장소 가져오기도 없습니다.
 
 [로드맵](../../ROADMAP.md)과 [2026-09 업데이트](../../UPDATES.md)를 참고하세요.

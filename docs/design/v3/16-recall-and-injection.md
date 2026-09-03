@@ -68,7 +68,7 @@ export interface HostInjector {
 }
 ~~~
 
-HostInjector 是 full HostBinding 创建的 interface，不单独注册，也不做 capability preflight。它只能包装中性 profile，不重新蒸馏一份“Claude 版”或“Codex 版”人物。Codex 与 Claude Code full binding 各创建 concrete injector 与 form renderer；injector 的长期投影只含自包含 Profile Skill 与 digest manifest，不复制原始材料。production Runtime 仍必须通过 `hosts.install` / `hosts.uninstall` transaction 持有安装记录与 RequestId 语义，不能让模型或 Panel 绕过 EngineClient 直接调用 injector。
+HostInjector 是 full HostBinding 创建的 interface，不单独注册，也不做 capability preflight。它只能包装中性 profile，不重新蒸馏一份“Claude 版”、 “Codex 版”、 “OpenClaw 版”或 “Hermes 版”人物。Codex、Claude Code、OpenClaw 与 Hermes full binding 各创建 concrete injector 与 form renderer；injector 的长期投影只含自包含 Profile Skill 与 digest manifest，不复制原始材料。production Runtime 仍必须通过 `hosts.install` / `hosts.uninstall` transaction 持有安装记录与 RequestId 语义，不能让模型或 Panel 绕过 EngineClient 直接调用 injector。
 
 ### 16.4 禁止写全局指令
 

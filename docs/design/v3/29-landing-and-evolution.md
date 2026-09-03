@@ -20,7 +20,8 @@
 12. **Built-in adapters 与 parsers**：建立 `@distilly/adapters`，按 §10.6 的白名单逐个交付 Lark、DingTalk、Slack、Xquik 与本地 parser；每个 provider 是独立 feature，使用离线 fixture，secret 只走 refs，DingTalk message history 与全部 browser private-chat capture 保持 unavailable。加入 composition-owned user collection service，但不增加 EngineMethodMap 或 MCP tool。
 13. **Single-writer production runtime**：全部方法已有真 handler后，交付 root-scoped connect-or-start/attach service、actor-bound clients、production MCP/Panel/CLI/setup、user collection service 与 teardown ownership；第二 writer fail closed。
 14. **Legacy import 与 fresh install**：只迁移真实 dot-skill fixtures，完成 clean install、doctor、upgrade/uninstall 与 Codex / Claude Code host reopen。
-15. **其它宿主、关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径或扩大 Developer Preview 的宿主宣称。
+15. **OpenClaw / Hermes compatibility binding**：OpenClaw 复用 Claude-compatible bundle 并在 owned extension tree 生成绝对 launcher 的 `.mcp.json`；Hermes 使用 managed Skill、Distilly-owned wrapper 与 `config.yaml`，关闭 auxiliary resources/prompts；两者都运行真实 discovery/config smoke，但没有 exact capacity evidence 时保持 `host_unsupported`，不宣称可蒸馏。
+16. **其它宿主、关系、Bot、TUI、后台 executor 与 Catalog**：按真实需求分别立项，不能阻塞蒸馏主路径或扩大 Developer Preview 的宿主宣称。
 
 前一 feature 未完成可审查提交、设计/standing docs 与验收时，不开始下一 feature。任何迁移 feature 都禁止 dual-write、长期 adapter 或“先保留以防万一”的未发布格式兼容层。
 
@@ -72,12 +73,12 @@
 ### 29.5 宿主与安全验收
 
 - no web、no extraction、no file、subrun no MCP 都走明确 fallback；
-- Developer Preview 的 setup / doctor / fresh-install host matrix 恰为 Codex 与 Claude Code；其它宿主不出现在可安装或已验证列表；
+- Developer Preview 的 verified-capacity setup / fresh-install host matrix 恰为 Codex 与 Claude Code；OpenClaw/Hermes 可以出现在 compatibility binding 的安装/发现检查中，但没有 exact evidence 时不出现在可蒸馏或 successful fresh-install 列表；
 - 公开人物、创作者与私人联系人三种 source portfolio 都到达 traceable text、用户显式 file-ingest 的 raw-only、或 unavailable 之一；五工具路径不得声称自己保存 raw；
 - CLI / Panel credentialed collection 只从 secret refs 解析凭据，Lark 中国/国际不跨区、DingTalk 消息历史零网络返回 `host_unsupported`、Slack 不越过 bot scope且尊重 provider limits / `Retry-After`、Xquik 每次使用有界 limit 和非持久 MeteredReadConsentPort 的直接用户确认；
 - 同一 artifact 的多个表示不提高 eligible source count，unknown provenance 也不提高 stable；
-- Step 9 Codex / Claude Code private UI capture 明确 unavailable 并走粘贴/导出；未来 full binding 只有通过 §27.5 的授权、隔离、只读、前台与零截图留存拒绝矩阵后才可报告 available；
-- Developer Preview 的源树与运行依赖不包含 browser / Playwright 私聊抓取，Codex / Claude Code full binding 也不注册 private-capture Controller；
+- Step 9 的 Codex、Claude Code、OpenClaw 与 Hermes private UI capture 都明确 unavailable 并走粘贴/导出；未来 full binding 只有通过 §27.5 的授权、隔离、只读、前台与零截图留存拒绝矩阵后才可报告 available；
+- Developer Preview 的源树与运行依赖不包含 browser / Playwright 私聊抓取，四个 full binding 也不注册 private-capture Controller；
 - 恶意材料不能改变工具序列或获得 secret；
 - actor、version id、claim id 与 quality 不能由模型输入；
 - Panel 的 `/rpc` 覆盖完整 EngineMethodMap，`/sources` 覆盖 UserCollectionMethodMap，二者都双向 parse；所有 mutation 使用 token/route/method/requestId/params-bound 60-second one-use nonce；四个 POST endpoint 都要求 exact Bearer/Host/Origin；4 MiB request、16 MiB bounded response、16 KiB header/SSE frame、fixed static allowlist/symlink 与 CSP 拒绝全部通过；

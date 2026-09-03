@@ -55,6 +55,9 @@ try {
   await mkdir(home);
   await mkdir(hostBin);
   await executable("codex", "codex-cli 0.146.0");
+  await executable("claude", "2.1.221 (Claude Code)");
+  await executable("openclaw", "OpenClaw 2026.3.24 (af6f32f)");
+  await executable("hermes", "Hermes Agent v0.9.0 (2026.4.13)");
 
   assert.match(run("setup", "--host", "codex"), /Restart the host/u);
   const doctor = JSON.parse(run("doctor"));
@@ -71,19 +74,30 @@ try {
   assert.equal(unavailable.status, 2);
   assert.equal(unavailable.stdout, "");
   assert.match(unavailable.stderr, /unavailable Developer Preview command/u);
-  const claudeDeferred = spawnSync(process.execPath, [cliEntry, "setup", "--host", "claude-code"], {
+  for (const [host, ownedPath] of [
+    ["claude-code", [".claude", "skills", "distilly"]],
+    ["openclaw", [".openclaw", "extensions", "distilly"]],
+    ["hermes", [".hermes", "skills", "distilly"]],
+  ]) {
+    const deferred = spawnSync(process.execPath, [cliEntry, "setup", "--host", host], {
+      cwd: packageRoot,
+      env: environment,
+      encoding: "utf8",
+    });
+    assert.equal(deferred.status, 1);
+    assert.equal(deferred.stdout, "");
+    assert.match(deferred.stderr, /verified Distilly briefing capacity/u);
+    assert.equal(await exists(join(home, ...ownedPath)), false);
+  }
+
+  const unsupported = spawnSync(process.execPath, [cliEntry, "setup", "--host", "other-host"], {
     cwd: packageRoot,
     env: environment,
     encoding: "utf8",
   });
-  assert.equal(claudeDeferred.status, 1);
-  assert.equal(claudeDeferred.stdout, "");
-  assert.match(
-    claudeDeferred.stderr,
-    /Legacy Skill compatibility guide: https:\/\/github\.com\/titanwings\/distilly\/blob\/distilly-plugin\/INSTALL\.md#legacy-skill-compatibility-for-non-codex-hosts/u,
-  );
-  assert.match(claudeDeferred.stderr, /did not switch modes/u);
-  assert.equal(await exists(join(home, ".claude", "skills", "distilly")), false);
+  assert.equal(unsupported.status, 1);
+  assert.equal(unsupported.stdout, "");
+  assert.match(unsupported.stderr, /Legacy Skill compatibility guide/u);
 
   const codexMcp = JSON.parse(
     await readFile(join(home, "plugins", "distilly", ".mcp.json"), "utf8"),

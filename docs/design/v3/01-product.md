@@ -10,7 +10,7 @@
 
 ### 1.2 首个可用版本的六个承诺
 
-1. **零额外 LLM key。** Developer Preview 只支持 Codex 与 Claude Code，并使用宿主已有模型完成调研与蒸馏；Distilly 引擎本身不调用模型。用户显式启用的来源适配器可以需要其来源系统凭据，但那不是模型 key，也不能进入模型上下文。
+1. **零额外 LLM key。** Developer Preview 提供 Codex、Claude Code、OpenClaw 与 Hermes 的 binding，并使用宿主已有模型完成调研与蒸馏；只有具备 exact verified capacity evidence 的宿主才可进入 briefing。Distilly 引擎本身不调用模型。用户显式启用的来源适配器可以需要其来源系统凭据，但那不是模型 key，也不能进入模型上下文；OpenClaw / Hermes 在缺少匹配证据时必须 fail closed，不能伪造容量或成功蒸馏。
 2. **本地事实。** 材料、画像、证据、版本与 correction 默认只在用户明确选择的 DISTILLY_ROOT。
 3. **聊天发起。** 用户只需说“调研并蒸馏 X”；不先学习队列、哈希或 schema。
 4. **证据可见。** 每条人物判断都能从面板回到确切材料和原文 quote。
@@ -49,6 +49,8 @@
 在干净机器上，不登录 Distilly、不给额外 LLM key，用户通过 Codex 或 Claude Code 对一个公开人物完成：
 
 research → ingest(enqueue now) → pending brief → host distill → commit → panel evidence review → next-chat get。
+
+这一定义当前只由 Codex 与 Claude Code 的 verified-capacity 路径承担。OpenClaw 与 Hermes 的 compatibility binding 可以独立验证安装、发现和五工具配置，但在取得同等 exact evidence 前不扩大首发蒸馏宿主宣称。
 
 缺少 create、briefing、证据 validator、fresh-install runtime 或 panel 中任意一项，都不叫首个可用版本。
 

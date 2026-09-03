@@ -132,6 +132,10 @@ export interface HostCommandRunner {
     readonly executablePath: string;
     readonly args: readonly string[];
     readonly homeDirectory: string;
+    /** Environment values owned by the host binding (never secret values). */
+    readonly environment?: Readonly<Record<string, string | undefined>>;
+    /** Optional bounded stdin for a host command with an explicit confirmation prompt. */
+    readonly input?: string;
   }): Promise<HostCommandResult>;
 }
 
@@ -150,6 +154,18 @@ export interface CodexHostBindingOptions extends FullHostBindingOptions {
 
 /** Claude Code full-binding inputs. */
 export type ClaudeCodeHostBindingOptions = FullHostBindingOptions;
+
+/** OpenClaw full-binding inputs for its Claude-compatible bundle surface. */
+export interface OpenClawHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
+/** Hermes full-binding inputs for its Skill plus stdio-MCP compatibility surface. */
+export interface HermesHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
 
 export type HostQuestion =
   | { readonly kind: "short_text"; readonly prompt: string }

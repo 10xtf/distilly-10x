@@ -5,7 +5,7 @@
 ### 19.1 CLI
 
 ~~~text
-distilly setup --host codex|claude-code
+distilly setup --host codex|claude-code|openclaw|hermes
 distilly doctor [--host <host>]
 distilly upgrade [--version <version>]
 distilly uninstall --host <host>
@@ -38,7 +38,7 @@ distilly restore --from <path> --confirm <manifest-digest>
 distilly migrate --from <legacy-skill-dir>
 ~~~
 
-CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。上表是 production CLI 的最终命令面，不允许早期 slice 注册一组会对数据命令返回“尚未实现”的占位 shell。repo-local Developer Preview 只暴露已真实接通的 `setup --host codex|claude-code`、`doctor`、`uninstall --host ...` 与 plugin-owned `mcp --host ...`；其它数据命令在 §29 production composition slice 落地前不进入 help 或稳定 exports。
+CLI 只解析、组合 EngineClient、格式化结果和退出码。测试调用真实 binary entry，不直接测 private command helper 代替。上表是 production CLI 的最终命令面，不允许早期 slice 注册一组会对数据命令返回“尚未实现”的占位 shell。repo-local Developer Preview 暴露 `setup --host codex|claude-code|openclaw|hermes`、`doctor`、`uninstall --host ...` 与 plugin-owned `mcp --host ...`；OpenClaw/Hermes 在 binding 能完成宿主侧安装/发现检查，但仍须先取得 exact verified capacity，缺证据时 setup 在写入宿主配置前返回 `host_unsupported`。其它数据命令在 §29 production composition slice 落地前不进入 help 或稳定 exports。
 
 `source configure` 只保存非敏感配置与 secret reference；需要新建 keychain secret 时使用 TTY 隐藏输入，不接受明文 secret flag。`source collect` 先显示 adapter、resolved subject、resource、time range 与 limit，再由直接用户动作执行；非交互 Xquik 调用还必须给出与 `--limit` 数值相同的 `--confirm-billable-limit`，缺失或不一致时在解析 secret 或发网络请求前失败。source 子命令不注册成 MCP tool，也不允许 canonical skill 用 shell 权限替用户绕过确认。
 
@@ -54,7 +54,7 @@ CLI-owned draft envelope schemaVersion=1，包含 `briefing`（HostDistillBriefi
 
 ### 19.2 Setup 不能依赖 PATH 运气
 
-npx distilly@VERSION setup 是最终 bootstrap 入口，只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。发布前的 `0.1.0-preview.1` Codex-first 包只支持 macOS/Linux、已有真实容量证据的 Codex exact version 与当前 release manifest；它从 production build output 组装无 symlink、无 workspace source/dependency、无测试 fake 的自包含 runtime，setup 校验逐文件 digest 后原子复制到 `~/.distilly/runtime/<version>/`，再写指向该副本的绝对 launcher。package assembler 的强制重建只能在新 staging 包完成后替换仍通过完整 manifest/digest 校验的旧 Distilly artifact；普通目录、symlink 或已被修改的输出一律保留并失败，不能对任意 `--output` 递归删除。解压目录删除后 doctor、MCP、Panel、人物 Skill 安装和 uninstall 仍从版本化副本运行。它不开启 upgrade；Claude Code 保留 full binding 但在取得同等证据前不进入 CLI 可用面，完整 Developer Preview 的双宿主矩阵仍是后续验收。两种 setup 均遵循下列目标；Codex-first Preview 当前完成 1–5、7–8，真实 initialize/tools-list 由 packaged fresh-install E2E 验证而非伪造 setup 成功：
+npx distilly@VERSION setup 是最终 bootstrap 入口，只有 complete EngineRuntime、LocalRuntime、production CLI/MCP composition、Panel presenter 和 correction 都已落地后才发布。发布前的 `0.1.0-preview.1` Codex-first 包只支持 macOS/Linux、已有真实容量证据的 Codex exact version 与当前 release manifest；它从 production build output 组装无 symlink、无 workspace source/dependency、无测试 fake 的自包含 runtime，setup 校验逐文件 digest 后原子复制到 `~/.distilly/runtime/<version>/`，再写指向该副本的绝对 launcher。package assembler 的强制重建只能在新 staging 包完成后替换仍通过完整 manifest/digest 校验的旧 Distilly artifact；普通目录、symlink 或已被修改的输出一律保留并失败，不能对任意 `--output` 递归删除。解压目录删除后 doctor、MCP、Panel、人物 Skill 安装和 uninstall 仍从版本化副本运行。它不开启 upgrade；Claude Code、OpenClaw 与 Hermes 保留 full binding，但在取得与 Codex 同等 exact capacity evidence 前不进入 CLI 的 verified briefing 可用面。OpenClaw/Hermes 的兼容安装不通过 synthetic fixture 冒充容量，Hermes 也不引入 Python plugin。两种 setup 均遵循下列目标；Codex-first Preview 当前完成 1–5、7–8，真实 initialize/tools/list 由 packaged fresh-install E2E 验证而非伪造 setup 成功：
 
 1. 检查 Node、平台、目标宿主与写权限；
 2. 把精确版本 runtime 安装到 ~/.distilly/runtime/<version>/；
@@ -113,7 +113,7 @@ handler 把 WireRequest.requestId 原样作为 MutationContext 传入 client；S
 
 解析后的 ToolOutput 是唯一结果值。MCP CallToolResult 精确使用 `structuredContent: parsedOutput` 与 `content: [{ type: "text", text: JSON.stringify(parsedOutput) }]`；content text 解码后必须与 structuredContent 深相等。domain、invalid_input、presenter failure 与 unexpected 都作为正常的这份 structured WireFailure 返回，不依赖 MCP SDK generic `isError` / JSON-RPC error 承载产品错误。只有 transport 在连一份合法 WireFailure 都无法序列化时才允许协议级失败。
 
-MCP 包自己的 stdio conformance smoke 仍由 test-only child 注入覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，以隔离验证 descriptor、handler、envelope 与 transport 生命周期。CLI built smoke 从真实 binary 执行 Codex setup 并拒绝尚无证据的 Claude activation，经安装后的绝对 launcher 启动 plugin-owned `mcp --host codex`，在真实临时 `~/.distilly` SQLite root 上完成 initialize 与恰好五个 tools/list，再执行 uninstall 并验证 root 数据保留。独立的真实 Codex fixture 通过当前 descriptor/serializer 验证 65,536-byte tool result 的 structured/text 深相等、65,536-byte complete briefing 与两个模型可见尾标。Codex packaged fresh-install E2E 另从 production bundle 在含空格和非 ASCII 的临时路径 setup，删除解压目录后用官方 Codex listing 与 MCP client 验证 release/server/五工具，完成 create→ingest→brief→commit→prompt→correction→Panel promote→显式人物 Skill install→新 Codex 进程发现，并证明 Plugin uninstall 删除 runtime/plugin 但保持 SQLite 与人物 Skill byte-identical。它证明 `0.1.0-preview.1` Codex 自包含 Preview，不证明跨进程共享 writer、Claude activation 或 production upgrade。
+MCP 包自己的 stdio conformance smoke 仍由 test-only child 注入覆盖全部 EngineMethodMap 的 deterministic fake EngineClient 与 fake ReviewPresenter，以隔离验证 descriptor、handler、envelope 与 transport 生命周期。CLI built smoke 从真实 binary 执行 Codex setup 并拒绝尚无证据的 Claude、OpenClaw 或 Hermes briefing activation，经安装后的绝对 launcher 启动 plugin-owned `mcp --host codex`，在真实临时 `~/.distilly` SQLite root 上完成 initialize 与恰好五个 tools/list，再执行 uninstall 并验证 root 数据保留。独立的真实 Codex fixture 通过当前 descriptor/serializer 验证 65,536-byte tool result 的 structured/text 深相等、65,536-byte complete briefing 与两个模型可见尾标。Codex packaged fresh-install E2E 另从 production bundle 在含空格和非 ASCII 的临时路径 setup，删除解压目录后用官方 Codex listing 与 MCP client 验证 release/server/五工具，完成 create→ingest→brief→commit→prompt→correction→Panel promote→显式人物 Skill install→新 Codex 进程发现，并证明 Plugin uninstall 删除 runtime/plugin 但保持 SQLite 与人物 Skill byte-identical。OpenClaw/Hermes compatibility smoke 另外验证 bundle/managed Skill、wrapper、config 与五工具 discovery；它们不在没有 exact capacity evidence 时声称完整 briefing。该组测试证明 `0.1.0-preview.1` Codex 自包含 Preview 与两项宿主兼容接线，不证明跨进程共享 writer、Claude activation 或 production upgrade。
 
 ~~~text
 plugins/
@@ -177,9 +177,9 @@ export interface PluginReleaseManifestV1 {
 }
 ~~~
 
-releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
+releaseVersion 是无 `v` 前缀的 exact SemVer，唯一来源为 `packages/mcp/package.json.version`；Codex 与 Claude Code plugin.json 的 version、MCP serverInfo.version 与 release manifest 必须逐字相同。canonicalSkill.files 使用上述 path order。targets 固定按 HostName UTF-8 bytes 排序，且只有下列两个 exact entry：Claude Code 为 `pluginRoot=plugins/claude-code`、`pluginManifestPath=plugins/claude-code/.claude-plugin/plugin.json`、`skillRoot=plugins/claude-code/skills/distilly`；Codex 为对应的 `plugins/codex`、`plugins/codex/.codex-plugin/plugin.json`、`plugins/codex/skills/distilly`。OpenClaw 与 Hermes 不新增 release-manifest target：OpenClaw 在安装时复用 Claude-compatible bundle，Hermes 在安装时复用 `plugins/shared/skills/distilly`。每个 pluginManifestDigest 对 assembler 写入 version 后的 manifest raw bytes 计算，每个 skillDigest 必须等于 canonicalSkill.digest。manifest 不允许额外字段，以 §6.3 compact canonical JSON 加唯一尾 LF 写出；check mode 在临时目录重算全部 outputs并做 raw-byte diff。
 
-Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 source-assembly fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target、runtime bundle 或 installable archive引用；source release tree 单独存在时因此不声称可启动 MCP。full HostBinding 不读取或替换模板内容，而只在 owned install tree 中根据受信 absolute launcher 直接生成宿主实际读取的 `.mcp.json`，Codex companion shape 为 `{mcpServers:{distilly:{command,args}}}`，参数固定 `mcp --host codex`；Claude Code 使用同一顶层 companion shape 与自己的固定 host 参数。packaged fresh-install E2E 做 initialize/tools-list 与官方宿主 discovery；最终 production setup 仍需内置同等只读 smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)。
+Codex 的 discovery manifest path 固定 `.codex-plugin/plugin.json`，Claude Code 固定 `.claude-plugin/plugin.json`；manifest 中出现的 component path 必须相对 plugin root 并带 `./` 前缀。两家的 `.mcp.json.template` 都只是 source-assembly fixture，必须包含 sentinel `__DISTILLY_LAUNCHER_ABSOLUTE_PATH__`，不得被 platform plugin manifest、release manifest target、runtime bundle 或 installable archive引用；source release tree 单独存在时因此不声称可启动 MCP。full HostBinding 不读取或替换模板内容，而只在 owned install tree 中根据受信 absolute launcher 直接生成宿主实际读取的 `.mcp.json`，Codex companion shape 为 `{mcpServers:{distilly:{command,args}}}`，参数固定 `mcp --host codex`；Claude Code 使用同一顶层 companion shape 与自己的固定 host 参数。OpenClaw 读取同一 Claude-compatible bundle，但把 `.mcp.json` 写在 `~/.openclaw/extensions/distilly` owned tree，并只用 `openclaw plugins inspect` 验证 bundle/MCP discovery；它不通过全局 MCP entry 接管用户配置。Hermes 不读取 plugin manifest 或 sentinel template，而把 canonical Skill 安装到 `~/.hermes/skills/distilly`，以 `~/.distilly/bin/distilly-hermes` wrapper 和 `~/.hermes/config.yaml` 注册 stdio MCP；`resources` / `prompts` auxiliary surfaces 必须关闭，使模型仍只见五个 Distilly tools。packaged fresh-install E2E 做 Codex/Claude initialize-tools-list 与 OpenClaw/Hermes discovery/config smoke；没有 exact capacity evidence 的 OpenClaw/Hermes setup 仍 fail closed。最终 production setup 仍需内置同等只读 smoke。源仓不靠 symlink 作为发行契约：zip、npm 与 Windows 对 symlink 支持不一致。[Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)；[Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)；[OpenClaw plugin bundles](https://docs.openclaw.ai/plugins/bundles)；[OpenClaw plugin tools](https://docs.openclaw.ai/tools/plugin)；[Hermes Agent](https://github.com/NousResearch/Hermes-Agent)。
 
 ### 19.5 三种分发概念
 
@@ -214,5 +214,7 @@ Hook 不读对话私自 ingest、不直写文件、不在无 consent 时后台 r
 5. 本地事实与 Panel 可见；
 6. 下一次 get 成功；
 7. uninstall 只移除插件投影与 launcher，不删除人物数据。
+
+上述完整闭环当前只计入 Codex / Claude Code 的 verified-capacity 宿主。OpenClaw / Hermes 的同一检查在没有匹配 evidence 时只运行 compatibility install、discovery、config 与五工具 smoke；不能把 smoke 结果写成 briefing 成功。
 
 ---

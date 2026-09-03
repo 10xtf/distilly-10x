@@ -32,8 +32,11 @@ export interface PreviewCliEnvironment {
 
 const parseHost = (value: string | undefined): HostName => {
   if (value === BUILTIN_HOSTS.codex) return BUILTIN_HOSTS.codex;
+  if (value === BUILTIN_HOSTS.claudeCode) return BUILTIN_HOSTS.claudeCode;
+  if (value === BUILTIN_HOSTS.openclaw) return BUILTIN_HOSTS.openclaw;
+  if (value === BUILTIN_HOSTS.hermes) return BUILTIN_HOSTS.hermes;
   throw new Error(
-    "Native Plugin setup is verified only for codex. For another host, explicitly use the Legacy Skill compatibility guide: https://github.com/titanwings/distilly/blob/distilly-plugin/INSTALL.md#legacy-skill-compatibility-for-non-codex-hosts. Distilly did not switch modes.",
+    "Unknown host. Native bindings are available for codex, claude-code, openclaw, and hermes. Other hosts use the explicit Legacy Skill compatibility guide: https://github.com/titanwings/distilly/blob/distilly-plugin/INSTALL.md#legacy-skill-compatibility-for-hosts-without-a-verified-plugin-binding. Distilly did not switch modes.",
   );
 };
 
@@ -114,11 +117,15 @@ const help = `Distilly Developer Preview
 
 Usage:
   distilly setup --host codex
-  distilly doctor [--host codex]
-  distilly install <subject-id> --host codex
-  distilly uninstall --host codex
+  distilly setup --host claude-code|openclaw|hermes
+  distilly doctor [--host <host>]
+  distilly install <subject-id> --host <host>
+  distilly uninstall --host <host>
+  # <host>: codex | claude-code | openclaw | hermes
 
-Non-Codex hosts:
+The four host bindings share the same five-tool MCP contract. Setup remains
+fail-closed until this release has an exact verified capacity fixture for the
+selected host version; no synthetic capacity is used. Other hosts:
   Use the explicit Legacy Skill compatibility path documented in INSTALL.md.
 `;
 
@@ -165,7 +172,7 @@ export const runPreviewCli = async (
   }
   if (command === "install") {
     if (args.length !== 3 || args[1] !== "--host") {
-      throw new Error("This command requires <subject-id> --host codex.");
+      throw new Error("This command requires <subject-id> --host <host>.");
     }
     const subjectId = subjectIdSchema.parse(args[0]);
     const host = parseHost(args[2]);

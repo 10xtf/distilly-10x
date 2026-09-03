@@ -144,6 +144,9 @@ const parseManifest = (bytes: Uint8Array): RuntimeManifest => {
     "plugins/release-manifest.json",
     "plugins/codex/.codex-plugin/plugin.json",
     "plugins/codex/skills/distilly/SKILL.md",
+    "plugins/claude-code/.claude-plugin/plugin.json",
+    "plugins/claude-code/skills/distilly/SKILL.md",
+    "plugins/shared/skills/distilly/SKILL.md",
   ]) {
     if (!paths.includes(required)) {
       throw new Error(`The Preview runtime package is missing ${required}.`);

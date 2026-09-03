@@ -63,6 +63,8 @@ export type BriefContractDigest = Branded<
 export const BUILTIN_HOSTS = {
   codex: "codex" as HostName,
   claudeCode: "claude-code" as HostName,
+  openclaw: "openclaw" as HostName,
+  hermes: "hermes" as HostName,
 } as const;
 
 export const BUILTIN_PEOPLE_SPACE_ID =

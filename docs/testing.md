@@ -15,11 +15,11 @@ Tests describe shipped behavior. A green command is evidence only for the surfac
 
 ## Product acceptance
 
-The current Codex Preview is accepted only when a fresh temporary home completes setup, doctor, restart discovery, exactly five MCP tools, create/ingest/brief/commit/get/prompt, correction and Panel review, persistent Person Skill installation, and Plugin uninstall while preserving SQLite and the installed person Skill.
+The current Codex Preview is accepted only when a fresh temporary home completes setup, doctor, restart discovery, exactly five MCP tools, create/ingest/brief/commit/get/prompt, correction and Panel review, persistent Person Skill installation, and Plugin uninstall while preserving SQLite and the installed person Skill. OpenClaw and Hermes additionally have compatibility smoke for real bundle/Skill discovery and five-tool MCP configuration, but remain unverified for briefing capacity until their exact host/version fixtures are recorded.
 
 The package verifier must run the self-contained artifact from a path containing spaces and non-ASCII characters, delete the unpacked source after setup, and continue through the installed absolute launcher. Test fakes and sentinel placeholders are forbidden in the package.
 
-Claude Code and every future host need their own exact version/capacity fixture and clean-home acceptance run. Source compatibility or a copied Skill directory is not enough to call a host verified.
+Claude Code and every future host need their own exact version/capacity fixture and clean-home acceptance run. Source compatibility or a copied Skill directory is not enough to call a host verified; the same criterion applies to OpenClaw and Hermes.
 
 ## Review rules
 

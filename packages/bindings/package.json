@@ -1,7 +1,7 @@
 {
   "name": "@distilly/bindings",
   "version": "0.0.0",
-  "description": "Verified Codex and Claude Code host bindings for Distilly.",
+  "description": "Codex, Claude Code, OpenClaw, and Hermes host bindings for Distilly.",
   "license": "MIT",
   "type": "module",
   "engines": {

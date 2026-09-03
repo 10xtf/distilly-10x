@@ -15,11 +15,11 @@ const environment: PreviewCliEnvironment = {
 
 describe("Developer Preview CLI host boundary", () => {
   it.each([
-    ["setup", ["setup", "--host", "claude-code"]],
-    ["doctor", ["doctor", "--host", "claude-code"]],
-    ["uninstall", ["uninstall", "--host", "claude-code"]],
-    ["mcp", ["mcp", "--host", "claude-code"]],
-    ["person install", ["install", `subject_${"a".repeat(32)}`, "--host", "claude-code"]],
+    ["setup", ["setup", "--host", "other-host"]],
+    ["doctor", ["doctor", "--host", "other-host"]],
+    ["uninstall", ["uninstall", "--host", "other-host"]],
+    ["mcp", ["mcp", "--host", "other-host"]],
+    ["person install", ["install", `subject_${"a".repeat(32)}`, "--host", "other-host"]],
   ])(
     "offers an explicit legacy guide for unsupported %s without switching modes",
     async (_, argv) => {
@@ -32,7 +32,7 @@ describe("Developer Preview CLI host boundary", () => {
           stderr: { write: (value) => stderr.push(value) },
         }),
       ).rejects.toThrow(
-        "https://github.com/titanwings/distilly/blob/distilly-plugin/INSTALL.md#legacy-skill-compatibility-for-non-codex-hosts",
+        "https://github.com/titanwings/distilly/blob/distilly-plugin/INSTALL.md#legacy-skill-compatibility-for-hosts-without-a-verified-plugin-binding",
       );
 
       expect(stdout).toEqual([]);

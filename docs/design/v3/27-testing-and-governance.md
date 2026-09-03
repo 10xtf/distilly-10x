@@ -70,13 +70,13 @@ Storage crash tests只需要覆盖SQLite commit前/后、generic blob publicatio
 
 ### 27.5 Keyless host workflow
 
-完整 production FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 fixture：
+完整 production FakeHost conformance 至少有 Codex-like 与 Claude-like 两个 verified-capacity fixture；OpenClaw/Hermes 另有 compatibility fixture，只验证宿主安装/发现边界，不凭空提供 briefing capacity：
 
 clean root → get not_found → ingest(create) → research fixture materials → enqueue now → pending brief → fixed claim patch → commit → get / prompt → correct → review。
 
 这条 clean-root 流程不属于 injected-client stdio smoke。暂停的 Step 11a 文件 journal/staging/recovery 不构成 product conformance，也不作为新 CorrectionService 的基础。correct→review 只有在 correction 纯逻辑接到 SQLite authority、PanelLauncher/ReviewPresenter、全部 Core handlers 与 production single-writer composition 后才进入 FakeHost；更早的 fake correct/suspended result 只证明 handler shape，不能写成 correction、Panel 或 keyless product 已实现。
 
-Step 9 单独做 capability-binding conformance：HostPreflight runtime schema 必须接受且只接受 success(capabilities+capacity+evidence+warnings) 或 failure(capabilities+host_unsupported error+warnings)；success 强制 structuredToolCalls、evidence.kind/capacity.source 一致，failure 禁止 capacity/evidence。Codex / Claude Code factory 只消费 injected HostPreflightProvider 的 unknown payload，不探 HOME、PATH、进程或网络；provider throw、unknown-key、host/environment/source mismatch、gross-only limit、缺净预算与过期 fixture 都 fail closed，并 snapshot §17.2 exact fallback capabilities/non-retryable sanitized error。binding_fixture 必须绑定 exact host/version/environment/release/wire/canonical-skill digest，并在真实宿主验证公告 exact net budget 下完整的 structuredContent 与 JSON text duplication；tuple 任一字段变化必须重跑 fixture。两 builtin 一律 privateUiCapture=unavailable。HostRegistry 覆盖 capability/full 两分支、跨分支 duplicate 无 mutation、get exact 与 list HostName UTF-8 稳定顺序；Injector/FormRenderer 不可单独注册。
+Step 9 单独做 capability-binding conformance：HostPreflight runtime schema 必须接受且只接受 success(capabilities+capacity+evidence+warnings) 或 failure(capabilities+host_unsupported error+warnings)；success 强制 structuredToolCalls、evidence.kind/capacity.source 一致，failure 禁止 capacity/evidence。四个 factory 只消费 injected HostPreflightProvider 的 unknown payload，不探 HOME、PATH、进程或网络；provider throw、unknown-key、host/environment/source mismatch、gross-only limit、缺净预算与过期 fixture 都 fail closed，并 snapshot §17.2 exact fallback capabilities/non-retryable sanitized error。binding_fixture 必须绑定 exact host/version/environment/release/wire/canonical-skill digest，并在真实宿主验证公告 exact net budget 下完整的 structuredContent 与 JSON text duplication；tuple 任一字段变化必须重跑 fixture。四个 builtin 一律 privateUiCapture=unavailable。OpenClaw compatibility fixture 还必须证明 Claude bundle、owned `.mcp.json`、global-entry preservation 与 `plugins inspect` discovery；Hermes compatibility fixture 必须证明 managed Skill、owned wrapper/config、`resources` / `prompts` 关闭、恰好五个 tools，以及未知 config 字段 fail closed；这些 fixture 不能被当成 capacity evidence。HostRegistry 覆盖 capability/full 两分支、跨分支 duplicate 无 mutation、get exact 与 list HostName UTF-8 稳定顺序；Injector/FormRenderer 不可单独注册。
 
 还要覆盖：
 
@@ -90,9 +90,9 @@ Step 9 单独做 capability-binding conformance：HostPreflight runtime schema �
 
 FakeHost 不声称证明真实宿主 UI；capability binding 只证明 manifest/capability/fixture。kind=full factory 的临时 HOME fixture 证明 launcher rendering、owned install/uninstall、doctor、marketplace preservation、injector 与 person-Skill digest refusal；真实宿主重开、五工具与 runtime handshake 仍必须由 packaged fresh-install E2E 证明。
 
-内置 adapter / parser conformance 全部离线运行：HTTP mock 覆盖 Lark 中国与国际 endpoint 不混用、scope、pagination、limit、bounded retry 与 secret redaction；Slack 只返回 bot 已加入范围，按不同 provider page limits / cursors 工作并逐字尊重 bounded `Retry-After`；DingTalk message-history 请求在零网络调用下返回 non-retryable `host_unsupported`；Xquik 的 MeteredReadConsentPort declined/throw 与 subject/resource/objective/limit 不匹配都在解析 secret 和发网前拒绝。TXT / Markdown / JSON / Lark export / EML / MBOX / SRT / VTT / embedded-text PDF 使用真实格式 fixture；Lark export / MBOX 覆盖 exact subject hints、歧义/缺失拒绝、稳定聚合、1,048,576-byte 边界与 +1 无 material，扫描 PDF / image 在没有已验证宿主提取能力时明确 unparsed / unavailable。CLI 与 Panel 的等价 collect fixture 产生相同规范化 MaterialInput、provenance 与 ingest 结果，并断言配置、payload、日志、错误和诊断中没有 secret。Codex / Claude Code 全流程断言没有 browser、Playwright、Computer Use、截图或 private-capture Controller 路径。
+内置 adapter / parser conformance 全部离线运行：HTTP mock 覆盖 Lark 中国与国际 endpoint 不混用、scope、pagination、limit、bounded retry 与 secret redaction；Slack 只返回 bot 已加入范围，按不同 provider page limits / cursors 工作并逐字尊重 bounded `Retry-After`；DingTalk message-history 请求在零网络调用下返回 non-retryable `host_unsupported`；Xquik 的 MeteredReadConsentPort declined/throw 与 subject/resource/objective/limit 不匹配都在解析 secret 和发网前拒绝。TXT / Markdown / JSON / Lark export / EML / MBOX / SRT / VTT / embedded-text PDF 使用真实格式 fixture；Lark export / MBOX 覆盖 exact subject hints、歧义/缺失拒绝、稳定聚合、1,048,576-byte 边界与 +1 无 material，扫描 PDF / image 在没有已验证宿主提取能力时明确 unparsed / unavailable。CLI 与 Panel 的等价 collect fixture 产生相同规范化 MaterialInput、provenance 与 ingest 结果，并断言配置、payload、日志、错误和诊断中没有 secret。Codex / Claude Code 全流程断言没有 browser、Playwright、Computer Use、截图或 private-capture Controller；OpenClaw/Hermes compatibility 流程另外断言不启动 browser/private capture，并保留各自的 bundle/managed-Skill 边界。
 
-未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。当前两个 full binding 与 capability binding 都不运行 available lane，只验证 unavailable 与 paste/export fallback。
+未来某个 full binding 首次报告 privateUiCapture=available 时，private UI capture conformance 还必须覆盖：第一帧前原生 consent；exact app/account/1:1 thread/range；OS permission 或 Always allow 不能绕过；错账号、错窗口、侧栏、通知、OTP/支付/secret 立即停止；群聊、附件、链接、scheduled/background/locked/subrun/executor 拒绝；无发送/删除/下载；屏幕 prompt injection 无效；audit stamp 不能由 MaterialInput 伪造；public/shareable/web/article/URI/artifact 等跨字段伪装被 engine 拒绝；grant replay 与授权后、ingest 前 revoke 被拒绝且 audit 保留 guard 的真实 reason；每个 start 在成功、engine ingest_rejected、coordinator_aborted 与 process recovery 下都恰有一个封闭 stop；成功与中止后 DISTILLY_ROOT、日志和诊断包都没有 screenshot；privacy purge 删除 transcript；host data policy unknown 返回 unsupported。稳定 locator 的 label 改名仍合到同 conversation，同名但不同 locator 不碰撞；无 locator 的 subject fallback 保守合一；create+fallback 在 hash 前绑定最终预分配 SubjectId；两个 runtime 与重启使用同一安装 audit key；原生 action 的 IngestResult 必须返回当前 task。fixture 只用合成窗口和合成聊天，不读取真实个人数据。当前四个 full binding 与 capability binding 都不运行 available lane，只验证 unavailable 与 paste/export fallback。
 
 ### 27.6 Panel
 
@@ -120,7 +120,7 @@ release-assembly gate 从 canonical root 递归覆盖 nested references/assets�
 从 Core closure + production composition 之后构建的发布包而不是 source；此前的 injected-client stdio child 不满足本节：
 
 - npx setup 写 versioned runtime 与绝对 launcher；
-- 两宿主 manifest schema；
+- Codex / Claude Code manifest schema；OpenClaw Claude-bundle discovery 与 Hermes managed-Skill/MCP-config smoke；
 - MCP tools/list 恰好五工具，且 name/title/description/schemas/hints 与 protocol snapshot 字节一致；
 - engine / plugin wire mismatch 拒绝；
 - skill copies 与 release manifest 的 canonical recursive tree digest 相同；
@@ -128,7 +128,7 @@ release-assembly gate 从 canonical root 递归覆盖 nested references/assets�
 - upgrade 原子切换且可 rollback；
 - uninstall 保留 DISTILLY_ROOT 人物事实。
 
-`0.1.0-preview.1` 已完成上述 Codex/macOS 纵向子集：package manifest 逐文件 digest、无 symlink/source/test/sentinel 扫描、含空格和非 ASCII 的 copy install、绝对 launcher、官方 Codex plugin/MCP/Skill 重开发现、server version 与五 descriptor、真实 SQLite/Panel/人物 Skill 主流程、解压目录移除后的运行，以及 uninstall 对 SQLite 与人物 Skill 的 byte-identical 保留。runtime 任一 owned byte 被改动时 doctor 失败且 uninstall 不删除该 runtime。尚未完成的本节项目是 Claude Code packaged host reopen、Windows separator、upgrade/rollback 与把只读 initialize smoke 内置到 setup；这些继续阻塞完整双宿主 Developer Preview，不回退 Codex-first 本地包的已验证范围。
+`0.1.0-preview.1` 已完成上述 Codex/macOS 纵向子集：package manifest 逐文件 digest、无 symlink/source/test/sentinel 扫描、含空格和非 ASCII 的 copy install、绝对 launcher、官方 Codex plugin/MCP/Skill 重开发现、server version 与五 descriptor、真实 SQLite/Panel/人物 Skill 主流程、解压目录移除后的运行，以及 uninstall 对 SQLite 与人物 Skill 的 byte-identical 保留。runtime 任一 owned byte 被改动时 doctor 失败且 uninstall 不删除该 runtime。OpenClaw/Hermes 的 compatibility smoke 只证明宿主侧 bundle/Skill 与 MCP discovery，不升级为 verified briefing capacity。尚未完成的本节项目是 Claude Code packaged host reopen、Windows separator、upgrade/rollback 与把只读 initialize smoke 内置到 setup；这些继续阻塞完整双宿主 Developer Preview，不回退 Codex-first 本地包的已验证范围。
 
 ### 27.8 门禁
 

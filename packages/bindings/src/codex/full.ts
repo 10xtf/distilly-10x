@@ -84,6 +84,7 @@ export const createCodexHostBinding = (options: CodexHostBindingOptions): HostBi
         options.release.releaseVersion,
         {
           host,
+          trustedRoot: homeDirectory,
           pluginRoot,
           transactionRoot: join(homeDirectory, ".distilly", "host-install"),
           platformManifestPath: PLATFORM_MANIFEST,
@@ -125,7 +126,7 @@ export const createCodexHostBinding = (options: CodexHostBindingOptions): HostBi
         });
         if (command.exitCode !== 0) throw commandFailed("uninstall");
       }
-      await uninstallPluginTree(pluginRoot, host);
+      await uninstallPluginTree(pluginRoot, host, homeDirectory);
       await uninstallMarketplaceEntry(homeDirectory);
     },
     doctor: () => doctorPluginTree(pluginRoot, host, options.release.releaseVersion),

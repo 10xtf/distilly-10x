@@ -133,6 +133,8 @@ describe("complete V3 protocol public contract", () => {
         "builtInHosts": {
           "claudeCode": "claude-code",
           "codex": "codex",
+          "hermes": "hermes",
+          "openclaw": "openclaw",
         },
         "builtInPeopleSpaceId": "space_00000000000000000000000000000001",
         "engineAdministrationMethodNames": [

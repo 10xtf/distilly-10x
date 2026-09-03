@@ -15,7 +15,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BUILTIN_HOSTS } from "@distilly/protocol";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   doctorPreview,
@@ -31,6 +31,7 @@ const FIXED_NOW = new Date("2026-08-31T12:00:00.000Z");
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(
     temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
   );
@@ -89,6 +90,19 @@ const packagedEnvironment = async (
     join(runtime, "plugins/codex/.codex-plugin/plugin.json"),
   );
   await cp(join(REPOSITORY_ROOT, "plugins/codex/skills"), join(runtime, "plugins/codex/skills"), {
+    recursive: true,
+  });
+  await mkdir(join(runtime, "plugins/claude-code/.claude-plugin"), { recursive: true });
+  await cp(
+    join(REPOSITORY_ROOT, "plugins/claude-code/.claude-plugin/plugin.json"),
+    join(runtime, "plugins/claude-code/.claude-plugin/plugin.json"),
+  );
+  await cp(
+    join(REPOSITORY_ROOT, "plugins/claude-code/skills"),
+    join(runtime, "plugins/claude-code/skills"),
+    { recursive: true },
+  );
+  await cp(join(REPOSITORY_ROOT, "plugins/shared/skills"), join(runtime, "plugins/shared/skills"), {
     recursive: true,
   });
   const files = (await packageFiles(runtime)).sort(compareUtf8);
@@ -315,6 +329,61 @@ exit 0
     await expect(setupPreviewHost(BUILTIN_HOSTS.claudeCode, environment)).rejects.toThrow(
       /verified Distilly briefing capacity/u,
     );
+    await expect(readFile(join(home, ".distilly", "install.json"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("accepts OpenClaw and Hermes host boundaries but fails closed without evidence", async () => {
+    const { root, home, environment } = await fixture();
+    vi.stubEnv("DISTILLY_TEST_SECRET", "must-not-cross-the-host-boundary");
+    const openclaw = join(root, "host-bin", "openclaw");
+    await writeFile(
+      openclaw,
+      `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  if [ -n "\${DISTILLY_TEST_SECRET:-}" ]; then
+    printf '%s\\n' 'Parent secret reached OpenClaw.' >&2
+    exit 1
+  fi
+  if [ "$OPENCLAW_STATE_DIR" != ${JSON.stringify(join(home, ".openclaw"))} ] || [ "$OPENCLAW_CONFIG_PATH" != ${JSON.stringify(join(home, ".openclaw", "openclaw.json"))} ]; then
+    printf '%s\\n' 'OpenClaw state was not isolated.' >&2
+    exit 1
+  fi
+  printf '%s\\n' 'OpenClaw 2026.3.24 (af6f32f)'
+fi
+exit 0
+`,
+      { mode: 0o755 },
+    );
+    await chmod(openclaw, 0o755);
+    const hermes = join(root, "host-bin", "hermes");
+    await writeFile(
+      hermes,
+      `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  if [ -n "\${DISTILLY_TEST_SECRET:-}" ]; then
+    printf '%s\\n' 'Parent secret reached Hermes.' >&2
+    exit 1
+  fi
+  if [ "$HERMES_HOME" != ${JSON.stringify(join(home, ".hermes"))} ]; then
+    printf '%s\\n' 'Hermes home was not isolated.' >&2
+    exit 1
+  fi
+  printf '%s\\n' 'Hermes Agent v0.9.0 (2026.4.13)'
+  printf '%s\\n' 'Project: hermes-agent'
+fi
+exit 0
+`,
+      { mode: 0o755 },
+    );
+    await chmod(hermes, 0o755);
+
+    for (const host of [BUILTIN_HOSTS.openclaw, BUILTIN_HOSTS.hermes]) {
+      await expect(setupPreviewHost(host, environment)).rejects.toThrow(
+        /verified Distilly briefing capacity/u,
+      );
+    }
     await expect(readFile(join(home, ".distilly", "install.json"))).rejects.toMatchObject({
       code: "ENOENT",
     });

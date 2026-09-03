@@ -18,7 +18,7 @@
 
 Distilly is a local-first product for turning a person's source material, working habits, judgment, and voice into a versioned **Person Profile for Agents**. The profile can be recalled temporarily during a run or explicitly installed as a long-lived host Skill. The storage authority stays local; no additional model API key is required.
 
-This repository now defaults to the unreleased `0.1.0-preview.1` Developer Preview on `distilly-plugin`. Codex is the first fully verified host. It is the default GitHub branch, but it is not a tagged release or an npm package yet.
+This repository now defaults to the unreleased `0.1.0-preview.1` Developer Preview on `distilly-plugin`. Codex is the first fully verified briefing host. OpenClaw and Hermes now have local compatibility bindings for installation, discovery, and the five-tool MCP surface; their setup remains fail-closed until an exact host/version capacity fixture is available. It is the default GitHub branch, but it is not a tagged release or an npm package yet.
 
 [Chinese](docs/lang/README_ZH.md) · [Español](docs/lang/README_ES.md) · [Deutsch](docs/lang/README_DE.md) · [日本語](docs/lang/README_JA.md) · [한국어](docs/lang/README_KO.md) · [Português](docs/lang/README_PT.md) · [Русский](docs/lang/README_RU.md)
 
@@ -58,9 +58,16 @@ To install one approved profile as a persistent Skill after a profile has been c
 node packages/cli/lib/bin.js install subject_<32 lowercase hex characters> --host codex
 ```
 
-## Non-Codex compatibility
+## Host compatibility and explicit Legacy fallback
 
-Codex uses the native Plugin preview above. Until another host has a verified Plugin binding, you can explicitly choose the maintained `dot-skill` branch as a **Legacy Skill compatibility mode**:
+Codex uses the native Plugin preview above. The Preview also includes compatibility bindings for OpenClaw and Hermes:
+
+- **OpenClaw** loads the Claude-compatible bundle from `~/.openclaw/extensions/distilly` and its real `.mcp.json`. Check discovery with `openclaw plugins inspect distilly --json`.
+- **Hermes** installs the canonical Skill at `~/.hermes/skills/distilly`, a managed wrapper at `~/.distilly/bin/distilly-hermes`, and an MCP entry in `~/.hermes/config.yaml`. `resources` and `prompts` are disabled so the exposed surface remains five tools; check it with `hermes mcp test distilly`.
+
+The CLI recognizes both hosts, but the current release has no exact capacity evidence for their installed versions. `setup --host openclaw` and `setup --host hermes` therefore return `host_unsupported` before writing an unverified integration. This is deliberate: compatibility discovery is not a claim that briefing/model capacity has been verified, and there is no automatic switch to the legacy implementation.
+
+Until a host has a verified Plugin binding, you can explicitly choose the maintained `dot-skill` branch as a **Legacy Skill compatibility mode**:
 
 > Install Distilly in Legacy Skill compatibility mode from the `dot-skill` branch into this host's normal Skills directory, using a clean checkout whose final directory is named `distilly`. Verify discovery and report the installed Git commit. Do not run Plugin setup or claim SQLite, five-tool MCP, Panel, or Plugin lifecycle support.
 
@@ -77,7 +84,7 @@ This is an explicit, separate file-based implementation—not an automatic runti
 
 ## The first usable flow
 
-After the restart, ask Codex to research and distill a person. Supply only the files, text, or public URLs you want included. Distilly then:
+On a host with a verified capacity fixture (currently Codex), restart the host and ask it to research and distill a person. Supply only the files, text, or public URLs you want included. Distilly then:
 
 1. resolves or creates the person;
 2. imports the selected material with deterministic local parsers;
@@ -100,8 +107,8 @@ Distilly never silently truncates a complete briefing or profile prompt. If a ve
 | --- | --- | --- |
 | Codex | Fully verified in this release branch | Native Plugin |
 | Claude Code | Binding included; exact host fixture still needed | Explicit `dot-skill` Legacy Skill |
-| OpenClaw | Community binding planned | Explicit `dot-skill` Legacy Skill |
-| Hermes | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| OpenClaw | Compatibility binding included; exact capacity fixture still needed | Claude-compatible bundle + discovery smoke |
+| Hermes | Compatibility binding included; exact capacity fixture still needed | Managed Skill + MCP configuration |
 | DeepSeek Harness (DSH) | Community binding planned | Explicit `dot-skill` Legacy Skill |
 | Pi agent | Community binding planned | Explicit `dot-skill` Legacy Skill |
 | Grok Build | Community binding planned | Explicit `dot-skill` Legacy Skill |
@@ -116,7 +123,7 @@ The first Preview accepts explicit local `TXT`, `Markdown`, `JSON`, and `SRT/VTT
 
 ## 📣 2026-09 update: help expand coding-agent Plugins
 
-Codex is the first verified Plugin path. We need community support to build and validate more coding-agent Plugin packages for **Claude Code, OpenClaw, Hermes, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode, and Grok Bot**. I will actively review those contributions and keep the public contracts, release digests, and host behavior aligned.
+Codex is the first verified Plugin path. OpenClaw and Hermes now have compatibility bindings, and we need community support to provide exact host/version capacity fixtures and restart evidence, then to build and validate more coding-agent Plugin packages for **Claude Code, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode, and Grok Bot**. I will actively review those contributions and keep the public contracts, release digests, and host behavior aligned.
 
 See the full call for contributors in [UPDATES.md](UPDATES.md) and the current priorities in [ROADMAP.md](ROADMAP.md).
 

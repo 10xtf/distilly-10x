@@ -72,7 +72,7 @@ export type HostPreflight =
     };
 ~~~
 
-unknown 不等于 available。canonical skill 只能使用已知存在的能力；无法探测时询问或走最低能力路径。success 必须有 `structuredToolCalls=true`、capacity 与 evidence，且 `capacity.source` 必须等于 `evidence.kind`；failure 不得带 capacity/evidence，error.code 必须是 host_unsupported 且 retryable=false，同一 session 不自动重试，remediation 可以要求升级、重启或安装匹配 fixture。maxContextTokens/maxToolResultBytes 只描述宿主公开的 gross capability，可用于 §16.2 recall 提示，绝不是 BriefCapacity 的推导输入。两种 evidence 都绑定 host、hostVersion、environment、releaseVersion、wireMajor=3 与 canonicalSkillDigest；host handshake 必须为该 exact active release 直接返回净预算。fixture id 另指向 schemaVersion=1 immutable record，capacity.source 固定 binding_fixture，并用真实宿主 fixture 验证公告 budget 下完整的 structuredContent 与 JSON text duplication。tuple 不完全匹配或任一公告净预算无法证明就失败，不能把 gross capability 或未实测值冒充净预算。`privateUiCapture=available` 仍必须满足 §10.2 的完整 conjunction，不能由“宿主有 vision/Computer Use”单字段推导；当前 Codex 与 Claude Code capability fixtures 都固定 `privateUiCapture=unavailable`，不创建 Controller，skill 走粘贴/导出 fallback。
+unknown 不等于 available。canonical skill 只能使用已知存在的能力；无法探测时询问或走最低能力路径。success 必须有 `structuredToolCalls=true`、capacity 与 evidence，且 `capacity.source` 必须等于 `evidence.kind`；failure 不得带 capacity/evidence，error.code 必须是 host_unsupported 且 retryable=false，同一 session 不自动重试，remediation 可以要求升级、重启或安装匹配 fixture。maxContextTokens/maxToolResultBytes 只描述宿主公开的 gross capability，可用于 §16.2 recall 提示，绝不是 BriefCapacity 的推导输入。两种 evidence 都绑定 host、hostVersion、environment、releaseVersion、wireMajor=3 与 canonicalSkillDigest；host handshake 必须为该 exact active release 直接返回净预算。fixture id 另指向 schemaVersion=1 immutable record，capacity.source 固定 binding_fixture，并用真实宿主 fixture 验证公告 budget 下完整的 structuredContent 与 JSON text duplication。tuple 不完全匹配或任一公告净预算无法证明就失败，不能把 gross capability 或未实测值冒充净预算。`privateUiCapture=available` 仍必须满足 §10.2 的完整 conjunction，不能由“宿主有 vision/Computer Use”单字段推导；当前 Codex、Claude Code、OpenClaw 与 Hermes capability/full bindings 都固定 `privateUiCapture=unavailable`，不创建 Controller，skill 走粘贴/导出 fallback。OpenClaw 与 Hermes 的 compatibility binding 不因完成宿主安装/发现就取得 capacity；只有 exact handshake 或匹配 binding fixture 才能进入 briefing。
 
 ### 17.2 HostBinding
 
@@ -142,6 +142,14 @@ export declare function createClaudeCodeCapabilityBinding(
   options: HostCapabilityBindingOptions,
 ): HostCapabilityBinding;
 
+export declare function createOpenClawCapabilityBinding(
+  options: HostCapabilityBindingOptions,
+): HostCapabilityBinding;
+
+export declare function createHermesCapabilityBinding(
+  options: HostCapabilityBindingOptions,
+): HostCapabilityBinding;
+
 export interface HostFormPresenter {
   ask<T extends HostQuestion>(input: {
     readonly host: HostName;
@@ -161,6 +169,8 @@ export interface HostCommandRunner {
     readonly executablePath: string;
     readonly args: readonly string[];
     readonly homeDirectory: string;
+    readonly environment?: Readonly<Record<string, string | undefined>>;
+    readonly input?: string;
   }): Promise<HostCommandResult>;
 }
 
@@ -177,12 +187,30 @@ export interface CodexHostBindingOptions extends FullHostBindingOptions {
 
 export type ClaudeCodeHostBindingOptions = FullHostBindingOptions;
 
+export interface OpenClawHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
+export interface HermesHostBindingOptions extends FullHostBindingOptions {
+  readonly executablePath: string;
+  readonly commandRunner?: HostCommandRunner;
+}
+
 export declare function createCodexHostBinding(
   options: CodexHostBindingOptions,
 ): HostBinding;
 
 export declare function createClaudeCodeHostBinding(
   options: ClaudeCodeHostBindingOptions,
+): HostBinding;
+
+export declare function createOpenClawHostBinding(
+  options: OpenClawHostBindingOptions,
+): HostBinding;
+
+export declare function createHermesHostBinding(
+  options: HermesHostBindingOptions,
 ): HostBinding;
 
 export declare class HostRegistry {
@@ -192,7 +220,7 @@ export declare class HostRegistry {
 }
 ~~~
 
-HostCapabilityBinding 只拥有可信 preflight；HostBinding 是 production composition 所需的 full contract，并额外创建 injector/form renderer、执行 plugin lifecycle/doctor，且可选择创建 private-capture controller。preflight 只存在于 binding 层：HostInjector、HostFormRenderer、canonical skill 与 runtime 不能各自重新探测或覆盖结果。两个 capability factory 不读 HOME/PATH、不 spawn 宿主 executable、不做网络或安装；它们只调用注入的 HostPreflightProvider，runtime-parse unknown payload，校验 factory host、HostContext.environment、evidence/capacity source 与 options.release 的 releaseVersion/wireMajor/canonicalSkillDigest，并强制 privateUiCapture=unavailable。provider 是可信边界，负责取得当前宿主版本，并只在 observed hostVersion 与 exact fixture 相等时返回 binding_fixture；production runtime 的 handshake/fixture loader 实现它。parse 或匹配失败归一成 ok=false 的 host_unsupported。Binding 只翻译：
+HostCapabilityBinding 只拥有可信 preflight；HostBinding 是 production composition 所需的 full contract，并额外创建 injector/form renderer、执行 plugin lifecycle/doctor，且可选择创建 private-capture controller。preflight 只存在于 binding 层：HostInjector、HostFormRenderer、canonical skill 与 runtime 不能各自重新探测或覆盖结果。四个 capability factory 不读 HOME/PATH、不 spawn 宿主 executable、不做网络或安装；它们只调用注入的 HostPreflightProvider，runtime-parse unknown payload，校验 factory host、HostContext.environment、evidence/capacity source 与 options.release 的 releaseVersion/wireMajor/canonicalSkillDigest，并强制 privateUiCapture=unavailable。provider 是可信边界，负责取得当前宿主版本，并只在 observed hostVersion 与 exact fixture 相等时返回 binding_fixture；production runtime 的 handshake/fixture loader 实现它。parse 或匹配失败归一成 ok=false 的 host_unsupported。Binding 只翻译：
 
 provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 capabilities 时，factory 返回 `warnings=[]` 与 exact fail-closed capabilities：七个 acquisition/extraction availability、windowScopedCapture 都是 unknown，privateUiCapture=unavailable，captureDataPolicy=unknown，structuredToolCalls/subruns/subrunsInheritMcp/opensLoopbackUrls 都是 false，lifecycleHooks=[]，两个 optional max 字段缺失。error 固定 `{ code: "host_unsupported", message: "This host session does not provide a verified Distilly briefing capacity.", retryable: false, remediation: "Upgrade or restart the host, or install a release with a matching verified capacity fixture." }`。若 payload 的 capabilities 本身已通过 schema，只是 structured tools、capacity 或 evidence mismatch，则 failure 保留这些已验证 capabilities但仍强制 privateUiCapture=unavailable，并使用同一个 error；不能把 untrusted provider message/details 原样送上 wire。
 
@@ -202,9 +230,9 @@ provider throw、payload 不是合法 HostPreflight、或尚未解析出合法 c
 - 如何打开 Panel URL；
 - capability 如何探测。
 
-它不实现 subject、ingest、briefing、commit、quality 或 version。Codex / Claude Code 各保留一个 kind=capability factory，供只需要可信 preflight 的组合使用；两个 capability factory 继续禁止 HOME、PATH、process 与 install。另有独立 kind=full factory：复用相同 fail-closed preflight，要求显式 absolute home 与可信 form presenter；Codex 还要求 setup 已检查的 absolute executable path。full binding 创建 concrete injector/form renderer，验证 canonical skill digest，渲染不含 sentinel 的 absolute-launcher `.mcp.json`，用 digest ownership manifest 管理 plugin/Profile Skill 文件并提供 narrow doctor。Codex 只维护 personal marketplace 中自己的 entry，并通过受支持的 `codex plugin add/remove` 命令改变宿主安装状态；Claude Code 使用其自动发现的 `~/.claude/skills/distilly` plugin。Plugin uninstall 不删除 `DISTILLY_ROOT` 或人物 Profile Skill。两者仍固定 privateUiCapture=unavailable 且不创建 Controller。
+它不实现 subject、ingest、briefing、commit、quality 或 version。Codex、Claude Code、OpenClaw 与 Hermes 各保留一个 kind=capability factory，供只需要可信 preflight 的组合使用；这些 capability factory 继续禁止 HOME、PATH、process 与 install。另有独立 kind=full factory：复用相同 fail-closed preflight，要求显式 absolute home 与可信 form presenter，以及需要执行宿主命令的 binding 的 absolute executable path。full binding 创建 concrete injector/form renderer，验证 canonical skill digest，渲染不含 sentinel 的 absolute-launcher `.mcp.json`，用 digest ownership manifest 管理 plugin/Profile Skill 文件并提供 narrow doctor。Codex 维护 personal marketplace entry；Claude Code 使用自动发现的 `~/.claude/skills/distilly` plugin。OpenClaw 直接加载 Claude-compatible bundle，安装到 `~/.openclaw/extensions/distilly` 并在该 owned tree 生成 host-specific `.mcp.json`；它不接管或删除用户已有的同名全局 MCP entry。Hermes 不加载 Python plugin manifest：它把 canonical Skill 放进 Hermes managed `~/.hermes/skills/distilly`，通过 Distilly-owned wrapper 和 Hermes `config.yaml` 注册同一 stdio MCP，并关闭 `resources` / `prompts` auxiliary tools，保持模型可见工具恰为五个。四个 binding 的 Plugin uninstall 都不删除 `DISTILLY_ROOT` 或人物 Profile Skill；OpenClaw/Hermes 的安装/发现成功也不代替 verified capacity。
 
-HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。
+HostRegistry 只接受这两个判别分支，不接受松散的 HostInjector、HostFormRenderer 或 Controller。register 先验证 HostName；同一 HostName 已存在时同步抛 package-local DuplicateHostBindingError，并保持 registry 不变，不能让 full binding 静默覆盖 capability binding。get 精确按 HostName 查找；list 返回 immutable snapshot，按 HostName 的 UTF-8 bytes 严格升序。production completeness feature 构造新的 full registry，而不是原地替换 capability entry。OpenClaw/Hermes 的 full factory 仍必须先通过 exact preflight；缺少 verified capacity 时只可报告 `host_unsupported`，不得用宿主版本、公开 gross limit 或 MCP discovery 结果推导 capacity。
 
 以下 private UI capture 类型只保留为未来 Binding 的可选受信能力，不属于 Developer Preview 的任何可安装路径，也不是模型可直接 new 的 adapter：
 

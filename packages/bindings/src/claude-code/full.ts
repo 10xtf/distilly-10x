@@ -54,6 +54,7 @@ export const createClaudeCodeHostBinding = (options: ClaudeCodeHostBindingOption
     installPlugin: (context: InstallContext) =>
       installPluginTree(context, options.release.releaseVersion, {
         host,
+        trustedRoot: homeDirectory,
         pluginRoot,
         transactionRoot: join(homeDirectory, ".distilly", "host-install"),
         platformManifestPath: PLATFORM_MANIFEST,
@@ -64,7 +65,7 @@ export const createClaudeCodeHostBinding = (options: ClaudeCodeHostBindingOption
           },
         }),
       }),
-    uninstallPlugin: () => uninstallPluginTree(pluginRoot, host),
+    uninstallPlugin: () => uninstallPluginTree(pluginRoot, host, homeDirectory),
     doctor: () => doctorPluginTree(pluginRoot, host, options.release.releaseVersion),
   });
 };

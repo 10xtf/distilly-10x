@@ -49,6 +49,15 @@ node packages/cli/lib/bin.js uninstall --host codex
 
 This removes Distilly's verified host Plugin and runtime projection. It keeps `~/.distilly/` person data, source materials, profiles, and separately installed person Skills. A modified or foreign installation is left untouched and reported for manual review.
 
+## OpenClaw and Hermes compatibility bindings
+
+The Preview includes local lifecycle bindings for two additional hosts:
+
+- **OpenClaw:** installs a Claude-compatible bundle at `~/.openclaw/extensions/distilly` with an owned `.mcp.json`. Verify discovery with `openclaw plugins inspect distilly --json`.
+- **Hermes:** installs the canonical Skill at `~/.hermes/skills/distilly`, a managed wrapper at `~/.distilly/bin/distilly-hermes`, and the `distilly` MCP entry in `~/.hermes/config.yaml`. The optional `resources` and `prompts` surfaces are disabled; verify five tools with `hermes mcp test distilly`.
+
+The CLI accepts `setup --host openclaw` and `setup --host hermes`, but this release does not yet contain an exact capacity fixture for those host versions. Setup consequently returns `host_unsupported` before writing files. Discovery/installation compatibility is real, but it is not an end-to-end briefing verification and it never falls back to `dot-skill` automatically.
+
 ## Run the packaged preview
 
 To assemble a distributable local directory instead of running from the checkout:
@@ -69,9 +78,9 @@ After restarting Codex, confirm that the installed Plugin exposes exactly:
 
 The binding performs host preflight before starting MCP. If capacity evidence, the host version, or the release digest does not match, setup stops without writing an unverified integration.
 
-## Legacy Skill compatibility for non-Codex hosts
+## Legacy Skill compatibility for hosts without a verified Plugin binding
 
-The Plugin preview is currently verified only for Codex. On another host, explicitly install the maintained `dot-skill` branch as a Legacy Skill instead of running Plugin setup:
+On a host without a verified Plugin binding, explicitly install the maintained `dot-skill` branch as a Legacy Skill instead of running Plugin setup:
 
 ```bash
 git clone --single-branch --branch dot-skill --depth 1 \

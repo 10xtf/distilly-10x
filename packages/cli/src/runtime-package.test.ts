@@ -36,6 +36,9 @@ const fixture = async (): Promise<{ readonly parent: string; readonly source: st
     ["plugins/release-manifest.json", '{"releaseVersion":"0.1.0-preview.1"}\n'],
     ["plugins/codex/.codex-plugin/plugin.json", '{"name":"distilly"}\n'],
     ["plugins/codex/skills/distilly/SKILL.md", "# Distilly\n"],
+    ["plugins/claude-code/.claude-plugin/plugin.json", '{"name":"distilly"}\n'],
+    ["plugins/claude-code/skills/distilly/SKILL.md", "# Distilly\n"],
+    ["plugins/shared/skills/distilly/SKILL.md", "# Distilly\n"],
   ]);
   for (const [path, content] of contents) {
     const target = join(source, path);

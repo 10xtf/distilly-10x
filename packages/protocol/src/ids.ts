@@ -37,4 +37,6 @@ export const BUILTIN_PEOPLE_SPACE_ID = "space_00000000000000000000000000000001" 
 export const BUILTIN_HOSTS = {
   codex: "codex" as HostName,
   claudeCode: "claude-code" as HostName,
+  openclaw: "openclaw" as HostName,
+  hermes: "hermes" as HostName,
 } as const;

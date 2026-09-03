@@ -43,7 +43,7 @@
 | **内容 blob** | 由完整内容摘要寻址的不可变正文或 raw bytes；SQLite 中的引用决定其产品可见性 |
 | **投影 projection** | 可从事务权威与 blob 重建的 Markdown、prompt、Library、queue/search/graph、SKILL 与宿主文件 |
 | **投影水位 projection watermark** | 投影已经消费的数据库 generation / LSN；低于权威水位的投影只能重建，不能冒充最新事实 |
-| **宿主 host** | 真正运行 LLM、浏览网页或读取文件的程序，如 Codex、Claude Code 或以后别的 agent |
+| **宿主 host** | 真正运行 LLM、浏览网页或读取文件的程序，如 Codex、Claude Code、OpenClaw、Hermes 或以后别的 agent |
 | **绑定 binding** | 把中性 Distilly 工作流翻译到一个宿主真实能力和生命周期的薄层 |
 | **EngineClient** | 所有门面到引擎的唯一类型化方法缝；进程内、MCP、面板 HTTP 共用同一方法表 |
 | **本地面板 panel** | 首个可用版本必须交付的审核与证据界面；不是云端后台 |

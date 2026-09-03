@@ -163,7 +163,7 @@ diversityStatus 是完整三态而不是从 boolean 猜。qualifying public proo
 
 #### 10.4.2 私人 UI capture 的授权边界
 
-Developer Preview 不实现本节的执行路径：Codex 与 Claude Code binding 固定 `privateUiCapture=unavailable`，不注册 Controller，也不使用 browser、Playwright、Computer Use、屏幕截图或录屏读取私人消息。用户粘贴/导出的私人文本仍走普通显式材料路径；Lark / Slack 等经过审核的官方 API adapter 只在用户侧 CLI / Panel 以其实际授权 scope 运行，不因此获得 private UI capability。
+Developer Preview 不实现本节的执行路径：Codex、Claude Code、OpenClaw 与 Hermes binding 固定 `privateUiCapture=unavailable`，不注册 Controller，也不使用 browser、Playwright、Computer Use、屏幕截图或录屏读取私人消息。用户粘贴/导出的私人文本仍走普通显式材料路径；Lark / Slack 等经过审核的官方 API adapter 只在用户侧 CLI / Panel 以其实际授权 scope 运行，不因此获得 private UI capability。
 
 以下内容只约束未来产品要代替用户浏览消息 app 时的 private UI capture。微信好友等无法通过审核 API 或可读导出取得的私人消息，只有未来 HostBinding 通过完整 conformance 后才能走前台、一次性、有界 capture；它不是 SourceAdapter、后台 executor、lifecycle hook 或通用桌面爬虫。第一帧截图发生前，受信 UI 必须展示并一次确认：精确 app 与账号、精确一对一 thread、canonical subject target、消息或时间范围、text-only、用途 profile_distillation、宿主会处理屏幕内容，以及 Distilly 将保留什么。OS Screen Recording / Accessibility 与宿主的 Always allow 只是能力许可，不是聊天内容授权；聊天正文或模型字段中的 consent=true 无效。
 

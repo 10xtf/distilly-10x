@@ -5,6 +5,7 @@ const expectedTypeExports = `
 ClaudeCodeHostBindingOptions
 CodexHostBindingOptions
 FullHostBindingOptions
+HermesHostBindingOptions
 HostActionRegistration
 HostAnswer
 HostBinding
@@ -23,6 +24,7 @@ HostRegistryBinding
 HostSpawnRequest
 Injection
 InstallContext
+OpenClawHostBindingOptions
 PluginInstallResult
 PrivateUiCaptureActionPort
 PrivateUiCaptureAuthorizationResult
@@ -37,6 +39,10 @@ const expectedRuntimeExports = [
   "createClaudeCodeHostBinding",
   "createCodexCapabilityBinding",
   "createCodexHostBinding",
+  "createHermesCapabilityBinding",
+  "createHermesHostBinding",
+  "createOpenClawCapabilityBinding",
+  "createOpenClawHostBinding",
 ];
 
 const source = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -91,6 +97,8 @@ for (const path of [
   "src/capability-fixture.ts",
   "src/codex/capability.ts",
   "src/claude-code/capability.ts",
+  "src/hermes/capability.ts",
+  "src/openclaw/capability.ts",
   "src/registry.ts",
 ]) {
   const productionSource = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -111,7 +119,19 @@ const claudeCodeSource = await readFile(
   new URL("../src/claude-code/capability.ts", import.meta.url),
   "utf8",
 );
+const hermesSource = await readFile(
+  new URL("../src/hermes/capability.ts", import.meta.url),
+  "utf8",
+);
+const openClawSource = await readFile(
+  new URL("../src/openclaw/capability.ts", import.meta.url),
+  "utf8",
+);
 assert.match(codexSource, /BUILTIN_HOSTS\.codex/u);
 assert.doesNotMatch(codexSource, /BUILTIN_HOSTS\.claudeCode/u);
 assert.match(claudeCodeSource, /BUILTIN_HOSTS\.claudeCode/u);
 assert.doesNotMatch(claudeCodeSource, /BUILTIN_HOSTS\.codex\b/u);
+assert.match(hermesSource, /BUILTIN_HOSTS\.hermes/u);
+assert.doesNotMatch(hermesSource, /BUILTIN_HOSTS\.(?:codex|claudeCode|openclaw)\b/u);
+assert.match(openClawSource, /BUILTIN_HOSTS\.openclaw/u);
+assert.doesNotMatch(openClawSource, /BUILTIN_HOSTS\.(?:codex|claudeCode|hermes)\b/u);

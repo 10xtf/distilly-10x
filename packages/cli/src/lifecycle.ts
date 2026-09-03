@@ -18,6 +18,8 @@ import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import {
   createClaudeCodeHostBinding,
   createCodexHostBinding,
+  createHermesHostBinding,
+  createOpenClawHostBinding,
   type HostBinding,
   type HostFormPresenter,
 } from "@distilly/bindings";
@@ -47,6 +49,29 @@ const RUNTIME_FILE = "runtime.json";
 const RELEASE_FILE = "release-manifest.json";
 const SEMVER_PATTERN =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
+
+// Version probes only need locale, temporary-directory, and executable-path
+// context. Do not expose the parent process's API tokens, cloud credentials,
+// SSH variables, or Node preload options to a host executable.
+const SAFE_PROBE_ENVIRONMENT_KEYS = [
+  "PATH",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "LC_MESSAGES",
+  "TERM",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "XDG_RUNTIME_DIR",
+  "XDG_CONFIG_DIRS",
+  "XDG_DATA_DIRS",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "SYSTEMROOT",
+  "WINDIR",
+  "PATHEXT",
+] as const;
 
 interface ReleaseManifest {
   readonly releaseVersion: string;
@@ -132,7 +157,9 @@ const previewHost = (value: HostName): HostName => {
   const host = hostNameSchema.parse(value);
   if (host === BUILTIN_HOSTS.codex) return BUILTIN_HOSTS.codex;
   if (host === BUILTIN_HOSTS.claudeCode) return BUILTIN_HOSTS.claudeCode;
-  throw fail("The Developer Preview supports only Codex and Claude Code.");
+  if (host === BUILTIN_HOSTS.openclaw) return BUILTIN_HOSTS.openclaw;
+  if (host === BUILTIN_HOSTS.hermes) return BUILTIN_HOSTS.hermes;
+  throw fail("The Developer Preview supports Codex, Claude Code, OpenClaw, and Hermes.");
 };
 
 const compareUtf8 = (left: string, right: string): number =>
@@ -321,7 +348,12 @@ const parseInstalledHost = (value: unknown): InstalledHost => {
   if (
     !hasExactKeys(record, ["host", "executablePath", "hostVersion", "installedAt"]) ||
     !host.success ||
-    (host.data !== BUILTIN_HOSTS.codex && host.data !== BUILTIN_HOSTS.claudeCode) ||
+    ![
+      BUILTIN_HOSTS.codex,
+      BUILTIN_HOSTS.claudeCode,
+      BUILTIN_HOSTS.openclaw,
+      BUILTIN_HOSTS.hermes,
+    ].includes(host.data) ||
     typeof record.executablePath !== "string" ||
     !isAbsolute(record.executablePath) ||
     typeof record.hostVersion !== "string" ||
@@ -388,7 +420,7 @@ const parseInstallManifest = (bytes: Uint8Array): PreviewInstallManifest => {
   const hosts = record.hosts
     .map(parseInstalledHost)
     .sort((left, right) => compareUtf8(left.host, right.host));
-  if (hosts.length > 2 || new Set(hosts.map((entry) => entry.host)).size !== hosts.length) {
+  if (hosts.length > 4 || new Set(hosts.map((entry) => entry.host)).size !== hosts.length) {
     throw fail("The Preview install manifest contains duplicate hosts.");
   }
   return {
@@ -468,8 +500,12 @@ const verifyBootstrap = async (
   return paths;
 };
 
-const hostExecutableName = (host: HostName): "codex" | "claude" =>
-  host === BUILTIN_HOSTS.codex ? "codex" : "claude";
+const hostExecutableName = (host: HostName): "codex" | "claude" | "openclaw" | "hermes" => {
+  if (host === BUILTIN_HOSTS.codex) return "codex";
+  if (host === BUILTIN_HOSTS.claudeCode) return "claude";
+  if (host === BUILTIN_HOSTS.openclaw) return "openclaw";
+  return "hermes";
+};
 
 /**
  * Finds one executable through absolute PATH entries and stores its resolved path.
@@ -498,6 +534,51 @@ const findHostExecutable = async (host: HostName, pathValue: string): Promise<st
   throw fail(`Could not find the ${name} executable on PATH.`);
 };
 
+/**
+ * Supplies only the host-owned state roots needed for an isolated probe.
+ * Secrets are intentionally never copied into lifecycle child environments.
+ *
+ * @param host - Host whose state root is being probed.
+ * @param homeDirectory - Isolated user home for the probe.
+ * @returns Host-specific non-secret environment values.
+ */
+const hostEnvironment = (
+  host: HostName,
+  homeDirectory: string,
+): Readonly<Record<string, string>> => ({
+  ...(host === BUILTIN_HOSTS.codex ? { CODEX_HOME: join(homeDirectory, ".codex") } : {}),
+  ...(host === BUILTIN_HOSTS.openclaw
+    ? {
+        OPENCLAW_STATE_DIR: join(homeDirectory, ".openclaw"),
+        OPENCLAW_CONFIG_PATH: join(homeDirectory, ".openclaw", "openclaw.json"),
+      }
+    : {}),
+  ...(host === BUILTIN_HOSTS.hermes ? { HERMES_HOME: join(homeDirectory, ".hermes") } : {}),
+});
+
+const safeProbeEnvironment = (): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const key of SAFE_PROBE_ENVIRONMENT_KEYS) {
+    const value = process.env[key];
+    if (value !== undefined) result[key] = value;
+  }
+  return result;
+};
+
+const normalizeHostVersion = (host: HostName, stdout: string): string => {
+  const lines = stdout
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  // Hermes prints a short version line followed by diagnostic metadata. Keep
+  // only the stable first line so an upgrade does not make the manifest noisy.
+  if (host === BUILTIN_HOSTS.hermes) {
+    const first = lines[0] ?? "";
+    return /^Hermes Agent v\S+(?:\s+\([^\r\n]+\))?$/u.test(first) ? first : "";
+  }
+  return lines.length === 1 ? lines[0]! : "";
+};
+
 const probeHostVersion = async (
   host: HostName,
   executablePath: string,
@@ -512,21 +593,23 @@ const probeHostVersion = async (
       {
         encoding: "utf8",
         env: {
-          ...process.env,
+          ...safeProbeEnvironment(),
           HOME: homeDirectory,
           USERPROFILE: homeDirectory,
           PATH: [dirname(nodePath), pathValue].filter(Boolean).join(delimiter),
-          ...(host === BUILTIN_HOSTS.codex ? { CODEX_HOME: join(homeDirectory, ".codex") } : {}),
+          ...hostEnvironment(host, homeDirectory),
         },
         maxBuffer: 4_096,
-        timeout: 5_000,
+        // Hermes starts a Python environment on every invocation; a cold
+        // `--version` probe can exceed five seconds on a fresh install.
+        timeout: host === BUILTIN_HOSTS.hermes ? 15_000 : 5_000,
       },
       (error, stdout, stderr) => {
         if (error !== null) {
           reject(fail("The host executable version probe failed."));
           return;
         }
-        const standard = stdout.trim();
+        const standard = normalizeHostVersion(host, stdout);
         const diagnostic = stderr.trim();
         const version = standard.length > 0 && diagnostic.length === 0 ? standard : "";
         if (
@@ -574,13 +657,23 @@ const createBinding = (
     },
     ...(environment.now === undefined ? {} : { now: environment.now }),
   };
-  return host === BUILTIN_HOSTS.codex
-    ? createCodexHostBinding({ ...options, executablePath })
-    : createClaudeCodeHostBinding(options);
+  if (host === BUILTIN_HOSTS.codex) {
+    return createCodexHostBinding({ ...options, executablePath });
+  }
+  if (host === BUILTIN_HOSTS.claudeCode) {
+    return createClaudeCodeHostBinding(options);
+  }
+  if (host === BUILTIN_HOSTS.openclaw) {
+    return createOpenClawHostBinding({ ...options, executablePath });
+  }
+  return createHermesHostBinding({ ...options, executablePath });
 };
 
-const pluginSource = (pluginSourcesPath: string, host: HostName): string =>
-  join(pluginSourcesPath, host === BUILTIN_HOSTS.codex ? "codex" : "claude-code");
+const pluginSource = (pluginSourcesPath: string, host: HostName): string => {
+  if (host === BUILTIN_HOSTS.codex) return join(pluginSourcesPath, "codex");
+  if (host === BUILTIN_HOSTS.hermes) return join(pluginSourcesPath, "shared", "skills", "distilly");
+  return join(pluginSourcesPath, "claude-code");
+};
 
 const installedPluginSources = (
   paths: LifecyclePaths,
@@ -646,7 +739,7 @@ const assertEnvironment = (environment: PreviewLifecycleEnvironment): void => {
 /**
  * Installs one real host integration around the current checked built entry.
  *
- * @param hostValue - Codex or Claude Code.
+ * @param hostValue - Codex, Claude Code, OpenClaw, or Hermes.
  * @param environment - Trusted local lifecycle paths and clock.
  * @returns The installed host and restart requirement.
  */
@@ -756,6 +849,16 @@ export const setupPreviewHost = async (
   }
 
   const existed = previous?.hosts.some((entry) => entry.host === host) ?? false;
+  // A host projection can predate the shared Preview install manifest (for
+  // example, a manually installed Hermes Skill). Remember that state before
+  // setup so a later lifecycle failure never uninstalls somebody else's
+  // verified integration.
+  const preexistingBinding =
+    !existed &&
+    (await binding
+      .doctor({ sessionId: `setup-${host}-before`, environment: "cli" })
+      .then((health) => health.installed)
+      .catch(() => false));
   let bindingInstalled = false;
   try {
     const installed = await binding.installPlugin(
@@ -807,7 +910,7 @@ export const setupPreviewHost = async (
       restartRequired: true,
     };
   } catch (error) {
-    if (bindingInstalled && !existed) {
+    if (bindingInstalled && !existed && !preexistingBinding) {
       await binding
         .uninstallPlugin(installContext(paths, release, installedPlugins, host))
         .catch(() => undefined);

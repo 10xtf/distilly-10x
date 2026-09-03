@@ -9,7 +9,6 @@ import {
   rename,
   rm,
   rmdir,
-  unlink,
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -22,6 +21,7 @@ import {
 } from "@distilly/protocol";
 
 import type { HostDoctorResult, InstallContext, PluginInstallResult } from "../protocol.js";
+import { ensureRegularDirectoryChain } from "./safe-directories.js";
 
 const OWNERSHIP_FILE = ".distilly-plugin-install.json";
 const TEMPLATE_FILE = ".mcp.json.template";
@@ -49,6 +49,7 @@ type PluginActivation = () => Promise<void>;
 /** Host-specific paths and MCP rendering for a verified plugin tree. */
 export interface PluginTreeOptions {
   readonly host: HostName;
+  readonly trustedRoot: string;
   readonly pluginRoot: string;
   readonly transactionRoot: string;
   readonly platformManifestPath: string;
@@ -343,7 +344,8 @@ const removeEmptyParents = async (pluginRoot: string, paths: readonly string[]):
   }
   for (const directory of [...directories].sort((left, right) => right.length - left.length)) {
     await rmdir(directory).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOTEMPTY" && code !== "ENOENT") throw error;
     });
   }
 };
@@ -353,16 +355,38 @@ const removeEmptyParents = async (pluginRoot: string, paths: readonly string[]):
  *
  * @param pluginRoot - Exact host plugin directory.
  * @param expectedHost - Host that must own the manifest.
+ * @param trustedRoot - User root under which the host path must remain.
  * @returns Completion after owned files are removed.
  */
 export const uninstallPluginTree = async (
   pluginRoot: string,
   expectedHost: HostName,
+  trustedRoot: string,
 ): Promise<void> => {
   const ownership = await readVerifiedPluginTree(pluginRoot, expectedHost);
   if (ownership === undefined) return;
-  for (const file of ownership.files) await unlink(resolve(pluginRoot, file.path));
-  await unlink(join(pluginRoot, OWNERSHIP_FILE));
+  try {
+    await ensureRegularDirectoryChain(dirname(pluginRoot), false, trustedRoot);
+  } catch {
+    throw corrupt("The host plugin parent directory is no longer safe.");
+  }
+  // Move the verified tree out of the discovery path before deleting it. A
+  // failed unlink must never leave a half-installed bundle that can be
+  // discovered with a missing manifest or MCP file.
+  const backup = join(dirname(pluginRoot), `.distilly-plugin-remove-${randomUUID()}`);
+  await rename(pluginRoot, backup);
+  try {
+    await rm(backup, { recursive: true, force: false });
+  } catch {
+    const restored = await rename(backup, pluginRoot)
+      .then(() => true)
+      .catch(() => false);
+    throw corrupt(
+      restored
+        ? "The host plugin could not be removed atomically; its prior path was restored for review."
+        : `The host plugin could not be removed atomically; preserve the recovery tree at ${backup}.`,
+    );
+  }
   await removeEmptyParents(
     pluginRoot,
     ownership.files.map((file) => file.path),
@@ -385,12 +409,21 @@ export const installPluginTree = async (
   activate?: PluginActivation,
 ): Promise<PluginInstallResult> => {
   validateInstallContext(context, expectedVersion);
-  if (!isAbsolute(options.pluginRoot) || !isAbsolute(options.transactionRoot)) {
-    throw new TypeError("Plugin and transaction roots must be absolute.");
+  if (
+    !isAbsolute(options.trustedRoot) ||
+    !isAbsolute(options.pluginRoot) ||
+    !isAbsolute(options.transactionRoot)
+  ) {
+    throw new TypeError("Trusted, plugin, and transaction roots must be absolute.");
   }
   const prepared = await preparePlugin(context, options);
-  await mkdir(dirname(options.pluginRoot), { recursive: true });
-  await mkdir(options.transactionRoot, { recursive: true });
+  try {
+    await ensureRegularDirectoryChain(dirname(options.pluginRoot), true, options.trustedRoot);
+    await ensureRegularDirectoryChain(options.transactionRoot, true, options.trustedRoot);
+  } catch (error) {
+    if (error instanceof DistillyError) throw error;
+    throw fail("The host plugin or transaction directory is not a safe regular path.");
+  }
   const transactionId = randomUUID();
   const staging = join(options.transactionRoot, `${options.host}-${transactionId}-staging`);
   const backup = join(options.transactionRoot, `${options.host}-${transactionId}-backup`);

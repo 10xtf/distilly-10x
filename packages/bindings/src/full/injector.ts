@@ -115,10 +115,13 @@ const renderPersonSkill = (profile: Profile, name: string): string => {
   );
 };
 
-const defaultSkillsRoot = (host: HostName, homeDirectory: string): string =>
-  host === "codex"
-    ? join(homeDirectory, ".codex", "skills")
-    : join(homeDirectory, ".claude", "skills");
+const defaultSkillsRoot = (host: HostName, homeDirectory: string): string => {
+  if (host === "codex") return join(homeDirectory, ".codex", "skills");
+  if (host === "claude-code") return join(homeDirectory, ".claude", "skills");
+  if (host === "openclaw") return join(homeDirectory, ".openclaw", "skills");
+  if (host === "hermes") return join(homeDirectory, ".hermes", "skills");
+  throw invalid(`No default Skill directory is defined for host ${host}.`);
+};
 
 const validateVersion = (
   profile: Profile,

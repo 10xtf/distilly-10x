@@ -8,6 +8,10 @@ import {
   createClaudeCodeHostBinding,
   createCodexCapabilityBinding,
   createCodexHostBinding,
+  createHermesCapabilityBinding,
+  createHermesHostBinding,
+  createOpenClawCapabilityBinding,
+  createOpenClawHostBinding,
 } from "@distilly/bindings";
 
 const bindings = await import("@distilly/bindings");
@@ -17,6 +21,10 @@ assert.deepEqual(Object.keys(bindings).sort(), [
   "createClaudeCodeHostBinding",
   "createCodexCapabilityBinding",
   "createCodexHostBinding",
+  "createHermesCapabilityBinding",
+  "createHermesHostBinding",
+  "createOpenClawCapabilityBinding",
+  "createOpenClawHostBinding",
 ]);
 
 const digest = `sha256_${"9".repeat(64)}`;
@@ -75,13 +83,23 @@ const claudeCode = createClaudeCodeCapabilityBinding({
   provider: createProvider(BUILTIN_HOSTS.claudeCode),
   release,
 });
+const hermes = createHermesCapabilityBinding({
+  provider: createProvider(BUILTIN_HOSTS.hermes),
+  release,
+});
+const openClaw = createOpenClawCapabilityBinding({
+  provider: createProvider(BUILTIN_HOSTS.openclaw),
+  release,
+});
 const registry = new HostRegistry();
 registry.register(codex);
 registry.register(claudeCode);
+registry.register(hermes);
+registry.register(openClaw);
 
 assert.deepEqual(
   registry.list().map(({ host }) => host),
-  [BUILTIN_HOSTS.claudeCode, BUILTIN_HOSTS.codex],
+  [BUILTIN_HOSTS.claudeCode, BUILTIN_HOSTS.codex, BUILTIN_HOSTS.hermes, BUILTIN_HOSTS.openclaw],
 );
 for (const binding of registry.list()) {
   const result = await binding.preflight(context);
@@ -94,6 +112,8 @@ for (const file of [
   "capability-fixture.js",
   "codex/capability.js",
   "claude-code/capability.js",
+  "hermes/capability.js",
+  "openclaw/capability.js",
   "registry.js",
 ]) {
   const builtSource = await readFile(new URL(`../lib/${file}`, import.meta.url), "utf8");

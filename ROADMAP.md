@@ -23,7 +23,7 @@ Distilly is turning the original `colleague-skill` idea into a dependable local 
 - [x] Install an approved profile as a self-contained long-lived Person Skill without copying private raw material.
 - [x] Assemble and verify the self-contained `0.1.0-preview.1` Codex package with canonical Skill bytes, release digests, and an absolute launcher.
 
-This work lives on the public [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin) branch. It is a Developer Preview, not the default release, a tag, or an npm publication. The legacy `dot-skill` instructions do not apply to this branch.
+This work lives on the repository's default public [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin) branch. It is a Developer Preview, not a tagged release or an npm publication. The separate legacy `dot-skill` instructions do not apply to this branch.
 
 ## P0 — make the Codex Preview easy to run and recover
 

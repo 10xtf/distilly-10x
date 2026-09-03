@@ -2,10 +2,10 @@
 
 Distilly has two deliberate product lines:
 
-- `dot-skill` is the published legacy Skill line.
-- `distilly-plugin` is the public TypeScript Developer Preview.
+- `distilly-plugin` is the repository's default public TypeScript Developer Preview.
+- `dot-skill` is the separate published legacy Skill maintenance line.
 
-Preview work belongs on `distilly-plugin` or a branch based on it. Do not mix Preview changes into the default legacy line.
+Preview work belongs on `distilly-plugin` or a branch based on it. Legacy maintenance belongs on `dot-skill`; do not mix the two product lines.
 
 ## Start here
 
@@ -50,6 +50,6 @@ Do not claim a host is verified until a clean local HOME has completed setup, re
 
 ## Branches and publication
 
-Use a separate worktree for independent features and make one reviewable local commit per feature. Open Preview pull requests against `distilly-plugin`; keep the default `dot-skill` branch unchanged. Never push credentials or private source material.
+Use a separate worktree for independent features and make one reviewable local commit per feature. Open Preview pull requests against `distilly-plugin`; keep the legacy `dot-skill` branch scoped to maintenance. Never push credentials or private source material.
 
 For questions, open a focused issue or start a discussion. See [UPDATES.md](UPDATES.md) for the current host-contributor call.

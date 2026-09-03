@@ -1,6 +1,6 @@
 # Development
 
-The public Developer Preview lives on the `distilly-plugin` branch. The default `dot-skill` branch remains the legacy maintenance line.
+The public Developer Preview and repository default branch are `distilly-plugin`. The separate `dot-skill` branch remains the legacy maintenance line.
 
 ## Local setup
 
@@ -41,7 +41,7 @@ It uses temporary homes and a self-contained package. It must not depend on an e
 
 ## Contribution workflow
 
-Keep each feature focused, with its implementation, tests, generated artifacts, and current-state documentation in one reviewable commit. Use an independent branch or worktree for unrelated work. Pull requests for the Preview target `distilly-plugin`; do not mix them into the default legacy branch.
+Keep each feature focused, with its implementation, tests, generated artifacts, and current-state documentation in one reviewable commit. Use an independent branch or worktree for unrelated work. Pull requests for the Preview target `distilly-plugin`; do not mix legacy maintenance into it.
 
 Never commit local person data, source material, environment files, credentials, Agent-specific instructions, generated databases, or host state. The root `.gitignore` covers the standard local paths, but contributors must still inspect the complete outgoing diff.
 

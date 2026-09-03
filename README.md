@@ -18,7 +18,7 @@
 
 Distilly is a local-first product for turning a person's source material, working habits, judgment, and voice into a versioned **Person Profile for Agents**. The profile can be recalled temporarily during a run or explicitly installed as a long-lived host Skill. The storage authority stays local; no additional model API key is required.
 
-This branch is the unreleased `0.1.0-preview.1` Developer Preview. Codex is the first fully verified host. The repository is public for review, but this branch is not the default release and is not an npm package yet.
+This repository now defaults to the unreleased `0.1.0-preview.1` Developer Preview on `distilly-plugin`. Codex is the first fully verified host. It is the default GitHub branch, but it is not a tagged release or an npm package yet.
 
 [Chinese](docs/lang/README_ZH.md) · [Español](docs/lang/README_ES.md) · [Deutsch](docs/lang/README_DE.md) · [日本語](docs/lang/README_JA.md) · [한국어](docs/lang/README_KO.md) · [Português](docs/lang/README_PT.md) · [Русский](docs/lang/README_RU.md)
 

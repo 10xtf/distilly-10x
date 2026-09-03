@@ -26,8 +26,22 @@ node packages/cli/lib/bin.js uninstall --host codex
 
 モデル向けの MCP 契約は次の5ツールのみです: `distilly_get`、`distilly_ingest`、`distilly_pending`、`distilly_commit`、`distilly_correct`。
 
+## Legacy Skill 互換
+
+上記の Node.js、pnpm、Codex の前提条件はネイティブ Codex Plugin にのみ適用され、Legacy モードに Codex、Node.js、pnpm は不要ですが、完全な旧フローにはホストの通常の Skill 対応と filesystem、Bash、Python の機能が必要です。
+
+現時点で `distilly-plugin` Plugin が検証済みなのは Codex だけです。まだ検証済みの Plugin binding がないローカル Skill ホストでは、ユーザーが明示的に `dot-skill` ブランチで保守されている Legacy Skill をインストールできます。
+
+```bash
+git clone --single-branch --branch dot-skill --depth 1 \
+  https://github.com/titanwings/distilly.git <host-skills-dir>/distilly
+git -C <host-skills-dir>/distilly rev-parse HEAD
+```
+
+これは独立した実装で、サポートされた共有データモデルはありません。Legacy の collector が `~/.distilly` 名前空間を使う場合があるため、その相互作用を分離・監査するまで Legacy と Plugin の経路を併用しないでください。現在の互換範囲はローカルファイルと貼り付けテキストだけです。Preview の SQLite authority、5つの MCP ツール、Panel、Plugin lifecycle は提供しません。Plugin の setup または preflight が失敗しても自動で切り替えません。同じホストの discovery scope には active な `distilly` を1つだけ置き、再起動前に他のコピーを無効化または削除してください。Grok Bot のローカル Skill リポジトリ import はまだ検証されていないため、現時点では saved/private Skill として手動で保存する方法だけを推奨します。
+
 ## 現在の範囲
 
-ユーザーが選択した TXT、Markdown、JSON、SRT/VTT ファイル、貼り付けテキスト、公開 URL に対応します。Codex は検証済みです。Claude Code、Grok Bot、OpenCode、Pi agent、DeepSeek Harness (DSH) はコミュニティの binding と fixture が必要です。
+ユーザーが選択した TXT、Markdown、JSON、SRT/VTT ファイル、貼り付けテキスト、公開 URL に対応します。Codex は検証済みです。Claude Code、OpenClaw、Hermes、DeepSeek Harness (DSH)、Pi agent、Grok Build、OpenCode、Grok Bot のネイティブ Plugin binding にはコミュニティの fixture が必要で、Grok Bot には検証済みのローカルリポジトリ import もありません。
 
 [ロードマップ](../../ROADMAP.md)と[2026-09 更新](../../UPDATES.md)をご覧ください。

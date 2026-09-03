@@ -26,8 +26,22 @@ node packages/cli/lib/bin.js uninstall --host codex
 
 Der Modellvertrag besteht aus genau fünf MCP-Tools: `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit` und `distilly_correct`.
 
+## Kompatibilität mit dem Legacy Skill
+
+Die oben genannten Node.js-, pnpm- und Codex-Voraussetzungen gelten nur für das native Codex-Plugin; der Legacy-Modus benötigt Codex, Node.js und pnpm nicht, setzt für den vollständigen alten Ablauf aber die normale Skill-Unterstützung des Hosts sowie Zugriff auf Dateisystem, Bash und Python voraus.
+
+Codex ist derzeit der einzige Host, für den das `distilly-plugin`-Plugin verifiziert ist. Für einen lokalen Skill-Host ohne verifiziertes Plugin-Binding kann der Nutzer ausdrücklich den gepflegten Legacy Skill aus dem Branch `dot-skill` installieren:
+
+```bash
+git clone --single-branch --branch dot-skill --depth 1 \
+  https://github.com/titanwings/distilly.git <host-skills-dir>/distilly
+git -C <host-skills-dir>/distilly rev-parse HEAD
+```
+
+Das ist eine getrennte Implementierung ohne unterstütztes gemeinsames Datenmodell. Legacy-Collector können den Namensraum `~/.distilly` verwenden; solange diese Überschneidung nicht isoliert und geprüft ist, dürfen Legacy- und Plugin-Pfad nicht gemeinsam verwendet werden. Die Kompatibilität deckt derzeit nur lokale Dateien und eingefügten Text ab. Sie bietet weder die SQLite-Autorität, die fünf MCP-Tools, das Panel noch den Plugin-Lifecycle der Preview. Nach einem fehlgeschlagenen Plugin-Setup oder Preflight erfolgt kein automatischer Wechsel. Im selben Discovery-Bereich eines Hosts darf nur eine aktive Installation namens `distilly` vorhanden sein; andere Kopien müssen vor dem Neustart deaktiviert oder entfernt werden. Der Import eines lokalen Skill-Repositorys für Grok Bot ist noch nicht verifiziert; derzeit wird dort nur ein manuell gespeicherter/privater Skill empfohlen.
+
 ## Aktueller Umfang
 
-Die Vorschau akzeptiert ausgewählte TXT-, Markdown-, JSON- und SRT/VTT-Dateien, eingefügten Text und vom Nutzer ausgewählte öffentliche URLs. Codex ist verifiziert; Claude Code, Grok Bot, OpenCode, Pi agent und DeepSeek Harness (DSH) benötigen noch Community-Bindings und Fixtures.
+Die Vorschau akzeptiert ausgewählte TXT-, Markdown-, JSON- und SRT/VTT-Dateien, eingefügten Text und vom Nutzer ausgewählte öffentliche URLs. Codex ist verifiziert; für native Plugin-Bindings von Claude Code, OpenClaw, Hermes, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode und Grok Bot fehlen noch Community-Fixtures; für Grok Bot ist außerdem kein lokaler Repository-Import verifiziert.
 
 Siehe [Roadmap](../../ROADMAP.md) und [Update 2026-09](../../UPDATES.md).

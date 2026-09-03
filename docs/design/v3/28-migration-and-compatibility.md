@@ -4,7 +4,7 @@
 
 ### 28.1 旧产品线隔离
 
-已发布 `dot-skill` 的 Python tools、prompts、生成样例与根 Skill 留在独立的 legacy maintenance branch；它们不复制到 `distilly-plugin`。当前分支只保留仓库构建所需的 Python 脚本，V3 prompt 资产位于 `packages/engine/prompts`，TypeScript 产品不 import 或 shell 调旧 writer。未来迁移器只读取用户明确选择的旧导出或合成 fixture，不依赖当前源码树中存在旧实现。
+已发布 `dot-skill` 的 Python tools、prompts、生成样例与根 Skill 留在独立的 legacy maintenance branch；它们不复制到 `distilly-plugin`。当前分支只保留仓库构建所需的 Python 脚本，V3 prompt 资产位于 `packages/engine/prompts`，TypeScript 产品不 import 或 shell 调旧 writer。尚无已核验 Plugin binding 的宿主可以由用户明确选择该分支作为独立 Legacy Skill 兼容模式，但 Plugin/runtime 不自动取得、执行或注册它，也不把它计入原生宿主支持。未来迁移器只读取用户明确选择的旧导出或合成 fixture，不依赖当前源码树中存在旧实现。
 
 ### 28.2 LegacySkillMigrator
 

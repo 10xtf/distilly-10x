@@ -78,7 +78,11 @@ try {
   });
   assert.equal(claudeDeferred.status, 1);
   assert.equal(claudeDeferred.stdout, "");
-  assert.match(claudeDeferred.stderr, /must be codex for this Developer Preview/u);
+  assert.match(
+    claudeDeferred.stderr,
+    /Legacy Skill compatibility guide: https:\/\/github\.com\/titanwings\/distilly\/blob\/distilly-plugin\/INSTALL\.md#legacy-skill-compatibility-for-non-codex-hosts/u,
+  );
+  assert.match(claudeDeferred.stderr, /did not switch modes/u);
   assert.equal(await exists(join(home, ".claude", "skills", "distilly")), false);
 
   const codexMcp = JSON.parse(

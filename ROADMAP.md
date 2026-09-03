@@ -22,8 +22,9 @@ Distilly is turning the original `colleague-skill` idea into a dependable local 
 - [x] Recall a complete profile or temporary prompt, submit corrections, and promote, reject, or roll back candidates in the local Panel.
 - [x] Install an approved profile as a self-contained long-lived Person Skill without copying private raw material.
 - [x] Assemble and verify the self-contained `0.1.0-preview.1` Codex package with canonical Skill bytes, release digests, and an absolute launcher.
+- [x] Document an explicit, isolated `dot-skill` Legacy Skill compatibility route for non-Codex hosts without weakening Plugin preflight.
 
-This work lives on the repository's default public [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin) branch. It is a Developer Preview, not a tagged release or an npm publication. The separate legacy `dot-skill` instructions do not apply to this branch.
+This work lives on the repository's default public [`distilly-plugin`](https://github.com/titanwings/distilly/tree/distilly-plugin) branch. It is a Developer Preview, not a tagged release or an npm publication. The Plugin instructions do not call or bundle the separate legacy implementation; its explicit compatibility route is documented independently.
 
 ## P0 — make the Codex Preview easy to run and recover
 
@@ -37,6 +38,9 @@ This work lives on the repository's default public [`distilly-plugin`](https://g
 Each host is complete only when it has its own binding, absolute launcher, setup/doctor/restart/uninstall lifecycle, exact-version capacity fixture, five-tool discovery proof, persistent Person Skill test, and packaged smoke test. A copied Skill directory or logo is not host support.
 
 - [ ] Claude Code
+- [ ] OpenClaw
+- [ ] Hermes
+- [ ] Grok Build
 - [ ] Grok Bot
 - [ ] OpenCode
 - [ ] Pi agent
@@ -52,12 +56,12 @@ Each host is complete only when it has its own binding, absolute launcher, setup
 ## P1 — more user-selected sources
 
 - [ ] Add deterministic PDF, EML/MBOX, and provider-export parsers with real-format fixtures and explicit completeness reporting.
-- [ ] Add Lark/Feishu, DingTalk, Slack, and public X adapters with consent, scope, secret references, pagination, limit, and retry fixtures.
+- [ ] Add Lark, DingTalk, Slack, and public X adapters with consent, scope, secret references, pagination, limit, and retry fixtures.
 - [ ] Keep DingTalk message history explicitly unsupported unless an authorized API contract can be tested; do not replace it with hidden browser capture.
 
 ## P2 — migration and operations
 
-- [ ] Two-stage `dot-skill` migration with a read-only preview, explicit apply, atomic retry, and `imported_unverified` marking when sentence-level evidence cannot be recovered.
+- [ ] Two-stage `dot-skill` data migration with a read-only preview, explicit apply, atomic retry, and `imported_unverified` marking when sentence-level evidence cannot be recovered. The documented Legacy Skill compatibility install is not data migration.
 - [ ] Deep doctor diagnostics, verified backup/restore, projection rebuild, and maintenance reporting.
 - [ ] Cross-process single-writer hardening and the remaining crash/recovery matrix.
 

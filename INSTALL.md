@@ -1,8 +1,10 @@
 # Install Distilly Developer Preview
 
-This document describes the current TypeScript Plugin preview on the `distilly-plugin` branch. It supersedes the legacy Skill-only installation notes.
+This document describes the current TypeScript Plugin preview on the `distilly-plugin` branch. The separate Legacy Skill compatibility path is documented below for hosts that do not yet have a verified Plugin binding.
 
 ## Requirements
+
+These requirements apply only to the native Codex Plugin path. Legacy Skill mode below does not require Codex, Node, or pnpm; its full older workflow requires an ordinary local Skill host with filesystem/Bash/Python capabilities.
 
 - Node.js `22.19+` or `24`;
 - pnpm `10.32+`; and
@@ -66,6 +68,36 @@ After restarting Codex, confirm that the installed Plugin exposes exactly:
 `distilly_get`, `distilly_ingest`, `distilly_pending`, `distilly_commit`, and `distilly_correct`.
 
 The binding performs host preflight before starting MCP. If capacity evidence, the host version, or the release digest does not match, setup stops without writing an unverified integration.
+
+## Legacy Skill compatibility for non-Codex hosts
+
+The Plugin preview is currently verified only for Codex. On another host, explicitly install the maintained `dot-skill` branch as a Legacy Skill instead of running Plugin setup:
+
+```bash
+git clone --single-branch --branch dot-skill --depth 1 \
+  https://github.com/titanwings/distilly.git \
+  <target-directory>
+git -C <target-directory> rev-parse HEAD
+```
+
+Create its parent first, then use a new, empty target whose final directory is `distilly`:
+
+| Host | Legacy Skill target |
+| --- | --- |
+| Claude Code | `~/.claude/skills/distilly` |
+| OpenClaw | `~/.openclaw/workspace/skills/distilly` |
+| Hermes | `~/.hermes/skills/openclaw-imports/distilly` |
+| DeepSeek Harness (DSH) | `~/.dsh/skills/distilly` or `$DSH_HOME/skills/distilly` |
+| Pi agent | `~/.pi/agent/skills/distilly` |
+| Grok Build | `~/.grok/skills/distilly` |
+| OpenCode | `~/.config/opencode/skills/distilly` |
+| Grok Bot | No verified local repository import; migrate the workflow manually into a saved/private Skill |
+
+Restart or rescan the host, verify that it discovers exactly one `distilly`, and keep the reported Git commit with any bug report. If another copy is already active in the same discovery scope, leave both copies untouched until you choose manually which one to disable or remove. This route is best-effort until each host receives a native, tested Plugin binding.
+
+Legacy Skill mode is a separate file-based product line. It does not provide the Preview's SQLite authority, exact five MCP tools, Panel lifecycle, setup/doctor guarantees, or automatic migration. The CLI reports this guide for an unsupported non-Codex host request but never installs the Legacy Skill. Any Plugin setup or preflight failure remains fail-closed and never changes modes automatically.
+
+For now, use local files or pasted text in Legacy Skill mode. Do not enable its older provider collectors while the Plugin uses the same home directory: those collectors can write credential configuration into the same `~/.distilly/` namespace, have not passed the Plugin security review, and must not be treated as interoperable with Plugin data. Never install from a working copy that contains private `knowledge/` or generated `skills/`; clone a clean copy directly into the target above.
 
 ## Local materials
 

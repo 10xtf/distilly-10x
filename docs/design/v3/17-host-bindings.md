@@ -415,6 +415,8 @@ skill 的拒绝规则：
 - private UI 未精确授权、窗口隔离失败或 data policy unknown 时拒绝 capture，不把它降级成普通 vision；
 - 同一 artifact 的字幕、OCR、转写和转载不得被描述成多方佐证。
 
+安装文档和 CLI 的 unsupported-host remediation 可以向尚无已核验 Plugin binding 的宿主展示一个由用户明确选择的 `dot-skill` Legacy Skill 兼容入口，但它不属于 canonical skill、HostBinding、runtime 或 preflight 的状态机。Plugin 失败不能自动 clone、执行或切换到 legacy；两者不双写、不共享受支持的数据模型，也不把 legacy 的文件式流程声明成 SQLite、五工具、Panel 或 Plugin lifecycle。兼容入口只承诺干净独立 checkout 中的本地文件/粘贴流程，要求用户标明 legacy mode 并记录 `git rev-parse HEAD` 得到的实际 commit，同时要求同一 host discovery scope 只激活一个同名 Skill。旧 collector 仍会使用 `~/.distilly/*_config.json` credential namespace，所以与 Plugin 共用同一 home 时不得启用；provider collector、凭据和数据迁移仍按独立审计与显式同意处理。
+
 ### 17.5 HostFormRenderer
 
 只有封闭选项、显式 consent 或媒体预览确实需要原生 UI 时，才使用：

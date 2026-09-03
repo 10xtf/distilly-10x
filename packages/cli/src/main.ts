@@ -32,7 +32,9 @@ export interface PreviewCliEnvironment {
 
 const parseHost = (value: string | undefined): HostName => {
   if (value === BUILTIN_HOSTS.codex) return BUILTIN_HOSTS.codex;
-  throw new Error("--host must be codex for this Developer Preview.");
+  throw new Error(
+    "Native Plugin setup is verified only for codex. For another host, explicitly use the Legacy Skill compatibility guide: https://github.com/titanwings/distilly/blob/distilly-plugin/INSTALL.md#legacy-skill-compatibility-for-non-codex-hosts. Distilly did not switch modes.",
+  );
 };
 
 const hostOption = (args: readonly string[], required: boolean): HostName | undefined => {
@@ -115,6 +117,9 @@ Usage:
   distilly doctor [--host codex]
   distilly install <subject-id> --host codex
   distilly uninstall --host codex
+
+Non-Codex hosts:
+  Use the explicit Legacy Skill compatibility path documented in INSTALL.md.
 `;
 
 /**

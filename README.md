@@ -58,7 +58,22 @@ To install one approved profile as a persistent Skill after a profile has been c
 node packages/cli/lib/bin.js install subject_<32 lowercase hex characters> --host codex
 ```
 
-There is no legacy Python or `dot-skill` installation step on this branch.
+## Non-Codex compatibility
+
+Codex uses the native Plugin preview above. Until another host has a verified Plugin binding, you can explicitly choose the maintained `dot-skill` branch as a **Legacy Skill compatibility mode**:
+
+> Install Distilly in Legacy Skill compatibility mode from the `dot-skill` branch into this host's normal Skills directory, using a clean checkout whose final directory is named `distilly`. Verify discovery and report the installed Git commit. Do not run Plugin setup or claim SQLite, five-tool MCP, Panel, or Plugin lifecycle support.
+
+For a manual install, replace `<target-directory>` with the complete final path in the [detailed install guide](INSTALL.md), including the last `distilly` component, and create its parent first:
+
+```bash
+git clone --single-branch --branch dot-skill --depth 1 \
+  https://github.com/titanwings/distilly.git \
+  <target-directory>
+git -C <target-directory> rev-parse HEAD
+```
+
+This is an explicit, separate file-based implementation—not an automatic runtime fallback. It does not share a supported data model with the Plugin, and a failed Plugin preflight never switches modes. The compatibility promise currently covers local files and pasted text only. Do not enable legacy collectors while the Plugin uses the same home directory: current legacy collectors can write credential configuration into the same `~/.distilly/` namespace and remain outside the Preview's reviewed security boundary. Keep exactly one `distilly` active in any host discovery scope and verify which copy the host loaded.
 
 ## The first usable flow
 
@@ -79,18 +94,21 @@ The model-facing surface remains exactly five MCP tools:
 
 Distilly never silently truncates a complete briefing or profile prompt. If a verified host budget cannot carry the complete value, it reports a bounded capacity error with measurements and keeps the stored data unchanged.
 
-## Supported hosts
+## Host status
 
-| Host | Preview status |
-| --- | --- |
-| Codex | Fully verified in this release branch |
-| Claude Code | Binding included; exact host fixture and community validation still needed |
-| Grok Bot | Community binding planned |
-| OpenCode | Community binding planned |
-| Pi agent | Community binding planned |
-| DeepSeek Harness (DSH) | Community binding planned |
+| Host | Native Plugin | Current compatibility route |
+| --- | --- | --- |
+| Codex | Fully verified in this release branch | Native Plugin |
+| Claude Code | Binding included; exact host fixture still needed | Explicit `dot-skill` Legacy Skill |
+| OpenClaw | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| Hermes | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| DeepSeek Harness (DSH) | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| Pi agent | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| Grok Build | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| OpenCode | Community binding planned | Explicit `dot-skill` Legacy Skill |
+| Grok Bot | Community binding planned | Manual saved/private Skill only; local repository import is not claimed |
 
-Host compatibility is a binding concern. A host is not listed as verified merely because it can read a Skill file.
+Host compatibility is a binding concern. Legacy Skill discovery is useful continuity, but it does not make a host a verified Plugin target.
 
 ## Local material formats
 
@@ -98,7 +116,7 @@ The first Preview accepts explicit local `TXT`, `Markdown`, `JSON`, and `SRT/VTT
 
 ## 📣 2026-09 update: help expand coding-agent Plugins
 
-Codex is the first verified Plugin path. We need community support to build and validate more coding-agent Plugin packages for **Grok Bot, Claude Code, OpenCode, Pi agent, and DeepSeek Harness (DSH)**. I will actively review those contributions and keep the public contracts, release digests, and host behavior aligned.
+Codex is the first verified Plugin path. We need community support to build and validate more coding-agent Plugin packages for **Claude Code, OpenClaw, Hermes, DeepSeek Harness (DSH), Pi agent, Grok Build, OpenCode, and Grok Bot**. I will actively review those contributions and keep the public contracts, release digests, and host behavior aligned.
 
 See the full call for contributors in [UPDATES.md](UPDATES.md) and the current priorities in [ROADMAP.md](ROADMAP.md).
 

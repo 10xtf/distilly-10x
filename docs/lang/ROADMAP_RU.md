@@ -8,6 +8,8 @@
 
 Локальный TypeScript/SQLite-путь Codex проверен от начала до конца: локальные материалы, версии, исправления, review, ровно пять MCP-инструментов, установка Plugin и безопасное удаление.
 
+Переходный путь совместимости теперь описан в документации: локальный host Skill без проверенного Plugin binding может явно использовать отдельный Legacy Skill из `dot-skill`; нативные Plugin bindings остаются задачей P1.
+
 ## P0
 
 - Отдельная команда `distilly panel` с браузерным smoke-тестом собранного пакета.
@@ -16,10 +18,10 @@
 
 ## P1: Host Plugins и локальный marketplace
 
-Нам нужна помощь сообщества для создания и проверки Plugin bindings для **Grok Bot, Claude Code, OpenCode, Pi agent и DeepSeek Harness (DSH)**. Каждая интеграция должна иметь отдельный launcher, тесты setup/doctor/перезапуска/удаления и точные свидетельства host и capacity. Я буду активно review этих вкладов.
+Нам нужна помощь сообщества для создания и проверки Plugin bindings для **Claude Code, OpenClaw, Hermes, Grok Build, Grok Bot, OpenCode, Pi agent и DeepSeek Harness (DSH)**. Каждая интеграция должна иметь отдельный launcher, тесты setup/doctor/перезапуска/удаления и точные свидетельства host и capacity. Я буду активно review этих вкладов.
 
 Локальный marketplace в Panel должен поддерживать поиск Profiles, проверку evidence и versions, установку подтверждённых Person Skills, а также import/export переносимых пакетов без приватных исходных материалов. Сетевой catalog появится только после определения правил согласия, moderation, licensing и upload.
 
 ## P2
 
-После стабилизации Preview появятся parser для PDF, EML/MBOX и exports; разрешённые adapters для Lark/Feishu, DingTalk, Slack и публичного X; двухэтапная миграция `dot-skill`; backup/restore и глубокая диагностика.
+После стабилизации Preview появятся parser для PDF, EML/MBOX и exports; разрешённые adapters для Lark, DingTalk, Slack и публичного X; двухэтапная миграция `dot-skill`; backup/restore и глубокая диагностика.

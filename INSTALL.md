@@ -347,7 +347,7 @@ distilly/               ← 호스트의 skills/distilly/ 로 clone (예: .claud
 │   └── research/
 │       ├── merge_research.py               # 조사 노트 병합 (로컬 전용)
 │       └── quality_check.py                # 품질 검사 (로컬 전용)
-├── docs/               # 문서 (PRD 등)
+├── docs/               # 문서
 │
 └── skills/             # Distilly가 생성한 인물 Skill (.gitignore 제외 대상)
     └── {character}/

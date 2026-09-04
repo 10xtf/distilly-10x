@@ -9,7 +9,7 @@ Clone the repository into a Skills directory discovered by your host, keeping
 the destination directory name `distilly`:
 
 ```bash
-git clone https://github.com/titanwings/distilly <TARGET>
+git clone https://github.com/10xtf/distilly-10x <TARGET>
 ```
 
 Create the parent directory first when it does not already exist.

@@ -38,7 +38,6 @@
 | Work Skill + Persona 이중 아키텍처 | 완료 |
 | 대화 기반 수정 및 점진적 진화 | 완료 |
 | 버전 관리 및 롤백 | 완료 |
-| 99개 이상의 스킬이 올라온 [커뮤니티 갤러리](https://titanwings.github.io/colleague-skill-site/) | 완료 |
 
 ---
 
@@ -121,10 +120,8 @@
 
 | 방법 | 위치 |
 |------|------|
-| .skill 제출 | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 토론 및 제안 | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (곧 공개) |
-| 실시간 채팅 | [Discord](https://discord.gg/NVX66RxWZv) |
-| 버그 제보 | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| 토론 및 제안 | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) (곧 공개) |
+| 버그 제보 | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | 코드 기여 | `good-first-issue` 라벨을 찾거나 바로 PR 열기 |
 
 **특히 필요한 분들:**
@@ -139,7 +136,7 @@
 
 **이 로드맵은 커뮤니티와 함께 만들어갑니다. 우선순위는 여러분의 피드백에 따라 달라집니다.**
 
-아이디어가 있다면 [Discord](https://discord.gg/NVX66RxWZv)에 들르거나 Discussion을 시작해 주세요.
+아이디어가 있다면에 들르거나 Discussion을 시작해 주세요.
 
 모든 `.skill`은 계속 이어지는 관계의 또 다른 형태입니다.
 

@@ -37,10 +37,10 @@ cd $(git rev-parse --show-toplevel)
 
 # 방법 1: 현재 프로젝트에 설치
 mkdir -p .claude/skills
-git clone https://github.com/titanwings/distilly .claude/skills/distilly
+git clone https://github.com/10xtf/distilly-10x .claude/skills/distilly
 
 # 방법 2: 전역 설치 (모든 프로젝트에서 사용)
-git clone https://github.com/titanwings/distilly ~/.claude/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.claude/skills/distilly
 ```
 
 이후 Claude Code에서 `/distilly` 를 입력하면 시작된다.
@@ -128,7 +128,7 @@ python3 tools/install_openclaw_skill.py --force
 또는 clone 방식을 계속 써도 된다.
 
 ```bash
-git clone https://github.com/titanwings/distilly ~/.openclaw/workspace/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.openclaw/workspace/skills/distilly
 ```
 
 OpenClaw 세션을 재시작하고 `/distilly` 로 시작한다. 현재 채널에 native slash가 등록되지 않았다면 `/skill distilly` 를 쓴다.
@@ -171,7 +171,7 @@ python3 tools/install_codex_skill.py --force
 또는 clone 방식을 계속 써도 된다.
 
 ```bash
-git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.agents/skills/distilly
 ```
 
 Codex는 현재 `~/.agents/skills/` 에서 사용자 Skill을 발견한다. 설치 후 `$distilly` 로 명시 호출하거나 `/skills` 에서 선택한다. 생성된 인물 Skill은 `{character}-{slug}` 라는 skill 이름으로 `~/.agents/skills/` 아래에 설치된다.
@@ -185,11 +185,11 @@ DeepSeek Harness는 filesystem skill을 네이티브로 발견하므로 별도 �
 ```bash
 # 방법 1: 현재 프로젝트에 설치
 mkdir -p .dsh/skills
-git clone https://github.com/titanwings/distilly .dsh/skills/distilly
+git clone https://github.com/10xtf/distilly-10x .dsh/skills/distilly
 
 # 방법 2: 전역 설치 (모든 프로젝트에서 사용)
 mkdir -p ~/.dsh/skills
-git clone https://github.com/titanwings/distilly ~/.dsh/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.dsh/skills/distilly
 ```
 
 `DSH_HOME` 이 설정돼 있으면 전역 디렉터리는 `$DSH_HOME/skills/distilly` 가 된다. 설치 후 DeepSeek Harness에서 `/distilly` 를 입력하거나 Agent에게 Distilly 시작을 직접 요청한다.
@@ -205,11 +205,11 @@ git clone https://github.com/titanwings/distilly ~/.dsh/skills/distilly
 ```bash
 # Pi 전용 사용자 디렉터리
 mkdir -p ~/.pi/agent/skills
-git clone https://github.com/titanwings/distilly ~/.pi/agent/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.pi/agent/skills/distilly
 
 # 또는 여러 호스트가 공유하는 디렉터리
 mkdir -p ~/.agents/skills
-git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.agents/skills/distilly
 ```
 
 명시적 호출 명령은 `/distilly` 가 아니라 `/skill:distilly` 다.
@@ -223,11 +223,11 @@ git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```bash
 # Grok 전용 사용자 디렉터리
 mkdir -p ~/.grok/skills
-git clone https://github.com/titanwings/distilly ~/.grok/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.grok/skills/distilly
 
 # 또는 여러 호스트가 공유하는 디렉터리
 mkdir -p ~/.agents/skills
-git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.agents/skills/distilly
 ```
 
 Grok Build는 Skill 디렉터리의 `SKILL.md` 를 발견하며, 명시적 호출 명령은 `/distilly` 다. 해당 머신에 Python과 Distilly가 요구하는 의존성은 여전히 설치돼 있어야 한다.
@@ -242,11 +242,11 @@ OpenCode는 사용자 레벨과 프로젝트 레벨 Skill 디렉터리를 네이
 
 ```bash
 # 사용자 레벨
-git clone https://github.com/titanwings/distilly ~/.config/opencode/skills/distilly
+git clone https://github.com/10xtf/distilly-10x ~/.config/opencode/skills/distilly
 
 # 프로젝트 레벨
 mkdir -p .opencode/skills
-git clone https://github.com/titanwings/distilly .opencode/skills/distilly
+git clone https://github.com/10xtf/distilly-10x .opencode/skills/distilly
 ```
 
 생성된 인물 Skill은 `install_generated_skill.py --host opencode` 로 설치한다. 프로젝트 레벨 설치는 `--skills-dir .opencode/skills` 를 덧붙인다. 디렉터리 규칙은 [OpenCode Agent Skills](https://opencode.ai/docs/skills) 를 참고한다.
@@ -303,7 +303,6 @@ python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
 `knowledge/research/raw/` 에는 출처 메타데이터가 붙은 짧은 의역 노트만 넣는다.
 
 ---
-
 
 ## 빠른 검증
 

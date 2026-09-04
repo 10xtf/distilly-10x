@@ -11,9 +11,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/distilly/stargazers)
-
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
 
@@ -39,7 +36,7 @@ Distilly は、人物の根拠ある経験・判断・語り口・仕事の進�
 
 <br>
 
-[🆕 What's new](#-このメジャーリリースの新機能) · [📦 データソース](#-対応データソース) · [⚡ インストール](#-インストール) · [🚀 使い方](#-使い方) · [✨ デモ](#-デモ) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 What's new](#-このメジャーリリースの新機能) · [📦 データソース](#-対応データソース) · [⚡ インストール](#-インストール) · [🚀 使い方](#-使い方) · [✨ デモ](#-デモ)
 
 [**英語**](../../README.md) · [**中国語**](README_ZH.md) · [**スペイン語**](README_ES.md) · [**ドイツ語**](README_DE.md) · [**ロシア語**](README_RU.md) · [**ポルトガル語**](README_PT.md) · [**韓国語**](README_KO.md)
 
@@ -59,9 +56,7 @@ Distilly は、人物の根拠ある経験・判断・語り口・仕事の進�
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技術レポート](https://arxiv.org/pdf/2605.31264) を公開しました**。今回いちばん嬉しいのは paper の公開そのものだけでなく、コミュニティの力で gallery が 165 名のコントリビューターによる 215 skills、skill cards 累計 100k+ stars まで育ち、論文の Acknowledgements に全員を記載できたことです。
 
-> 🗺️ **2026.04.13** — **Distilly Roadmap 公開！** colleague.skill として始まったプロジェクトは、現在 **Distilly** という名称で、同僚に限らずあらゆる人物を蒸留します。 👉 **[Roadmap 全文を読む](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
-
-> 🌐 **2026.04.07** — コミュニティギャラリーが稼働開始！どんな skill や meta-skill でも、自分の GitHub リポジトリへ直接トラフィックを流せます。仲介なし。 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
+> 🗺️ **2026.04.13** — **Distilly Roadmap 公開！** colleague.skill として始まったプロジェクトは、現在 **Distilly** という名称で、同僚に限らずあらゆる人物を蒸留します。 👉 **[Roadmap 全文を読む](../../ROADMAP.md)**
 
 <div align="center">
 
@@ -136,7 +131,6 @@ Distilly は、8つのローカル Agent ホストに対応しています：
 | ✉️ | メール `.eml` / `.mbox` | ✅ | — | 手動アップロード |
 | 📝 | Markdown / 直接貼り付け | ✅ | ✅ | 手動入力 |
 
-
 ---
 
 ## ⚡ インストール
@@ -145,14 +139,14 @@ Distilly は、8つのローカル Agent ホストに対応しています：
 
 対応するローカル Agent ホストを開き、次の一文を送ってください：
 
-> `https://github.com/titanwings/distilly` から Distilly をインストールし、このホストが Distilly を検出できることを確認してください。
+> `https://github.com/10xtf/distilly-10x` から Distilly をインストールし、このホストが Distilly を検出できることを確認してください。
 
 Agent は、現在のホストに適したディレクトリへ Skill 名 `distilly` でインストールします。
 
 ### 👤 手動でインストールする場合
 
 ```bash
-git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
+git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 ホストごとのパス、既存インストールの移行、Windows 対応、生成した Profile のインストール、収集用クレデンシャルについては、**[詳細インストールガイド (INSTALL_EN.md)](../../INSTALL_EN.md)** を参照してください。
@@ -231,12 +225,6 @@ User               ❯ 今日、私のこと考えた？
 relationship.skill ❯ ……ちょっとだけね。なんで訊くの？
 ```
 
-<div align="center">
-
-📚 実例はさらに **[コミュニティギャラリー](https://titanwings.github.io/colleague-skill-site/)** に——100+ の skill が集まり続けています
-
-</div>
-
 ---
 
 ## 🔧 機能
@@ -283,18 +271,6 @@ Distilly は **Persona** を共通の土台とし、その上にファミリー�
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > これは Distilly の前身である **colleague.skill** の論文です。Work Skill + Persona の二層アーキテクチャ、マルチソースデータ収集、Skill 生成メカニズムを扱っており、今日の `colleague` ファミリーの理論的基盤となっています。relationship / celebrity ファミリーの拡張については、別途論文の公開を予定しています。
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
- </picture>
-</a>
 
 ---
 

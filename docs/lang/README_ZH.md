@@ -12,11 +12,9 @@
 
 **聊天 · 文档 · 访谈 · 公开资料 → Distilly → Person Profile → Agent / Bot**
 
-[![Discord](https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/distilly/stargazers)
 
 <br>
 
@@ -44,7 +42,7 @@ Distilly 是 Agent 工作流中的人物建模层。它把你提供的材料整�
 
 <br>
 
-[🆕 Distilly 能做什么](#-distilly-现在能做什么) · [📦 数据来源](#-支持的数据来源) · [⚡ 安装](#-安装) · [🚀 使用](#-使用) · [✨ 效果示例](#-效果示例) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 Distilly 能做什么](#-distilly-现在能做什么) · [📦 数据来源](#-支持的数据来源) · [⚡ 安装](#-安装) · [🚀 使用](#-使用) · [✨ 效果示例](#-效果示例)
 
 [**English**](../../README.md) · [**Español**](README_ES.md) · [**Deutsch**](README_DE.md) · [**日本語**](README_JA.md) · [**Русский**](README_RU.md) · [**Português**](README_PT.md) · [**한국어**](README_KO.md)
 
@@ -64,9 +62,7 @@ Distilly 是 Agent 工作流中的人物建模层。它把你提供的材料整�
 
 > 📝 **2026.06.01 更新** — **[COLLEAGUE.SKILL 技术报告](https://arxiv.org/pdf/2605.31264) 已上线**；这次最开心的不只是发了篇 paper，而是社区一起把 gallery 推到 215 个 skills、165 位贡献者和 100k+ skill-card 累计 stars，论文 Acknowledgements 也专门收录并感谢了所有社区贡献者。
 
-> 🗺️ **2026.04.13** — **Distilly 路线图正式发布！** 项目从原 Colleague Skill 走向更通用的目标：把人物蒸馏成可供 Agent 复用的 Skill。 👉 **[完整路线图](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
-
-> 🌐 **2026.04.07** — 社区平台上线！任何 skill / meta-skill 可直接给自己的 GitHub repo 引流，没有中间商。 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
+> 🗺️ **2026.04.13** — **Distilly 路线图正式发布！** 项目从原 Colleague Skill 走向更通用的目标：把人物蒸馏成可供 Agent 复用的 Skill。 👉 **[完整路线图](../../ROADMAP.md)**
 
 <div align="center">
 
@@ -149,7 +145,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 在任意支持的本地 Agent 宿主中发送：
 
-> 从 `https://github.com/titanwings/distilly` 安装 Distilly，并确认当前宿主可以发现它。
+> 从 `https://github.com/10xtf/distilly-10x` 安装 Distilly，并确认当前宿主可以发现它。
 
 Agent 会把 Distilly 作为名为 `distilly` 的 Skill 安装到正确的宿主目录。
 
@@ -158,7 +154,7 @@ Agent 会把 Distilly 作为名为 `distilly` 的 Skill 安装到正确的宿主
 把 Distilly clone 到当前宿主使用的 Skills 目录：
 
 ```bash
-git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
+git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 各宿主路径、旧版本迁移、Windows、生成 Profile 的安装方式和凭证配置，统一放在 **[详细安装说明](../../INSTALL.md)**。
@@ -233,12 +229,6 @@ colleague.skill ❯ 上线时间对上了吗？那个需求改了好几个地方
 relationship.skill ❯ ……有啊，就一点点。你干嘛问这个。
 ```
 
-<div align="center">
-
-📚 更多实战案例见 **[社区 Gallery](https://titanwings.github.io/colleague-skill-site/)**，已收录 100+ skill
-
-</div>
-
 ---
 
 ## 🔧 功能特性
@@ -285,18 +275,6 @@ Distilly 当前的创建器以 **Persona** 为通用底座，不同家族按场�
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 这是 Distilly 前身 **COLLEAGUE.SKILL / colleague-skill（原同事 Skill）** 的技术论文，详细介绍了 Work Skill + Persona 的双层架构、多源数据采集与 Skill 生成机制，也是今天 `colleague` 家族的理论基础。relationship / celebrity 家族的架构扩展会另起论文。
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
- </picture>
-</a>
 
 ---
 

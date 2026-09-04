@@ -38,7 +38,6 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 | Duale Modellarchitektur: Work Skill + Persona | Erledigt |
 | Gesprächskorrekturen und inkrementelle Weiterentwicklung | Erledigt |
 | Versionskontrolle und Rollback | Erledigt |
-| [Community-Galerie](https://titanwings.github.io/colleague-skill-site/) mit 99+ Skills | Erledigt |
 
 ---
 
@@ -121,10 +120,8 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 | Wie | Wo |
 |-----|-----|
-| Reiche deinen .skill ein | [Galerie-PR](https://titanwings.github.io/colleague-skill-site/) |
-| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (demnächst) |
-| Echtzeit-Chat | [Discord](https://discord.gg/NVX66RxWZv) |
-| Fehler melden | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Diskutiere und schlage vor | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) (demnächst) |
+| Fehler melden | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | Code beitragen | Suche nach `good-first-issue`-Labels oder öffne einfach einen PR |
 
 **Wir brauchen besonders:**
@@ -139,7 +136,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 **Diese Roadmap gehört der Community. Prioritäten verschieben sich basierend auf eurem Feedback.**
 
-Hast du Ideen? Komm zu [Discord](https://discord.gg/NVX66RxWZv) oder starte eine Discussion.
+Hast du Ideen? Komm zu oder starte eine Discussion.
 
 Jeder `.skill` ist eine fortgeführte Beziehung.
 

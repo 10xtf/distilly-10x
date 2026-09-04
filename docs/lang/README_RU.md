@@ -11,9 +11,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/distilly/stargazers)
-
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
 
@@ -39,7 +36,7 @@ Distilly превращает подтверждённые источникам�
 
 <br>
 
-[🆕 Что нового](#-что-нового-в-этом-крупном-релизе) · [📦 Источники данных](#-поддерживаемые-источники-данных) · [⚡ Установка](#-установка) · [🚀 Использование](#-использование) · [✨ Демо](#-демо) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 Что нового](#-что-нового-в-этом-крупном-релизе) · [📦 Источники данных](#-поддерживаемые-источники-данных) · [⚡ Установка](#-установка) · [🚀 Использование](#-использование) · [✨ Демо](#-демо)
 
 [**Английский**](../../README.md) · [**Китайский**](README_ZH.md) · [**Испанский**](README_ES.md) · [**Немецкий**](README_DE.md) · [**Японский**](README_JA.md) · [**Португальский**](README_PT.md) · [**Корейский**](README_KO.md)
 
@@ -59,9 +56,7 @@ Distilly превращает подтверждённые источникам�
 
 > 📝 **Обновление 2026.06.01** — **[Технический отчёт COLLEAGUE.SKILL](https://arxiv.org/pdf/2605.31264) опубликован**; больше всего нас радует не просто выход paper, а то, что сообщество вместе вырастило gallery до 215 skills от 165 контрибьюторов и 100k+ суммарных stars на skill cards, а все участники сообщества были отдельно упомянуты в Acknowledgements.
 
-> 🗺️ **2026.04.13** — **Дорожная карта Distilly опубликована!** Проект, начавшийся как colleague.skill, теперь называется **Distilly** и дистиллирует кого угодно, не только коллег. 👉 **[Полная дорожная карта](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
-
-> 🌐 **2026.04.07** — Галерея сообщества запущена! Любой skill или meta-skill может направлять трафик прямо в твой GitHub-репозиторий. Без посредников. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
+> 🗺️ **2026.04.13** — **Дорожная карта Distilly опубликована!** Проект, начавшийся как colleague.skill, теперь называется **Distilly** и дистиллирует кого угодно, не только коллег. 👉 **[Полная дорожная карта](../../ROADMAP.md)**
 
 <div align="center">
 
@@ -136,7 +131,6 @@ Distilly больше не ограничен сценарием «коллег�
 | ✉️ | Email `.eml` / `.mbox` | ✅ | — | Ручная загрузка |
 | 📝 | Markdown / прямая вставка | ✅ | ✅ | Ручной ввод |
 
-
 ---
 
 ## ⚡ Установка
@@ -145,14 +139,14 @@ Distilly больше не ограничен сценарием «коллег�
 
 Открой поддерживаемый локальный Agent-хост и отправь ему эту фразу:
 
-> Установи Distilly из `https://github.com/titanwings/distilly`, а затем проверь, что этот хост его обнаруживает.
+> Установи Distilly из `https://github.com/10xtf/distilly-10x`, а затем проверь, что этот хост его обнаруживает.
 
 Агент установит проект под именем Skill `distilly` в подходящий каталог текущего хоста.
 
 ### 👤 Для людей
 
 ```bash
-git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
+git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 Пути для разных хостов, миграция существующих установок, поддержка Windows, установка сгенерированных Profile и учётные данные для сбора материалов описаны в **[подробном руководстве по установке (INSTALL_EN.md)](../../INSTALL_EN.md)**.
@@ -231,12 +225,6 @@ User               ❯ Ты сегодня обо мне думал?
 relationship.skill ❯ ...немного думал. А чего спрашиваешь?
 ```
 
-<div align="center">
-
-📚 Больше живых кейсов — в **[галерее сообщества](https://titanwings.github.io/colleague-skill-site/)** — 100+ навыков и считаем дальше
-
-</div>
-
 ---
 
 ## 🔧 Возможности
@@ -283,18 +271,6 @@ Distilly использует **Persona** как универсальную ба
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > Это статья про **colleague.skill**, предшественника Distilly. Она описывает двухслойную архитектуру Work Skill + Persona, мультиисточниковый сбор данных и механику генерации Skill'ов — теоретическую основу сегодняшнего семейства `colleague`. Отдельные статьи по расширениям на семейства relationship / celebrity — в планах.
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
- </picture>
-</a>
 
 ---
 

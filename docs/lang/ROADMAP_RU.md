@@ -38,7 +38,6 @@
 | Двухмодельная архитектура Work Skill + Persona | Готово |
 | Коррекция диалогов и инкрементальная эволюция | Готово |
 | Управление версиями и откат | Готово |
-| [Галерея сообщества](https://titanwings.github.io/colleague-skill-site/) с 99+ навыками | Готово |
 
 ---
 
@@ -121,10 +120,8 @@
 
 | Способ | Где |
 |--------|-----|
-| Отправить свой .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Обсуждать и предлагать | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (скоро) |
-| Общаться в реальном времени | [Discord](https://discord.gg/NVX66RxWZv) |
-| Сообщить об ошибке | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Обсуждать и предлагать | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) (скоро) |
+| Сообщить об ошибке | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | Внести код | Ищите метки `good-first-issue` или просто откройте PR |
 
 **Особенно нужны:**
@@ -139,7 +136,7 @@
 
 **Эта дорожная карта принадлежит сообществу. Приоритеты меняются на основе вашей обратной связи.**
 
-Есть идеи? Приходите в [Discord](https://discord.gg/NVX66RxWZv) или начните Discussion.
+Есть идеи? Приходите в или начните Discussion.
 
 Каждый `.skill` -- это продолжение отношений.
 

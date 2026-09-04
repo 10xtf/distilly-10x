@@ -40,7 +40,6 @@
 | Work Skill + Persona 双模型架构 | ✅ |
 | 对话纠正 & 增量进化 | ✅ |
 | 版本管理 & 回滚 | ✅ |
-| [社区 Gallery](https://titanwings.github.io/colleague-skill-site/) 99+ 技能 | ✅ |
 
 ---
 
@@ -117,15 +116,12 @@
 
 **你可以做：** 分享你对多模态的使用场景想法、贡献表情包素材、测试语音克隆效果
 
-
 ## 💬 参与方式
 
 | 方式 | 链接 |
 |------|------|
-| 提交你的 .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 讨论与提议 | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（即将开放） |
-| 实时交流 | [Discord](https://discord.gg/NVX66RxWZv) |
-| 报告 Bug | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| 讨论与提议 | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions)（即将开放） |
+| 报告 Bug | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | 贡献代码 | 看 `good-first-issue` 标签，或直接提 PR |
 
 **我们尤其需要：**
@@ -140,7 +136,7 @@
 
 **这份路线图属于社区。优先级会根据你们的反馈动态调整。**
 
-有想法？来 [Discord](https://discord.gg/NVX66RxWZv) 聊，或者直接开一个 Discussion。
+有想法？来 聊，或者直接开一个 Discussion。
 
 每一个 `.skill`，都是一段关系的延续。
 

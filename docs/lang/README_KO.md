@@ -11,9 +11,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/distilly/stargazers)
-
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
 
@@ -39,7 +36,7 @@ Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 업무 
 
 <br>
 
-[🆕 새로운 점](#-이번-메이저-릴리스의-새로운-점) · [📦 데이터 소스](#-지원-데이터-소스) · [⚡ 설치](#-설치) · [🚀 사용법](#-사용법) · [✨ 데모](#-데모) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 새로운 점](#-이번-메이저-릴리스의-새로운-점) · [📦 데이터 소스](#-지원-데이터-소스) · [⚡ 설치](#-설치) · [🚀 사용법](#-사용법) · [✨ 데모](#-데모)
 
 [**영어**](../../README.md) · [**중국어**](README_ZH.md) · [**스페인어**](README_ES.md) · [**독일어**](README_DE.md) · [**일본어**](README_JA.md) · [**러시아어**](README_RU.md) · [**포르투갈어**](README_PT.md)
 
@@ -59,9 +56,7 @@ Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 업무 
 
 > 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](https://arxiv.org/pdf/2605.31264)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
 
-> 🗺️ **2026.04.13** — **Distilly 로드맵이 공개되었습니다!** colleague.skill로 시작한 프로젝트는 이제 **Distilly**라는 이름으로 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](../../ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
-
-> 🌐 **2026.04.07** — 커뮤니티 갤러리가 공개되었습니다! 어떤 스킬이든 메타 스킬이든 트래픽을 자신의 GitHub 저장소로 바로 연결할 수 있습니다. 중간 단계 없음. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
+> 🗺️ **2026.04.13** — **Distilly 로드맵이 공개되었습니다!** colleague.skill로 시작한 프로젝트는 이제 **Distilly**라는 이름으로 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](../../ROADMAP.md)**
 
 <div align="center">
 
@@ -136,7 +131,6 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 | ✉️ | 이메일 `.eml` / `.mbox` | ✅ | — | 수동 업로드 |
 | 📝 | Markdown / 직접 붙여넣기 | ✅ | ✅ | 수동 입력 |
 
-
 ---
 
 ## ⚡ 설치
@@ -145,14 +139,14 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 지원되는 로컬 Agent 호스트를 열고 다음 문장을 보내세요.
 
-> `https://github.com/titanwings/distilly`에서 Distilly를 설치한 다음, 이 호스트에서 Distilly를 찾을 수 있는지 확인해 줘.
+> `https://github.com/10xtf/distilly-10x`에서 Distilly를 설치한 다음, 이 호스트에서 Distilly를 찾을 수 있는지 확인해 줘.
 
 Agent는 현재 호스트에 맞는 디렉터리에 Skill 이름 `distilly`로 설치합니다.
 
 ### 👤 직접 설치하기
 
 ```bash
-git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
+git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 호스트별 경로, 기존 설치 마이그레이션, Windows 지원, 생성된 Profile 설치, 수집 자격 증명에 관한 자세한 내용은 **[상세 설치 가이드 (INSTALL_EN.md)](../../INSTALL_EN.md)** 를 참고하세요.
@@ -231,12 +225,6 @@ distilly ❯ 타임라인이 맞아? 그 기능은 여러 군데를 건드렸고
 relationship.skill ❯ ...조금 했어. 왜 물어봐?
 ```
 
-<div align="center">
-
-📚 더 많은 실제 사례는 **[커뮤니티 갤러리](https://titanwings.github.io/colleague-skill-site/)** 에서 — 100개 이상의 스킬이 계속 쌓이고 있습니다.
-
-</div>
-
 ---
 
 ## 🔧 기능
@@ -283,18 +271,6 @@ Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 �
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
 > 이 논문은 Distilly의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
- </picture>
-</a>
 
 ---
 

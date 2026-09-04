@@ -38,7 +38,6 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 | Arquitetura de modelo duplo Work Skill + Persona | Feito |
 | Correcoes de conversa & evolucao incremental | Feito |
 | Controle de versao & rollback | Feito |
-| [Gallery da comunidade](https://titanwings.github.io/colleague-skill-site/) com 99+ skills | Feito |
 
 ---
 
@@ -121,10 +120,8 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 
 | Como | Onde |
 |------|------|
-| Envie seu .skill | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| Discuta e proponha | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (em breve) |
-| Converse em tempo real | [Discord](https://discord.gg/NVX66RxWZv) |
-| Reporte bugs | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Discuta e proponha | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) (em breve) |
+| Reporte bugs | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | Contribua com codigo | Procure labels `good-first-issue` ou simplesmente abra um PR |
 
 **Precisamos especialmente de:**
@@ -139,7 +136,7 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 
 **Este roadmap pertence a comunidade. As prioridades mudam com base no seu feedback.**
 
-Tem ideias? Venha ao [Discord](https://discord.gg/NVX66RxWZv) ou inicie uma Discussion.
+Tem ideias? Venha ao ou inicie uma Discussion.
 
 Cada `.skill` e um relacionamento que continua.
 

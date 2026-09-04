@@ -11,7 +11,6 @@ Thank you for considering a contribution! Distilly turns source material about a
 - **Report bugs** — open a [bug report](.github/ISSUE_TEMPLATE/bug_report.md)
 - **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
 - **Translate docs** — see `docs/lang/` for existing languages
-- **Submit a community skill** — submit to the [gallery](https://titanwings.github.io/colleague-skill-site/)
 - **Improve prompts** — files under `prompt_kor/` shape skill behavior; small wording tweaks are welcome
 
 ---
@@ -19,7 +18,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 ## Development setup
 
 ```bash
-git clone https://github.com/titanwings/distilly.git distilly
+git clone https://github.com/10xtf/distilly-10x.git distilly
 cd distilly
 pip3 install -r requirements.txt
 ```
@@ -42,7 +41,7 @@ Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials
    python -m unittest discover -s tests -p 'test_*.py' -v
    ```
 4. Open a PR against the repository's default branch. Fill out the PR template.
-5. CI must pass. A maintainer will review — please be patient, and feel free to ping on Discord if it's been a week.
+5. CI must pass. A maintainer will review — please be patient, and feel free to ping on the issue if it's been a week.
 
 ---
 
@@ -88,7 +87,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 
 - **Never commit secrets, tokens, or personal data.** If you accidentally do, rotate the credential immediately and let a maintainer know.
 - Config files that hold credentials should be written to the user's home under `~/.distilly/` with permission `0600`; readers may keep a read-only fallback for legacy `~/.colleague-skill/` files.
-- If you find a security issue, **do not open a public issue.** Email the maintainer or DM on Discord.
+- If you find a security issue, **do not open a public issue.** Contact the repository maintainer directly.
 
 ---
 
@@ -102,9 +101,7 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 
 ## Community
 
-- [💬 Discord](https://discord.gg/NVX66RxWZv) — main chat
-- [GitHub Discussions](https://github.com/titanwings/distilly/discussions) — long-form Q&A and design threads
-- [Skill gallery](https://titanwings.github.io/colleague-skill-site/) — browse and submit skills
+- [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) — long-form Q&A and design threads
 
 Be kind. Assume good intent. Disagree on the idea, not the person.
 

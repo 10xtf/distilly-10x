@@ -77,7 +77,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("### 🤖", quick_start, f"missing Agent path in {source}")
         self.assertIn("### 👤", quick_start, f"missing human path in {source}")
         self.assertIn(
-            "git clone https://github.com/titanwings/distilly "
+            "git clone https://github.com/10xtf/distilly-10x "
             "<DISTILLY_SKILL_DIR>",
             quick_start,
             f"missing short clone command in {source}",
@@ -146,7 +146,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self._assert_readme_quick_start(readme, "README.md", "(INSTALL_EN.md)")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
-        self.assertIn("https://github.com/titanwings/distilly", readme)
+        self.assertIn("https://github.com/10xtf/distilly-10x", readme)
         self.assertNotIn("https://github.com/titanwings/colleague-skill", readme)
 
         self.assertIn(".claude/skills/distilly", install)
@@ -160,7 +160,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("/distilly", install)
         self.assertNotIn("/dot-skill", install)
         self.assertNotIn("skills/dot-skill", install)
-        self.assertIn("https://github.com/titanwings/distilly", install)
+        self.assertIn("https://github.com/10xtf/distilly-10x", install)
         self.assertNotIn("https://github.com/titanwings/colleague-skill", install)
         self.assertIn("./skills/colleague", install)
         self.assertIn("install_claude_generated_skill.py", install)
@@ -212,7 +212,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
                 else "(../../INSTALL_EN.md)",
             )
             self.assertIn(
-                "https://github.com/titanwings/distilly",
+                "https://github.com/10xtf/distilly-10x",
                 content,
                 f"missing published repository URL in {readme_path.name}",
             )

@@ -15,9 +15,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
-[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/distilly/stargazers)
-
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/NVX66RxWZv)
 
 <br>
 
@@ -45,7 +42,7 @@ Colleagues · partners · family · old friends · idols · public figures · fi
 
 <br>
 
-[🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [📝 Citation](#-citation) · [💬 Discord](https://discord.gg/NVX66RxWZv)
+[🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [📝 Citation](#-citation)
 
 [**Chinese**](docs/lang/README_ZH.md) · [**Spanish**](docs/lang/README_ES.md) · [**German**](docs/lang/README_DE.md) · [**Japanese**](docs/lang/README_JA.md) · [**Russian**](docs/lang/README_RU.md) · [**Portuguese**](docs/lang/README_PT.md) · [**Korean**](docs/lang/README_KO.md)
 
@@ -65,9 +62,7 @@ Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
 
 > 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](https://arxiv.org/pdf/2605.31264) is now available**. The most rewarding part was not simply publishing a paper, but seeing the community grow the gallery to 215 skills contributed by 165 people, with more than 100,000 stars across the skill cards. The paper's Acknowledgements explicitly recognize every community contributor.
 
-> 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](ROADMAP.md)** · **[💬 Discord](https://discord.gg/NVX66RxWZv)**
-
-> 🌐 **2026.04.07** — Community gallery is live! Any skill / meta-skill can drive traffic directly to your own GitHub repo. No middleman. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**
+> 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](ROADMAP.md)**
 
 <div align="center">
 
@@ -150,7 +145,7 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 
 Open any supported local Agent host and send:
 
-> Install Distilly from `https://github.com/titanwings/distilly`, then verify that this host can discover it.
+> Install Distilly from `https://github.com/10xtf/distilly-10x`, then verify that this host can discover it.
 
 The Agent installs Distilly as a Skill named `distilly` in the correct host directory.
 
@@ -159,7 +154,7 @@ The Agent installs Distilly as a Skill named `distilly` in the correct host dire
 Clone Distilly into the Skills directory used by your host:
 
 ```bash
-git clone https://github.com/titanwings/distilly <DISTILLY_SKILL_DIR>
+git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 Host paths, migration, Windows, generated-profile installation, and credential setup are in the **[Install Guide](INSTALL_EN.md)**.
@@ -238,12 +233,6 @@ User               ❯ Did you think about me today?
 relationship.skill ❯ ...I did, a little bit. Why are you asking?
 ```
 
-<div align="center">
-
-📚 More real-world cases in the **[community gallery](https://titanwings.github.io/colleague-skill-site/)** — 100+ skills and counting
-
-</div>
-
 ---
 
 ## 🔧 Features
@@ -310,18 +299,6 @@ If you use **Distilly** or **COLLEAGUE.SKILL** in your research or applications,
 ```
 
 You can also use the machine-readable citation metadata in [CITATION.cff](CITATION.cff).
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#titanwings/colleague-skill&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=titanwings%2Fdistilly&type=date&legend=top-left" />
- </picture>
-</a>
 
 ---
 

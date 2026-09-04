@@ -38,7 +38,6 @@
 | Work Skill + Persona デュアルモデルアーキテクチャ | 完了 |
 | 会話修正 & 増分進化 | 完了 |
 | バージョン管理 & ロールバック | 完了 |
-| [コミュニティ Gallery](https://titanwings.github.io/colleague-skill-site/) 99以上のスキル | 完了 |
 
 ---
 
@@ -121,10 +120,8 @@
 
 | 方法 | リンク |
 |------|--------|
-| .skill を投稿する | [Gallery PR](https://titanwings.github.io/colleague-skill-site/) |
-| 議論・提案する | [GitHub Discussions](https://github.com/titanwings/distilly/discussions)（近日公開） |
-| リアルタイムでチャット | [Discord](https://discord.gg/NVX66RxWZv) |
-| バグを報告する | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| 議論・提案する | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions)（近日公開） |
+| バグを報告する | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | コードを貢献する | `good-first-issue` ラベルを探すか、PR を直接作成 |
 
 **特に必要としています：**
@@ -139,7 +136,7 @@
 
 **このロードマップはコミュニティのものです。優先順位は皆さんのフィードバックに基づいて変わります。**
 
-アイデアがありますか？ [Discord](https://discord.gg/NVX66RxWZv) に来るか、Discussion を始めてください。
+アイデアがありますか？ に来るか、Discussion を始めてください。
 
 すべての `.skill` は、続いていく関係です。
 

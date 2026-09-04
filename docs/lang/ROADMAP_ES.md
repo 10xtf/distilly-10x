@@ -38,7 +38,6 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 | Arquitectura de doble modelo: Work Skill + Persona | Hecho |
 | Correcciones en conversación y evolución incremental | Hecho |
 | Control de versiones y reversión | Hecho |
-| [Galería comunitaria](https://titanwings.github.io/colleague-skill-site/) con más de 99 skills | Hecho |
 
 ---
 
@@ -121,10 +120,8 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 | Cómo | Dónde |
 |------|-------|
-| Envía tu .skill | [PR a la Galería](https://titanwings.github.io/colleague-skill-site/) |
-| Discute y propone | [GitHub Discussions](https://github.com/titanwings/distilly/discussions) (próximamente) |
-| Chatea en tiempo real | [Discord](https://discord.gg/NVX66RxWZv) |
-| Reporta errores | [Issue](https://github.com/titanwings/distilly/issues/new) |
+| Discute y propone | [GitHub Discussions](https://github.com/10xtf/distilly-10x/discussions) (próximamente) |
+| Reporta errores | [Issue](https://github.com/10xtf/distilly-10x/issues/new) |
 | Contribuye código | Busca etiquetas `good-first-issue`, o simplemente abre un PR |
 
 **Necesitamos especialmente:**
@@ -139,7 +136,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 **Esta hoja de ruta pertenece a la comunidad. Las prioridades cambian según tu feedback.**
 
-¿Tienes ideas? Ven a [Discord](https://discord.gg/NVX66RxWZv) o inicia una Discussion.
+¿Tienes ideas? Ven a o inicia una Discussion.
 
 Cada `.skill` es una relación que continúa.
 

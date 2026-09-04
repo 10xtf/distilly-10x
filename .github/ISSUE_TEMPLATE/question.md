@@ -11,7 +11,6 @@ Before opening a question, please check:
 
 - README.md / INSTALL.md / SKILL.md
 - Existing issues and discussions
-- Discord: https://discord.gg/NVX66RxWZv
 -->
 
 ## What are you trying to do?

@@ -1,5 +1,5 @@
 {
-  "name": "@titanwings/distilly",
+  "name": "@10xtf/distilly",
   "version": "1.0.0",
   "description": "Distill source material into reusable Person Profiles for AI agents.",
   "type": "module",
@@ -34,11 +34,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/titanwings/distilly.git"
+    "url": "git+https://github.com/10xtf/distilly-10x.git"
   },
-  "homepage": "https://github.com/titanwings/distilly#readme",
+  "homepage": "https://github.com/10xtf/distilly-10x#readme",
   "bugs": {
-    "url": "https://github.com/titanwings/distilly/issues"
+    "url": "https://github.com/10xtf/distilly-10x/issues"
   },
   "engines": {
     "node": ">=18"

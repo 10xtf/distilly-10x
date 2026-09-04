@@ -108,20 +108,14 @@ Created by [@titanwings](https://github.com/titanwings)
 
 旧版只能在 Claude Code 里用。Distilly 现在支持 8 个本地 Agent 宿主：
 
-<table>
-<tr>
-<td align="center" width="25%"><a href="https://claude.ai/code"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/claude-code-wordmark-dark.svg"><img src="../assets/hosts/claude-code-wordmark-light.svg" alt="Claude Code" height="28"></picture></a></td>
-<td align="center" width="25%"><a href="https://github.com/NousResearch/hermes-agent"><img src="../assets/hosts/hermes-agent-wordmark.png" alt="Hermes Agent" height="32"></a></td>
-<td align="center" width="25%"><a href="https://github.com/openclaw/openclaw"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/openclaw-wordmark-dark.svg"><img src="../assets/hosts/openclaw-wordmark-light.svg" alt="OpenClaw" height="38"></picture></a></td>
-<td align="center" width="25%"><a href="https://github.com/openai/codex" title="Codex"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/codex-mark-dark.png"><img src="../assets/hosts/codex-mark-light.png" alt="Codex" height="64"></picture></a></td>
-</tr>
-<tr>
-<td align="center" width="25%"><a href="https://github.com/deepseek-ai/deepseek-harness"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/deepseek-wordmark-dark.svg"><img src="../assets/hosts/deepseek-wordmark-light.svg" alt="DeepSeek Harness" height="32"></picture></a></td>
-<td align="center" width="25%"><a href="https://pi.dev/docs/latest/skills"><img src="../assets/hosts/pi-mark.svg" alt="Pi coding agent" height="46"></a></td>
-<td align="center" width="25%"><a href="https://docs.x.ai/build/features/skills-plugins-marketplaces"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/grok-build-mark-dark.png"><img src="../assets/hosts/grok-build-mark-light.png" alt="Grok Build" height="46"></picture></a></td>
-<td align="center" width="25%"><a href="https://opencode.ai/docs/skills"><picture><source media="(prefers-color-scheme: dark)" srcset="../assets/hosts/opencode-wordmark-dark.svg"><img src="../assets/hosts/opencode-wordmark-light.svg" alt="OpenCode" height="32"></picture></a></td>
-</tr>
-</table>
+- [Claude Code](https://claude.ai/code)
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+- [OpenClaw](https://github.com/openclaw/openclaw)
+- [Codex](https://github.com/openai/codex)
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+- [Pi coding agent](https://pi.dev/docs/latest/skills)
+- [Grok Build](https://docs.x.ai/build/features/skills-plugins-marketplaces)
+- [OpenCode](https://opencode.ai/docs/skills)
 
 **Grok Bot 预览：**Grok Bot 支持 saved/private Skills，但官方文档没有说明可直接导入本地 `SKILL.md`。可手工迁移 Distilly 流程为 saved Skill；直接安装仓库尚未验证。
 

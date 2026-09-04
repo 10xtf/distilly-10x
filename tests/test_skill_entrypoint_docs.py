@@ -14,22 +14,6 @@ SUPPORTED_HOSTS = (
     "Grok Build",
     "OpenCode",
 )
-HOST_LOGO_FILES = (
-    "claude-code-wordmark-dark.svg",
-    "claude-code-wordmark-light.svg",
-    "hermes-agent-wordmark.png",
-    "openclaw-wordmark-dark.svg",
-    "openclaw-wordmark-light.svg",
-    "codex-mark-dark.png",
-    "codex-mark-light.png",
-    "deepseek-wordmark-dark.svg",
-    "deepseek-wordmark-light.svg",
-    "pi-mark.svg",
-    "grok-build-mark-dark.png",
-    "grok-build-mark-light.png",
-    "opencode-wordmark-dark.svg",
-    "opencode-wordmark-light.svg",
-)
 # Slash invocations start at a text boundary; slashes inside install paths are allowed.
 README_INVOCATION_PATTERNS = (
     re.compile(r"\$distilly\b"),
@@ -48,7 +32,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
     def _assert_readme_support_contract(self, content: str, source: str) -> None:
         self.assertIn("### 3️⃣", content, f"missing host section in {source}")
         host_section = content.split("### 3️⃣", 1)[1].split("\n---", 1)[0]
-        host_rows = re.findall(r'<img [^>]*alt="([^"]+)"', host_section)
+        host_rows = re.findall(r"^- \[([^\]]+)\]\(", host_section, re.M)
 
         self.assertEqual(list(SUPPORTED_HOSTS), host_rows, f"wrong host list in {source}")
         self.assertNotIn("🟣 **Claude Code**", host_section, f"text host rows remain in {source}")
@@ -57,9 +41,11 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             content,
             f"duplicate host badges remain in {source}",
         )
-        logo_prefix = "docs/assets/hosts/" if source == "README.md" else "../assets/hosts/"
-        for logo_file in HOST_LOGO_FILES:
-            self.assertIn(logo_prefix + logo_file, host_section, f"missing {logo_file} in {source}")
+        self.assertNotIn(
+            "assets/hosts",
+            content,
+            f"third-party host brand assets are referenced in {source}",
+        )
         self.assertIn("Grok Bot", host_section, f"missing Grok Bot preview in {source}")
         self.assertIn("{character}-{slug}", content, f"missing generated Skill name in {source}")
         self.assertNotIn("## 📂", content, f"project structure section remains in {source}")
@@ -190,8 +176,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("eight agent hosts", readme.lower())
         self.assertIn("호환 호스트", install)
 
-        for logo_file in HOST_LOGO_FILES:
-            self.assertTrue((ROOT / "docs" / "assets" / "hosts" / logo_file).is_file())
+        self.assertFalse((ROOT / "docs" / "assets" / "hosts").exists())
 
     def test_repo_examples_live_under_skills_colleague(self) -> None:
         self.assertTrue((ROOT / "skills" / "colleague" / "example_hong").exists())

@@ -3,7 +3,7 @@
 # Every third-party dependency was tied to an external-call collector
 # (Slack SDK, Playwright, requests, yt-dlp) and was removed together with
 # those tools. Source material now arrives only through file upload and
-# pasted text, so there is nothing to install beyond Python 3.9+.
+# pasted text, so there is nothing to install beyond Python 3.11+.
 #
 # Keep this file empty of runtime requirements. If a future change needs a
 # dependency, add it here together with the reason.

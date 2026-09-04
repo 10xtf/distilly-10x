@@ -97,7 +97,8 @@ configuration exists, they can read legacy configuration from
 `~/.colleague-skill/` without moving it.
 
 ```bash
-# Install the declared Python dependencies
+# Python 3.11+ required. requirements.txt currently declares no dependency,
+# so this installs nothing. Future dependencies arrive through this path
 pip3 install -r requirements.txt
 ```
 

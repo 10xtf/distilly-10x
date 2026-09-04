@@ -266,7 +266,8 @@ Grok Bot은 문서화된 절차나 데모를 private Skill로 저장한 뒤 Sett
 이 Skill은 외부 서비스를 호출하지 않는다. 자료는 파일 업로드와 텍스트 붙여넣기로만 들어온다.
 
 ```bash
-# requirements.txt 에 선언된 Python 의존성 설치 (Python 3.9+)
+# Python 3.11+ 필요. requirements.txt 는 현재 선언된 의존성이 없어
+# 이 명령은 아무것도 설치하지 않는다. 향후 의존성이 추가되면 이 경로로 들어온다
 pip3 install -r requirements.txt
 ```
 

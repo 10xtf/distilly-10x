@@ -23,7 +23,7 @@ cd distilly
 pip3 install -r requirements.txt
 ```
 
-Python 3.9+ is required. Optional extras (`openpyxl`, auto-collector credentials) are covered in [INSTALL.md](INSTALL.md).
+Python 3.11+ is required. `requirements.txt` currently declares no runtime dependency — Distilly runs on the standard library. Host setup is covered in [INSTALL.md](INSTALL.md).
 
 ---
 

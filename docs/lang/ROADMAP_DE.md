@@ -32,8 +32,6 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 | Funktion | Status |
 |----------|:------:|
 | Vollständiger Erstellungsablauf mit Familienauswahl (`colleague`, `relationship`, `celebrity`) über `/distilly` | Erledigt |
-| Automatische Erfassung von Slack | Erledigt |
-| WeChat-Chatverlauf (SQLite-Export) | Erledigt |
 | Import von E-Mail / PDF / Bild / Markdown | Erledigt |
 | Duale Modellarchitektur: Work Skill + Persona | Erledigt |
 | Gesprächskorrekturen und inkrementelle Weiterentwicklung | Erledigt |
@@ -72,8 +70,6 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 - **Erweiterung der Galerie-Kategorien** — Kollege / Prominenter / Beziehung / Figur / Selbst / Meta-Skill, nach Typ durchsuchen
 - **Weitere Datenquellen**
-  - Unterstützung für WeCom (WeChat Work)
-  - Automatisches Lesen von iMessage
 - **Plattformkompatibilität** — Behebung der Windows-Kompatibilität
 
 **Du kannst helfen:** Anfragen für Personentypen einreichen, neue Datenquellen-Sammler bauen, an Diskussionen zum Galerie-Design teilnehmen
@@ -86,7 +82,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 
 **Wir erforschen:**
 
-- **Multi-Skill-Zusammenarbeit** — `/meeting @zhangsan @lisi @wangwu`, drei Personas diskutieren gemeinsam ein Thema
+- **Multi-Skill-Zusammenarbeit** — `/meeting @hong-gil-dong @gim-cheol-su @bak-yeong-hui`, drei Personas diskutieren gemeinsam ein Thema
 - **Beziehungsgraph** — definiere Persona-Dynamiken: Wer arbeitet mit wem zusammen, wo liegen die Spannungen
 - **Ein-Klick-Installation** — Community-Skills wie Plugins installieren
 - **Aktive Weiterentwicklung** — Skills nehmen regelmäßig neue Datenquellen auf und bleiben aktuell
@@ -127,7 +123,7 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 **Wir brauchen besonders:**
 - Windows-Nutzer — helft uns, Kompatibilitätsprobleme zu testen und zu beheben
 - Mehrsprachige Sprecher — helft bei der Übersetzung der Dokumentation
-- Datenquellen-Entwickler — baut neue Sammler (WeCom, Notion, Google Docs...)
+- Datenquellen-Entwickler — baut neue Sammler (Notion, Google Docs...)
 - Designer — die Galerie und die Website brauchen euer Auge
 
 ---

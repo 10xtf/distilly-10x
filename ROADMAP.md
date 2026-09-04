@@ -32,12 +32,16 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 | Capability | Status |
 |------------|:------:|
 | `/distilly` creation workflow with family selection | Done |
-| Slack auto-collection | Done |
-| WeChat chat history (SQLite export) | Done |
 | Email / PDF / image / Markdown import | Done |
 | Work Skill + Persona dual-model architecture | Done |
 | Conversation corrections & incremental evolution | Done |
 | Version control & rollback | Done |
+
+> **Removed in this fork.** Slack auto-collection and WeChat chat-history import
+> are no longer part of the product. Both depended on external-call collectors
+> that were deleted during the security review, together with the WeCom and
+> iMessage auto-read plans. Source material now arrives only through file upload
+> and pasted text.
 
 ---
 
@@ -72,8 +76,6 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 
 - **Gallery category upgrade** — Colleague / Celebrity / Relationship / Character / Self / Meta-Skill, browse by type
 - **More data sources**
-  - WeCom (WeChat Work) support
-  - iMessage auto-read
   - Windows compatibility fix
 
 **You can help:** submit person-type requests, build new data source collectors, join Gallery design discussions
@@ -86,7 +88,7 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 
 **We're exploring:**
 
-- **Multi-skill collaboration** — `/meeting @zhangsan @lisi @wangwu`, three personas discuss a topic together
+- **Multi-skill collaboration** — `/meeting @hong-gil-dong @gim-cheol-su @bak-yeong-hui`, three personas discuss a topic together
 - **Relationship graph** — define persona dynamics: who partners with whom, where the tension lies
 - **One-click install** — install community skills like plugins
 - **Active evolution** — skills periodically absorb new data sources, staying up to date
@@ -127,7 +129,7 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 **We especially need:**
 - Windows users — help us test and fix compatibility issues
 - Multilingual speakers — help translate documentation
-- Data source developers — build new collectors (WeCom, Notion, Google Docs...)
+- Data source developers — build new collectors (Notion, Google Docs...)
 - Designers — the Gallery and website need your eye
 
 ---

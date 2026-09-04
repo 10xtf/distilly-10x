@@ -32,8 +32,6 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 | Funcionalidad | Estado |
 |---------------|:------:|
 | Flujo completo de creación con selección de familia (`colleague`, `relationship`, `celebrity`) mediante `/distilly` | Hecho |
-| Recopilación automática de Slack | Hecho |
-| Historial de chat de WeChat (exportación SQLite) | Hecho |
 | Importación de Email / PDF / imagen / Markdown | Hecho |
 | Arquitectura de doble modelo: Work Skill + Persona | Hecho |
 | Correcciones en conversación y evolución incremental | Hecho |
@@ -72,8 +70,6 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 - **Mejora de categorías en la Galería** — Colega / Celebridad / Relación / Personaje / Yo / Meta-Skill, navega por tipo
 - **Más fuentes de datos**
-  - Soporte para WeCom (WeChat Work)
-  - Lectura automática de iMessage
 - **Compatibilidad de plataformas** — corrección de compatibilidad con Windows
 
 **Puedes ayudar:** enviar solicitudes de tipos de persona, crear nuevos recopiladores de fuentes de datos, participar en discusiones de diseño de la Galería
@@ -86,7 +82,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 
 **Estamos explorando:**
 
-- **Colaboración multi-skill** — `/meeting @zhangsan @lisi @wangwu`, tres personas discuten un tema juntas
+- **Colaboración multi-skill** — `/meeting @hong-gil-dong @gim-cheol-su @bak-yeong-hui`, tres personas discuten un tema juntas
 - **Grafo de relaciones** — define las dinámicas entre personas: quién colabora con quién, dónde está la tensión
 - **Instalación con un clic** — instala skills de la comunidad como plugins
 - **Evolución activa** — los skills absorben periódicamente nuevas fuentes de datos, manteniéndose actualizados
@@ -127,7 +123,7 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 **Necesitamos especialmente:**
 - Usuarios de Windows — ayúdanos a probar y corregir problemas de compatibilidad
 - Hablantes de varios idiomas — ayuda a traducir la documentación
-- Desarrolladores de fuentes de datos — crea nuevos recopiladores (WeCom, Notion, Google Docs...)
+- Desarrolladores de fuentes de datos — crea nuevos recopiladores (Notion, Google Docs...)
 - Diseñadores — la Galería y el sitio web necesitan tu ojo experto
 
 ---

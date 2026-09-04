@@ -32,8 +32,6 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 | Funcionalidade | Status |
 |----------------|:------:|
 | Fluxo completo de criacao com selecao de familia via `/distilly` | Feito |
-| Coleta automatica do Slack | Feito |
-| Historico de chat do WeChat (exportacao SQLite) | Feito |
 | Importacao de e-mail / PDF / imagem / Markdown | Feito |
 | Arquitetura de modelo duplo Work Skill + Persona | Feito |
 | Correcoes de conversa & evolucao incremental | Feito |
@@ -72,8 +70,6 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 
 - **Upgrade de categorias da Gallery** -- Colega / Celebridade / Relacionamento / Personagem / Eu / Meta-Skill, navegue por tipo
 - **Mais fontes de dados**
-  - Suporte ao WeCom (WeChat Work)
-  - Leitura automatica do iMessage
 - **Compatibilidade de plataformas** -- correcao de compatibilidade com Windows
 
 **Voce pode ajudar:** enviar solicitacoes de tipos de pessoa, construir novos coletores de fontes de dados, participar das discussoes de design da Gallery
@@ -86,7 +82,7 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 
 **Estamos explorando:**
 
-- **Colaboracao multi-skill** -- `/meeting @zhangsan @lisi @wangwu`, tres personas discutem um topico juntas
+- **Colaboracao multi-skill** -- `/meeting @hong-gil-dong @gim-cheol-su @bak-yeong-hui`, tres personas discutem um topico juntas
 - **Grafo de relacionamentos** -- defina a dinamica entre personas: quem e parceiro de quem, onde esta a tensao
 - **Instalacao com um clique** -- instale skills da comunidade como plugins
 - **Evolucao ativa** -- skills absorvem periodicamente novas fontes de dados, mantendo-se atualizadas
@@ -127,7 +123,7 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 **Precisamos especialmente de:**
 - Usuarios Windows -- nos ajudem a testar e corrigir problemas de compatibilidade
 - Falantes multilingues -- ajudem a traduzir a documentacao
-- Desenvolvedores de fontes de dados -- construam novos coletores (WeCom, Notion, Google Docs...)
+- Desenvolvedores de fontes de dados -- construam novos coletores (Notion, Google Docs...)
 - Designers -- a Gallery e o site precisam do seu olhar
 
 ---

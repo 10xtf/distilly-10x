@@ -63,8 +63,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("### 🤖", quick_start, f"missing Agent path in {source}")
         self.assertIn("### 👤", quick_start, f"missing human path in {source}")
         self.assertIn(
-            "git clone https://github.com/10xtf/distilly-10x "
-            "<DISTILLY_SKILL_DIR>",
+            "git clone --branch 10x/ko-hardening "
+            "https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>",
             quick_start,
             f"missing short clone command in {source}",
         )
@@ -166,6 +166,25 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertFalse((ROOT / "docs" / "assets" / "hosts").exists())
         self.assertFalse((ROOT / "docs" / "lang").exists())
         self.assertFalse((ROOT / "INSTALL_EN.md").exists())
+
+    def test_every_documented_clone_pins_the_skill_branch(self) -> None:
+        """
+        기본 브랜치가 distilly-plugin(TypeScript 모노레포)이라 브랜치를 지정하지
+        않고 clone하면 SKILL.md 도 prompt_kor/ 도 없는 트리가 받아진다.
+        문서의 모든 clone 명령은 스킬 브랜치를 고정해야 한다.
+        """
+        found = 0
+        for name in ("INSTALL.md", "README.md", "CONTRIBUTING.md"):
+            for line in (ROOT / name).read_text(encoding="utf-8").splitlines():
+                if "git clone" not in line:
+                    continue
+                found += 1
+                self.assertIn(
+                    "--branch 10x/ko-hardening",
+                    line,
+                    f"clone command without a pinned branch in {name}: {line.strip()}",
+                )
+        self.assertGreaterEqual(found, 14, "documented clone commands went missing")
 
     def test_repo_examples_live_under_skills_colleague(self) -> None:
         self.assertTrue((ROOT / "skills" / "colleague" / "example_hong").exists())

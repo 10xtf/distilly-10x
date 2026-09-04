@@ -139,7 +139,7 @@ Agent는 현재 호스트에 맞는 디렉터리에 Skill 이름 `distilly`로 �
 ### 👤 직접 설치하기
 
 ```bash
-git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
+git clone --branch 10x/ko-hardening https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
 호스트별 경로, 기존 설치 마이그레이션, Windows 지원, 생성된 Profile 설치, 수집 자격 증명에 관한 자세한 내용은 **[상세 설치 가이드](INSTALL.md)** 를 참고하세요.

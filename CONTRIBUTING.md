@@ -17,7 +17,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 ## Development setup
 
 ```bash
-git clone https://github.com/10xtf/distilly-10x.git distilly
+git clone --branch 10x/ko-hardening https://github.com/10xtf/distilly-10x.git distilly
 cd distilly
 pip3 install -r requirements.txt
 ```

@@ -94,7 +94,7 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 <td align="center"><sub>공인 · 크리에이터 · 공적 발언가 · 가상의 인물</sub></td>
 </tr>
 <tr>
-<td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Lark / DingTalk / Slack 자동 수집을 지원합니다.</sub></td>
+<td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Slack 자동 수집을 지원합니다.</sub></td>
 <td><sub>🆕 <b>사진 공유 기능 곧 출시</b> — 증류된 관계가 메시지에 답장만 하는 게 아니라, 실제 사람처럼 사진을 보내고 하루의 한 조각을 공유합니다.</sub></td>
 <td><sub>완성도 높은 <b>6차원 리서치 툴체인</b> 탑재 (자막 → 트랜스크립트 정리 → 리서치 병합 → 품질 점검). 단순한 말투 모방을 넘어, 출처에서 확인되는 사고·의사결정 패턴을 재구성합니다.</sub></td>
 </tr>
@@ -132,17 +132,10 @@ Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니�
 
 | 로고 | 소스 | 메시지 | 문서 / 위키 | 비고 |
 |:----:|------|:------:|:-----------:|------|
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark (자동) | ✅ API | ✅ | 이름만 입력하면 완전 자동 |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk (자동) | ⚠️ 브라우저 | ✅ | DingTalk API는 메시지 기록 미지원 |
-| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack (자동) | ✅ API | — | 관리자가 Bot 설치 필요, 무료 플랜은 90일 제한 |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | 공개 X 게시물 | ✅ API | — | Xquik을 통한 선택적·수량 제한 celebrity 리서치 후보 |
-| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | WeChat 대화 기록 | ✅ SQLite | — | WeChatMsg 또는 PyWxDump로 먼저 내보내기 |
 | 📄 | PDF / 이미지 / 스크린샷 | — | ✅ | 수동 업로드 |
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark JSON 내보내기 | ✅ | ✅ | 수동 업로드 |
 | ✉️ | 이메일 `.eml` / `.mbox` | ✅ | — | 수동 업로드 |
 | 📝 | Markdown / 직접 붙여넣기 | ✅ | ✅ | 수동 입력 |
 
-> **Lark 호환성 참고:** 현재 호환 수집기는 중국 리전 API 엔드포인트를 사용합니다. 국제 `larksuite.com` 엔드포인트로 라우팅하는 기능은 아직 구현되지 않았습니다.
 
 ---
 
@@ -279,7 +272,6 @@ Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 �
 | 💞 **relationship** | 완전한 대화 기록 **›** 편지 / SNS 게시물 / 일기 **›** 제3자 설명 |
 | 🌟 **celebrity** | 장문 1차 자료 (본인 저서 / 블로그 / 장시간 인터뷰) **›** 의사결정 기록 (출시, 코드 커밋, Q&A) **›** 검증된 대상 본인의 짧은 게시물 **›** 제3자 논평 |
 
-- **colleague** Lark 자동 수집: 관련 그룹 채팅에 App bot을 추가해야 합니다
 - **relationship**: 기간이 길수록 좋고, 갈등과 회복이 모두 담긴 자료가 이상적입니다
 - **celebrity**: 2차 해석 자료만 먹이는 건 피하세요
 - 아직 데모 버전입니다 — 버그를 발견하면 이슈를 등록해 주세요!

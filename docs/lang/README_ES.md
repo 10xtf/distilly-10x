@@ -94,7 +94,7 @@ Distilly ya no está construido únicamente alrededor del escenario «colega». 
 <td align="center"><sub>Figuras públicas · creadores · voces públicas · personajes ficticios</sub></td>
 </tr>
 <tr>
-<td><sub>Arquitectura de dos capas Work Skill + Persona — aprende tanto sus estándares técnicos y flujos de trabajo, como su manera de hablar y su postura en el trabajo. Soporta recolección automática desde Lark / DingTalk / Slack.</sub></td>
+<td><sub>Arquitectura de dos capas Work Skill + Persona — aprende tanto sus estándares técnicos y flujos de trabajo, como su manera de hablar y su postura en el trabajo. Soporta recolección automática desde Slack.</sub></td>
 <td><sub>🆕 <b>Función de envío de fotos próximamente</b> — tu relación destilada no solo responderá mensajes; enviará fotos y compartirá momentos de su día, como lo haría una persona real.</sub></td>
 <td><sub>Incluye una <b>cadena de herramientas de investigación de seis dimensiones</b> completa (subtítulos → limpieza de transcripción → fusión de investigación → control de calidad). No se limita a imitar el tono: reconstruye patrones observables de razonamiento y decisión a partir de las fuentes.</sub></td>
 </tr>
@@ -132,17 +132,10 @@ Cada Person Profile generado se empaqueta como Agent Skill y puede colocarse en 
 
 | Logo | Fuente | Mensajes | Docs / Wiki | Notas |
 |:----:|--------|:--------:|:-----------:|-------|
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark (automática) | ✅ API | ✅ | Solo ingresa un nombre, totalmente automático |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk (auto) | ⚠️ Navegador | ✅ | La API de DingTalk no soporta historial de mensajes |
-| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack (auto) | ✅ API | — | Requiere que el admin instale el Bot; plan gratuito limitado a 90 días |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | Publicaciones públicas de X | ✅ API | — | Candidatos de investigación opcionales y acotados sobre figuras públicas mediante Xquik |
-| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | Historial de chat de WeChat | ✅ SQLite | — | Exportar primero con WeChatMsg o PyWxDump |
 | 📄 | PDF / Imágenes / Capturas | — | ✅ | Subida manual |
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Exportación JSON de Lark | ✅ | ✅ | Subida manual |
 | ✉️ | Email `.eml` / `.mbox` | ✅ | — | Subida manual |
 | 📝 | Markdown / pegar directamente | ✅ | ✅ | Entrada manual |
 
-> El collector actual compatible con Lark usa los endpoints de la región de China. El routing para tenants internacionales de `larksuite.com` todavía no está implementado.
 
 ---
 
@@ -277,7 +270,6 @@ Distilly usa **Persona** como base universal, con módulos específicos de cada 
 | 💞 **relationship** | Historial de chat completo **›** cartas / publicaciones en redes / diarios **›** descripciones de terceros |
 | 🌟 **celebrity** | Fuentes primarias extensas (libros / blogs / entrevistas largas en primera persona) **›** registros de decisiones (lanzamientos, commits, Q&A) **›** publicaciones breves verificadas de la persona objetivo **›** comentarios de terceros |
 
-- **colleague** recolección automática de Lark: requiere agregar el bot de la App a los chats grupales relevantes
 - **relationship**: períodos de tiempo más largos son mejores; el material que cubre tanto el conflicto como la reparación es ideal
 - **celebrity**: evita alimentarlo solo con interpretaciones de segunda mano
 - ¡Esta es todavía una versión demo — por favor crea issues si encuentras bugs!

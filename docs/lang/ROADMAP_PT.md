@@ -32,8 +32,6 @@ Qualquer pessoa pode ser destilada em uma `.skill` reutilizável por agentes de 
 | Funcionalidade | Status |
 |----------------|:------:|
 | Fluxo completo de criacao com selecao de familia via `/distilly` | Feito |
-| Coleta automatica do Lark (mensagens + documentos + planilhas) | Feito |
-| Coleta automatica do DingTalk | Feito |
 | Coleta automatica do Slack | Feito |
 | Historico de chat do WeChat (exportacao SQLite) | Feito |
 | Importacao de e-mail / PDF / imagem / Markdown | Feito |

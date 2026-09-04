@@ -1,15 +1,9 @@
-# Required
-requests>=2.28.0
-
-# Optional: Chinese name → slug conversion
-pypinyin>=0.48.0
-
-# Optional: Playwright for Lark-compatible browser login / DingTalk message scraping
-playwright>=1.40.0
-
-# Optional: Slack auto collector
-slack-sdk>=3.27.0
-
-# Optional: Word/Excel parsing (convert to PDF/CSV first if unavailable)
-python-docx>=1.1.0
-openpyxl>=3.1.0
+# Distilly runs on the Python standard library only.
+#
+# Every third-party dependency was tied to an external-call collector
+# (Slack SDK, Playwright, requests, yt-dlp) and was removed together with
+# those tools. Source material now arrives only through file upload and
+# pasted text, so there is nothing to install beyond Python 3.9+.
+#
+# Keep this file empty of runtime requirements. If a future change needs a
+# dependency, add it here together with the reason.

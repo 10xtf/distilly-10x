@@ -1,51 +1,51 @@
-# Distilly 安装说明
+# Distilly 설치 안내
 
-> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。当前创建器名称与安装目录均为 `distilly`。
+> Distilly의 이전 이름은 **Colleague Skill / colleague-skill**이다. 현재 생성기 이름과 설치 디렉터리는 모두 `distilly`다.
 
 ---
 
 <a id="existing-install-migration"></a>
 
-## 从旧安装迁移
+## 기존 설치본에서 이전
 
-如果现有 clone 的目录仍叫 `dot-skill`，只执行 `git pull` 不会把宿主发现目录改名为 `distilly`；Codex 的旧目录 `~/.codex/skills/` 也不会自动迁移到当前的 `~/.agents/skills/`。请保留旧副本作为回退，先安装并验证新的 canonical 副本：
+기존 clone 디렉터리 이름이 아직 `dot-skill`이라면 `git pull`만으로는 호스트 발견 디렉터리가 `distilly`로 바뀌지 않는다. Codex의 구 디렉터리 `~/.codex/skills/` 도 현재의 `~/.agents/skills/` 로 자동 이전되지 않는다. 기존 사본은 롤백용으로 남겨 두고, 새 canonical 사본을 먼저 설치해 검증한다.
 
-| 宿主 | 一次性迁移到 |
+| 호스트 | 1회성 이전 대상 |
 |------|--------------|
-| Claude Code | `~/.claude/skills/distilly` 或项目 `.claude/skills/distilly` |
-| OpenClaw | 从旧 clone 根目录运行 `python3 tools/install_openclaw_skill.py --force` |
-| Hermes | 从旧 clone 根目录运行 `python3 tools/install_hermes_skill.py --force` |
-| Codex | 从旧 clone 根目录运行 `python3 tools/install_codex_skill.py --force`，目标为 `~/.agents/skills/distilly` |
-| DeepSeek Harness | 重新 clone 到 `~/.dsh/skills/distilly`、`$DSH_HOME/skills/distilly` 或项目 `.dsh/skills/distilly` |
-| Pi coding agent | 重新 clone 到 `~/.pi/agent/skills/distilly` 或 `~/.agents/skills/distilly` |
-| Grok Build | 重新 clone 到 `~/.grok/skills/distilly` 或 `~/.agents/skills/distilly` |
-| OpenCode | 重新 clone 到 `~/.config/opencode/skills/distilly` 或项目 `.opencode/skills/distilly` |
+| Claude Code | `~/.claude/skills/distilly` 또는 프로젝트 `.claude/skills/distilly` |
+| OpenClaw | 기존 clone 루트에서 `python3 tools/install_openclaw_skill.py --force` 실행 |
+| Hermes | 기존 clone 루트에서 `python3 tools/install_hermes_skill.py --force` 실행 |
+| Codex | 기존 clone 루트에서 `python3 tools/install_codex_skill.py --force` 실행. 대상은 `~/.agents/skills/distilly` |
+| DeepSeek Harness | `~/.dsh/skills/distilly`, `$DSH_HOME/skills/distilly` 또는 프로젝트 `.dsh/skills/distilly` 로 재clone |
+| Pi coding agent | `~/.pi/agent/skills/distilly` 또는 `~/.agents/skills/distilly` 로 재clone |
+| Grok Build | `~/.grok/skills/distilly` 또는 `~/.agents/skills/distilly` 로 재clone |
+| OpenCode | `~/.config/opencode/skills/distilly` 또는 프로젝트 `.opencode/skills/distilly` 로 재clone |
 
-用下文对应方式确认宿主已经发现 Distilly 后，再自行处理旧安装目录；安装器不会自动删除旧副本。`~/.colleague-skill/` 配置和旧人物 Skill metadata 的只读兼容回退也不会自动重命名宿主安装目录。
+아래 방법으로 호스트가 Distilly를 발견했는지 확인한 뒤 기존 설치 디렉터리를 직접 정리한다. 설치기는 구 사본을 자동으로 삭제하지 않는다. `~/.colleague-skill/` 설정과 구 인물 Skill 메타데이터에 대한 읽기 전용 호환 폴백도 호스트 설치 디렉터리 이름을 바꾸지 않는다.
 
 ---
 
-## 选择你的平台
+## 플랫폼 선택
 
-### A. Claude Code（推荐）
+### A. Claude Code (권장)
 
-本项目遵循官方 [AgentSkills](https://agentskills.io) 标准，整个 repo 就是 skill 目录。克隆到 Claude skills 目录即可：
+이 프로젝트는 공식 [AgentSkills](https://agentskills.io) 표준을 따르며, 저장소 전체가 곧 skill 디렉터리다. Claude skills 디렉터리로 clone하면 된다.
 
 ```bash
-# ⚠️ 必须在 git 仓库根目录执行！
+# ⚠️ 반드시 git 저장소 루트에서 실행할 것
 cd $(git rev-parse --show-toplevel)
 
-# 方式 1：安装到当前项目
+# 방법 1: 현재 프로젝트에 설치
 mkdir -p .claude/skills
 git clone https://github.com/titanwings/distilly .claude/skills/distilly
 
-# 方式 2：安装到全局（所有项目都能用）
+# 방법 2: 전역 설치 (모든 프로젝트에서 사용)
 git clone https://github.com/titanwings/distilly ~/.claude/skills/distilly
 ```
 
-然后在 Claude Code 中输入 `/distilly` 即可启动。
+이후 Claude Code에서 `/distilly` 를 입력하면 시작된다.
 
-兼容宿主：
+호환 호스트:
 - Claude Code
 - OpenClaw
 - Hermes
@@ -55,20 +55,20 @@ git clone https://github.com/titanwings/distilly ~/.claude/skills/distilly
 - Grok Build
 - OpenCode
 
-各宿主的显式调用语法不同：
+호스트별 명시적 호출 문법은 다음과 같다.
 
-| 宿主 | 创建器命令 |
+| 호스트 | 생성기 명령 |
 |------|------------|
 | Claude Code | `/distilly` |
 | Hermes | `/distilly` |
-| OpenClaw | `/distilly`；未注册 native slash 时用 `/skill distilly` |
-| Codex | `$distilly` 或在 `/skills` 中选择 |
+| OpenClaw | `/distilly`. native slash가 등록되지 않았으면 `/skill distilly` |
+| Codex | `$distilly` 또는 `/skills` 에서 선택 |
 | DeepSeek Harness | `/distilly` |
 | Pi coding agent | `/skill:distilly` |
 | Grok Build | `/distilly` |
-| OpenCode | 由原生 Skill 工具按需加载，无独立 slash 命令 |
+| OpenCode | 네이티브 Skill 도구가 필요할 때 로드한다. 별도 slash 명령 없음 |
 
-如果 Distilly 已经生成了某个人物 Skill，并且你希望它在某个宿主里直接可用，再执行对应安装器：
+Distilly가 이미 특정 인물 Skill을 생성했고 그것을 특정 호스트에서 바로 쓰고 싶다면 해당 설치기를 실행한다.
 
 ```bash
 python3 tools/install_claude_generated_skill.py --skill-dir skills/{character}/{slug} --force
@@ -76,28 +76,28 @@ python3 tools/install_openclaw_generated_skill.py --skill-dir skills/{character}
 python3 tools/install_codex_generated_skill.py --skill-dir skills/{character}/{slug} --force
 ```
 
-生成的 Skill 名称是 `{character}-{slug}`。在 Claude Code / Hermes / DeepSeek Harness / Grok Build 等 slash-name 宿主里，调用格式是：
+생성된 Skill의 이름은 `{character}-{slug}` 다. Claude Code / Hermes / DeepSeek Harness / Grok Build 등 slash-name 호스트에서의 호출 형식은 다음과 같다.
 
 ```text
 /{character}-{slug}
 ```
 
-在 Codex 中用 `$` 调用：
+Codex에서는 `$` 로 호출한다.
 
 ```text
 ${character}-{slug}
 ```
 
-在 Pi 中使用 `/skill:{character}-{slug}`。
+Pi에서는 `/skill:{character}-{slug}` 를 쓴다.
 
-Windows 上 Claude 安装器还会额外写入 `~/.claude/commands/{character}-{slug}.md`，用来绕过当前的 skill 发现问题。
+Windows의 Claude 설치기는 현재의 skill 발견 문제를 우회하기 위해 `~/.claude/commands/{character}-{slug}.md` 를 추가로 기록한다.
 
-生成的 Skill 会按 character family 写入：
+생성된 Skill은 character family에 따라 기록된다.
 - `colleague` → `./skills/colleague/`
 - `relationship` → `./skills/relationship/`
 - `celebrity` → `./skills/celebrity/`
 
-用于宿主调用的 `SKILL.md` 已经自包含 Persona + Work。安装生成 Skill 时使用统一安装器；它只写入这一文件和 `.distilly-install.json`，不会复制可能含有私有原材料的整个生成目录。对于旧版下划线 frontmatter，安装器只在安装副本中规范为 `{character}-{slug}`，不会修改源 Skill：
+호스트 호출에 쓰이는 `SKILL.md` 는 Persona + Work를 이미 자기완결적으로 담고 있다. 생성 Skill을 설치할 때는 공용 설치기를 쓴다. 설치기는 이 파일과 `.distilly-install.json` 만 기록하며, 사적인 원본 자료가 들어 있을 수 있는 생성 디렉터리 전체를 복사하지 않는다. 구버전 밑줄 frontmatter는 설치 사본에서만 `{character}-{slug}` 로 정규화하고 원본 Skill은 수정하지 않는다.
 
 ```bash
 python3 tools/install_generated_skill.py \
@@ -106,11 +106,11 @@ python3 tools/install_generated_skill.py \
   --force
 ```
 
-| 宿主 | `<host>` | 默认用户级目标 | 项目级 `--skills-dir` |
+| 호스트 | `<host>` | 기본 사용자 레벨 대상 | 프로젝트 레벨 `--skills-dir` |
 |------|----------|----------------|----------------------|
 | Claude Code | `claude-code` | `~/.claude/skills/{character}-{slug}/SKILL.md` | `.claude/skills` |
-| OpenClaw | `openclaw` | `~/.openclaw/workspace/skills/{character}-{slug}/SKILL.md` | 自定义 Skills 目录 |
-| Hermes | `hermes` | `~/.hermes/skills/distilly-generated/{character}-{slug}/SKILL.md` | `.hermes/skills`（可信项目） |
+| OpenClaw | `openclaw` | `~/.openclaw/workspace/skills/{character}-{slug}/SKILL.md` | 사용자 지정 Skills 디렉터리 |
+| Hermes | `hermes` | `~/.hermes/skills/distilly-generated/{character}-{slug}/SKILL.md` | `.hermes/skills` (신뢰 프로젝트) |
 | Codex | `codex` | `~/.agents/skills/{character}-{slug}/SKILL.md` | `.agents/skills` |
 | DeepSeek Harness | `deepseek-harness` | `~/.dsh/skills/{character}-{slug}/SKILL.md` | `.dsh/skills` |
 | Pi coding agent | `pi` | `~/.pi/agent/skills/{character}-{slug}/SKILL.md` | `.pi/skills` |
@@ -125,34 +125,34 @@ python3 tools/install_generated_skill.py \
 python3 tools/install_openclaw_skill.py --force
 ```
 
-或者继续使用 clone 方式：
+또는 clone 방식을 계속 써도 된다.
 
 ```bash
 git clone https://github.com/titanwings/distilly ~/.openclaw/workspace/skills/distilly
 ```
 
-重启 OpenClaw session，用 `/distilly` 启动 Distilly；如果当前 channel 没有注册 native slash，使用 `/skill distilly`。
+OpenClaw 세션을 재시작하고 `/distilly` 로 시작한다. 현재 채널에 native slash가 등록되지 않았다면 `/skill distilly` 를 쓴다.
 
 ---
 
 ### C. Hermes
 
-推荐直接用仓库内的安装器，把当前 repo 同步到 Hermes 的本地 skill 目录：
+저장소에 포함된 설치기로 현재 repo를 Hermes의 로컬 skill 디렉터리에 동기화하는 방식을 권장한다.
 
 ```bash
 python3 tools/install_hermes_skill.py --force
 hermes skills list | rg distilly
 ```
 
-安装完成后，在 Hermes 中使用：
+설치가 끝나면 Hermes에서 다음과 같이 쓴다.
 
 ```text
 /distilly
 ```
 
-人物 Skill 用 `install_generated_skill.py --host hermes` 安装后，以 `/{character}-{slug}` 调用。项目级安装追加 `--skills-dir .hermes/skills`，并先在项目根目录运行 `hermes skills trust`。安装后新开 session，或用 `/reload-skills` 重新扫描。`~/.agents/skills` 不是 Hermes 默认目录；只有在 `~/.hermes/config.yaml` 的 `skills.external_dirs` 中显式配置后才会扫描。
+인물 Skill은 `install_generated_skill.py --host hermes` 로 설치한 뒤 `/{character}-{slug}` 로 호출한다. 프로젝트 레벨 설치는 `--skills-dir .hermes/skills` 를 덧붙이고, 프로젝트 루트에서 `hermes skills trust` 를 먼저 실행한다. 설치 후 새 세션을 열거나 `/reload-skills` 로 다시 스캔한다. `~/.agents/skills` 는 Hermes 기본 디렉터리가 아니다. `~/.hermes/config.yaml` 의 `skills.external_dirs` 에 명시적으로 설정해야 스캔한다.
 
-如果只是预览安装目标，可以先跑：
+설치 대상만 미리 확인하려면 다음을 실행한다.
 
 ```bash
 python3 tools/install_hermes_skill.py --dry-run
@@ -162,374 +162,201 @@ python3 tools/install_hermes_skill.py --dry-run
 
 ### D. Codex
 
-推荐直接用仓库内的安装器，把当前 repo 同步到 Codex 的本地 skill 目录：
+저장소에 포함된 설치기로 현재 repo를 Codex의 로컬 skill 디렉터리에 동기화하는 방식을 권장한다.
 
 ```bash
 python3 tools/install_codex_skill.py --force
 ```
 
-或者继续使用 clone 方式：
+또는 clone 방식을 계속 써도 된다.
 
 ```bash
 git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
-Codex 当前从 `~/.agents/skills/` 发现用户 Skill。安装后用 `$distilly` 显式调用，或通过 `/skills` 选择。生成后的人物 Skill 会以 `{character}-{slug}` 的技能名安装在 `~/.agents/skills/` 下。
+Codex는 현재 `~/.agents/skills/` 에서 사용자 Skill을 발견한다. 설치 후 `$distilly` 로 명시 호출하거나 `/skills` 에서 선택한다. 생성된 인물 Skill은 `{character}-{slug}` 라는 skill 이름으로 `~/.agents/skills/` 아래에 설치된다.
 
 ---
 
 ### E. DeepSeek Harness
 
-DeepSeek Harness 原生发现 filesystem skill，不需要额外插件清单或包装脚本。任选一种安装范围：
+DeepSeek Harness는 filesystem skill을 네이티브로 발견하므로 별도 플러그인 매니페스트나 래퍼 스크립트가 필요 없다. 설치 범위를 하나 고른다.
 
 ```bash
-# 方式 1：安装到当前项目
+# 방법 1: 현재 프로젝트에 설치
 mkdir -p .dsh/skills
 git clone https://github.com/titanwings/distilly .dsh/skills/distilly
 
-# 方式 2：安装到全局（所有项目都能用）
+# 방법 2: 전역 설치 (모든 프로젝트에서 사용)
 mkdir -p ~/.dsh/skills
 git clone https://github.com/titanwings/distilly ~/.dsh/skills/distilly
 ```
 
-如果设置了 `DSH_HOME`，全局目录对应为 `$DSH_HOME/skills/distilly`。安装后在 DeepSeek Harness 中输入 `/distilly`，或直接要求 Agent 启动 Distilly。
+`DSH_HOME` 이 설정돼 있으면 전역 디렉터리는 `$DSH_HOME/skills/distilly` 가 된다. 설치 후 DeepSeek Harness에서 `/distilly` 를 입력하거나 Agent에게 Distilly 시작을 직접 요청한다.
 
-生成后的角色 Skill 使用 `install_generated_skill.py --host deepseek-harness` 安装；项目级安装追加 `--skills-dir .dsh/skills`。安装器会在副本中规范旧版 frontmatter。
+생성된 역할 Skill은 `install_generated_skill.py --host deepseek-harness` 로 설치한다. 프로젝트 레벨 설치는 `--skills-dir .dsh/skills` 를 덧붙인다. 설치기는 사본에서 구버전 frontmatter를 정규화한다.
 
 ---
 
 ### F. Pi coding agent
 
-> 这里的 Pi 是 [pi.dev](https://pi.dev/docs/latest/skills) 的 coding agent。
+> 여기서 말하는 Pi는 [pi.dev](https://pi.dev/docs/latest/skills) 의 coding agent다.
 
 ```bash
-# Pi 专用的用户目录
+# Pi 전용 사용자 디렉터리
 mkdir -p ~/.pi/agent/skills
 git clone https://github.com/titanwings/distilly ~/.pi/agent/skills/distilly
 
-# 或使用多宿主共享目录
+# 또는 여러 호스트가 공유하는 디렉터리
 mkdir -p ~/.agents/skills
 git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
-显式调用命令是 `/skill:distilly`，不是 `/distilly`。
+명시적 호출 명령은 `/distilly` 가 아니라 `/skill:distilly` 다.
 
-生成的人物 Skill 使用 `install_generated_skill.py --host pi` 安装；项目级安装追加 `--skills-dir .pi/skills`，随后用 `/skill:{character}-{slug}` 调用。
+생성된 인물 Skill은 `install_generated_skill.py --host pi` 로 설치한다. 프로젝트 레벨 설치는 `--skills-dir .pi/skills` 를 덧붙이고, 이후 `/skill:{character}-{slug}` 로 호출한다.
 
 ---
 
 ### G. Grok Build
 
 ```bash
-# Grok 专用的用户目录
+# Grok 전용 사용자 디렉터리
 mkdir -p ~/.grok/skills
 git clone https://github.com/titanwings/distilly ~/.grok/skills/distilly
 
-# 或使用多宿主共享目录
+# 또는 여러 호스트가 공유하는 디렉터리
 mkdir -p ~/.agents/skills
 git clone https://github.com/titanwings/distilly ~/.agents/skills/distilly
 ```
 
-Grok Build 会发现 Skill 目录中的 `SKILL.md`，显式调用命令为 `/distilly`。当前机器仍需安装 Python 和 Distilly 所需依赖。
+Grok Build는 Skill 디렉터리의 `SKILL.md` 를 발견하며, 명시적 호출 명령은 `/distilly` 다. 해당 머신에 Python과 Distilly가 요구하는 의존성은 여전히 설치돼 있어야 한다.
 
-生成的人物 Skill 使用 `install_generated_skill.py --host grok-build` 安装；项目级安装追加 `--skills-dir .grok/skills`，随后用 `/{character}-{slug}` 调用。
+생성된 인물 Skill은 `install_generated_skill.py --host grok-build` 로 설치한다. 프로젝트 레벨 설치는 `--skills-dir .grok/skills` 를 덧붙이고, 이후 `/{character}-{slug}` 로 호출한다.
 
 ---
 
 ### H. OpenCode
 
-OpenCode 原生发现用户级和项目级 Skill 目录：
+OpenCode는 사용자 레벨과 프로젝트 레벨 Skill 디렉터리를 네이티브로 발견한다.
 
 ```bash
-# 用户级
+# 사용자 레벨
 git clone https://github.com/titanwings/distilly ~/.config/opencode/skills/distilly
 
-# 项目级
+# 프로젝트 레벨
 mkdir -p .opencode/skills
 git clone https://github.com/titanwings/distilly .opencode/skills/distilly
 ```
 
-生成的人物 Skill 使用 `install_generated_skill.py --host opencode` 安装；项目级安装追加 `--skills-dir .opencode/skills`。目录规则见 [OpenCode Agent Skills](https://opencode.ai/docs/skills)。
+생성된 인물 Skill은 `install_generated_skill.py --host opencode` 로 설치한다. 프로젝트 레벨 설치는 `--skills-dir .opencode/skills` 를 덧붙인다. 디렉터리 규칙은 [OpenCode Agent Skills](https://opencode.ai/docs/skills) 를 참고한다.
 
 ---
 
-### I. Grok Bot（预览）
+### I. Grok Bot (프리뷰)
 
-Grok Bot 支持把书面流程或演示保存为 private Skill，然后在 Settings → Plugins 中启用，通过 `/` 菜单选择。
+Grok Bot은 문서화된 절차나 데모를 private Skill로 저장한 뒤 Settings → Plugins 에서 활성화하고 `/` 메뉴에서 선택하는 방식을 지원한다.
 
-官方文档目前没有说明 Grok Bot 会扫描本地 Skill 目录，也没有说明可直接导入这个仓库的 `SKILL.md`。因此当前只能手工把 Distilly 流程迁移成 saved Skill；不应声称仓库可一键安装到 Grok Bot。
+공식 문서에는 Grok Bot이 로컬 Skill 디렉터리를 스캔한다거나 이 저장소의 `SKILL.md` 를 직접 임포트할 수 있다는 설명이 없다. 따라서 현재로서는 Distilly 절차를 수동으로 saved Skill로 옮기는 방법만 가능하며, 저장소를 원클릭으로 Grok Bot에 설치할 수 있다고 설명해서는 안 된다.
 
 ---
 
-## 依赖安装
+## 의존성 설치
 
-新配置统一写入 `~/.distilly/`。为了不破坏既有安装，当新配置不存在时，飞书、钉钉和 Slack 采集器仍会只读回退到 `~/.colleague-skill/`；之后再运行 `--setup` 会写入新目录。
+이 Skill은 외부 서비스를 호출하지 않는다. 자료는 파일 업로드와 텍스트 붙여넣기로만 들어온다.
 
 ```bash
-# 安装 requirements.txt 中声明的 Python 依赖（Python 3.9+）
+# requirements.txt 에 선언된 Python 의존성 설치 (Python 3.9+)
 pip3 install -r requirements.txt
-
-# 飞书浏览器方案（内部文档/需要登录权限的文档）
-playwright install chromium  # 仅需安装 chromium，不需要完整 Chrome
-
-# 飞书 MCP 方案（公司授权文档，通过 App Token 读取）
-npm install -g feishu-mcp    # 需要 Node.js 16+
 ```
 
-### 平台方案选择指南
+### 데이터 소스별 방식 선택
 
-| 场景 | 推荐方案 |
+| 상황 | 권장 방식 |
 |------|---------|
-| 飞书用户，有 App 权限 | `feishu_auto_collector.py` |
-| 飞书内部文档（无 App 权限）| `feishu_browser.py` |
-| 飞书手动指定链接 | `feishu_mcp_client.py` |
-| 钉钉用户 | `dingtalk_auto_collector.py` |
-| 钉钉消息采集失败 | 手动截图 → 上传图片 |
-| Slack 用户 | `slack_auto_collector.py` |
-| celebrity 公开 X 帖子研究 | `research/xquik_public_posts.py` |
+| 이메일 `.eml` / `.mbox` 보유 | `email_parser.py` |
+| PDF / 이미지 / 스크린샷 보유 | `Read` 도구로 직접 업로드 |
+| 메신저 대화 기록 | 내보내기 후 텍스트로 붙여넣기 |
+| 그 외 문서 | Markdown / TXT로 변환해 업로드 |
 
-**飞书自动采集初始化**：
-```bash
-python3 tools/feishu_auto_collector.py --setup
-# 输入飞书开放平台的 App ID 和 App Secret
-```
-
-**钉钉自动采集初始化**：
-```bash
-python3 tools/dingtalk_auto_collector.py --setup
-# 输入钉钉开放平台的 AppKey 和 AppSecret
-# 首次运行加 --show-browser 参数以完成钉钉登录
-```
-
-**飞书 MCP 初始化**（手动指定链接时使用）：
-```bash
-python3 tools/feishu_mcp_client.py --setup
-```
-
-**飞书浏览器方案**（首次使用会弹窗登录，之后自动复用登录态）：
-```bash
-python3 tools/feishu_browser.py \
-  --url "https://xxx.feishu.cn/wiki/xxx" \
-  --show-browser    # 首次使用加这个参数，登录后不再需要
-```
-
-**Slack 自动采集初始化**：
-```bash
-pip3 install slack-sdk
-python3 tools/slack_auto_collector.py --setup
-# 按提示输入 Bot User OAuth Token（xoxb-...）
-```
-
-> Slack 详细配置见下方「[Slack 自动采集配置](#slack-自动采集配置)」章节
+메신저·SNS 자동 수집기는 제공하지 않는다. 자격증명을 저장하는 코드가 없으므로
+토큰이나 API 키를 이 Skill에 설정할 일이 없다.
 
 ---
 
-### 名人研究工具链（可选）
+### 유명 인물 조사 툴체인 (선택)
 
-`celebrity` 类型可以从字幕、公开帖子候选和研究笔记一路整理到最终质量检查：
+`celebrity` 유형은 사용자가 제공한 조사 노트를 병합해 품질 검사까지 진행할 수 있다.
+자료 수집 자체는 사용자가 수행하고, 이 Skill은 정리·검증만 담당한다.
 
 ```bash
-# 首次使用先安装字幕下载器
-pip3 install yt-dlp
-
-# 下载视频字幕
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# 字幕转文稿
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# 公开 X 帖子候选（可选）
-python3 tools/research/xquik_public_posts.py \
-  --username "<公开账号>" \
-  --subject "<人物名称>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
-# 合并已经核对过的研究笔记
+# 확인이 끝난 조사 노트 병합
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
-# 质量检查
+# 품질 검사
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-
-# 阅读后删除临时候选文件
-rm "/tmp/distilly-x-public-posts.json"
 ```
 
-`xquik_public_posts.py` 从当前 shell 读取 `XQUIK_API_KEY`，不要把密钥写入仓库或命令参数。Xquik 按返回帖子数量计费，运行前必须让用户确认 `--limit`。
+두 도구 모두 로컬 파일만 읽고 쓴다. 네트워크를 타지 않는다.
 
-工具只发起 1 次只读搜索请求，不自动翻页。输出是未经信任的候选证据，不是 research note。逐条核对作者、打开 permalink，只把相关内容做版权安全的转述后写入 `knowledge/research/raw/`，并保留具体来源 URL。阅读后删除临时 JSON，不要把它收进生成的 Skill。
-
-Xquik 是独立第三方服务，与 X Corp. 无隶属关系。“Twitter”和“X”是 X Corp. 的商标。
-
----
-
-## Slack 自动采集配置
-
-### 前置条件
-
-- Python 3.9+
-- Slack Workspace（需要**管理员权限**安装 App，或联系管理员帮你安装）
-- `pip3 install slack-sdk`
-
-> **免费版 Workspace 限制**：只能访问最近 **90 天**的消息记录。付费版（Pro / Business+ / Enterprise）无此限制。
+전사본, 자막, 긴 원문 구절은 skill 디렉터리에 저장하지 않는다.
+`knowledge/research/raw/` 에는 출처 메타데이터가 붙은 짧은 의역 노트만 넣는다.
 
 ---
 
-### 步骤 1：创建 Slack App
 
-1. 前往 [https://api.slack.com/apps](https://api.slack.com/apps) → **Create New App**
-2. 选择 **From scratch**
-3. 填写 App Name（如 `distilly-bot`），选择目标 Workspace → **Create App**
-
----
-
-### 步骤 2：配置 Bot Token Scopes
-
-进入 **OAuth & Permissions** → **Bot Token Scopes** → **Add an OAuth Scope**，添加以下权限：
-
-| Scope | 用途 |
-|-------|------|
-| `users:read` | 搜索用户列表（必需） |
-| `channels:read` | 列出 public channels（必需） |
-| `channels:history` | 读取 public channel 历史消息（必需） |
-| `groups:read` | 列出 private channels（必需） |
-| `groups:history` | 读取 private channel 历史消息（必需） |
-| `mpim:read` | 列出群 DM（可选） |
-| `mpim:history` | 读取群 DM 历史消息（可选） |
-| `im:read` | 列出 DM（可选，需用户授权） |
-| `im:history` | 读取 DM 历史消息（可选，需用户授权） |
-
----
-
-### 步骤 3：安装 App 到 Workspace
-
-1. 仍在 **OAuth & Permissions** 页面，点击 **Install to Workspace**
-2. Workspace 管理员审批后，复制 **Bot User OAuth Token**（格式：`xoxb-...`）
-
----
-
-### 步骤 4：将 Bot 加入目标频道
-
-Bot 只能读取**它已加入**的频道。在 Slack 中，进入每个目标频道，输入：
-
-```
-/invite @your-bot-name
-```
-
-> 提示：如果你不知道目标同事在哪些频道，可以先不邀请，运行采集时脚本会告知 Bot 加入了哪些频道，再补充邀请。
-
----
-
-### 步骤 5：运行配置向导
+## 빠른 검증
 
 ```bash
-python3 tools/slack_auto_collector.py --setup
-```
+cd <distilly-install-path>   # 예: ~/.claude/skills/distilly 또는 ~/.dsh/skills/distilly
 
-按提示粘贴 Bot Token，脚本会自动验证并保存到 `~/.distilly/slack_config.json`。如果新路径不存在，采集器仍会只读兼容旧的 `~/.colleague-skill/slack_config.json`。
-
-配置成功后你会看到：
-```
-验证 Token ... OK
-  Workspace：Your Company，Bot：distilly-bot
-
-✅ 配置已保存到 /Users/you/.distilly/slack_config.json
-```
-
----
-
-### 步骤 6：采集同事数据
-
-```bash
-# 基本用法（输入同事的中文名或英文用户名）
-python3 tools/slack_auto_collector.py --name "张三"
-python3 tools/slack_auto_collector.py --name "john.doe"
-
-# 指定输出目录
-python3 tools/slack_auto_collector.py --name "张三" --output-dir ./knowledge/zhangsan
-
-# 限制采集量（大 Workspace 建议先小量测试）
-python3 tools/slack_auto_collector.py --name "张三" --msg-limit 500 --channel-limit 20
-```
-
-输出文件：
-```
-knowledge/张三/
-├── messages.txt            # 按权重分类的消息记录
-└── collection_summary.json # 采集摘要（用户信息、频道列表、时间）
-```
-
----
-
-### 常见报错与解决
-
-| 报错 | 原因 | 解决 |
-|------|------|------|
-| `missing_scope: channels:history` | Bot Token 缺少权限 | 回到 api.slack.com → OAuth & Permissions 添加对应 Scope，重新安装 App |
-| `invalid_auth` | Token 无效或已吊销 | 重新运行 `--setup` 配置新 Token |
-| `not_in_channel` | Bot 未加入该频道 | 在 Slack 里 `/invite @bot` 邀请 Bot |
-| 未找到用户 | 姓名拼写不对 | 改用英文用户名（如 `john.doe`）或 Slack display name |
-| 消息只有 90 天 | 免费版限制 | 升级 Workspace 或手动补充截图 |
-| 速率限制（429）| 请求太频繁 | 脚本会自动等待重试，无需手动处理 |
-
-## 快速验证
-
-```bash
-cd <distilly-install-path>   # 例如 ~/.claude/skills/distilly 或 ~/.dsh/skills/distilly
-
-# 测试飞书解析器
-python3 tools/feishu_parser.py --help
-
-# 测试 Slack 采集器
-python3 tools/slack_auto_collector.py --help
-
-# 测试邮件解析器
+# 이메일 파서 확인
 python3 tools/email_parser.py --help
 
-# 测试 Hermes 安装器
+# Hermes 설치기 확인
 python3 tools/install_hermes_skill.py --dry-run
 
-# 测试 OpenClaw / Codex 安装器
+# OpenClaw / Codex 설치기 확인
 python3 tools/install_openclaw_skill.py --dry-run
 python3 tools/install_codex_skill.py --dry-run
 
-# 测试 celebrity research toolchain
-python3 tools/research/xquik_public_posts.py --help
-python3 tools/research/srt_to_transcript.py --help
+# celebrity research toolchain 확인
 python3 tools/research/merge_research.py --help
 python3 tools/research/quality_check.py --help
 
-# 列出已有的人物 Skill
+# 기존 인물 Skill 목록 조회
 python3 tools/skill_writer.py --action list --base-dir ./skills/colleague
 ```
 
 ---
 
-## 目录结构说明
+## 디렉터리 구조 설명
 
-本项目整个 repo 就是一个 skill 目录（AgentSkills 标准格式）：
+이 프로젝트는 저장소 전체가 하나의 skill 디렉터리다 (AgentSkills 표준 형식).
 
 ```
-distilly/               ← clone 到宿主的 skills/distilly/（例如 .claude/skills 或 .dsh/skills）
-├── SKILL.md            # skill 入口（官方 frontmatter）
-├── prompts/            # 分析和生成的 Prompt 模板
-├── tools/              # Python 工具脚本
-│   ├── install_hermes_skill.py   # Hermes 本地安装器
-│   ├── install_openclaw_skill.py # OpenClaw 本地安装器
-│   ├── install_codex_skill.py    # Codex 本地安装器
-│   ├── install_openclaw_generated_skill.py # OpenClaw 角色 Skill 安装器
-│   ├── install_codex_generated_skill.py    # Codex 角色 Skill 安装器
+distilly/               ← 호스트의 skills/distilly/ 로 clone (예: .claude/skills 또는 .dsh/skills)
+├── SKILL.md            # skill 진입점 (공식 frontmatter)
+├── prompt_kor/         # 분석·생성용 한국어 Prompt 템플릿
+├── tools/              # Python 도구 스크립트
+│   ├── install_hermes_skill.py   # Hermes 로컬 설치기
+│   ├── install_openclaw_skill.py # OpenClaw 로컬 설치기
+│   ├── install_codex_skill.py    # Codex 로컬 설치기
+│   ├── install_openclaw_generated_skill.py # OpenClaw 역할 Skill 설치기
+│   ├── install_codex_generated_skill.py    # Codex 역할 Skill 설치기
+│   ├── email_parser.py           # 이메일 파서 (로컬 .eml/.mbox)
 │   └── research/
-│       └── xquik_public_posts.py           # 公开 X 帖子候选采集器
-├── docs/               # 文档（PRD 等）
+│       ├── merge_research.py               # 조사 노트 병합 (로컬 전용)
+│       └── quality_check.py                # 품질 검사 (로컬 전용)
+├── docs/               # 문서 (PRD 등)
 │
-└── skills/             # Distilly 生成的人物 Skill（.gitignore 排除）
+└── skills/             # Distilly가 생성한 인물 Skill (.gitignore 제외 대상)
     └── {character}/
         └── {slug}/
-            ├── SKILL.md        # 完整 Skill（Persona + Work）
-            ├── work.md         # 仅工作能力
-            ├── persona.md      # 仅人物性格
-            ├── meta.json       # 元数据
-            ├── versions/       # 历史版本
-            └── knowledge/      # 原始材料归档
+            ├── SKILL.md        # 완성 Skill (Persona + Work)
+            ├── work.md         # 업무 능력만
+            ├── persona.md      # 인물 성격만
+            ├── meta.json       # 메타데이터
+            ├── versions/       # 이력 버전
+            └── knowledge/      # 원본 자료 보관
 ```

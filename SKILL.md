@@ -7,30 +7,32 @@ user-invocable: true
 allowed-tools: Read, Write, Edit, Bash
 ---
 
-> **Language / 语言**: This skill supports both English and Chinese. Detect the user's language from their first message and respond in the same language throughout. Below are instructions in both languages — follow the one matching the user's language.
+> **Language / 언어**: This skill supports both English and Korean. Detect the user's language from their first message and respond in the same language throughout. Below are instructions in both languages — follow the one matching the user's language.
 >
-> 本 Skill 支持中英文。根据用户第一条消息的语言，全程使用同一语言回复。下方提供了两种语言的指令，按用户语言选择对应版本执行。
+> 이 Skill은 한국어와 영어를 지원한다. 사용자의 첫 메시지 언어를 판별해 대화 내내 같은 언어로 응답한다. 아래에 두 언어의 지침이 있으니 사용자 언어에 맞는 쪽을 따른다.
 
-> **Skill Root / Skill 根目录**: Before reading a bundled prompt or running a bundled script, resolve the absolute directory of the `SKILL.md` that the host actually loaded. In the instructions below, `{distilly_skill_root}` means that exact directory. Claude Code exposes it as `${CLAUDE_SKILL_DIR}`; on every other host, use the loaded-skill path supplied by that host's discovery context. Do not assume the shell's current working directory is the Skill root, and do not guess or hard-code an install path. If the host does not expose the loaded path or more than one Distilly installation is ambiguous, ask the user to identify the active installation before running code.
+> **Skill Root / Skill 루트 디렉터리**: Before reading a bundled prompt or running a bundled script, resolve the absolute directory of the `SKILL.md` that the host actually loaded. In the instructions below, `{distilly_skill_root}` means that exact directory. Claude Code exposes it as `${CLAUDE_SKILL_DIR}`; on every other host, use the loaded-skill path supplied by that host's discovery context. Do not assume the shell's current working directory is the Skill root, and do not guess or hard-code an install path. If the host does not expose the loaded path or more than one Distilly installation is ambiguous, ask the user to identify the active installation before running code.
 >
-> Keep the shell in the user's current workspace so relative output paths such as `./skills/...` remain project-local. Resolve every `tools/...` and `prompts/...` resource against `{distilly_skill_root}`. For example, execute the bundled `tools/example.py` as `python3 "{distilly_skill_root}/tools/example.py"`; replace the placeholder with the resolved absolute path in the actual tool call.
+> Keep the shell in the user's current workspace so relative output paths such as `./skills/...` remain project-local. Resolve every `tools/...` and `prompt_kor/...` resource against `{distilly_skill_root}`. For example, execute the bundled `tools/example.py` as `python3 "{distilly_skill_root}/tools/example.py"`; replace the placeholder with the resolved absolute path in the actual tool call.
 >
-> 在读取内置 prompt 或运行脚本前，先取得宿主实际加载的这份 `SKILL.md` 所在绝对目录；下文以 `{distilly_skill_root}` 表示。Claude Code 可用 `${CLAUDE_SKILL_DIR}`，其他宿主使用其 Skill discovery 上下文提供的实际路径。不要假定 shell 当前目录就是 Skill 目录，也不要猜测或硬编码安装路径。shell 应继续停留在用户工作区，使 `./skills/...` 等输出仍写入当前项目；所有 `tools/...`、`prompts/...` 都必须从 `{distilly_skill_root}` 解析。
+> 내장 prompt를 읽거나 스크립트를 실행하기 전에, 호스트가 실제로 로드한 `SKILL.md`의 절대 경로 디렉터리를 먼저 확인한다. 아래에서는 이를 `{distilly_skill_root}`로 표기한다. Claude Code는 `${CLAUDE_SKILL_DIR}`로 노출하며, 다른 호스트는 해당 호스트의 Skill discovery 컨텍스트가 제공하는 실제 경로를 쓴다. shell의 현재 디렉터리가 Skill 루트라고 가정하지 말고, 설치 경로를 추측하거나 하드코딩하지 않는다. 호스트가 로드 경로를 노출하지 않거나 Distilly 설치본이 둘 이상이라 모호하면, 코드를 실행하기 전에 사용자에게 어느 설치본이 활성인지 확인한다.
+>
+> shell은 사용자의 현재 워크스페이스에 그대로 둬서 `./skills/...` 같은 상대 출력 경로가 프로젝트 로컬에 남도록 한다. 모든 `tools/...`, `prompt_kor/...` 리소스는 `{distilly_skill_root}` 기준으로 해석한다.
 
-# Distilly 创建器
+# Distilly 생성기
 
-> Distilly 原名 **Colleague Skill / colleague-skill（原同事 Skill）**。当前 Skill frontmatter 名称和创建器入口均为 `distilly`。
+> Distilly의 이전 이름은 **Colleague Skill / colleague-skill**이다. 현재 Skill frontmatter 이름과 생성기 진입점은 모두 `distilly`다.
 
-## 触发条件
+## 트리거 조건
 
-当用户说以下任意内容时启动：
+사용자가 다음 중 하나를 말하면 시작한다:
 - `/distilly`
-- "帮我创建一个 skill"
-- "我想蒸馏一个人"
-- "新建一个 skill"
-- "给我做一个 XX 的 skill"
+- "skill 하나 만들어줘"
+- "이 사람을 증류하고 싶어"
+- "새 skill 만들어줘"
+- "XX의 skill을 만들어줘"
 
-兼容宿主：
+호환 호스트:
 - Claude Code
 - OpenClaw
 - Hermes
@@ -40,464 +42,221 @@ allowed-tools: Read, Write, Edit, Bash
 - Grok Build
 - OpenCode
 
-有显式调用语法的宿主各不相同：Claude Code、Hermes、DeepSeek Harness 和 Grok Build 用 `/distilly`；OpenClaw 优先用 `/distilly`，未注册 native slash 时用 `/skill distilly`；Codex 用 `$distilly` 或通过 `/skills` 选择；Pi 用 `/skill:distilly`。OpenCode 使用原生 Skill 发现与加载，不要臆造专用命令。
+명시적 호출 문법은 호스트마다 다르다. Claude Code·Hermes·DeepSeek Harness·Grok Build는 `/distilly`를 쓴다. OpenClaw는 `/distilly`를 우선 쓰고, native slash가 등록되지 않았으면 `/skill distilly`를 쓴다. Codex는 `$distilly` 또는 `/skills`에서 선택한다. Pi는 `/skill:distilly`를 쓴다. OpenCode는 native Skill 발견·로딩을 쓰므로 전용 명령을 임의로 만들지 않는다.
 
-Grok Bot 可以把流程保存为 private Skill，但目前没有官方的本地 `SKILL.md` 目录导入方式。不要把本仓库描述为可直接安装到 Grok Bot；需要手工迁移为 saved Skill 或等待专用 adapter。
+Grok Bot은 워크플로를 private Skill로 저장할 수 있으나, 로컬 `SKILL.md` 디렉터리를 직접 임포트하는 공식 방법은 없다. 이 저장소를 Grok Bot에 바로 설치 가능하다고 설명하지 않는다. saved Skill로 수동 이관하거나 전용 adapter를 기다려야 한다.
 
-当用户对已有 Skill 说以下内容时，进入进化模式：
-- "我有新文件" / "追加"
-- "这不对" / "他不会这样" / "他应该是"
+기존 Skill에 대해 사용자가 다음을 말하면 진화 모드로 들어간다:
+- "새 파일이 있어" / "추가해줘"
+- "이건 틀렸어" / "그 사람은 이렇게 안 해" / "이렇게 해야 맞아"
 - `/update-skill {character} {slug}`
 
-兼容更新别名：
+호환 업데이트 별칭:
 - `/update-colleague {slug}`
 
-当用户要求查看已生成的 Skill 时，执行下方“管理操作”里的列出命令。
+사용자가 생성된 Skill 목록을 보고 싶다고 하면 아래 "관리 작업"의 목록 명령을 실행한다.
 
 ---
 
-## 工具使用规则
+## 도구 사용 규칙
 
-本 Skill 运行在任意兼容宿主中，只要求宿主能够读取本地文件并执行 Bash / Python 命令。使用以下工具约定：
+이 Skill은 로컬 파일을 읽고 Bash / Python 명령을 실행할 수 있는 호환 호스트라면 어디서든 동작한다. 아래 도구 규약을 따른다.
 
-| 任务 | 使用工具 |
+| 작업 | 사용 도구 |
 |------|---------|
-| 读取 PDF 文档 | `Read` 工具（原生支持 PDF） |
-| 读取图片截图 | `Read` 工具（原生支持图片） |
-| 读取 MD/TXT 文件 | `Read` 工具 |
-| 解析飞书消息 JSON 导出 | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_parser.py"` |
-| 飞书全自动采集（推荐） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_auto_collector.py"` |
-| 飞书文档（浏览器登录态） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_browser.py"` |
-| 飞书文档（MCP App Token） | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_mcp_client.py"` |
-| 钉钉全自动采集 | `Bash` → `python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py"` |
-| 采集公开 X 帖子候选证据 | `Bash` → `python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py"` |
-| 解析邮件 .eml/.mbox | `Bash` → `python3 "{distilly_skill_root}/tools/email_parser.py"` |
-| 写入/更新 Skill 文件 | `Write` / `Edit` 工具 |
-| 版本管理 | `Bash` → `python3 "{distilly_skill_root}/tools/version_manager.py"` |
-| 列出已有 Skill | `Bash` → `python3 "{distilly_skill_root}/tools/skill_writer.py" --action list` |
+| PDF 문서 읽기 | `Read` 도구 (PDF 네이티브 지원) |
+| 이미지 스크린샷 읽기 | `Read` 도구 (이미지 네이티브 지원) |
+| MD/TXT 파일 읽기 | `Read` 도구 |
+| 이메일 .eml/.mbox 파싱 | `Bash` → `python3 "{distilly_skill_root}/tools/email_parser.py"` |
+| Skill 파일 쓰기/갱신 | `Write` / `Edit` 도구 |
+| 버전 관리 | `Bash` → `python3 "{distilly_skill_root}/tools/version_manager.py"` |
+| 기존 Skill 목록 조회 | `Bash` → `python3 "{distilly_skill_root}/tools/skill_writer.py" --action list` |
 
-**基础目录**：
+**기본 디렉터리**:
 - `colleague` → `./skills/colleague/{slug}/`
 - `relationship` → `./skills/relationship/{slug}/`
 - `celebrity` → `./skills/celebrity/{slug}/`
 
-如需改为全局路径，用 `--base-dir` 指向对应 character family 的根目录。
+전역 경로를 쓰려면 해당 character family의 저장 루트를 `--base-dir`로 지정한다.
 
 ---
 
-## 主流程：创建新 Skill
+## 메인 플로우: 새 Skill 만들기
 
-### Step 0：确认 character family
+### Step 0: character family 확인
 
-如果用户使用的是 `/distilly`，先确认本次要蒸馏的是哪一类：
+사용자가 `/distilly`를 입력했다면, 먼저 어떤 family를 증류할지 확인한다:
 
 1. `colleague`
 2. `relationship`
 3. `celebrity`
 
-如果上层宿主已经显式把 family 传进来，则直接固定对应的 character family。
+호스트가 이미 family를 명시적으로 넘겼다면 즉시 확정한다.
 
-如果当前 family 是 `celebrity`，还必须确认 research profile：
+현재 family가 `celebrity`라면 research profile도 함께 확인한다:
 
 1. `budget-friendly`
 2. `budget-unfriendly`
 
-默认使用 `budget-friendly`。只有当用户明确要求更深研究、更高置信度、或者愿意接受更慢更贵的蒸馏流程时，才切到 `budget-unfriendly`。
+기본값은 `budget-friendly`다. 사용자가 더 깊은 리서치나 높은 확신도를 명시적으로 원하거나, 더 느리고 비싼 증류 과정을 수용할 때만 `budget-unfriendly`로 전환한다.
 
-### Step 1：基础信息录入
+### Step 1: 기본 정보 입력
 
-根据 character family 选择对应 intake prompt：
+character family에 따라 intake prompt를 고른다:
 
-- `colleague` → `prompts/intake.md`
-- `relationship` → `prompts/relationship/intake.md`
-- `celebrity` → `prompts/celebrity/intake.md`
+- `colleague` → `prompt_kor/intake.md`
+- `relationship` → `prompt_kor/relationship/intake.md`
+- `celebrity` → `prompt_kor/celebrity/intake.md`
 
-`colleague` 和 `relationship` 只问 3 个问题。
-`celebrity` 按 `prompts/celebrity/intake.md` 问 4 个问题，其中第 4 个问题必须确认 `research_profile`。
+`colleague`와 `relationship`은 3개 질문만 한다.
+`celebrity`는 `prompt_kor/celebrity/intake.md`의 4개 질문을 쓰며, 네 번째 질문은 반드시 `research_profile`을 확인해야 한다.
 
-默认的 3 个基础问题：
+기본 3개 질문은 다음과 같다:
 
-1. **花名/代号**（必填）
-2. **基本信息**（一句话：公司、职级、职位、性别，想到什么写什么）
-   - 示例：`字节 2-1 后端工程师 男`
-3. **性格画像**（一句话：MBTI、星座、个性标签、企业文化、印象）
-   - 示例：`INTJ 摩羯座 甩锅高手 字节范 CR很严格但从来不解释原因`
+1. **호칭 / 코드네임** (필수)
+2. **기본 정보** (한 문장: 회사, 직급, 직무, 성별 — 떠오르는 대로)
+   - 예: `SK플래닛 매니저 백엔드 개발자 남성`
+3. **성격 프로필** (한 문장: MBTI, 별자리, 특성, 조직 문화, 인상)
+   - 예: `INTJ 염소자리 코드리뷰는 엄격한데 이유는 설명 안 해줌`
 
-除姓名外均可跳过。收集完后汇总确认，再进入下一步。
+호칭 외에는 모두 건너뛸 수 있다. 다음 단계로 넘어가기 전에 요약해서 확인받는다.
 
-### Step 2：原材料导入
+### Step 2: 원본 자료 입력
 
-询问用户提供原材料，展示四种方式供选择：
+사용자에게 자료 제공 방식을 묻는다:
 
 ```
-原材料怎么提供？
+자료를 어떤 방식으로 주시겠어요?
 
-  [A] 飞书自动采集（推荐）
-      输入姓名，自动拉取消息记录 + 文档 + 多维表格
+  [A] 파일 업로드
+      PDF / 이미지 / 이메일 .eml / .mbox
 
-  [B] 钉钉自动采集
-      输入姓名，自动拉取文档 + 多维表格
-      消息记录通过浏览器采集（钉钉 API 不支持历史消息）
+  [B] 텍스트 붙여넣기
+      텍스트를 직접 복사해서 붙여넣기
 
-  [C] 飞书链接
-      直接给文档/Wiki 链接（浏览器登录态 或 MCP）
-
-  [D] 上传文件
-      PDF / 图片 / 导出 JSON / 邮件 .eml
-
-  [E] 直接粘贴内容
-      把文字复制进来
-
-可以混用，也可以跳过（仅凭手动信息生成）。
+두 방식을 섞어도 되고, 전부 건너뛰어도 됩니다(수동 입력 정보만으로 생성).
 ```
 
 ---
 
-#### 方式 A：飞书自动采集（推荐）
+#### 방식 A: 파일 업로드
 
-首次使用需配置：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --setup
-```
-
-**群聊采集**（使用 tenant_access_token，需 bot 在群内）：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 1000 \
-  --doc-limit 20
-```
-
-**私聊采集**（需要 user_access_token + 私聊 chat_id）：
-
-私聊消息只能通过用户身份（user_access_token）获取，应用身份无权访问私聊。
-
-**前置条件**：
-
-用户需要提供以下信息：
-1. **飞书应用凭证**：`app_id` 和 `app_secret`（在飞书开放平台创建自建应用获取）
-2. **用户权限**：应用需开通以下用户权限（scope）：
-   - `im:message` — 以用户身份读取/发送消息
-   - `im:chat` — 以用户身份读取会话列表
-3. **OAuth 授权码（code）**：用户在浏览器中完成 OAuth 授权后，从回调 URL 中获取
-
-如果用户缺少以上任何信息，引导他们完成配置。不要假设用户已经配好了。
-
-**获取 user_access_token 的完整流程**：
-
-当用户提供了 app_id、app_secret，并确认已开通用户权限后：
-
-1. 帮用户生成 OAuth 授权链接：
-   ```
-   https://open.feishu.cn/open-apis/authen/v1/authorize?app_id={APP_ID}&redirect_uri=http://www.example.com&scope=im:message%20im:chat
-   ```
-   > ⚠️ 注意：`redirect_uri` 需要在飞书应用的「安全设置 → 重定向 URL」中添加 `http://www.example.com`
-   
-2. 用户在浏览器打开链接，登录并授权
-3. 页面会跳转到 `http://www.example.com?code=xxx`，用户复制 code 给你
-4. 用 code 换取 token：
-   ```bash
-   python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --exchange-code {CODE}
-   ```
-   或者你自己写 Python 脚本调飞书 API 换取：
-   ```python
-   # 1. 获取 app_access_token
-   POST https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal
-   Body: {"app_id": "xxx", "app_secret": "xxx"}
-   
-   # 2. 用 code 换 user_access_token
-   POST https://open.feishu.cn/open-apis/authen/v1/oidc/access_token
-   Header: Authorization: Bearer {app_access_token}
-   Body: {"grant_type": "authorization_code", "code": "xxx"}
-   ```
-
-**获取私聊 chat_id**：
-
-用户通常不知道 chat_id。当用户有了 user_access_token 但没有 chat_id 时，你应该**自己写 Python 脚本**来获取：
-
-- **方法**：用 user_access_token 向对方的 open_id 发一条消息，返回值中会包含 chat_id
-  ```python
-  POST https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id
-  Header: Authorization: Bearer {user_access_token}
-  Body: {"receive_id": "{对方open_id}", "msg_type": "text", "content": "{\"text\":\"你好\"}"}
-  # 返回值中的 chat_id 就是私聊会话 ID
-  ```
-- **注意**：`GET /im/v1/chats` 不会返回私聊会话，这是飞书 API 的限制，不是权限问题，不要尝试用这个接口找私聊
-- 如果用户不知道对方的 open_id，可以用 tenant_access_token 调通讯录 API 搜索：
-  ```python
-  GET https://open.feishu.cn/open-apis/contact/v3/scopes
-  # 返回应用可见范围内所有用户的 open_id
-  ```
-
-**执行采集**：
-
-拿到 user_access_token 和 chat_id 后：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
-  --open-id {对方open_id} \
-  --p2p-chat-id {chat_id} \
-  --user-token {user_access_token} \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 1000
-```
-
-**灵活性原则**：以上 API 调用不一定要用 collector 脚本，如果脚本跑不通或者场景不匹配，你可以直接写 Python 脚本调飞书 API 完成任务。核心 API 参考：
-- 获取 token：`POST /auth/v3/app_access_token/internal`、`POST /authen/v1/oidc/access_token`
-- 发消息（获取 chat_id）：`POST /im/v1/messages?receive_id_type=open_id`
-- 拉消息：`GET /im/v1/messages?container_id_type=chat&container_id={chat_id}`
-- 查通讯录：`GET /contact/v3/scopes`、`GET /contact/v3/users/{user_id}`
-
-自动采集内容：
-- 群聊：所有与他共同群聊中他发出的消息（过滤系统消息、表情包）
-- 私聊：与他的私聊完整对话（含双方消息，用于理解对话语境）
-- 他创建/编辑的飞书文档和 Wiki
-- 相关多维表格（如有权限）
-
-采集完成后用 `Read` 读取输出目录下的文件：
-- `knowledge/{slug}/messages.txt` → 消息记录（群聊 + 私聊）
-- `knowledge/{slug}/docs.txt` → 文档内容
-- `knowledge/{slug}/collection_summary.json` → 采集摘要
-
-如果采集失败，根据报错自行判断原因并尝试修复，常见问题：
-- 群聊采集：bot 未添加到群聊
-- 私聊采集：user_access_token 过期（有效期 2 小时，可用 refresh_token 刷新）
-- 权限不足：引导用户在飞书开放平台开通对应权限并重新授权
-- 或改用方式 B/C
-
----
-
-#### 方式 B：钉钉自动采集
-
-首次使用需配置：
-```bash
-python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" --setup
-```
-
-然后输入姓名，一键采集：
-```bash
-python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 500 \
-  --doc-limit 20 \
-  --show-browser   # 首次使用加此参数，完成钉钉登录
-```
-
-采集内容：
-- 他创建/编辑的钉钉文档和知识库
-- 多维表格
-- 消息记录（⚠️ 钉钉 API 不支持历史消息拉取，自动切换浏览器采集）
-
-采集完成后 `Read` 读取：
-- `knowledge/{slug}/docs.txt`
-- `knowledge/{slug}/bitables.txt`
-- `knowledge/{slug}/messages.txt`
-
-如消息采集失败，提示用户截图聊天记录后上传。
-
----
-
-#### 方式 D：上传文件
-
-- **PDF / 图片**：`Read` 工具直接读取
-- **飞书消息 JSON 导出**：
-  ```bash
-  python3 "{distilly_skill_root}/tools/feishu_parser.py" --file {path} --target "{name}" --output /tmp/feishu_out.txt
-  ```
-  然后 `Read /tmp/feishu_out.txt`
-- **邮件文件 .eml / .mbox**：
+- **PDF / 이미지**: `Read` 도구로 직접 읽는다
+- **이메일 파일 .eml / .mbox**:
   ```bash
   python3 "{distilly_skill_root}/tools/email_parser.py" --file {path} --target "{name}" --output /tmp/email_out.txt
   ```
-  然后 `Read /tmp/email_out.txt`
-- **Markdown / TXT**：`Read` 工具直接读取
+  그다음 `Read /tmp/email_out.txt`
+- **Markdown / TXT**: `Read` 도구로 직접 읽는다
 
 ---
 
-#### 方式 C：飞书链接
+#### 방식 B: 텍스트 붙여넣기
 
-用户提供飞书文档/Wiki 链接时，询问读取方式：
-
-```
-检测到飞书链接，选择读取方式：
-
-  [1] 浏览器方案（推荐）
-      复用你本机 Chrome 的登录状态
-      ✅ 内部文档、需要权限的文档都能读
-      ✅ 无需配置 token
-      ⚠️  需要本机安装 Chrome + playwright
-
-  [2] MCP 方案
-      通过飞书 App Token 调用官方 API
-      ✅ 稳定，不依赖浏览器
-      ✅ 可以读消息记录（需要群聊 ID）
-      ⚠️  需要先配置 App ID / App Secret
-      ⚠️  内部文档需要管理员给应用授权
-
-选择 [1/2]：
-```
-
-**选 1（浏览器方案）**：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_browser.py" \
-  --url "{feishu_url}" \
-  --target "{name}" \
-  --output /tmp/feishu_doc_out.txt
-```
-首次使用若未登录，会弹出浏览器窗口要求登录（一次性）。
-
-**选 2（MCP 方案）**：
-
-首次使用需初始化配置：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" --setup
-```
-
-之后直接读取：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
-  --url "{feishu_url}" \
-  --output /tmp/feishu_doc_out.txt
-```
-
-读取消息记录（需要群聊 ID，格式 `oc_xxx`）：
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
-  --chat-id "oc_xxx" \
-  --target "{name}" \
-  --limit 500 \
-  --output /tmp/feishu_msg_out.txt
-```
-
-两种方式输出后均用 `Read` 读取结果文件，进入分析流程。
+사용자가 붙여넣은 내용을 텍스트 자료로 그대로 쓴다. 별도 도구가 필요 없다.
 
 ---
 
-#### 方式 E：直接粘贴
+사용자가 "파일 없어" 또는 "건너뛸게"라고 하면 Step 1의 수동 입력 정보만으로 Skill을 생성한다.
 
-用户粘贴的内容直接作为文本原材料，无需调用任何工具。
+### Step 3: 원본 자료 분석
 
----
+먼저 선택된 character family의 실행 매트릭스를 확정한다:
 
-如果用户说"没有文件"或"跳过"，仅凭 Step 1 的手动信息生成 Skill。
-
-### Step 3：分析原材料
-
-先根据 character family 解析本次的执行矩阵：
-
-| character | intake | persona analyzer | persona builder | merger | storage root |
+| character | intake | persona analyzer | persona builder | merger | 저장 루트 |
 |-----------|--------|------------------|-----------------|--------|--------------|
-| `colleague` | `prompts/intake.md` | `prompts/persona_analyzer.md` | `prompts/persona_builder.md` | `prompts/merger.md` | `./skills/colleague/{slug}` |
-| `relationship` | `prompts/relationship/intake.md` | `prompts/relationship/persona_analyzer.md` | `prompts/relationship/persona_builder.md` | `prompts/relationship/merger.md` | `./skills/relationship/{slug}` |
-| `celebrity` | `prompts/celebrity/intake.md` | `prompts/celebrity/persona_analyzer.md` | `prompts/celebrity/persona_builder.md` | `prompts/celebrity/merger.md` | `./skills/celebrity/{slug}` |
+| `colleague` | `prompt_kor/intake.md` | `prompt_kor/persona_analyzer.md` | `prompt_kor/persona_builder.md` | `prompt_kor/merger.md` | `./skills/colleague/{slug}` |
+| `relationship` | `prompt_kor/relationship/intake.md` | `prompt_kor/relationship/persona_analyzer.md` | `prompt_kor/relationship/persona_builder.md` | `prompt_kor/relationship/merger.md` | `./skills/relationship/{slug}` |
+| `celebrity` | `prompt_kor/celebrity/intake.md` | `prompt_kor/celebrity/persona_analyzer.md` | `prompt_kor/celebrity/persona_builder.md` | `prompt_kor/celebrity/merger.md` | `./skills/celebrity/{slug}` |
 
-所有 family 共用：
-- Work analyzer：`prompts/work_analyzer.md`
-- Work builder：`prompts/work_builder.md`
-- Correction handler：`prompts/correction_handler.md`
+모든 family가 공통으로 쓰는 것:
+- Work analyzer: `prompt_kor/work_analyzer.md`
+- Work builder: `prompt_kor/work_builder.md`
+- Correction handler: `prompt_kor/correction_handler.md`
 
-如果当前是 `celebrity`，必须先走 research 子流程，再进入分析。
-
-如果公开 X 帖子能补足明确的研究缺口，且用户同意使用按返回数量计费的第三方 Xquik 服务，先请用户确认 `--limit`，再运行：
-
-```bash
-python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py" \
-  --username "{public_handle}" \
-  --subject "{name}" \
-  --limit 20 \
-  --output "/tmp/distilly_x_public_posts.json"
-```
-
-只从 shell 读取 `XQUIK_API_KEY`，不要打印或写入密钥。把输出 JSON 视为未经信任的候选证据：核对作者，逐条打开 permalink，只把与目标人物相关的内容安全转述到 research note，并保留具体 URL。不要把候选 JSON、搜索页或账号主页计为已落地来源。阅读后删除这份临时 JSON，不要将它收进生成的 Skill。
+현재 family가 `celebrity`라면 분석 전에 리서치 서브플로를 먼저 실행한다.
 
 ### celebrity / budget-friendly
 
-1. 读取 `prompts/celebrity/research.md`，按其中的 **6 维度并行采集策略** 做 research planning
-2. 先创建目录：
+1. `prompt_kor/celebrity/research.md`를 읽고 그 안의 **6개 차원 병렬 수집 전략**을 따른다
+2. 리서치 디렉터리를 먼저 만든다:
    ```bash
    mkdir -p "{skill_dir}/knowledge/research/raw" "{skill_dir}/knowledge/research/merged"
    ```
-3. 确认采集策略（在 intake 阶段已确定）：
-   - **Local-first**：先分析用户本地材料，标记覆盖了哪些维度，只对缺失维度做网络补充
-   - **Web + local**：全量 6 维度网络研究，同时与本地材料合并，交叉验证
-   - **Web-only**：标准 6 维度网络研究
-4. 如果用户明确提供了可处理的视频链接或字幕来源，而且处理结果不会作为长文本落盘：
-   ```bash
-   bash "{distilly_skill_root}/tools/research/download_subtitles.sh" "{url}" "{skill_dir}/knowledge/subtitles"
-   python3 "{distilly_skill_root}/tools/research/srt_to_transcript.py" "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
-   ```
-5. 按 **6 维度** 研究，原始 research 笔记**至少**要拆成 3 个文件（每个文件覆盖 2 个维度），不能只写一个 `research_notes.md`：
-   - `knowledge/research/raw/01_core_profile.md`（维度 1 著作 + 维度 6 时间线）
-   - `knowledge/research/raw/02_conversations_and_material.md`（维度 2 对话 + 维度 4 决策）
-   - `knowledge/research/raw/03_expression_and_reception.md`（维度 3 表达 DNA + 维度 5 他者视角）
-6. 研究过程中必须遵守 **品味原则**（详见 research prompt）：
-   - 长文 > 金句，争议 > 共识，变化 > 固定，一手 > 二手
-   - 遵守 **信源黑名单**：永不引用知乎、微信公众号、百度百科、内容农场
-   - 遵守 **信源优先级**：用户本地材料 > 一手著作 > 长访谈 > 决策记录 > 社交媒体 > 外部分析 > 二手转述
-7. 合并 research：
+3. 수집 전략을 확인한다 (intake 단계에서 결정됨):
+   - **로컬 우선**: 사용자가 준 자료를 먼저 분석해 어느 차원이 채워졌는지 파악하고, 빈 곳만 웹 검색한다
+   - **웹 + 로컬**: 6개 차원 전체를 웹으로 리서치한 뒤 로컬 자료와 병합해 교차 검증한다
+   - **웹 전용**: 표준 6개 차원 웹 리서치를 수행한다
+5. **6개 차원**을 최소 3개의 파일에 나눠 담는다 (파일당 2개 차원). `research_notes.md` 하나에 몰아넣지 않는다:
+   - `knowledge/research/raw/01_core_profile.md` (차원 1 저술 + 차원 6 타임라인)
+   - `knowledge/research/raw/02_conversations_and_material.md` (차원 2 대화 + 차원 4 의사결정)
+   - `knowledge/research/raw/03_expression_and_reception.md` (차원 3 표현 DNA + 차원 5 외부 시선)
+6. 리서치는 **취향 원칙**을 따라야 한다 (리서치 prompt 참조):
+   - 롱폼 > 조각글, 논쟁 > 합의, 변화 > 고정, 1차 > 2차
+   - **출처 블랙리스트** — 인용 금지: 지식 Q&A 플랫폼, 위챗 공식계정, 바이두 백과, 콘텐츠 팜, AI 생성 약력
+   - **출처 위계**: 사용자 로컬 자료 > 1인칭 저작 > 장문 인터뷰 > 의사결정 기록 > 숏폼 1차 자료 > 외부 분석 > 2차 요약
+7. 리서치 노트를 병합한다:
    ```bash
    python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
-   输出：`knowledge/research/merged/summary.md`
-8. 读取 `knowledge/research/merged/summary.md`，确认：
+   산출물: `knowledge/research/merged/summary.md`
+8. `knowledge/research/merged/summary.md`를 읽고 확인한다:
    - `Files scanned >= 3`
    - `Unique URLs >= 2`
    - `Potential long quote lines = 0`
-   - research notes 里的 URL 必须是**实际打开过的具体页面**，不是平台首页、搜索页、话题页或占位路径
-   如果不满足，继续补 research notes，直到满足或明确记录搜集受限原因。
-9. **质量关卡（Phase 1.5）**：在进入分析之前，必须向用户展示结构化采集摘要：
+   - 노트의 URL이 실제로 열어본 구체적 페이지인지 확인한다. 플랫폼 루트, 검색·주제 페이지, 자리표시자 경로는 안 된다
+   충족하지 않으면 계속 진행하기 전에 리서치 노트를 보강하거나 수집 한계를 명시적으로 기록한다.
+9. **품질 체크포인트 (Phase 1.5)**: 분석에 들어가기 전에 사용자에게 구조화된 수집 요약을 보여준다:
    ```
    ┌──────────────────────────────┬──────────┬─────────────────────────────┐
-   │ 维度                         │ 来源数    │ 关键发现                     │
+   │ 차원                         │ 출처 수  │ 핵심 발견                   │
    ├──────────────────────────────┼──────────┼─────────────────────────────┤
-   │ 1 著作                       │ N        │ [核心论点 / 缺失]            │
-   │ 2 对话                       │ N        │ [关键模式 / 缺失]            │
-   │ 3 表达 DNA                   │ N        │ [风格标记 / 缺失]            │
-   │ 4 决策                       │ N        │ [决策模式 / 缺失]            │
-   │ 5 他者视角                   │ N        │ [外部观点 / 缺失]            │
-   │ 6 时间线                     │ N        │ [认知轨迹 / 缺失]            │
+   │ 1 저술                       │ N        │ [핵심 주장 / 공백]          │
+   │ 2 대화                       │ N        │ [핵심 패턴 / 공백]          │
+   │ 3 표현 DNA                   │ N        │ [문체 지표 / 공백]          │
+   │ 4 의사결정                   │ N        │ [판단 패턴 / 공백]          │
+   │ 5 외부 시선                  │ N        │ [외부 평가 / 공백]          │
+   │ 6 타임라인                   │ N        │ [궤적 / 공백]               │
    ├──────────────────────────────┼──────────┼─────────────────────────────┤
-   │ 矛盾点                       │ N        │ [摘要]                       │
-   │ 薄弱维度                     │ [列表]   │ 补充方案：[计划]              │
-   │ 冷门人物？                   │ 是/否    │                              │
+   │ 모순                         │ N        │ [요약]                      │
+   │ 근거 얕은 차원               │ [목록]   │ 보강 계획: [계획]           │
+   │ 자료 희소 인물?              │ 예/아니오│                             │
    └──────────────────────────────┴──────────┴─────────────────────────────┘
    ```
-   等待用户确认后再继续。如果用户指出问题或需要某个维度更深入，先补充研究。
-10. **冷门人物检测**：如果总来源 < 10 条，按冷门人物协议处理：
-    - 心智模型限制为 2–3 个
-    - 薄弱模型标注"基于有限信息"
-    - 扩大诚实边界章节
-    - 告知用户提供什么补充材料可以改善质量
-11. celebrity 的后续分析输入必须优先使用：
-    - 一手材料（信源权重 1-3）
-    - merged research summary
-    - 用户提供的补充描述
+   사용자 확인을 받고 진행한다. 사용자가 문제를 지적하거나 더 깊이 원하면 리서치를 먼저 보강한다.
+10. **자료 희소 인물 판정**: 전체 출처가 10개 미만이면 희소 인물 프로토콜을 적용한다:
+    - 멘탈 모델을 2~3개로 제한한다
+    - 근거가 얕은 모델은 "제한된 정보 기반"으로 표시한다
+    - 정직한 한계 섹션을 확장한다
+    - 어떤 자료가 더 있으면 품질이 올라가는지 사용자에게 알린다
+11. celebrity 분석의 우선순위:
+    - 1차 자료 (출처 가중치 1-3)
+    - 병합된 리서치 요약
+    - 사용자가 명시한 노트
 
 ### celebrity / budget-unfriendly
 
-1. 先读取：
-   - `prompts/celebrity/budget_unfriendly/research.md`
+1. 먼저 읽는다:
+   - `prompt_kor/celebrity/budget_unfriendly/research.md`
    - `references/celebrity_budget_unfriendly_framework.md`
-2. 先创建目录：
+2. 리서치 디렉터리를 먼저 만든다:
    ```bash
    mkdir -p "{skill_dir}/knowledge/research/raw" "{skill_dir}/knowledge/research/merged" "{skill_dir}/knowledge/research/reviews"
    ```
-3. 确认采集策略（在 intake 阶段已确定）：local-first / web+local / web-only
-4. 按 **6-track 独立文件结构** 写 research notes（不可合并，不可克隆观察）：
-   - `knowledge/research/raw/01_writings.md`（维度 1：著作与系统思考）
-   - `knowledge/research/raw/02_conversations.md`（维度 2：即兴对话与压力应对）
-   - `knowledge/research/raw/03_expression_dna.md`（维度 3：语言指纹）
-   - `knowledge/research/raw/04_decisions.md`（维度 4：行为与选择）
-   - `knowledge/research/raw/05_external_views.md`（维度 5：他者视角与批评）
-   - `knowledge/research/raw/06_timeline.md`（维度 6：认知轨迹）
-5. 研究过程必须遵守 **品味原则 + 信源黑名单 + 信源优先级**（见 research prompt），每条 evidence 必须标注 source weight (1-7)。
-6. 合并 research：
+3. 수집 전략을 확인한다 (intake 단계에서 결정됨): 로컬 우선 / 웹+로컬 / 웹 전용
+4. **6트랙 리서치 세트**를 독립 파일로 구성한다 (병합 금지, 관찰 복제 금지):
+   - `knowledge/research/raw/01_writings.md` (차원 1: 저술 / 체계적 사고)
+   - `knowledge/research/raw/02_conversations.md` (차원 2: 압박 상황에서의 대화)
+   - `knowledge/research/raw/03_expression_dna.md` (차원 3: 언어적 지문)
+   - `knowledge/research/raw/04_decisions.md` (차원 4: 행동과 선택)
+   - `knowledge/research/raw/05_external_views.md` (차원 5: 외부 시선과 비판)
+   - `knowledge/research/raw/06_timeline.md` (차원 6: 인식의 궤적)
+5. 리서치는 **취향 원칙 + 출처 블랙리스트 + 출처 위계**를 따라야 한다 (리서치 prompt 참조). 모든 근거 항목에 출처 가중치(1-7)를 표기한다.
+6. 리서치 노트를 병합한다:
    ```bash
    python3 "{distilly_skill_root}/tools/research/merge_research.py" "{skill_dir}"
    ```
-7. 读取 `knowledge/research/merged/summary.md`，确认最低门槛：
+7. `knowledge/research/merged/summary.md`를 읽고 최소 기준을 확인한다:
    - `Files scanned >= 6`
    - `Unique URLs >= 8`
    - `Primary-source markers >= 3`
@@ -506,117 +265,118 @@ python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py" \
    - `Inference bullets >= 6`
    - `Potential long quote lines = 0`
    - `Track coverage count = 6`
-   - research notes 里的 URL 必须是**实际打开过的具体页面**，不是平台首页、搜索页、话题页或占位路径
-   如果不满足，继续补对应 track，而不是直接进入后续 review。
-8. **质量关卡（Phase 1.5）**：在进入 audit 之前，向用户展示结构化采集摘要（含 primary 比例、矛盾数、候选 mental models、known-answer 候选、薄弱维度、冷门人物判定）。等待用户确认后再继续。
-9. 再读取：
-   - `prompts/celebrity/budget_unfriendly/audit.md`
-   - `prompts/celebrity/budget_unfriendly/synthesis.md`
+   - 노트의 URL이 실제로 열어본 구체적 페이지인지 확인한다. 플랫폼 루트, 검색·주제 페이지, 자리표시자 경로는 안 된다
+   충족하지 않으면 리뷰 단계로 넘어가지 말고 약한 트랙을 계속 채운다.
+8. **품질 체크포인트 (Phase 1.5)**: 감사에 들어가기 전에 사용자에게 구조화된 수집 요약을 보여준다 (1차 자료 비율, 모순 건수, 후보 멘탈 모델, 정답 검증 후보, 근거 얕은 차원, 자료 희소 인물 판정 포함). 사용자 확인을 받고 진행한다.
+9. 그다음 읽는다:
+   - `prompt_kor/celebrity/budget_unfriendly/audit.md`
+   - `prompt_kor/celebrity/budget_unfriendly/synthesis.md`
    - `references/celebrity_budget_unfriendly_template.md`
-10. 先生成 `knowledge/research/reviews/research_audit.md`
-    - 审计必须明确给出 `PASS / FAIL`
-    - audit 必须检查：信源层级合规（无黑名单）、primary 比例 > 50%、品味原则遵守、冷门人物评估
-    - 如果 audit 是 `FAIL`，按 audit 给出的 Backfill Tasks 补齐，不要跳到 synthesis
-11. **提炼关卡（Phase 2.5）**：audit 通过后，向用户展示候选 mental models 摘要（含三重门判定、evidence anchors、failure modes）。确认合理性后再进入 synthesis。
-12. 再生成 `knowledge/research/reviews/synthesis.md`
-    - 必须对候选 mental models 做 triple-gate 判断：
-      - cross-context recurrence
-      - generative power
-      - exclusivity
-    - 同时提取智识谱系种子（influenced by / diverged from）和 Agentic Protocol 种子（该人物会如何分析新问题的维度列表）
-13. 再按 `prompts/celebrity/budget_unfriendly/validation.md` 生成：
+10. 먼저 `knowledge/research/reviews/research_audit.md`를 쓴다
+    - 감사는 명시적으로 `PASS / FAIL`을 내야 한다
+    - 감사는 다음을 검증해야 한다: 출처 위계 준수(블랙리스트 출처 없음), 1차 자료 비율 50% 초과, 취향 원칙 준수, 자료 희소 인물 판정
+    - 감사가 `FAIL`이면 종합 전에 보강 작업을 먼저 수행한다
+11. **추출 체크포인트 (Phase 2.5)**: 감사 PASS 후, 후보 멘탈 모델 요약(3중 관문 판정, 근거 앵커, 실패 양상 포함)을 사용자에게 보여준다. 타당성을 확인받고 종합에 들어간다.
+12. 그다음 `knowledge/research/reviews/synthesis.md`를 쓴다
+    - 후보 멘탈 모델에 3중 관문을 적용한다:
+      - 맥락을 넘나드는 반복성
+      - 생성력
+      - 배타성
+    - 지적 계보 씨앗(영향받은 것 / 갈라선 것)과 Agentic Protocol 씨앗(이 인물이 새로운 질문을 만났을 때 파고들 차원)도 함께 추출한다
+13. 그다음 `prompt_kor/celebrity/budget_unfriendly/validation.md`로 다음을 쓴다:
     - `knowledge/research/reviews/validation.md`
-    - validation 必须明确给出 `PASS / FAIL`
-    - 必须做 known-answer check（至少 2 题）+ edge-case check（1 题）+ voice check（100 字盲测）+ copyright check + Agentic Protocol check
-    - 如果 validation 是 `FAIL`，必须先修 draft 再继续
-14. budget-unfriendly 的后续分析输入必须优先使用：
-    - 6-track raw notes
-    - merged research summary
-    - research audit
-    - synthesis review（含智识谱系种子、Agentic Protocol 种子）
-    - validation review
-    - 用户补充材料
+    - 검증은 명시적으로 `PASS / FAIL`을 내야 한다
+    - 검증은 다음을 수행해야 한다: 정답 검증(질문 2개 이상) + 엣지 케이스 검증(질문 1개) + 문체 검증(100단어 블라인드 테스트) + 저작권 검증 + Agentic Protocol 검증
+    - 검증이 `FAIL`이면 초안을 수정한 뒤 진행한다
+14. budget-unfriendly celebrity 분석의 우선순위:
+    - 6트랙 원본 노트
+    - 병합된 리서치 요약
+    - 리서치 감사
+    - 종합 리뷰 (계보 + Agentic Protocol 씨앗 포함)
+    - 검증 리뷰
+    - 사용자가 명시한 노트
 
-两种 celebrity profile 的共同约束：
+두 celebrity profile 공통 규칙:
 
-- 如果外部搜集失败或被平台验证拦截：
-  - 明确告诉用户搜集受限的原因
-  - 保留已有 research 原始材料和 merged summary
-  - 继续生成，但把 `source_grounding` 视为未完成
-  - **不要**为了通过质量检查而编造 URL、引用、书名、视频标题，或塞入泛化主页链接
-- **不要**把完整 transcript、完整字幕、长段原文抄进仓库
-- 只允许保留结构化摘要、来源元信息和极短引用，避免版权风险
+- 외부 수집이 실패하거나 플랫폼이 접근을 막으면:
+  - 무엇이 막혔는지 사용자에게 정확히 알린다
+  - 원본 리서치 노트와 병합 요약을 보존한다
+  - 확보한 자료로 생성을 계속한다
+  - `source_grounding`을 불완전으로 처리한다
+  - 검사를 통과하려고 URL, 인용, 제목, 일반 홈페이지 링크를 **절대** 지어내지 않는다
+- 전체 전사본, 전체 자막, 긴 원문 구절을 저장소에 **저장하지 않는다**
+- 저장하는 노트는 바꿔 쓰고, 구조화하고, 저작권상 안전하게 유지한다
 
-完成 family 解析后，再按两条线分析：
+family가 확정되면 두 트랙으로 분석한다:
 
-**线路 A（Work Skill）**：
-- 参考 `prompts/work_analyzer.md`
-- 提取：负责系统、技术规范、工作流程、输出偏好、经验知识
-- celebrity 场景下，`work` 更偏方法论、判断框架、决策习惯，不要机械套成“工作职责”
+**트랙 A (Work Skill)**:
+- `prompt_kor/work_analyzer.md`를 참조한다
+- 추출 항목: 담당 시스템, 기술 표준, 업무 흐름, 산출물 선호, 경험
+- `celebrity`는 `work`를 문자 그대로의 직무 범위가 아니라 방법론, 판단 프레임, 의사결정 패턴으로 해석한다
 
-**线路 B（Persona）**：
-- 使用当前 family 对应的 persona analyzer
-- 如果 `celebrity` 且 `research_profile=budget-unfriendly`，改用：
-  - `prompts/celebrity/budget_unfriendly/persona_analyzer.md`
-- 将用户填写的标签翻译为具体行为规则
-- 从原材料中提取：表达风格、决策模式、人际行为
-- celebrity 场景下，必须保留：
-  - mental models
-  - decision heuristics
-  - expression DNA
-  - contradictions
-  - honest boundaries
+**트랙 B (Persona)**:
+- family별 persona analyzer를 쓴다
+- `celebrity`이면서 `research_profile=budget-unfriendly`인 경우:
+  - `prompt_kor/celebrity/budget_unfriendly/persona_analyzer.md`
+- 사용자가 준 태그를 구체적인 행동 규칙으로 번역한다
+- 자료에서 추출: 커뮤니케이션 스타일, 의사결정 패턴, 대인관계 행동
+- `celebrity`는 다음을 보존한다:
+  - 멘탈 모델
+  - 의사결정 휴리스틱
+  - 표현 DNA
+  - 모순
+  - 정직한 한계
 
-### Step 4：生成并预览
+### Step 4: 생성과 미리보기
 
-使用 `prompts/work_builder.md` 生成 Work 内容。
-使用当前 family 对应的 persona builder 生成 Persona 内容。
+`prompt_kor/work_builder.md`로 Work 내용을 생성한다.
+family별 persona builder로 Persona 내용을 생성한다.
 
-具体映射：
-- `colleague` → `prompts/persona_builder.md`
-- `relationship` → `prompts/relationship/persona_builder.md`
-- `celebrity` → `prompts/celebrity/persona_builder.md`
-- `celebrity` + `budget-unfriendly` → `prompts/celebrity/budget_unfriendly/persona_builder.md`
+매핑:
+- `colleague` → `prompt_kor/persona_builder.md`
+- `relationship` → `prompt_kor/relationship/persona_builder.md`
+- `celebrity` → `prompt_kor/celebrity/persona_builder.md`
+- `celebrity` + `budget-unfriendly` → `prompt_kor/celebrity/budget_unfriendly/persona_builder.md`
 
-向用户展示摘要（各 5-8 行），询问：
+사용자에게 각 5~8줄 요약을 보여주고 확인받는다:
 ```
-Work Skill 摘要：
-  - 负责：{xxx}
-  - 技术栈：{xxx}
-  - CR 重点：{xxx}
+Work Skill 요약:
+  - 담당: {xxx}
+  - 기술 스택: {xxx}
+  - 코드리뷰 관점: {xxx}
   ...
 
-Persona 摘要：
-  - 核心性格：{xxx}
-  - 表达风格：{xxx}
-  - 决策模式：{xxx}
+Persona 요약:
+  - 핵심 성격: {xxx}
+  - 커뮤니케이션 스타일: {xxx}
+  - 의사결정 패턴: {xxx}
   ...
 
-确认生成？还是需要调整？
+이대로 생성할까요? 수정할 부분이 있나요?
 ```
 
-### Step 5：写入文件
+### Step 5: 파일 쓰기
 
-用户确认后，不要手工拼接 `skills/colleague/{slug}` 这类文件树。统一走 writer：
+사용자 확인 후에는 `skills/colleague/{slug}` 같은 트리를 손으로 만들지 않는다. 항상 writer를 경유한다:
 
-1. 先解析当前 storage root：
+1. 현재 저장 루트를 확정한다:
    - `colleague` → `./skills/colleague`
    - `relationship` → `./skills/relationship`
    - `celebrity` → `./skills/celebrity`
-2. 用 `Write` 工具写三个临时文件：
+2. `Write` 도구로 임시 파일 3개를 만든다:
    - `/tmp/distilly_{slug}_meta.json`
    - `/tmp/distilly_{slug}_work.md`
    - `/tmp/distilly_{slug}_persona.md`
-3. `meta.json` 至少包含：
+3. 임시 meta 파일에는 최소한 다음이 들어가야 한다:
    - `name`
    - `display_name`
    - `character`
-   - `research_profile`（当 character=`celebrity` 时必填）
-   - `classification.language`（必须设置为用户当前语言，例如 `zh-CN` 或 `en`）
+   - `research_profile` (`character=celebrity`일 때 필수)
+   - `classification.language` (사용자 언어와 일치해야 한다. 예: `ko-KR` 또는 `en`)
    - `profile`
    - `tags`
    - `knowledge_sources`
-4. 然后调用：
+4. 그다음 실행한다:
    ```bash
    python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action create \
@@ -629,7 +389,7 @@ Persona 摘要：
      --persona /tmp/distilly_{slug}_persona.md \
      --base-dir {resolved_base_dir}
    ```
-5. 该命令会统一生成：
+5. 이 명령이 생성하는 것:
    - `SKILL.md`
    - `work.md`
    - `persona.md`
@@ -637,40 +397,40 @@ Persona 摘要：
    - `persona_skill.md`
    - `manifest.json`
    - `meta.json`
-   - 如需把生成后的角色 Skill 安装到宿主：
-     - Claude Code：追加 `--install-claude-skill`
-     - OpenClaw：追加 `--install-openclaw-skill`
-     - Codex：追加 `--install-codex-skill`
-     - Hermes：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host hermes --force`；可信项目可追加 `--skills-dir .hermes/skills`，先运行 `hermes skills trust`，然后新建会话或运行 `/reload-skills`。只有已在 Hermes 的 `skills.external_dirs` 中显式配置时，才使用 `~/.agents/skills`
-     - DeepSeek Harness：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force`；项目级安装追加 `--skills-dir .dsh/skills`
-     - Pi：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force`；项目级安装追加 `--skills-dir .pi/skills`，调用命令为 `/skill:{character}-{slug}`
-     - Grok Build：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force`；项目级安装追加 `--skills-dir .grok/skills`
-     - OpenCode：运行 `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host opencode --force`；项目级安装追加 `--skills-dir .opencode/skills`
-     - 统一安装器只写入自包含的 `SKILL.md` 和安装元数据，会在安装副本中规范旧版 frontmatter；不要手动复制整个生成目录，其中可能包含私有原始材料
-     - Claude Code on Windows：可再追加 `--install-claude-command-shim`
-6. 如果当前是 `celebrity`，创建完成后必须再跑一次质量检查：
+   - 생성된 역할 skill을 호스트에 설치하려면 해당 플래그를 덧붙인다:
+     - Claude Code: `--install-claude-skill`
+     - OpenClaw: `--install-openclaw-skill`
+     - Codex: `--install-codex-skill`
+     - Hermes: `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host hermes --force` 실행. 신뢰된 프로젝트라면 `--skills-dir .hermes/skills`를 덧붙이고 `hermes skills trust` 실행 후 새 세션을 시작하거나 `/reload-skills`를 실행한다. `~/.agents/skills`는 Hermes `skills.external_dirs`에 명시적으로 설정된 경우에만 쓴다
+     - DeepSeek Harness: `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host deepseek-harness --force` 실행. 프로젝트 설치는 `--skills-dir .dsh/skills`를 덧붙인다
+     - Pi: `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host pi --force` 실행. 프로젝트 설치는 `--skills-dir .pi/skills`를 덧붙이고, `/skill:{character}-{slug}`로 호출한다
+     - Grok Build: `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host grok-build --force` 실행. 프로젝트 설치는 `--skills-dir .grok/skills`를 덧붙인다
+     - OpenCode: `python3 "{distilly_skill_root}/tools/install_generated_skill.py" --skill-dir "{resolved_base_dir}/{slug}" --host opencode --force` 실행. 프로젝트 설치는 `--skills-dir .opencode/skills`를 덧붙인다
+     - 공용 설치기는 자기완결형 `SKILL.md`와 설치 메타데이터만 쓰고, 설치본의 레거시 frontmatter를 정규화한다. 생성 디렉터리 전체를 수동 복사하지 않는다. 원본 자료가 들어 있을 수 있다
+     - Windows의 Claude Code: 필요하면 `--install-claude-command-shim`을 추가한다
+6. 현재 family가 `celebrity`라면 생성 후 품질 검사를 실행한다:
    ```bash
    python3 "{distilly_skill_root}/tools/research/quality_check.py" "{resolved_base_dir}/{slug}/SKILL.md" --profile {research_profile}
    ```
-7. 如果 `celebrity` 的质量检查仍然提示 `source_grounding` 失败：
-   - 可以补写诚实的来源说明和局限说明
-   - 但只有在拿到真实、具体、可追溯的外部来源时，才能补充 URL
-   - **不要**用站点首页、topic 页、搜索页、个人空间首页等泛化链接来“刷过”检查
-   - 如果没有真实来源，就保留 FAIL，并向用户说明后续需要补哪些材料
+7. `celebrity` skill의 `source_grounding`이 여전히 실패하면:
+   - 정직한 한계 노트와 근거 있는 출처 요약을 추가할 수 있다
+   - URL은 실재하고 구체적이며 추적 가능한 출처일 때만 추가한다
+   - 사이트 루트, 주제 페이지, 검색 페이지 같은 일반 링크를 가짜 근거로 **절대** 쓰지 않는다
+   - 검증된 외부 출처가 없으면 FAIL 상태를 유지하고 어떤 자료가 아직 없는지 설명한다
 
-告知用户时，文件位置必须按当前 family 返回，不要默认写成 colleague。
+성공을 보고할 때는 colleague 저장 위치를 가정하지 말고 해당 family의 정확한 위치를 반환한다.
 
 ---
 
-## 进化模式：追加文件
+## 진화 모드: 파일 추가
 
-用户提供新文件或文本时：
+사용자가 새 파일이나 텍스트를 제공하면:
 
-1. 按 Step 2 的方式读取新内容
-2. 根据当前 family 解析 base dir
-3. 用 `Read` 读取现有 `{resolved_base_dir}/{slug}/work.md` 和 `persona.md`
-4. 使用当前 family 对应的 merger prompt 分析增量内容
-5. 存档当前版本（用 Bash）：
+1. Step 2의 방법으로 새 내용을 읽는다
+2. 현재 family의 base dir를 확정한다
+3. 기존 `{resolved_base_dir}/{slug}/work.md`와 `persona.md`를 `Read`로 읽는다
+4. family별 merger prompt로 증분 분석한다
+5. 현재 버전을 보관한다 (Bash):
    ```bash
    python3 "{distilly_skill_root}/tools/version_manager.py" \
      --action backup \
@@ -678,8 +438,8 @@ Persona 摘要：
      --slug {slug} \
      --base-dir {resolved_base_dir}
    ```
-6. 把 work/persona 增量分别写到临时 patch 文件
-7. 调用：
+6. work/persona 델타를 임시 patch 파일에 쓴다
+7. 실행한다:
    ```bash
    python3 "{distilly_skill_root}/tools/skill_writer.py" \
      --action update \
@@ -689,20 +449,20 @@ Persona 摘要：
      --persona-patch /tmp/distilly_{slug}_persona_patch.md \
      --base-dir {resolved_base_dir}
    ```
-8. 如果当前是 `celebrity`，更新后再次执行 quality check
+8. 현재 family가 `celebrity`라면 갱신 후 품질 검사를 다시 실행한다
 
 ---
 
-## 进化模式：对话纠正
+## 진화 모드: 대화 정정
 
-用户表达"不对"/"应该是"时：
+사용자가 "이건 틀렸어" / "이렇게 해야 맞아"라고 하면:
 
-1. 参考 `prompts/correction_handler.md` 识别纠正内容
-2. 判断属于 Work（技术/流程）还是 Persona（性格/沟通）
-3. 如果属于 Work：
-   - 生成 `/tmp/distilly_{slug}_work_patch.md`
-   - patch 必须是可替换的 `##` section，不要直接手改最终文件
-   - 调用：
+1. `prompt_kor/correction_handler.md`를 참조해 정정 내용을 식별한다
+2. Work(기술·업무 흐름)에 속하는지 Persona(성격·커뮤니케이션)에 속하는지 판단한다
+3. Work에 속하면:
+   - `/tmp/distilly_{slug}_work_patch.md`를 생성한다
+   - patch는 교체 가능한 `##` 섹션 하나 이상이어야 한다
+   - 실행한다:
      ```bash
      python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
@@ -711,11 +471,11 @@ Persona 摘要：
        --work-patch /tmp/distilly_{slug}_work_patch.md \
        --base-dir {resolved_base_dir}
      ```
-4. 如果属于 Persona：
-   - 将 correction 写入 `/tmp/distilly_{slug}_correction.json`
-   - 单条纠正可直接写成 `{scene, wrong, correct}`
-   - 多条 persona 纠正可写成 `{"persona_corrections": [{...}, {...}]}`
-   - 调用：
+4. Persona에 속하면:
+   - 정정 기록을 `/tmp/distilly_{slug}_correction.json`에 쓴다
+   - 단건은 `{scene, wrong, correct}` 형식으로 쓴다
+   - persona 정정이 여러 건이면 `{"persona_corrections": [{...}, {...}]}` 형식으로 쓴다
+   - 실행한다:
      ```bash
      python3 "{distilly_skill_root}/tools/skill_writer.py" \
        --action update \
@@ -724,21 +484,21 @@ Persona 摘要：
        --correction-json /tmp/distilly_{slug}_correction.json \
        --base-dir {resolved_base_dir}
      ```
-5. 如果当前是 `celebrity`，更新后再次执行 quality check
-6. 不要直接手改 `work.md`、`persona.md`、`SKILL.md`、`meta.json`；统一通过 writer 更新
+5. 현재 family가 `celebrity`라면 갱신 후 품질 검사를 다시 실행한다
+6. `work.md`, `persona.md`, `SKILL.md`, `meta.json`을 손으로 편집하지 않는다. 항상 `skill_writer.py`로 갱신한다
 
 ---
 
-## 管理操作
+## 관리 작업
 
-列出三类 Skill：
+3개 family의 skill 목록 조회:
 ```bash
 python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character colleague --base-dir ./skills/colleague
 python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character relationship --base-dir ./skills/relationship
 python3 "{distilly_skill_root}/tools/skill_writer.py" --action list --character celebrity --base-dir ./skills/celebrity
 ```
 
-回滚某个 Skill 版本：
+특정 skill 버전 롤백:
 ```bash
 # colleague
 python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character colleague --slug {slug} --version {version} --base-dir ./skills/colleague
@@ -750,8 +510,8 @@ python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --cha
 python3 "{distilly_skill_root}/tools/version_manager.py" --action rollback --character celebrity --slug {slug} --version {version} --base-dir ./skills/celebrity
 ```
 
-删除某个 Skill：
-确认 character 后执行：
+특정 skill 삭제:
+character family를 확인한 뒤:
 ```bash
 # colleague
 rm -rf skills/colleague/{slug}
@@ -764,8 +524,6 @@ rm -rf skills/celebrity/{slug}
 ```
 
 ---
----
-
 # English Version
 
 # Distilly Creator
@@ -816,12 +574,6 @@ This Skill runs in any compatible host that can read local files and execute Bas
 | Read PDF documents | `Read` tool (native PDF support) |
 | Read image screenshots | `Read` tool (native image support) |
 | Read MD/TXT files | `Read` tool |
-| Parse Lark message JSON export | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_parser.py"` |
-| Lark auto-collect (recommended) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_auto_collector.py"` |
-| Lark docs (browser session) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_browser.py"` |
-| Lark docs (MCP App Token) | `Bash` → `python3 "{distilly_skill_root}/tools/feishu_mcp_client.py"` |
-| DingTalk auto-collect | `Bash` → `python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py"` |
-| Collect public X post candidates | `Bash` → `python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py"` |
 | Parse email .eml/.mbox | `Bash` → `python3 "{distilly_skill_root}/tools/email_parser.py"` |
 | Write/update Skill files | `Write` / `Edit` tool |
 | Version management | `Bash` → `python3 "{distilly_skill_root}/tools/version_manager.py"` |
@@ -833,8 +585,6 @@ This Skill runs in any compatible host that can read local files and execute Bas
 - `celebrity` → `./skills/celebrity/{slug}/`
 
 For a global path, use `--base-dir` with the storage root for that character family.
-
-The Lark-labelled compatibility collectors currently connect to the China-region `open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant routing is not implemented yet.
 
 ---
 
@@ -861,12 +611,12 @@ Default to `budget-friendly`. Only switch to `budget-unfriendly` when the user e
 
 Choose the intake prompt by character family:
 
-- `colleague` → `prompts/intake.md`
-- `relationship` → `prompts/relationship/intake.md`
-- `celebrity` → `prompts/celebrity/intake.md`
+- `colleague` → `prompt_kor/intake.md`
+- `relationship` → `prompt_kor/relationship/intake.md`
+- `celebrity` → `prompt_kor/celebrity/intake.md`
 
 For `colleague` and `relationship`, ask only 3 questions.
-For `celebrity`, use the 4-question intake in `prompts/celebrity/intake.md`; the fourth question must confirm `research_profile`.
+For `celebrity`, use the 4-question intake in `prompt_kor/celebrity/intake.md`; the fourth question must confirm `research_profile`.
 
 The default 3 base questions are:
 
@@ -885,20 +635,10 @@ Ask the user how they'd like to provide materials:
 ```
 How would you like to provide source materials?
 
-  [A] Lark Auto-Collect (recommended)
-      Enter name, auto-pull messages + docs + spreadsheets
+  [A] Upload Files
+      PDF / images / email .eml / .mbox
 
-  [B] DingTalk Auto-Collect
-      Enter name, auto-pull docs + spreadsheets
-      Messages collected via browser (DingTalk API doesn't support message history)
-
-  [C] Lark Link
-      Provide doc/Wiki link (browser session or MCP)
-
-  [D] Upload Files
-      PDF / images / exported JSON / email .eml
-
-  [E] Paste Text
+  [B] Paste Text
       Copy-paste text directly
 
 Can mix and match, or skip entirely (generate from manual info only).
@@ -906,160 +646,9 @@ Can mix and match, or skip entirely (generate from manual info only).
 
 ---
 
-#### Option A: Lark Auto-Collect (Recommended)
-
-First-time setup:
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --setup
-```
-
-**Group chat collection** (uses tenant_access_token, bot must be in the group):
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 1000 \
-  --doc-limit 20
-```
-
-**Private chat (P2P) collection** (requires user_access_token + p2p chat_id):
-
-Private messages can only be accessed via user identity (user_access_token). App identity cannot access private chats.
-
-**Prerequisites**:
-
-The user needs to provide:
-1. **Lark app credentials**: `app_id` and `app_secret` (from the Open Platform)
-2. **User scopes**: The app must have these user scopes enabled:
-   - `im:message` — read/send messages as user
-   - `im:chat` — read chat list as user
-3. **OAuth authorization code**: obtained after user completes OAuth in browser
-
-If the user is missing any of these, guide them through setup. Don't assume anything is pre-configured.
-
-**Getting user_access_token**:
-
-Once the user provides app_id, app_secret, and confirms scopes are enabled:
-
-1. Generate the OAuth URL for them:
-   ```
-   https://open.feishu.cn/open-apis/authen/v1/authorize?app_id={APP_ID}&redirect_uri=http://www.example.com&scope=im:message%20im:chat
-   ```
-   > ⚠️ The redirect_uri must be added in the app's "Security Settings → Redirect URLs"
-
-2. User opens URL, logs in, authorizes
-3. Page redirects to `http://www.example.com?code=xxx`, user copies the code
-4. Exchange code for token:
-   ```bash
-   python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" --exchange-code {CODE}
-   ```
-   Or write a Python script to call the same API directly:
-   ```python
-   # 1. Get app_access_token
-   POST https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal
-   Body: {"app_id": "xxx", "app_secret": "xxx"}
-   
-   # 2. Exchange code for user_access_token
-   POST https://open.feishu.cn/open-apis/authen/v1/oidc/access_token
-   Header: Authorization: Bearer {app_access_token}
-   Body: {"grant_type": "authorization_code", "code": "xxx"}
-   ```
-
-**Getting the p2p chat_id**:
-
-Users typically don't know their chat_id. When the user has a user_access_token but no chat_id, **write a Python script yourself** to obtain it:
-
-- **Method**: Send a message to the other user's open_id — the response includes the chat_id
-  ```python
-  POST https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id
-  Header: Authorization: Bearer {user_access_token}
-  Body: {"receive_id": "{target_open_id}", "msg_type": "text", "content": "{\"text\":\"hello\"}"}
-  # The chat_id in the response is the p2p chat ID
-  ```
-- **Important**: `GET /im/v1/chats` does NOT return p2p chats — this is an API limitation, not a permission issue. Do not try to use it for finding private chats.
-- If the user doesn't know the target's open_id, use tenant_access_token to search contacts:
-  ```python
-  GET https://open.feishu.cn/open-apis/contact/v3/scopes
-  # Returns open_ids of all users visible to the app
-  ```
-
-**Running collection**:
-
-Once you have user_access_token and chat_id:
-```bash
-python3 "{distilly_skill_root}/tools/feishu_auto_collector.py" \
-  --open-id {target_open_id} \
-  --p2p-chat-id {chat_id} \
-  --user-token {user_access_token} \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 1000
-```
-
-**Flexibility principle**: The above API calls don't have to go through the collector script. If the script doesn't work or doesn't fit the scenario, write Python scripts directly against the same endpoints. Key API reference:
-- Get token: `POST /auth/v3/app_access_token/internal`, `POST /authen/v1/oidc/access_token`
-- Send message (get chat_id): `POST /im/v1/messages?receive_id_type=open_id`
-- Fetch messages: `GET /im/v1/messages?container_id_type=chat&container_id={chat_id}`
-- Search contacts: `GET /contact/v3/scopes`, `GET /contact/v3/users/{user_id}`
-
-Auto-collected content:
-- Group chats: messages sent by them (system messages and stickers filtered)
-- Private chats: full conversation with both parties (for context understanding)
-- Lark docs and Wikis they created/edited
-- Related spreadsheets (if accessible)
-
-After collection, `Read` the output files:
-- `knowledge/{slug}/messages.txt` → messages (group + private)
-- `knowledge/{slug}/docs.txt` → document content
-- `knowledge/{slug}/collection_summary.json` → collection summary
-
-If collection fails, diagnose the error and attempt to fix it. Common issues:
-- Group chat: bot not added to the group
-- Private chat: user_access_token expired (2-hour TTL, refresh with refresh_token)
-- Insufficient permissions: guide user to enable scopes and re-authorize
-- Or switch to Option B/C
-
----
-
-#### Option B: DingTalk Auto-Collect
-
-First-time setup:
-```bash
-python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" --setup
-```
-
-Then enter the name:
-```bash
-python3 "{distilly_skill_root}/tools/dingtalk_auto_collector.py" \
-  --name "{name}" \
-  --output-dir ./knowledge/{slug} \
-  --msg-limit 500 \
-  --doc-limit 20 \
-  --show-browser   # add this flag on first use to complete DingTalk login
-```
-
-Collected content:
-- DingTalk docs and knowledge bases they created/edited
-- Spreadsheets
-- Messages (⚠️ DingTalk API doesn't support message history — auto-switches to browser scraping)
-
-After collection, `Read`:
-- `knowledge/{slug}/docs.txt`
-- `knowledge/{slug}/bitables.txt`
-- `knowledge/{slug}/messages.txt`
-
-If message collection fails, prompt user to upload chat screenshots.
-
----
-
-#### Option D: Upload Files
+#### Option A: Upload Files
 
 - **PDF / Images**: `Read` tool directly
-- **Lark message JSON export**:
-  ```bash
-  python3 "{distilly_skill_root}/tools/feishu_parser.py" --file {path} --target "{name}" --output /tmp/feishu_out.txt
-  ```
-  Then `Read /tmp/feishu_out.txt`
 - **Email files .eml / .mbox**:
   ```bash
   python3 "{distilly_skill_root}/tools/email_parser.py" --file {path} --target "{name}" --output /tmp/email_out.txt
@@ -1069,66 +658,7 @@ If message collection fails, prompt user to upload chat screenshots.
 
 ---
 
-#### Option C: Lark Link
-
-When the user provides a Lark doc/Wiki link, ask which method to use:
-
-```
-Lark link detected. Choose read method:
-
-  [1] Browser Method (recommended)
-      Reuses your local Chrome login session
-      ✅ Works with internal docs requiring permissions
-      ✅ No token configuration needed
-      ⚠️  Requires Chrome + playwright installed locally
-
-  [2] MCP Method
-      Uses a Lark App Token via the official API
-      ✅ Stable, no browser dependency
-      ✅ Can read messages (needs chat ID)
-      ⚠️  Requires App ID / App Secret setup
-      ⚠️  Internal docs need admin authorization for the app
-
-Choose [1/2]:
-```
-
-**Option 1 (Browser)**:
-```bash
-python3 "{distilly_skill_root}/tools/feishu_browser.py" \
-  --url "{feishu_url}" \
-  --target "{name}" \
-  --output /tmp/feishu_doc_out.txt
-```
-First use will open a browser window for login (one-time).
-
-**Option 2 (MCP)**:
-
-First-time setup:
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" --setup
-```
-
-Then read directly:
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
-  --url "{feishu_url}" \
-  --output /tmp/feishu_doc_out.txt
-```
-
-Read messages (needs chat ID, format `oc_xxx`):
-```bash
-python3 "{distilly_skill_root}/tools/feishu_mcp_client.py" \
-  --chat-id "oc_xxx" \
-  --target "{name}" \
-  --limit 500 \
-  --output /tmp/feishu_msg_out.txt
-```
-
-Both methods output to files, then use `Read` to load results into analysis.
-
----
-
-#### Option E: Paste Text
+#### Option B: Paste Text
 
 User-pasted content is used directly as text material. No tools needed.
 
@@ -1142,32 +672,20 @@ First resolve the execution matrix for the selected character family:
 
 | character | intake | persona analyzer | persona builder | merger | storage root |
 |-----------|--------|------------------|-----------------|--------|--------------|
-| `colleague` | `prompts/intake.md` | `prompts/persona_analyzer.md` | `prompts/persona_builder.md` | `prompts/merger.md` | `./skills/colleague/{slug}` |
-| `relationship` | `prompts/relationship/intake.md` | `prompts/relationship/persona_analyzer.md` | `prompts/relationship/persona_builder.md` | `prompts/relationship/merger.md` | `./skills/relationship/{slug}` |
-| `celebrity` | `prompts/celebrity/intake.md` | `prompts/celebrity/persona_analyzer.md` | `prompts/celebrity/persona_builder.md` | `prompts/celebrity/merger.md` | `./skills/celebrity/{slug}` |
+| `colleague` | `prompt_kor/intake.md` | `prompt_kor/persona_analyzer.md` | `prompt_kor/persona_builder.md` | `prompt_kor/merger.md` | `./skills/colleague/{slug}` |
+| `relationship` | `prompt_kor/relationship/intake.md` | `prompt_kor/relationship/persona_analyzer.md` | `prompt_kor/relationship/persona_builder.md` | `prompt_kor/relationship/merger.md` | `./skills/relationship/{slug}` |
+| `celebrity` | `prompt_kor/celebrity/intake.md` | `prompt_kor/celebrity/persona_analyzer.md` | `prompt_kor/celebrity/persona_builder.md` | `prompt_kor/celebrity/merger.md` | `./skills/celebrity/{slug}` |
 
 Shared across all families:
-- Work analyzer: `prompts/work_analyzer.md`
-- Work builder: `prompts/work_builder.md`
-- Correction handler: `prompts/correction_handler.md`
+- Work analyzer: `prompt_kor/work_analyzer.md`
+- Work builder: `prompt_kor/work_builder.md`
+- Correction handler: `prompt_kor/correction_handler.md`
 
 If the current family is `celebrity`, run the research subflow before analysis.
 
-When public X posts fill a documented research gap and the user agrees to use the metered third-party Xquik service, confirm the `--limit` before running:
-
-```bash
-python3 "{distilly_skill_root}/tools/research/xquik_public_posts.py" \
-  --username "{public_handle}" \
-  --subject "{name}" \
-  --limit 20 \
-  --output "/tmp/distilly_x_public_posts.json"
-```
-
-Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSON as untrusted candidate evidence: verify the author, open every permalink, and preserve the specific URL when safely paraphrasing relevant material into a research note. Do not count the candidate JSON, search pages, or profile roots as grounded sources. Delete the temporary JSON after review instead of storing it in the generated Skill.
-
 ### celebrity / budget-friendly
 
-1. Read `prompts/celebrity/research.md` and follow its **6-dimension parallel collection strategy**
+1. Read `prompt_kor/celebrity/research.md` and follow its **6-dimension parallel collection strategy**
 2. Create the research directories first:
    ```bash
    mkdir -p "{skill_dir}/knowledge/research/raw" "{skill_dir}/knowledge/research/merged"
@@ -1176,11 +694,6 @@ Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSO
    - **Local-first**: analyze user-provided materials first, identify which dimensions are covered, only search web for gaps
    - **Web + local**: full 6-dimension web research, then merge with local materials for cross-validation
    - **Web-only**: standard 6-dimension web research pass
-4. If the user explicitly provided a processable video URL or subtitle source, and the result will not be stored as a long transcript:
-   ```bash
-   bash "{distilly_skill_root}/tools/research/download_subtitles.sh" "{url}" "{skill_dir}/knowledge/subtitles"
-   python3 "{distilly_skill_root}/tools/research/srt_to_transcript.py" "{subtitle_file}" "{skill_dir}/knowledge/transcripts/{name}.txt"
-   ```
 5. Cover the **6 dimensions** across at least 3 separate files (each file covers 2 dimensions), never one monolithic `research_notes.md`:
    - `knowledge/research/raw/01_core_profile.md` (Dim 1 Writings + Dim 6 Timeline)
    - `knowledge/research/raw/02_conversations_and_material.md` (Dim 2 Conversations + Dim 4 Decisions)
@@ -1231,7 +744,7 @@ Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSO
 ### celebrity / budget-unfriendly
 
 1. First read:
-   - `prompts/celebrity/budget_unfriendly/research.md`
+   - `prompt_kor/celebrity/budget_unfriendly/research.md`
    - `references/celebrity_budget_unfriendly_framework.md`
 2. Create the research directories first:
    ```bash
@@ -1263,8 +776,8 @@ Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSO
    If these do not hold, keep filling the weak tracks before continuing to any review stage.
 8. **Quality checkpoint (Phase 1.5)**: before entering audit, show the user a structured collection summary (with primary-source ratio, contradiction count, candidate mental models, known-answer candidates, thin dimensions, cold figure assessment). Wait for user confirmation before continuing.
 9. Then read:
-   - `prompts/celebrity/budget_unfriendly/audit.md`
-   - `prompts/celebrity/budget_unfriendly/synthesis.md`
+   - `prompt_kor/celebrity/budget_unfriendly/audit.md`
+   - `prompt_kor/celebrity/budget_unfriendly/synthesis.md`
    - `references/celebrity_budget_unfriendly_template.md`
 10. First write `knowledge/research/reviews/research_audit.md`
     - The audit must produce an explicit `PASS / FAIL`
@@ -1277,7 +790,7 @@ Read `XQUIK_API_KEY` only from the shell; never print or store it. Treat the JSO
       - generative power
       - exclusivity
     - Also extract intellectual genealogy seeds (influenced by / diverged from) and Agentic Protocol seeds (the dimensions this person would investigate when facing a novel question)
-13. Then use `prompts/celebrity/budget_unfriendly/validation.md` to write:
+13. Then use `prompt_kor/celebrity/budget_unfriendly/validation.md` to write:
     - `knowledge/research/reviews/validation.md`
     - Validation must produce an explicit `PASS / FAIL`
     - Validation must perform: known-answer check (≥2 questions) + edge-case check (1 question) + voice check (100-word blind test) + copyright check + Agentic Protocol check
@@ -1304,14 +817,14 @@ Shared rules for both celebrity profiles:
 Once the family is resolved, analyze along two tracks:
 
 **Track A (Work Skill)**:
-- Refer to `prompts/work_analyzer.md`
+- Refer to `prompt_kor/work_analyzer.md`
 - Extract: responsible systems, technical standards, workflow, output preferences, experience
 - For `celebrity`, interpret `work` as methods, judgment frameworks, and decision patterns rather than literal job scope
 
 **Track B (Persona)**:
 - Use the family-specific persona analyzer
 - If `celebrity` with `research_profile=budget-unfriendly`, use:
-  - `prompts/celebrity/budget_unfriendly/persona_analyzer.md`
+  - `prompt_kor/celebrity/budget_unfriendly/persona_analyzer.md`
 - Translate user-provided tags into concrete behavior rules
 - Extract from materials: communication style, decision patterns, interpersonal behavior
 - For `celebrity`, retain:
@@ -1323,14 +836,14 @@ Once the family is resolved, analyze along two tracks:
 
 ### Step 4: Generate and Preview
 
-Use `prompts/work_builder.md` to generate Work content.
+Use `prompt_kor/work_builder.md` to generate Work content.
 Use the family-specific persona builder to generate Persona content.
 
 Mapping:
-- `colleague` → `prompts/persona_builder.md`
-- `relationship` → `prompts/relationship/persona_builder.md`
-- `celebrity` → `prompts/celebrity/persona_builder.md`
-- `celebrity` + `budget-unfriendly` → `prompts/celebrity/budget_unfriendly/persona_builder.md`
+- `colleague` → `prompt_kor/persona_builder.md`
+- `relationship` → `prompt_kor/relationship/persona_builder.md`
+- `celebrity` → `prompt_kor/celebrity/persona_builder.md`
+- `celebrity` + `budget-unfriendly` → `prompt_kor/celebrity/budget_unfriendly/persona_builder.md`
 
 Show the user a summary (5-8 lines each), ask:
 ```
@@ -1451,7 +964,7 @@ When user provides new files or text:
 
 When user expresses "that's wrong" / "he should be":
 
-1. Refer to `prompts/correction_handler.md` to identify correction content
+1. Refer to `prompt_kor/correction_handler.md` to identify correction content
 2. Determine if it belongs to Work (technical/workflow) or Persona (personality/communication)
 3. If it belongs to Work:
    - Generate `/tmp/distilly_{slug}_work_patch.md`

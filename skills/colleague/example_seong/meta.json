@@ -1,0 +1,22 @@
+{
+  "name": "성춘향(예시)",
+  "slug": "example_seong",
+  "created_at": "2026-04-04T00:00:00Z",
+  "updated_at": "2026-04-04T00:00:00Z",
+  "version": "v1",
+  "profile": {
+    "company": "AI Lab",
+    "level": "None",
+    "role": "HRBP",
+    "department": "AI Lab",
+    "gender": "여",
+    "mbti": "ENFJ"
+  },
+  "tags": {
+    "personality": ["성실함", "적극적", "대화 좋아함", "별자리 마니아", "예능 애호가"],
+    "culture": ["분위기 담당", "믿음직한 BP"]
+  },
+  "impression": "채용이 정확하고 효율이 좋다. 한가할 때는 별자리에서 타로로, 다시 힙합 서바이벌로 이어지는 대화가 가능하다. 팀의 즐거움 담당",
+  "knowledge_sources": [],
+  "corrections_count": 0
+}

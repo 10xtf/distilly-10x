@@ -1,0 +1,21 @@
+{
+  "name": "홍길동(예시)",
+  "slug": "example_hong",
+  "created_at": "2026-03-30T00:00:00Z",
+  "updated_at": "2026-03-30T00:00:00Z",
+  "version": "v1",
+  "profile": {
+    "company": "예시 기업",
+    "level": "2-1",
+    "role": "백엔드 엔지니어",
+    "gender": "남",
+    "mbti": "INTJ"
+  },
+  "tags": {
+    "personality": ["책임 회피", "말수 적음", "데이터 기반", "결단력"],
+    "culture": ["직설 화법", "OKR 신봉"]
+  },
+  "impression": "리뷰 회의에서 갑자기 질문을 던져 전원을 말문 막히게 하는데, 대체로 그가 맞다",
+  "knowledge_sources": [],
+  "corrections_count": 0
+}

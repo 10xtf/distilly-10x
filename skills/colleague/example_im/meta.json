@@ -1,0 +1,22 @@
+{
+  "name": "임꺽정(예시)",
+  "slug": "example_im",
+  "created_at": "2026-04-04T00:00:00Z",
+  "updated_at": "2026-04-04T00:00:00Z",
+  "version": "v1",
+  "profile": {
+    "company": "AI Lab",
+    "level": "None",
+    "role": "보안 신뢰성 엔지니어",
+    "department": "AI Lab · 보안 부서",
+    "gender": "남",
+    "mbti": "ENFP"
+  },
+  "tags": {
+    "personality": ["믿음직함", "코드 규범 중시", "적극적", "말이 많음", "게임 애호가"],
+    "culture": ["좋은 팀 분위기", "탄탄한 기술력"]
+  },
+  "impression": "코드를 규범적이고 탄탄하게 쓴다. 팀에서 누구든 같이 일하고 싶어 하고, 한가할 때 슬레이 더 스파이어 얘기를 시작하면 오후가 다 간다",
+  "knowledge_sources": [],
+  "corrections_count": 0
+}

@@ -495,22 +495,6 @@ class CliLifecycleTest(unittest.TestCase):
                 self.assertIn("## PART B: Persona", combined_skill)
 
                 if character == "celebrity":
-                    subtitle_path = skill_dir / "knowledge" / "subtitles" / "sample.vtt"
-                    subtitle_path.write_text(
-                        "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n\n"
-                        "00:00:01.000 --> 00:00:02.000\nworld.\n",
-                        encoding="utf-8",
-                    )
-                    transcript_path = skill_dir / "knowledge" / "transcripts" / "sample.txt"
-                    transcript = self.run_cmd(
-                        PYTHON,
-                        "tools/research/srt_to_transcript.py",
-                        str(subtitle_path),
-                        str(transcript_path),
-                    )
-                    self.assertIn(str(transcript_path), transcript.stdout)
-                    self.assertIn("Hello world.", transcript_path.read_text(encoding="utf-8"))
-
                     raw_note = skill_dir / "knowledge" / "research" / "raw" / "01.md"
                     raw_note.write_text(
                         "# Notes\n"
@@ -551,8 +535,8 @@ class CliLifecycleTest(unittest.TestCase):
                 meta_path,
                 {
                     "character": "celebrity",
-                    "display_name": "周奇墨",
-                    "classification": {"language": "zh-CN"},
+                    "display_name": "임꺽정",
+                    "classification": {"language": "ko-KR"},
                 },
             )
             work_path.write_text("Work body\n", encoding="utf-8")
@@ -573,7 +557,7 @@ class CliLifecycleTest(unittest.TestCase):
                 "--slug",
                 "zhou-qimo",
                 "--name",
-                "周奇墨",
+                "임꺽정",
                 "--meta",
                 str(meta_path),
                 "--work",

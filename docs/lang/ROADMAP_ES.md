@@ -32,8 +32,6 @@ Cualquier persona puede convertirse en un `.skill` reutilizable para agentes de 
 | Funcionalidad | Estado |
 |---------------|:------:|
 | Flujo completo de creación con selección de familia (`colleague`, `relationship`, `celebrity`) mediante `/distilly` | Hecho |
-| Recopilación automática de Lark (mensajes + docs + hojas de cálculo) | Hecho |
-| Recopilación automática de DingTalk | Hecho |
 | Recopilación automática de Slack | Hecho |
 | Historial de chat de WeChat (exportación SQLite) | Hecho |
 | Importación de Email / PDF / imagen / Markdown | Hecho |

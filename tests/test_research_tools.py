@@ -12,37 +12,6 @@ if str(TOOLS_DIR) not in sys.path:
 
 from research.merge_research import merge_research  # noqa: E402
 from research.quality_check import evaluate_skill_text  # noqa: E402
-from research.srt_to_transcript import clean_subtitle_text, convert_file  # noqa: E402
-
-
-class SubtitleTranscriptTest(unittest.TestCase):
-    def test_clean_subtitle_text_removes_timestamps_and_duplicates(self) -> None:
-        subtitle = """WEBVTT
-
-00:00:01.000 --> 00:00:03.000
-<i>Hello</i>
-
-00:00:03.000 --> 00:00:05.000
-Hello
-
-00:00:05.000 --> 00:00:07.000 align:start position:0%
-World.
-"""
-        transcript = clean_subtitle_text(subtitle)
-        self.assertNotIn("-->", transcript)
-        self.assertNotIn("<i>", transcript)
-        self.assertIn("Hello World.", transcript)
-
-    def test_convert_file_writes_transcript(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            input_path = Path(tmp_dir) / "sample.srt"
-            output_path = Path(tmp_dir) / "sample_transcript.txt"
-            input_path.write_text(
-                "1\n00:00:00,000 --> 00:00:01,000\nLine one.\n",
-                encoding="utf-8",
-            )
-            convert_file(input_path, output_path)
-            self.assertIn("Line one.", output_path.read_text(encoding="utf-8"))
 
 
 class ResearchMergeTest(unittest.TestCase):

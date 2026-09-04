@@ -32,7 +32,7 @@ assignees: []
 - Python: <!-- output of `python3 --version` -->
 - Host: <!-- Claude Code / OpenClaw / other -->
 - Distilly commit: <!-- output of `git rev-parse --short HEAD` -->
-- Data source: <!-- Lark / DingTalk / Slack / Confluence / WeChat / manual -->
+- Data source: <!-- Slack / Confluence / email / PDF / manual -->
 
 ## Additional context
 

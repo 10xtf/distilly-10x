@@ -99,7 +99,7 @@ Created by [@titanwings](https://github.com/titanwings)
 <td align="center"><sub>名人 · 创作者 · 公众表达者 · 小说角色</sub></td>
 </tr>
 <tr>
-<td><sub>从材料中整理技术规范、工作流程、表达习惯和职场行为，生成 Work Skill + Persona。支持飞书 / 钉钉 / Slack 采集。</sub></td>
+<td><sub>从材料中整理技术规范、工作流程、表达习惯和职场行为，生成 Work Skill + Persona。支持 Slack 采集。</sub></td>
 <td><sub>把材料中可观察的表达习惯、情绪触发点、冲突模式和修复模式整理成人物 Skill。</sub></td>
 <td><sub>内置 <b>六维度研究工具链</b>（字幕下载 → 文稿清洗 → 研究合并 → 质量检查），用于整理可观察的决策、表达与心智模型。</sub></td>
 </tr>
@@ -137,13 +137,7 @@ Created by [@titanwings](https://github.com/titanwings)
 
 | 标识 | 来源 | 消息记录 | 文档 / Wiki | 备注 |
 |:----:|------|:-------:|:-----------:|------|
-| <img src="../assets/sources/lark-mark.png" alt="飞书" width="32" height="32"> | 飞书（自动采集） | ✅ API | ✅ | 输入姓名即可，全自动 |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="钉钉" width="32" height="32"> | 钉钉（自动采集） | ⚠️ 浏览器 | ✅ | 钉钉 API 不支持历史消息 |
-| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack（自动采集） | ✅ API | — | 需管理员安装 Bot；免费版限 90 天 |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | 公开 X 帖子 | ✅ API | — | 通过按返回数量计费的第三方 Xquik 可选采集名人研究候选 |
-| <img src="../assets/sources/wechat-mark.jpg" alt="微信" width="32" height="32"> | 微信聊天记录 | ✅ SQLite | — | 需先用 WeChatMsg / PyWxDump / 留痕等工具导出 |
 | 📄 | PDF / 图片 / 截图 | — | ✅ | 手动上传 |
-| <img src="../assets/sources/lark-mark.png" alt="飞书" width="32" height="32"> | 飞书 JSON 导出 | ✅ | ✅ | 手动上传 |
 | ✉️ | 邮件 `.eml` / `.mbox` | ✅ | — | 手动上传 |
 | 📝 | Markdown / 直接粘贴 | ✅ | ✅ | 手动输入 |
 
@@ -280,7 +274,6 @@ Distilly 当前的创建器以 **Persona** 为通用底座，不同家族按场�
 | 💞 **relationship** | 完整的聊天记录 **›** 往来信件 / 朋友圈 / 日记 **›** 旁人描述 |
 | 🌟 **celebrity** | 第一人称著作 / 博客 / 长访谈 **›** 决策记录（发布会、commit、采访）**›** 已核验的本人短帖 **›** 他人评价 |
 
-- **colleague** 飞书自动采集：需将 App bot 加入相关群聊
 - **relationship**：时间跨度越长越好，能覆盖冲突与和解更佳
 - **celebrity**：避免只喂二手解读
 - 目前还是 demo 版本，如果有 bug 请多多提 issue！

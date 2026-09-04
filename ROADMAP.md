@@ -32,8 +32,6 @@ Anyone can become a reusable `.skill` for AI agents and compatible bots.
 | Capability | Status |
 |------------|:------:|
 | `/distilly` creation workflow with family selection | Done |
-| Lark-compatible auto-collection (messages + docs + spreadsheets) | Done |
-| DingTalk auto-collection | Done |
 | Slack auto-collection | Done |
 | WeChat chat history (SQLite export) | Done |
 | Email / PDF / image / Markdown import | Done |

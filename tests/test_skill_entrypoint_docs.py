@@ -104,15 +104,14 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("`/skill:distilly`", content)
         self.assertNotIn("name: dot-skill", content)
         self.assertNotIn("`/dot-skill`", content)
-        self.assertIn("兼容宿主", content)
+        self.assertIn("호환 호스트", content)
         self.assertIn("compatible hosts", content.lower())
         self.assertIn("Grok Build", content)
         self.assertIn("Grok Bot", content)
         self.assertIn("Pi coding agent", content)
-        self.assertIn("管理操作", content)
+        self.assertIn("관리 작업", content)
         self.assertIn("tools/skill_writer.py", content)
-        self.assertIn("tools/research/xquik_public_posts.py", content)
-        self.assertIn("prompts/celebrity/research.md", content)
+        self.assertIn("prompt_kor/celebrity/research.md", content)
         self.assertIn("budget-unfriendly", content)
         self.assertIn("references/celebrity_budget_unfriendly_framework.md", content)
         self.assertIn("01_core_profile.md", content)
@@ -120,7 +119,7 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("Files scanned >= 3", content)
         self.assertIn("Unique URLs >= 2", content)
         self.assertIn("Potential long quote lines = 0", content)
-        self.assertIn("实际打开过的具体页面", content)
+        self.assertIn("실제로 열어본 구체적 페이지", content)
         self.assertIn("actual inspected pages", content)
         self.assertIn("01_writings.md", content)
         self.assertIn("06_timeline.md", content)
@@ -170,11 +169,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("install_openclaw_skill.py", install)
         self.assertIn("install_codex_skill.py", install)
         self.assertIn("tools/research/quality_check.py", install)
-        self.assertIn("tools/research/xquik_public_posts.py", install)
-        self.assertIn("tools/research/download_subtitles.sh", install)
         self.assertIn("tools/research/merge_research.py", install)
         self.assertIn("pip3 install -r requirements.txt", install)
-        self.assertIn("pip3 install yt-dlp", install)
         self.assertIn("~/.claude/skills/distilly", install_en)
         self.assertIn("~/.openclaw/workspace/skills/distilly", install_en)
         self.assertIn("~/.hermes/skills/openclaw-imports/distilly", install_en)
@@ -184,26 +180,23 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("~/.grok/skills/distilly", install_en)
         self.assertIn("~/.config/opencode/skills/distilly", install_en)
         self.assertIn("tools/install_generated_skill.py", install_en)
-        self.assertIn("tools/research/download_subtitles.sh", install_en)
-        self.assertIn("tools/research/srt_to_transcript.py", install_en)
         self.assertIn("tools/research/merge_research.py", install_en)
         self.assertIn("tools/research/quality_check.py", install_en)
         self.assertIn("pip3 install -r requirements.txt", install_en)
-        self.assertIn("pip3 install yt-dlp", install_en)
         self.assertIn("/{character}-{slug}", install)
         self.assertIn("./skills/colleague", skill)
         self.assertIn("DeepSeek Harness", skill)
         self.assertIn("OpenCode", skill)
         self.assertIn("eight agent hosts", readme.lower())
-        self.assertIn("兼容宿主", install)
+        self.assertIn("호환 호스트", install)
 
         for logo_file in HOST_LOGO_FILES:
             self.assertTrue((ROOT / "docs" / "assets" / "hosts" / logo_file).is_file())
 
     def test_repo_examples_live_under_skills_colleague(self) -> None:
-        self.assertTrue((ROOT / "skills" / "colleague" / "example_zhangsan").exists())
-        self.assertTrue((ROOT / "skills" / "colleague" / "example_tianyi").exists())
-        self.assertTrue((ROOT / "skills" / "colleague" / "example_jiaxiu").exists())
+        self.assertTrue((ROOT / "skills" / "colleague" / "example_hong").exists())
+        self.assertTrue((ROOT / "skills" / "colleague" / "example_im").exists())
+        self.assertTrue((ROOT / "skills" / "colleague" / "example_seong").exists())
         self.assertFalse((ROOT / "colleagues").exists())
 
     def test_multilingual_readmes_list_hosts_without_invocation_tutorials(self) -> None:
@@ -234,19 +227,25 @@ class SkillEntrypointDocsTest(unittest.TestCase):
                 f"broken local paper link in {readme_path.name}",
             )
 
-    def test_non_chinese_docs_call_the_product_lark(self) -> None:
-        non_chinese = [ROOT / "README.md", ROOT / "docs" / "lang" / "README_EN.md"]
-        non_chinese.extend(
+    def test_docs_do_not_reference_removed_messenger_collectors(self) -> None:
+        readmes = [ROOT / "README.md"]
+        readmes.extend(
             ROOT / "docs" / "lang" / f"README_{language}.md"
-            for language in ("DE", "ES", "JA", "KO", "PT", "RU")
+            for language in ("DE", "EN", "ES", "JA", "KO", "PT", "RU", "ZH")
         )
-        for path in non_chinese:
+        readmes.extend(
+            ROOT / "docs" / "lang" / f"ROADMAP_{language}.md"
+            for language in ("DE", "ES", "JA", "KO", "PT", "RU", "ZH")
+        )
+        readmes.extend([ROOT / "ROADMAP.md", ROOT / "INSTALL.md", ROOT / "INSTALL_EN.md"])
+        for path in readmes:
             content = path.read_text(encoding="utf-8")
-            self.assertIn("Lark", content, f"missing Lark in {path.name}")
-            self.assertNotIn("Feishu", content, f"stale visible Feishu name in {path.name}")
-
-        chinese = (ROOT / "docs" / "lang" / "README_ZH.md").read_text(encoding="utf-8")
-        self.assertIn("飞书", chinese)
+            for removed in ("Lark", "Feishu", "feishu", "DingTalk", "dingtalk", "飞书", "钉钉"):
+                self.assertNotIn(
+                    removed,
+                    content,
+                    f"removed messenger collector still referenced in {path.name}",
+                )
 
     def test_non_chinese_surfaces_do_not_mix_chinese_copy(self) -> None:
         single_language_paths = [
@@ -256,8 +255,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
             ROOT / "CITATION.cff",
             ROOT / "INSTALL_EN.md",
             ROOT / "docs" / "lang" / "README_EN.md",
-            ROOT / "prompts" / "celebrity" / "research.md",
-            ROOT / "prompts" / "celebrity" / "budget_unfriendly" / "research.md",
+            ROOT / "prompt_kor" / "celebrity" / "research.md",
+            ROOT / "prompt_kor" / "celebrity" / "budget_unfriendly" / "research.md",
             ROOT / "references" / "celebrity_budget_unfriendly_framework.md",
             ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md",
         ]
@@ -285,12 +284,12 @@ class SkillEntrypointDocsTest(unittest.TestCase):
 
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         frontmatter = skill.split("---", 2)[1]
-        chinese_skill = skill.split("# English Version", 1)[0]
+        korean_skill = skill.split("# English Version", 1)[0]
         english_skill = skill.split("# English Version", 1)[1]
         self.assertIsNone(HAN_CHARACTER.search(frontmatter))
         self.assertIsNone(HAN_CHARACTER.search(english_skill))
-        self.assertIn("本 Skill 支持中英文", chinese_skill)
-        self.assertIsNotNone(HAN_CHARACTER.search(chinese_skill))
+        self.assertIn("이 Skill은 한국어와 영어를 지원한다", korean_skill)
+        self.assertIsNone(HAN_CHARACTER.search(korean_skill))
 
         for name in ("README_JA.md", "ROADMAP_JA.md"):
             content = (ROOT / "docs" / "lang" / name).read_text(encoding="utf-8")
@@ -311,17 +310,6 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn('generation.setdefault("engine", "distilly")', schema)
         self.assertIn('Path.home() / ".agents" / "skills" / "distilly"', codex_installer)
         self.assertIn('.distilly-install.json', generated_installer)
-
-        for collector_name in (
-            "feishu_auto_collector.py",
-            "feishu_mcp_client.py",
-            "dingtalk_auto_collector.py",
-            "slack_auto_collector.py",
-        ):
-            collector = (ROOT / "tools" / collector_name).read_text(encoding="utf-8")
-            self.assertIn('Path.home() / ".distilly"', collector)
-            self.assertIn('Path.home() / ".colleague-skill"', collector)
-            self.assertIn("CONFIG_PATH.chmod(0o600)", collector)
 
 
 if __name__ == "__main__":

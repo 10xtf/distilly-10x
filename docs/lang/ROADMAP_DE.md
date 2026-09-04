@@ -32,8 +32,6 @@ Jeder Mensch kann zu einem wiederverwendbaren `.skill` für KI-Agenten und kompa
 | Funktion | Status |
 |----------|:------:|
 | Vollständiger Erstellungsablauf mit Familienauswahl (`colleague`, `relationship`, `celebrity`) über `/distilly` | Erledigt |
-| Automatische Erfassung von Lark (Nachrichten + Docs + Tabellen) | Erledigt |
-| Automatische Erfassung von DingTalk | Erledigt |
 | Automatische Erfassung von Slack | Erledigt |
 | WeChat-Chatverlauf (SQLite-Export) | Erledigt |
 | Import von E-Mail / PDF / Bild / Markdown | Erledigt |

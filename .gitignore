@@ -2,12 +2,12 @@
 skills/*
 !skills/colleague/
 skills/colleague/*
-!skills/colleague/example_zhangsan/
-!skills/colleague/example_zhangsan/**
-!skills/colleague/example_tianyi/
-!skills/colleague/example_tianyi/**
-!skills/colleague/example_jiaxiu/
-!skills/colleague/example_jiaxiu/**
+!skills/colleague/example_hong/
+!skills/colleague/example_hong/**
+!skills/colleague/example_im/
+!skills/colleague/example_im/**
+!skills/colleague/example_seong/
+!skills/colleague/example_seong/**
 
 # Python
 __pycache__/
@@ -22,13 +22,9 @@ venv/
 # Legacy local credential path
 .colleague-skill/
 
-# Playwright browser data
-playwright-data/
-
 # Temp files
-/tmp/feishu_*.txt
 /tmp/email_*.txt
-/tmp/dingtalk_*.txt
+/tmp/distilly_*.txt
 knowledge/
 
 # Presentation source material (personal data - never commit)

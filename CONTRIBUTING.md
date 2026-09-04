@@ -11,7 +11,6 @@ Thank you for considering a contribution! Distilly turns source material about a
 - **Report bugs** — open a [bug report](.github/ISSUE_TEMPLATE/bug_report.md)
 - **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
 - **Translate docs** — see `docs/lang/` for existing languages
-- **Add a data source collector** — e.g. `tools/slack_auto_collector.py` is a reference implementation
 - **Submit a community skill** — submit to the [gallery](https://titanwings.github.io/colleague-skill-site/)
 - **Improve prompts** — files under `prompts/` shape skill behavior; small wording tweaks are welcome
 
@@ -53,7 +52,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 feat: add Notion auto-collector
-fix: handle 429 rate limit in feishu_parser
+fix: handle malformed MIME headers in email_parser
 docs: translate INSTALL to Korean
 chore: bump requests to 2.32
 test: cover skill_writer rollback edge cases

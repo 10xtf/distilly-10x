@@ -32,8 +32,6 @@
 | 機能 | 状態 |
 |------|:----:|
 | `/distilly` で `colleague` / `relationship` / `celebrity` を選択する完全な作成ワークフロー | 完了 |
-| Lark 自動収集（メッセージ + ドキュメント + スプレッドシート） | 完了 |
-| DingTalk 自動収集 | 完了 |
 | Slack 自動収集 | 完了 |
 | WeChat チャット履歴（SQLite エクスポート） | 完了 |
 | メール / PDF / 画像 / Markdown インポート | 完了 |

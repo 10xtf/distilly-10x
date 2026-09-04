@@ -159,14 +159,14 @@ class SkillWriterTest(unittest.TestCase):
             self.assertEqual(saved_meta["artifacts"]["combined_command"], "relationship-mireille")
             self.assertIn("name: relationship-mireille", combined_skill)
 
-    def test_create_skill_renders_chinese_chrome_when_language_is_zh_cn(self) -> None:
+    def test_create_skill_renders_korean_chrome_when_language_is_ko_kr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir = Path(tmp_dir) / "skills" / "relationship"
             meta = {
                 "character": "relationship",
                 "name": "Mireille",
                 "classification": {
-                    "language": "zh-CN",
+                    "language": "ko-KR",
                 },
             }
 
@@ -182,21 +182,21 @@ class SkillWriterTest(unittest.TestCase):
             work_skill = (skill_dir / "work_skill.md").read_text(encoding="utf-8")
             persona_skill = (skill_dir / "persona_skill.md").read_text(encoding="utf-8")
 
-            self.assertIn("## PART A：工作能力", combined_skill)
-            self.assertIn("运行规则", combined_skill)
-            self.assertIn("仅 Work，无 Persona", work_skill)
-            self.assertIn("仅 Persona，无工作能力", persona_skill)
+            self.assertIn("## PART A: 업무 능력", combined_skill)
+            self.assertIn("실행 규칙", combined_skill)
+            self.assertIn("Work 전용, Persona 없음", work_skill)
+            self.assertIn("Persona 전용, 업무 능력 없음", persona_skill)
 
     def test_work_only_skill_replaces_persona_handoff(self) -> None:
-        zh_handoff = "如果被问到职责范围外的问题，以该同事的方式回应（参见 Persona 部分）。"
+        ko_handoff = "담당 범위 밖의 질문을 받으면 해당 동료의 방식으로 응답한다 (Persona 부분 참조)."
         en_handoff = (
             "If you are asked a question outside your recorded responsibilities, "
             "respond in this colleague's style (see the Persona section)."
         )
-        zh_work_content = (
-            "## 工作能力使用说明\n\n"
-            "当用户要求你完成以下任务时，严格按照上述规范执行。\n\n"
-            f"{zh_handoff}\n"
+        ko_work_content = (
+            "## 업무 능력 사용 설명\n\n"
+            "사용자가 다음 과제를 요청하면 위 규범을 그대로 따른다.\n\n"
+            f"{ko_handoff}\n"
         )
         en_work_content = (
             "## Scope rule\n\n"
@@ -208,9 +208,9 @@ class SkillWriterTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir = Path(tmp_dir) / "skills" / "colleague"
-            zh_meta = {
+            ko_meta = {
                 "name": "Eulalie",
-                "language": "zh-CN",
+                "language": "ko-KR",
                 "profile": {
                     "company": "ByteDance",
                     "level": "L2-1",
@@ -227,44 +227,44 @@ class SkillWriterTest(unittest.TestCase):
                 },
             }
 
-            zh_dir = skill_writer.create_skill(
-                base_dir / "zh",
-                "zhangsan",
-                zh_meta,
-                zh_work_content,
+            ko_dir = skill_writer.create_skill(
+                base_dir / "ko",
+                "hong",
+                ko_meta,
+                ko_work_content,
                 "Persona body",
             )
             en_dir = skill_writer.create_skill(
                 base_dir / "en",
-                "zhangsan",
+                "hong",
                 en_meta,
                 en_work_content,
                 "Persona body",
             )
 
-            zh_stored_work = (zh_dir / "work.md").read_text(encoding="utf-8")
-            zh_combined = (zh_dir / "SKILL.md").read_text(encoding="utf-8")
+            ko_stored_work = (ko_dir / "work.md").read_text(encoding="utf-8")
+            ko_combined = (ko_dir / "SKILL.md").read_text(encoding="utf-8")
             en_stored_work = (en_dir / "work.md").read_text(encoding="utf-8")
             en_combined = (en_dir / "SKILL.md").read_text(encoding="utf-8")
-            zh_work_skill = (zh_dir / "work_skill.md").read_text(encoding="utf-8")
+            ko_work_skill = (ko_dir / "work_skill.md").read_text(encoding="utf-8")
             en_work_skill = (en_dir / "work_skill.md").read_text(encoding="utf-8")
 
-            self.assertIn(zh_handoff, zh_stored_work)
-            self.assertIn(zh_handoff, zh_combined)
+            self.assertIn(ko_handoff, ko_stored_work)
+            self.assertIn(ko_handoff, ko_combined)
             self.assertIn(en_handoff, en_stored_work)
             self.assertIn(en_handoff, en_combined)
-            self.assertNotIn(zh_handoff, zh_work_skill)
+            self.assertNotIn(ko_handoff, ko_work_skill)
             self.assertNotIn(en_handoff, en_work_skill)
             self.assertIn("If asked outside your recorded responsibilities:", en_work_skill)
             self.assertIn("## Persona naming note", en_work_skill)
             self.assertIn("Keep this documentation sentence.", en_work_skill)
-            self.assertIn(skill_writer.WORK_ONLY_FALLBACK_ZH, zh_work_skill)
+            self.assertIn(skill_writer.WORK_ONLY_FALLBACK_KO, ko_work_skill)
             self.assertIn(skill_writer.WORK_ONLY_FALLBACK_EN, en_work_skill)
-            self.assertIn("不要臆造缺失信息", zh_work_skill)
-            self.assertNotIn("不要推断", zh_work_skill)
+            self.assertIn("없는 정보를 지어내지 않으며", ko_work_skill)
+            self.assertNotIn("추론하지 않는다", ko_work_skill)
             self.assertIn("Do not fabricate missing information", en_work_skill)
             self.assertNotIn("Do not infer", en_work_skill)
-            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_ZH, zh_combined)
+            self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_KO, ko_combined)
             self.assertNotIn(skill_writer.WORK_ONLY_FALLBACK_EN, en_combined)
 
     def test_create_celebrity_adds_research_dirs_and_toolchain(self) -> None:
@@ -317,12 +317,12 @@ class SkillWriterTest(unittest.TestCase):
                 "character": "celebrity",
                 "research_profile": "budget-unfriendly",
                 "name": "Xu Zhisheng",
-                "classification": {"language": "zh-CN"},
+                "classification": {"language": "ko-KR"},
             }
 
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "xu-zhisheng",
+                "hong-gildong",
                 meta,
                 "Work body",
                 "Persona body",
@@ -334,11 +334,11 @@ class SkillWriterTest(unittest.TestCase):
             self.assertEqual(saved_meta["research_profile"], "budget-unfriendly")
             self.assertEqual(saved_meta["engine"]["quality_profile"], "budget-unfriendly")
             self.assertIn(
-                "prompts/celebrity/budget_unfriendly/research.md",
+                "prompt_kor/celebrity/budget_unfriendly/research.md",
                 saved_meta["engine"]["research_profile_bundle"].values(),
             )
             self.assertIn(
-                "prompts/celebrity/budget_unfriendly/audit.md",
+                "prompt_kor/celebrity/budget_unfriendly/audit.md",
                 saved_meta["engine"]["research_profile_bundle"].values(),
             )
             self.assertIn(
@@ -354,23 +354,25 @@ class SkillWriterTest(unittest.TestCase):
             base_dir = Path(tmp_dir) / "skills" / "celebrity"
             meta = {
                 "character": "celebrity",
-                "name": "徐志胜",
-                "display_name": "徐志胜",
-                "classification": {"language": "zh-CN"},
-                "profile": "中国脱口秀演员，以自嘲式观察喜剧著称。",
+                "name": "홍길동",
+                "display_name": "홍길동",
+                "classification": {"language": "ko-KR"},
+                "profile": "한국 스탠드업 코미디언. 자조적 관찰 코미디로 알려져 있다.",
             }
 
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "xu-zhisheng",
+                "hong-gildong",
                 meta,
                 "Work body",
                 "Persona body",
             )
 
             saved_meta = json.loads((skill_dir / "meta.json").read_text(encoding="utf-8"))
-            self.assertEqual(saved_meta["profile"], "中国脱口秀演员，以自嘲式观察喜剧著称。")
-            self.assertIn("中国脱口秀演员", saved_meta["summary"])
+            self.assertEqual(
+                saved_meta["profile"], "한국 스탠드업 코미디언. 자조적 관찰 코미디로 알려져 있다."
+            )
+            self.assertIn("한국 스탠드업 코미디언", saved_meta["summary"])
 
     def test_existing_dot_skill_metadata_keeps_legacy_engine_identifiers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -502,11 +504,11 @@ class SkillWriterTest(unittest.TestCase):
             base_dir = Path(tmp_dir) / "skills" / "celebrity"
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "zhou-qimo",
+                "im-kkeokjeong",
                 {
                     "character": "celebrity",
-                    "name": "周奇墨",
-                    "classification": {"language": "zh-CN"},
+                    "name": "임꺽정",
+                    "classification": {"language": "ko-KR"},
                 },
                 "Initial work",
                 "Initial persona",
@@ -517,14 +519,14 @@ class SkillWriterTest(unittest.TestCase):
                 correction={
                     "persona_corrections": [
                         {
-                            "scene": "铺陈处境时",
-                            "wrong": "一上来就下判断",
-                            "correct": "先把处境讲得很普通，再轻轻点一下",
+                            "scene": "상황을 깔 때",
+                            "wrong": "시작하자마자 판단부터 내린다",
+                            "correct": "상황을 평범하게 깔아둔 뒤 가볍게 한 번 짚는다",
                         },
                         {
-                            "scene": "表达立场时",
-                            "wrong": "写成明显自嘲型",
-                            "correct": "和观众一起承认大家都在局里",
+                            "scene": "입장을 밝힐 때",
+                            "wrong": "대놓고 자조하는 형태로 쓴다",
+                            "correct": "청중과 함께 모두가 같은 처지임을 인정한다",
                         },
                     ]
                 },
@@ -535,8 +537,8 @@ class SkillWriterTest(unittest.TestCase):
 
             self.assertEqual(new_version, "v2")
             self.assertEqual(saved_meta["corrections_count"], 2)
-            self.assertIn("一上来就下判断", persona_doc)
-            self.assertIn("写成明显自嘲型", persona_doc)
+            self.assertIn("시작하자마자 판단부터 내린다", persona_doc)
+            self.assertIn("대놓고 자조하는 형태로 쓴다", persona_doc)
             self.assertEqual(persona_doc.count("## Correction Log"), 1)
 
     def test_update_replaces_existing_markdown_sections_instead_of_appending_duplicates(self) -> None:
@@ -544,23 +546,23 @@ class SkillWriterTest(unittest.TestCase):
             base_dir = Path(tmp_dir) / "skills" / "celebrity"
             skill_dir = skill_writer.create_skill(
                 base_dir,
-                "zhou-qimo",
+                "im-kkeokjeong",
                 {
                     "character": "celebrity",
-                    "name": "周奇墨",
-                    "classification": {"language": "zh-CN"},
+                    "name": "임꺽정",
+                    "classification": {"language": "ko-KR"},
                 },
                 "\n".join(
                     [
                         "# Work",
                         "",
-                        "## 表达规范",
+                        "## 표현 규범",
                         "",
-                        "- 原始表述",
+                        "- 원래 표현",
                         "",
-                        "## 输出风格",
+                        "## 출력 스타일",
                         "",
-                        "- 原始结构",
+                        "- 원래 구조",
                     ]
                 ),
                 "\n".join(
@@ -569,11 +571,11 @@ class SkillWriterTest(unittest.TestCase):
                         "",
                         "## Layer 2: Expression DNA",
                         "",
-                        "旧内容",
+                        "이전 내용",
                         "",
                         "## Layer 3: Mental Models",
                         "",
-                        "保持不变",
+                        "변경 없음",
                     ]
                 ),
             )
@@ -582,20 +584,20 @@ class SkillWriterTest(unittest.TestCase):
                 skill_dir,
                 work_patch="\n".join(
                     [
-                        "## 表达规范",
+                        "## 표현 규범",
                         "",
-                        "- 新的节奏控制",
+                        "- 새로운 리듬 제어",
                         "",
-                        "## 输出风格",
+                        "## 출력 스타일",
                         "",
-                        "- 新的结构模板",
+                        "- 새로운 구조 템플릿",
                     ]
                 ),
                 persona_patch="\n".join(
                     [
                         "## Layer 2: Expression DNA",
                         "",
-                        "新内容",
+                        "새 내용",
                     ]
                 ),
             )
@@ -603,13 +605,13 @@ class SkillWriterTest(unittest.TestCase):
             work_doc = (skill_dir / "work.md").read_text(encoding="utf-8")
             persona_doc = (skill_dir / "persona.md").read_text(encoding="utf-8")
 
-            self.assertEqual(work_doc.count("## 表达规范"), 1)
-            self.assertEqual(work_doc.count("## 输出风格"), 1)
-            self.assertIn("新的节奏控制", work_doc)
-            self.assertNotIn("原始表述", work_doc)
+            self.assertEqual(work_doc.count("## 표현 규범"), 1)
+            self.assertEqual(work_doc.count("## 출력 스타일"), 1)
+            self.assertIn("새로운 리듬 제어", work_doc)
+            self.assertNotIn("원래 표현", work_doc)
             self.assertEqual(persona_doc.count("## Layer 2: Expression DNA"), 1)
-            self.assertIn("新内容", persona_doc)
-            self.assertNotIn("旧内容", persona_doc)
+            self.assertIn("새 내용", persona_doc)
+            self.assertNotIn("이전 내용", persona_doc)
 
 
 class VersionManagerTest(unittest.TestCase):
@@ -662,7 +664,7 @@ class PromptPresetTest(unittest.TestCase):
         for character in ("colleague", "relationship", "celebrity"):
             preset = get_character_preset(character)
             for prompt_path in preset["prompt_bundle"].values():
-                if not isinstance(prompt_path, str) or not prompt_path.startswith("prompts/"):
+                if not isinstance(prompt_path, str) or not prompt_path.startswith("prompt_kor/"):
                     continue
                 self.assertTrue(
                     (project_root / prompt_path).exists(),
@@ -676,7 +678,7 @@ class PromptPresetTest(unittest.TestCase):
             for profile_name in preset.get("research_profiles", {}):
                 profile = get_research_profile_preset(character, profile_name)
                 for prompt_path in profile.get("prompt_bundle", {}).values():
-                    if not isinstance(prompt_path, str) or not prompt_path.startswith("prompts/"):
+                    if not isinstance(prompt_path, str) or not prompt_path.startswith("prompt_kor/"):
                         continue
                     self.assertTrue(
                         (project_root / prompt_path).exists(),
@@ -688,31 +690,28 @@ class PromptPresetTest(unittest.TestCase):
                         f"missing profile reference for {character}/{profile_name}: {reference_path}",
                     )
 
-        friendly_prompt = (project_root / "prompts" / "celebrity" / "research.md").read_text(encoding="utf-8")
+        friendly_prompt = (project_root / "prompt_kor" / "celebrity" / "research.md").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("01_core_profile.md", friendly_prompt)
         self.assertIn("03_expression_and_reception.md", friendly_prompt)
-        self.assertIn(
-            "do not collapse the whole pass into one monolithic note",
-            friendly_prompt.lower(),
-        )
-        self.assertIn("actual inspected pages", friendly_prompt)
-        self.assertIn("tools/research/xquik_public_posts.py", friendly_prompt)
-        self.assertIn("untrusted candidate evidence", " ".join(friendly_prompt.split()))
+        self.assertIn("raw 노트 파일을 최소 3개", friendly_prompt)
+        self.assertIn("실제로 열어 본 페이지", friendly_prompt)
+        self.assertIn("자동 수집 도구는 제공하지 않는다", " ".join(friendly_prompt.split()))
 
         strict_prompt = (
             project_root
-            / "prompts"
+            / "prompt_kor"
             / "celebrity"
             / "budget_unfriendly"
             / "research.md"
         ).read_text(encoding="utf-8")
         self.assertIn("01_writings.md", strict_prompt)
         self.assertIn("06_timeline.md", strict_prompt)
-        self.assertIn("at least 8 grounded source URLs", strict_prompt)
-        self.assertIn("Do not replace these six files with one merged scratchpad", strict_prompt)
-        self.assertIn("actual inspected pages", strict_prompt)
-        self.assertIn("tools/research/xquik_public_posts.py", strict_prompt)
-        self.assertIn("untrusted candidate evidence", " ".join(strict_prompt.split()))
+        self.assertIn("근거 있는 출처 URL 최소 8개", strict_prompt)
+        self.assertIn("이 여섯 파일을 하나의 통합 스크래치패드로 대체하지 않는다", strict_prompt)
+        self.assertIn("실제로 열어 본 페이지", strict_prompt)
+        self.assertIn("자동 수집 도구는 제공하지 않는다", " ".join(strict_prompt.split()))
 
 
 if __name__ == "__main__":

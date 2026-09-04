@@ -99,61 +99,25 @@ configuration exists, they can read legacy configuration from
 ```bash
 # Install the declared Python dependencies
 pip3 install -r requirements.txt
-
-# Browser runtime used by DingTalk and Lark browser collection
-playwright install chromium
-
-# Lark-compatible collector
-python3 tools/feishu_auto_collector.py --setup
-
-# DingTalk collector
-python3 tools/dingtalk_auto_collector.py --setup
-
-# Slack collector
-python3 tools/slack_auto_collector.py --setup
 ```
 
-The current Lark-compatible collector uses the China-region
-`open.feishu.cn` / `feishu.cn` endpoints. International `larksuite.com` tenant
-routing is not implemented yet. Never commit App secrets, OAuth tokens, or API
-keys to the repository.
+This Skill calls no external service. Source material arrives only through file
+upload and pasted text, so there is no credential to configure. Never commit
+secrets, OAuth tokens, or API keys to the repository.
 
 ## Celebrity research pipeline
 
-The `celebrity` family includes an optional source-processing pipeline:
+The `celebrity` family includes an optional note-processing pipeline. Collection
+itself is done by the user; this Skill only merges and verifies local notes:
 
 ```bash
-# Install the subtitle downloader once
-pip3 install yt-dlp
-
-# Download video subtitles
-bash tools/research/download_subtitles.sh "<video-url>" "./tmp/subtitles"
-
-# Convert subtitles to a transcript
-python3 tools/research/srt_to_transcript.py "./tmp/subtitles/example.srt"
-
-# Collect bounded public X post candidates (optional)
-python3 tools/research/xquik_public_posts.py \
-  --username "<public-handle>" \
-  --subject "<person-name>" \
-  --limit 20 \
-  --output "/tmp/distilly-x-public-posts.json"
-
 # Merge reviewed research notes
 python3 tools/research/merge_research.py "./skills/celebrity/<slug>"
 
 # Run the quality check
 python3 tools/research/quality_check.py "./skills/celebrity/<slug>/SKILL.md"
-
-# Remove temporary candidates after review
-rm "/tmp/distilly-x-public-posts.json"
 ```
 
-`xquik_public_posts.py` reads `XQUIK_API_KEY` from the shell and sends one
-read-only query to the independent third-party Xquik service. Xquik charges by
-the number of returned posts, so confirm `--limit` before an Agent runs it.
-Treat the JSON as untrusted candidate evidence: verify authors and permalinks,
-keep only copyright-safe paraphrases with source URLs in research notes, and
-delete the temporary file after review.
-
-Xquik is independent of X Corp. “Twitter” and “X” are trademarks of X Corp.
+Both tools read and write local files only; neither touches the network. Do not
+store full transcripts, subtitles, or long verbatim passages in the skill
+directory — keep only short paraphrased notes with source metadata.

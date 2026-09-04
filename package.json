@@ -9,7 +9,7 @@
   "files": [
     "bin/",
     "SKILL.md",
-    "prompts/",
+    "prompt_kor/",
     "references/",
     "tools/",
     "requirements.txt",

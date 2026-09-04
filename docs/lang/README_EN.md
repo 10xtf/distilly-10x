@@ -100,7 +100,7 @@ The project is no longer limited to the colleague scenario. Its `distilly` creat
 <td align="center"><sub>Public figures · creators · public voices · fictional characters</sub></td>
 </tr>
 <tr>
-<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Lark / DingTalk / Slack collection.</sub></td>
+<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Slack collection.</sub></td>
 <td><sub>Organizes material-derived expression patterns, emotional triggers, conflict patterns, and repair patterns into a reusable Persona Skill.</sub></td>
 <td><sub>Ships with a <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check) for organizing observable decisions, expression, and mental models.</sub></td>
 </tr>
@@ -138,13 +138,7 @@ Each generated Person Profile is packaged as an Agent Skill and can be installed
 
 | Logo | Source | Messages | Docs / Wiki | Notes |
 |:----:|--------|:--------:|:-----------:|-------|
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark (auto) | ✅ API | ✅ | Just enter a name, fully automatic |
-| <img src="../assets/sources/dingtalk-mark.jpg" alt="DingTalk" width="32" height="32"> | DingTalk (auto) | ⚠️ Browser | ✅ | DingTalk API doesn't support message history |
-| <img src="../assets/sources/slack-mark.png" alt="Slack" width="32" height="32"> | Slack (auto) | ✅ API | — | Requires admin to install Bot; free plan limited to 90 days |
-| <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/sources/x-mark-dark.svg"><img src="../assets/sources/x-mark-light.svg" alt="X" width="32" height="32"></picture> | Public X posts | ✅ API | — | Optional, bounded celebrity research candidates through metered third-party service Xquik |
-| <img src="../assets/sources/wechat-mark.jpg" alt="WeChat" width="32" height="32"> | WeChat chat history | ✅ SQLite | — | Export first with WeChatMsg or PyWxDump |
 | 📄 | PDF / Images / Screenshots | — | ✅ | Manual upload |
-| <img src="../assets/sources/lark-mark.png" alt="Lark" width="32" height="32"> | Lark JSON export | ✅ | ✅ | Manual upload |
 | ✉️ | Email `.eml` / `.mbox` | ✅ | — | Manual upload |
 | 📝 | Markdown / direct paste | ✅ | ✅ | Manual input |
 
@@ -285,7 +279,6 @@ Distilly's current creator uses **Persona** as the universal base, with family-s
 | 💞 **relationship** | Complete chat history **›** letters / social posts / diaries **›** third-party descriptions |
 | 🌟 **celebrity** | First-person books / blogs / long interviews **›** decision records (launches, commits, Q&A) **›** verified first-person short-form posts **›** third-party commentary |
 
-- **colleague** Lark-compatible auto-collection: requires adding the App bot to relevant group chats
 - **relationship**: longer time spans are better; material covering both conflict and repair is ideal
 - **celebrity**: avoid feeding only second-hand interpretations
 - This is still a demo version — please file issues if you find bugs!

@@ -24,7 +24,6 @@ const payloadEntries = [
   "tools",
   "requirements.txt",
   "INSTALL.md",
-  "INSTALL_EN.md",
   "LICENSE",
   "CITATION.cff",
 ];

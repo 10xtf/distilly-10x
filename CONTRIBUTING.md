@@ -10,7 +10,6 @@ Thank you for considering a contribution! Distilly turns source material about a
 
 - **Report bugs** — open a [bug report](.github/ISSUE_TEMPLATE/bug_report.md)
 - **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
-- **Translate docs** — see `docs/lang/` for existing languages
 - **Improve prompts** — files under `prompt_kor/` shape skill behavior; small wording tweaks are welcome
 
 ---
@@ -94,7 +93,6 @@ Don't hit live APIs in CI. Mock with `unittest.mock` or the `responses` library.
 ## Docs
 
 - User-facing behavior changes → update `README.md`, `SKILL.md`, and `INSTALL.md`
-- If you add a language translation of the README, also update the language nav strip in every other `docs/lang/README_*.md`
 - Prefer English for code comments. Keep each user-facing localized document in one language.
 
 ---

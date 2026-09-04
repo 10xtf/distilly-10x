@@ -1,16 +1,12 @@
 <div align="center">
 
-<img src="docs/social-preview-distilly-v7.png" alt="Distilly — Distill how they think into Person Profiles for Agents" width="100%">
-
-<br>
-
 # 🧬 Distilly
 
-**Formerly: Colleague Skill / colleague-skill.**
+**이전 이름: Colleague Skill / colleague-skill.**
 
-### Distill a person's experience, judgment, voice, and ways of working into a reusable Person Profile for AI agents and compatible bots.
+![Distilly — Distill how they think into Person Profiles for Agents](docs/social-preview-distilly-v7.png)
 
-**Messages · documents · interviews · public sources → Distilly → Person Profile → Agent / Bot**
+### **Distill how they think.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)
@@ -21,30 +17,27 @@
 <table>
 <tr><td align="left">
 
-🧑‍💼 &nbsp;Your colleague quit, your mentor graduated, your teammate transferred — taking their whole playbook and context with them?<br>
-💞 &nbsp;Your family, old friends, partner drifting apart — and you want to hold on to the way it felt to be with them?<br>
-🌟 &nbsp;Your favorite author, idol, thinker you'll never meet — but you want to know what they'd say about your question?
+🧑‍💼 &nbsp;동료가 퇴사하고, 멘토가 졸업하고, 팀원이 이동하면서 그들의 플레이북과 맥락이 통째로 사라졌나요?<br>
+💞 &nbsp;가족, 오랜 친구, 연인과 점점 멀어지는데 함께였던 그 느낌만큼은 붙잡고 싶으신가요?<br>
+🌟 &nbsp;절대 만날 수 없는 좋아하는 작가, 우상, 사상가 — 그 사람이 당신의 질문에 어떻게 답할지 궁금하신가요?
 
 </td></tr>
 </table>
 
-### ✨ One project, many kinds of people.
+### ✨ Distilly는 사람을 재사용 가능한 Person Profile로 증류합니다.
 
 <br>
 
-Distilly is the person-modeling layer for agents. It turns the materials you provide into a portable, source-grounded Person Profile built from observable experience, decision patterns, expression, and ways of working; it does not claim to clone the person behind them.
+Distilly는 한 사람의 근거가 확인되는 경험, 판단, 말투, 업무 방식을 AI 에이전트와 호환 봇이 재사용할 수 있는 Person Profile로 증류합니다.
 
-Colleagues · partners · family · old friends · idols · public figures · fictional characters — even yourself
+동료 · 파트너 · 가족 · 오랜 친구 · 우상 · 공인 · 가상의 인물 — 심지어 자기 자신까지
 
-**Source material + your description → a source-grounded Person Profile → your Agent or compatible Bot**
-
-> A Person Profile is the reusable output. The current release packages each profile as an Agent Skill so supported hosts can install and invoke it. The canonical creator Skill is named `distilly`; install it in a `distilly` directory. The former name above remains for search continuity and project history.
+**소스 자료 + 당신의 설명 → 근거 기반 Person Profile → Agent / Bot**
 
 <br>
 
-[🆕 What Distilly does](#-what-distilly-does-today) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [📝 Citation](#-citation)
+[🆕 새로운 점](#-이번-메이저-릴리스의-새로운-점) · [📦 데이터 소스](#-지원-데이터-소스) · [⚡ 설치](#-설치) · [🚀 사용법](#-사용법) · [✨ 데모](#-데모)
 
-[**Chinese**](docs/lang/README_ZH.md) · [**Spanish**](docs/lang/README_ES.md) · [**German**](docs/lang/README_DE.md) · [**Japanese**](docs/lang/README_JA.md) · [**Russian**](docs/lang/README_RU.md) · [**Portuguese**](docs/lang/README_PT.md) · [**Korean**](docs/lang/README_KO.md)
 
 </div>
 
@@ -52,17 +45,17 @@ Colleagues · partners · family · old friends · idols · public figures · fi
 
 <div align="center">
 
-### 🎉 2026.08.13 Milestone — **the project has passed 20K ⭐!**
+### 🎉 2026.08.13 마일스톤 — **Distilly가 20K ⭐를 돌파했습니다!**
 
-Massive thanks to everyone who starred — we'll keep shipping, keep distilling.
+스타를 눌러주신 모든 분들께 큰 감사를 드립니다 — 앞으로도 계속 릴리즈하고, 계속 증류해 나가겠습니다.
 
 </div>
 
-> 🧬 **2026.08.24 Update** — The creator is now named **Distilly** end to end and documents native local Skill discovery for Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build, and OpenCode. Grok Bot is listed separately as a saved-Skill workflow preview.
+> 🧬 **2026.08.24 업데이트** — Creator 이름과 디렉터리, 엔트리포인트를 모두 **Distilly**로 통일했습니다. Claude Code, Hermes, OpenClaw, Codex, DeepSeek Harness, Pi, Grok Build, OpenCode의 로컬 Skill 발견 방식을 각 호스트의 현재 규칙에 맞춰 문서화했고, Grok Bot은 saved-Skill 프리뷰 흐름으로 별도 표시합니다.
 
-> 📝 **2026.06.01 Update** — **[The COLLEAGUE.SKILL technical report](https://arxiv.org/pdf/2605.31264) is now available**. The most rewarding part was not simply publishing a paper, but seeing the community grow the gallery to 215 skills contributed by 165 people, with more than 100,000 stars across the skill cards. The paper's Acknowledgements explicitly recognize every community contributor.
+> 📝 **2026.06.01 업데이트** — **[COLLEAGUE.SKILL 기술 보고서](https://arxiv.org/pdf/2605.31264)가 공개되었습니다**; 가장 기쁜 점은 단순히 paper를 냈다는 사실이 아니라, 커뮤니티가 함께 gallery를 165명의 기여자가 만든 215개 skills와 skill-card 누적 100k+ stars까지 키웠고, 논문 Acknowledgements에 모든 커뮤니티 기여자를 담았다는 점입니다.
 
-> 🗺️ **2026.04.13** — **The Distilly Roadmap is live!** What began as Colleague Skill is growing beyond colleagues: distill people into Skills that Agents can reuse. 👉 **[Full Roadmap](ROADMAP.md)**
+> 🗺️ **2026.04.13** — **Distilly 로드맵이 공개되었습니다!** colleague.skill로 시작한 프로젝트는 이제 **Distilly**라는 이름으로 동료뿐 아니라 누구든 증류합니다. 👉 **[전체 로드맵 보기](ROADMAP.md)**
 
 <div align="center">
 
@@ -72,13 +65,13 @@ Created by [@titanwings](https://github.com/titanwings)
 
 ---
 
-## 🆕 What Distilly does today
+## 🆕 이번 메이저 릴리스의 새로운 점
 
-### 1️⃣ From Colleague Skill to Distilly
+### 1️⃣ Colleague Skill에서 Distilly로
 
-The project is no longer limited to the colleague scenario. Its `distilly` creator builds source-grounded Person Profiles for three person families with one workflow, then packages each profile as an Agent Skill.
+Distilly는 더 이상 “동료” 시나리오에만 묶여 있지 않습니다. `distilly` Creator는 하나의 흐름으로 세 가지 인물 패밀리의 근거 기반 Person Profile을 만들고, 각 Profile을 Agent Skill로 패키징합니다. Creator Skill과 디렉터리의 정식 이름은 모두 `distilly`입니다.
 
-### 2️⃣ Three character families
+### 2️⃣ 세 가지 캐릭터 패밀리
 
 <table>
 <thead>
@@ -90,23 +83,23 @@ The project is no longer limited to the colleague scenario. Its `distilly` creat
 </thead>
 <tbody>
 <tr>
-<td align="center"><sub>Coworkers · mentors · teammates · up/downstream partners</sub></td>
-<td align="center"><sub>Exes · partners · parents · friends · close family</sub></td>
-<td align="center"><sub>Public figures · creators · public voices · fictional characters</sub></td>
+<td align="center"><sub>동료 · 멘토 · 팀원 · 업/다운스트림 파트너</sub></td>
+<td align="center"><sub>전 연인 · 파트너 · 부모 · 친구 · 가까운 가족</sub></td>
+<td align="center"><sub>공인 · 크리에이터 · 공적 발언가 · 가상의 인물</sub></td>
 </tr>
 <tr>
-<td><sub>Builds a Work Skill + Persona from material-derived technical standards, workflows, expression, and workplace behavior. Supports Slack collection.</sub></td>
-<td><sub>Organizes material-derived expression patterns, emotional triggers, conflict patterns, and repair patterns into a reusable Persona Skill.</sub></td>
-<td><sub>Ships with a <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check) for organizing observable decisions, expression, and mental models.</sub></td>
+<td><sub>Work Skill + Persona 2단 아키텍처 — 기술 표준과 워크플로뿐 아니라, 말투와 사내 태도까지 학습합니다. Slack 자동 수집을 지원합니다.</sub></td>
+<td><sub>🆕 <b>사진 공유 기능 곧 출시</b> — 증류된 관계가 메시지에 답장만 하는 게 아니라, 실제 사람처럼 사진을 보내고 하루의 한 조각을 공유합니다.</sub></td>
+<td><sub>완성도 높은 <b>6차원 리서치 툴체인</b> 탑재 (자막 → 트랜스크립트 정리 → 리서치 병합 → 품질 점검). 단순한 말투 모방을 넘어, 출처에서 확인되는 사고·의사결정 패턴을 재구성합니다.</sub></td>
 </tr>
 </tbody>
 </table>
 
-Each family has its own source-collection strategy, analysis dimensions, and Person Profile structure.
+각 패밀리는 고유한 소스 수집 전략, 분석 차원, Person Profile 구조를 갖추고 있습니다.
 
-### 3️⃣ More Agent hosts
+### 3️⃣ 더 많은 Agent 호스트
 
-The old version only ran in Claude Code. Distilly now supports native local Skill discovery across eight agent hosts.
+예전 버전은 Claude Code에서만 동작했지만, 이제 Distilly는 여덟 개의 로컬 Agent 호스트를 지원합니다.
 
 - [Claude Code](https://claude.ai/code)
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent)
@@ -117,168 +110,164 @@ The old version only ran in Claude Code. Distilly now supports native local Skil
 - [Grok Build](https://docs.x.ai/build/features/skills-plugins-marketplaces)
 - [OpenCode](https://opencode.ai/docs/skills)
 
-**Grok Bot preview:** Grok Bot supports saved/private Skills, but its official docs do not describe direct local `SKILL.md` imports. Distilly's workflow can be migrated manually into a saved Skill; direct repo installation is not yet verified.
+생성된 각 Person Profile은 Agent Skill로 패키징되며, 각 호스트의 Skill 디렉터리에 설치할 수 있습니다.
 
-Each generated Person Profile is packaged as an Agent Skill and can be installed into any supported host.
-
----
-
-## 📦 Supported Data Sources
-
-| Logo | Source | Messages | Docs / Wiki | Notes |
-|:----:|--------|:--------:|:-----------:|-------|
-| 📄 | PDF / Images / Screenshots | — | ✅ | Manual upload |
-| ✉️ | Email `.eml` / `.mbox` | ✅ | — | Manual upload |
-| 📝 | Markdown / direct paste | ✅ | ✅ | Manual input |
+**Grok Bot 프리뷰:** Distilly workflow를 private saved Skill로 수동 이전할 수 있습니다. 현재 저장소의 `SKILL.md`를 Grok Bot에 직접 설치하는 방식은 공식 문서에 없고 검증되지도 않았습니다.
 
 ---
 
-## ⚡ Install
+## 📦 지원 데이터 소스
 
-### 🤖 For Agents
+| 로고 | 소스 | 메시지 | 문서 / 위키 | 비고 |
+|:----:|------|:------:|:-----------:|------|
+| 📄 | PDF / 이미지 / 스크린샷 | — | ✅ | 수동 업로드 |
+| ✉️ | 이메일 `.eml` / `.mbox` | ✅ | — | 수동 업로드 |
+| 📝 | Markdown / 직접 붙여넣기 | ✅ | ✅ | 수동 입력 |
 
-Open any supported local Agent host and send:
+---
 
-> Install Distilly from `https://github.com/10xtf/distilly-10x`, then verify that this host can discover it.
+## ⚡ 설치
 
-The Agent installs Distilly as a Skill named `distilly` in the correct host directory.
+### 🤖 Agent용
 
-### 👤 For Humans
+지원되는 로컬 Agent 호스트를 열고 다음 문장을 보내세요.
 
-Clone Distilly into the Skills directory used by your host:
+> `https://github.com/10xtf/distilly-10x`에서 Distilly를 설치한 다음, 이 호스트에서 Distilly를 찾을 수 있는지 확인해 줘.
+
+Agent는 현재 호스트에 맞는 디렉터리에 Skill 이름 `distilly`로 설치합니다.
+
+### 👤 직접 설치하기
 
 ```bash
 git clone https://github.com/10xtf/distilly-10x <DISTILLY_SKILL_DIR>
 ```
 
-Host paths, migration, Windows, generated-profile installation, and credential setup are in the **[Install Guide](INSTALL_EN.md)**.
+호스트별 경로, 기존 설치 마이그레이션, Windows 지원, 생성된 Profile 설치, 수집 자격 증명에 관한 자세한 내용은 **[상세 설치 가이드](INSTALL.md)** 를 참고하세요.
 
 ---
 
-## 🚀 Usage
+## 🚀 사용법
 
-In your Agent, say:
+Agent에게 다음과 같이 요청하세요.
 
-> Use Distilly to create a Person Profile for `<person>`.
+> Distilly를 사용해서 `<person>`의 Person Profile을 만들어 줘.
 
-Then:
+1. `colleague`, `relationship`, `celebrity` 중에서 인물 유형을 선택합니다.
+2. 설명이나 자료를 제공합니다. 모든 입력 항목은 건너뛸 수 있습니다.
+3. 내용을 검토한 뒤 Profile을 생성합니다.
 
-1. Choose `colleague`, `relationship`, or `celebrity`.
-2. Add a description or source material. Every field is optional.
-3. Review the result and let Distilly generate the profile.
+생성된 Profile은 `{character}-{slug}`라는 이름의 Agent Skill로 패키징됩니다.
 
-The result is packaged as an Agent Skill named `{character}-{slug}`. For the optional celebrity research pipeline and advanced tools, see the **[Install Guide](INSTALL_EN.md)**.
+Celebrity 리서치와 고급 도구에 관한 자세한 내용은 **[상세 설치 가이드](INSTALL.md)** 를 참고하세요.
 
 ---
 
-## ✨ Demo
+## ✨ 데모
 
-One from each family.
-
-<br>
-
-### 🌟 celebrity — distilling Andrej Karpathy
-
-> Six-dimension research: works · interviews · decisions · expression DNA · external evaluations · timeline<br>
-> Case adapted from community work [alchaincyf/karpathy-skill](https://github.com/alchaincyf/karpathy-skill)
-
-```
-User            ❯ Everyone's talking about Agents now — what do you think the 2026 AI Agent looks like?
-
-celebrity.skill ❯ Everyone's doing demos, nobody's doing eval.
-                  The Agent bottleneck was never model intelligence — it's scaffolding:
-                  a strict evaluation harness, fine-grained error replay,
-                  controllable tool-calling budgets, clean failure-mode analysis.
-                  Most products are still stuck at "wrap an API + a few tools + a system prompt."
-                  That's a demo, not an agent.
-                  In 2026 I'm not betting on the strongest model — I'm betting on the best
-                  scaffolding and the strictest eval.
-```
+각 패밀리에서 하나씩.
 
 <br>
 
-### 🧑‍💼 colleague — distilling a ByteDance L2-1 backend
+### 🌟 celebrity — Andrej Karpathy 증류
 
-> Input: `ByteDance L2-1 backend engineer, INTJ, blame-shifter, ByteDance-style`
+> 6차원 리서치: 저작 · 인터뷰 · 의사결정 · 표현 DNA · 외부 평가 · 타임라인<br>
+> 커뮤니티 작업물 [alchaincyf/karpathy-skill](https://github.com/alchaincyf/karpathy-skill)을 바탕으로 구성
 
 ```
-User            ❯ Can you review this API design?
+사용자          ❯ 요즘 다들 Agent 얘기하는데 — 2026년 AI Agent는 어떤 모습일 것 같아요?
 
-colleague.skill ❯ Hold on — what's the impact? You haven't explained the context.
-                  (after reading) N+1 query, fix it. Use the standard
-                  {code, message, data} response format. That's the spec,
-                  don't ask why.
-
-User            ❯ This bug was introduced by you, right?
-
-colleague.skill ❯ Does the timeline match? That feature touched multiple places,
-                  there were other changes too.
+celebrity.skill ❯ 다들 데모만 하고, 아무도 eval을 안 한다.
+                  Agent의 병목은 모델 지능이었던 적이 없다 — 스캐폴딩이다:
+                  엄격한 평가 하네스, 세밀한 에러 리플레이,
+                  제어 가능한 툴 호출 예산, 깔끔한 실패 모드 분석.
+                  대부분의 제품은 여전히 "API 래핑 + 몇 가지 툴 + 시스템 프롬프트"에 머물러 있다.
+                  그건 데모지, 에이전트가 아니다.
+                  2026년에 나는 가장 강한 모델에 베팅하지 않는다 — 가장 좋은
+                  스캐폴딩과 가장 엄격한 eval에 베팅한다.
 ```
 
 <br>
 
-### 💞 relationship — distilling someone you have a crush on
+### 🧑‍💼 colleague — 시니어 백엔드 엔지니어 증류
 
-> Upload half a year of chat logs + "sensitive, quiet but stubborn, will actually reply seriously when it matters"
+> 입력: `시니어 백엔드 엔지니어, INTJ, 책임 회피 선수, 맥락 우선 직설형`
 
 ```
-User               ❯ Did you think about me today?
+사용자          ❯ 이 API 설계 좀 리뷰해줄래?
 
-relationship.skill ❯ ...I did, a little bit. Why are you asking?
+distilly ❯ 잠깐 — 영향 범위가 뭐야? 맥락 설명이 없잖아.
+                  (읽은 뒤) N+1 쿼리네, 고쳐. 응답은 표준
+                  {code, message, data} 형식으로 가. 그게 스펙이야,
+                  이유는 묻지 마.
+
+사용자          ❯ 이 버그, 네가 넣은 거 맞지?
+
+distilly ❯ 타임라인이 맞아? 그 기능은 여러 군데를 건드렸고,
+                  다른 변경도 있었잖아.
+```
+
+<br>
+
+### 💞 relationship — 짝사랑 상대 증류
+
+> 반년치 채팅 로그 + "예민하고, 조용하지만 고집 세고, 중요한 순간에는 진지하게 답해주는 스타일" 업로드
+
+```
+사용자             ❯ 오늘 내 생각 했어?
+
+relationship.skill ❯ ...조금 했어. 왜 물어봐?
 ```
 
 ---
 
-## 🔧 Features
+## 🔧 기능
 
-### 🧱 Generated Skill Structure
+### 🧱 생성되는 Skill 구조
 
-Distilly's current creator uses **Persona** as the universal base, with family-specific modules layered on top:
+Distilly는 **Persona**를 범용 베이스로 삼고, 그 위에 패밀리별 모듈을 쌓아 올립니다.
 
-| Family | Persona Content | Additional Modules |
-|--------|-----------------|-------------------|
-| 🧑‍💼 **colleague** | 6-layer personality: hard rules → identity → expression → decisions → interpersonal → Correction | ➕ **Work Skill**: scope, workflow, output preferences, experience knowledge base |
-| 💞 **relationship** | Expression DNA · emotional triggers · conflict pattern · repair pattern | — |
-| 🌟 **celebrity** | Mental models · decision heuristics · expression DNA · external-evaluation contrast | ➕ Six-dimension research dossier (works / interviews / decisions / timeline...) |
+| 패밀리 | Persona 내용 | 추가 모듈 |
+|--------|-------------|----------|
+| 🧑‍💼 **colleague** | 6단계 성격: 하드 룰 → 정체성 → 표현 → 의사결정 → 대인관계 → Correction | ➕ **Work Skill**: 담당 범위, 워크플로, 출력 선호, 경험 지식 베이스 |
+| 💞 **relationship** | 표현 DNA · 감정 트리거 · 갈등 패턴 · 회복 패턴 | — |
+| 🌟 **celebrity** | 멘탈 모델 · 의사결정 휴리스틱 · 표현 DNA · 외부 평가 대조 | ➕ 6차원 리서치 도시에 (저작/인터뷰/의사결정/타임라인 등) |
 
-> **Execution**: Receive task → Persona selects material-derived preferences and tone → Additional modules fill in execution detail → Produce a source-grounded response
+> **실행 흐름**: 작업 수신 → Persona가 태도와 어조 결정 → 추가 모듈이 실행 디테일 채움 → 그 사람의 목소리로 출력
 
-### 🧬 Evolution
+### 🧬 진화 방식
 
-- 📥 **Append files** → auto-analyze delta → merge into relevant sections, never overwrite existing conclusions
-- 💬 **Conversation correction** → say "they wouldn't do that, they'd be xxx" → writes to the Correction layer, takes effect immediately
-- 🕰️ **Version control** → auto-archive on every update, rollback to any previous version
-- 🔬 **Celebrity research pipeline** → subtitles → transcript cleanup → six-dimension research → quality check
+- 📥 **파일 추가** → 변경 내용을 자동 분석해 관련 섹션에 병합, 기존 결론은 덮어쓰지 않음
+- 💬 **대화 기반 수정** → "그 사람은 이렇게 안 해, xxx여야 해"라고 말하면 Correction 레이어에 기록되어 즉시 반영
+- 🕰️ **버전 관리** → 업데이트할 때마다 자동 아카이브, 이전 어느 버전으로든 롤백 가능
+- 🔬 **Celebrity 리서치 파이프라인** → 자막 → 트랜스크립트 정리 → 6차원 리서치 → 품질 점검
 
 ---
 
-## ⚠️ Notes
+## ⚠️ 참고 사항
 
-**Source material quality = Person Profile quality** — and quality sources differ across families:
+**소스 자료 품질 = Person Profile 품질** — 그리고 품질 높은 소스는 패밀리마다 다릅니다:
 
-| Family | Source priority (high → low) |
+| 패밀리 | 소스 우선순위 (높음 → 낮음) |
 |--------|------------------------------|
-| 🧑‍💼 **colleague** | Their **own long-form writing** (design docs / review comments) **›** **decision-making replies** **›** casual group chat |
-| 💞 **relationship** | Complete chat history **›** letters / social posts / diaries **›** third-party descriptions |
-| 🌟 **celebrity** | First-person books / blogs / long interviews **›** decision records (launches, commits, Q&A) **›** verified first-person short-form posts **›** third-party commentary |
+| 🧑‍💼 **colleague** | **본인이 직접 쓴 장문** (설계 문서 / 리뷰 코멘트) **›** **의사결정이 드러나는 답변** **›** 가벼운 그룹 채팅 |
+| 💞 **relationship** | 완전한 대화 기록 **›** 편지 / SNS 게시물 / 일기 **›** 제3자 설명 |
+| 🌟 **celebrity** | 장문 1차 자료 (본인 저서 / 블로그 / 장시간 인터뷰) **›** 의사결정 기록 (출시, 코드 커밋, Q&A) **›** 검증된 대상 본인의 짧은 게시물 **›** 제3자 논평 |
 
-- **relationship**: longer time spans are better; material covering both conflict and repair is ideal
-- **celebrity**: avoid feeding only second-hand interpretations
-- This is still a demo version — please file issues if you find bugs!
+- **relationship**: 기간이 길수록 좋고, 갈등과 회복이 모두 담긴 자료가 이상적입니다
+- **celebrity**: 2차 해석 자료만 먹이는 건 피하세요
+- 아직 데모 버전입니다 — 버그를 발견하면 이슈를 등록해 주세요!
 
 ---
 
-## 📄 Technical Report
+## 📄 기술 보고서
 
 > **[COLLEAGUE.SKILL: Automated AI Skill Generation via Expert Knowledge Distillation](https://arxiv.org/pdf/2605.31264)** ([arXiv](https://arxiv.org/abs/2605.31264) · [arXiv PDF](https://arxiv.org/pdf/2605.31264))
 >
-> This is the paper for **COLLEAGUE.SKILL / colleague-skill**, Distilly's predecessor. It covers the Work Skill + Persona two-layer architecture, multi-source data collection, and Skill generation mechanics — the theoretical foundation for today's `colleague` family. Separate papers on the relationship / celebrity family extensions are planned.
+> 이 논문은 Distilly의 전신인 **colleague.skill**을 다룹니다. Work Skill + Persona 2단 아키텍처, 멀티소스 데이터 수집, Skill 생성 메커니즘을 정리한 것으로, 오늘날 `colleague` 패밀리의 이론적 기반입니다. relationship / celebrity 패밀리 확장에 대한 별도 논문도 계획 중입니다.
 
----
+## 📝 인용
 
-## 📝 Citation
-
-If you use **Distilly** or **COLLEAGUE.SKILL** in your research or applications, please cite the technical report:
+연구나 서비스에 **Distilly** 또는 **COLLEAGUE.SKILL** 을 사용했다면 기술 보고서를 인용해 주세요:
 
 ```bibtex
 @misc{zhou2026colleagueskill,
@@ -292,12 +281,14 @@ If you use **Distilly** or **COLLEAGUE.SKILL** in your research or applications,
 }
 ```
 
-You can also use the machine-readable citation metadata in [CITATION.cff](CITATION.cff).
+기계 판독용 인용 메타데이터는 [CITATION.cff](CITATION.cff) 에 있습니다.
 
 ---
 
 <div align="center">
 
 **MIT License** © [titanwings](https://github.com/titanwings)
+
+<sub>Made with 🧬 for everyone who wants to distill a person into a reusable Person Profile.</sub>
 
 </div>

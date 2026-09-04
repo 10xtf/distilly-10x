@@ -125,11 +125,10 @@ class SkillEntrypointDocsTest(unittest.TestCase):
     def test_readme_quick_start_and_install_detail_contract(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         install = (ROOT / "INSTALL.md").read_text(encoding="utf-8")
-        install_en = (ROOT / "INSTALL_EN.md").read_text(encoding="utf-8")
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
 
         self._assert_readme_support_contract(readme, "README.md")
-        self._assert_readme_quick_start(readme, "README.md", "(INSTALL_EN.md)")
+        self._assert_readme_quick_start(readme, "README.md", "(INSTALL.md)")
         self.assertNotIn("/dot-skill", readme)
         self.assertNotIn("skills/dot-skill", readme)
         self.assertIn("https://github.com/10xtf/distilly-10x", readme)
@@ -157,26 +156,16 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIn("tools/research/quality_check.py", install)
         self.assertIn("tools/research/merge_research.py", install)
         self.assertIn("pip3 install -r requirements.txt", install)
-        self.assertIn("~/.claude/skills/distilly", install_en)
-        self.assertIn("~/.openclaw/workspace/skills/distilly", install_en)
-        self.assertIn("~/.hermes/skills/openclaw-imports/distilly", install_en)
-        self.assertIn("~/.agents/skills/distilly", install_en)
-        self.assertIn("~/.dsh/skills/distilly", install_en)
-        self.assertIn("~/.pi/agent/skills/distilly", install_en)
-        self.assertIn("~/.grok/skills/distilly", install_en)
-        self.assertIn("~/.config/opencode/skills/distilly", install_en)
-        self.assertIn("tools/install_generated_skill.py", install_en)
-        self.assertIn("tools/research/merge_research.py", install_en)
-        self.assertIn("tools/research/quality_check.py", install_en)
-        self.assertIn("pip3 install -r requirements.txt", install_en)
         self.assertIn("/{character}-{slug}", install)
         self.assertIn("./skills/colleague", skill)
         self.assertIn("DeepSeek Harness", skill)
         self.assertIn("OpenCode", skill)
-        self.assertIn("eight agent hosts", readme.lower())
+        self.assertIn("여덟 개의 로컬 Agent 호스트", readme)
         self.assertIn("호환 호스트", install)
 
         self.assertFalse((ROOT / "docs" / "assets" / "hosts").exists())
+        self.assertFalse((ROOT / "docs" / "lang").exists())
+        self.assertFalse((ROOT / "INSTALL_EN.md").exists())
 
     def test_repo_examples_live_under_skills_colleague(self) -> None:
         self.assertTrue((ROOT / "skills" / "colleague" / "example_hong").exists())
@@ -184,46 +173,8 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertTrue((ROOT / "skills" / "colleague" / "example_seong").exists())
         self.assertFalse((ROOT / "colleagues").exists())
 
-    def test_multilingual_readmes_list_hosts_without_invocation_tutorials(self) -> None:
-        for readme_path in (ROOT / "docs" / "lang").glob("README_*.md"):
-            content = readme_path.read_text(encoding="utf-8")
-            self.assertNotIn("/dot-skill", content, f"stale /dot-skill in {readme_path.name}")
-            self._assert_readme_support_contract(content, readme_path.name)
-            self._assert_readme_quick_start(
-                content,
-                readme_path.name,
-                "(../../INSTALL.md)"
-                if readme_path.name == "README_ZH.md"
-                else "(../../INSTALL_EN.md)",
-            )
-            self.assertIn(
-                "https://github.com/10xtf/distilly-10x",
-                content,
-                f"missing published repository URL in {readme_path.name}",
-            )
-            self.assertNotIn(
-                "https://github.com/titanwings/colleague-skill",
-                content,
-                f"stale repository URL in {readme_path.name}",
-            )
-            self.assertNotIn(
-                "colleague_skill.pdf",
-                content,
-                f"broken local paper link in {readme_path.name}",
-            )
-
     def test_docs_do_not_reference_removed_messenger_collectors(self) -> None:
-        readmes = [ROOT / "README.md"]
-        readmes.extend(
-            ROOT / "docs" / "lang" / f"README_{language}.md"
-            for language in ("DE", "EN", "ES", "JA", "KO", "PT", "RU", "ZH")
-        )
-        readmes.extend(
-            ROOT / "docs" / "lang" / f"ROADMAP_{language}.md"
-            for language in ("DE", "ES", "JA", "KO", "PT", "RU", "ZH")
-        )
-        readmes.extend([ROOT / "ROADMAP.md", ROOT / "INSTALL.md", ROOT / "INSTALL_EN.md"])
-        for path in readmes:
+        for path in (ROOT / "README.md", ROOT / "ROADMAP.md", ROOT / "INSTALL.md"):
             content = path.read_text(encoding="utf-8")
             for removed in ("Lark", "Feishu", "feishu", "DingTalk", "dingtalk", "飞书", "钉钉"):
                 self.assertNotIn(
@@ -236,20 +187,14 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         single_language_paths = [
             ROOT / "README.md",
             ROOT / "ROADMAP.md",
+            ROOT / "INSTALL.md",
             ROOT / "CONTRIBUTING.md",
             ROOT / "CITATION.cff",
-            ROOT / "INSTALL_EN.md",
-            ROOT / "docs" / "lang" / "README_EN.md",
             ROOT / "prompt_kor" / "celebrity" / "research.md",
             ROOT / "prompt_kor" / "celebrity" / "budget_unfriendly" / "research.md",
             ROOT / "references" / "celebrity_budget_unfriendly_framework.md",
             ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md",
         ]
-        single_language_paths.extend(
-            ROOT / "docs" / "lang" / f"{stem}_{language}.md"
-            for stem in ("README", "ROADMAP")
-            for language in ("DE", "ES", "KO", "PT", "RU")
-        )
         single_language_paths.extend(
             ROOT / ".github" / "ISSUE_TEMPLATE" / name
             for name in (
@@ -275,11 +220,6 @@ class SkillEntrypointDocsTest(unittest.TestCase):
         self.assertIsNone(HAN_CHARACTER.search(english_skill))
         self.assertIn("이 Skill은 한국어와 영어를 지원한다", korean_skill)
         self.assertIsNone(HAN_CHARACTER.search(korean_skill))
-
-        for name in ("README_JA.md", "ROADMAP_JA.md"):
-            content = (ROOT / "docs" / "lang" / name).read_text(encoding="utf-8")
-            for stale_phrase in ("原同事", "留痕", "企業微信"):
-                self.assertNotIn(stale_phrase, content, f"Chinese phrase in {name}")
 
     def test_code_uses_new_names_with_explicit_legacy_fallbacks(self) -> None:
         writer = (ROOT / "tools" / "skill_writer.py").read_text(encoding="utf-8")

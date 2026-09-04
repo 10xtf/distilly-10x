@@ -180,13 +180,13 @@ Proposed preset fields:
   "gallery_category": "Colleague",
   "command_aliases": ["/create-colleague", "/create-skill"],
   "prompt_bundle": {
-    "intake": "prompts/intake.md",
-    "work_analyzer": "prompts/work_analyzer.md",
-    "persona_analyzer": "prompts/persona_analyzer.md",
-    "work_builder": "prompts/work_builder.md",
-    "persona_builder": "prompts/persona_builder.md",
-    "merger": "prompts/merger.md",
-    "correction_handler": "prompts/correction_handler.md"
+    "intake": "prompt_kor/intake.md",
+    "work_analyzer": "prompt_kor/work_analyzer.md",
+    "persona_analyzer": "prompt_kor/persona_analyzer.md",
+    "work_builder": "prompt_kor/work_builder.md",
+    "persona_builder": "prompt_kor/persona_builder.md",
+    "merger": "prompt_kor/merger.md",
+    "correction_handler": "prompt_kor/correction_handler.md"
   },
   "writer": {
     "skill_name_prefix": "colleague",

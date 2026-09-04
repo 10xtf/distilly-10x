@@ -12,7 +12,7 @@ Thank you for considering a contribution! Distilly turns source material about a
 - **Suggest features** — open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md)
 - **Translate docs** — see `docs/lang/` for existing languages
 - **Submit a community skill** — submit to the [gallery](https://titanwings.github.io/colleague-skill-site/)
-- **Improve prompts** — files under `prompts/` shape skill behavior; small wording tweaks are welcome
+- **Improve prompts** — files under `prompt_kor/` shape skill behavior; small wording tweaks are welcome
 
 ---
 
@@ -67,7 +67,7 @@ Keep the subject under 72 characters. Use the body for the *why*, not the *what*
 - Match surrounding code — we don't enforce a formatter yet, but consistency matters
 - Python: prefer standard library where possible; add to `requirements.txt` only if necessary
 - Tools under `tools/` should be runnable as standalone CLIs (`if __name__ == "__main__":`)
-- Prompts under `prompts/` are plain Markdown — keep them concise and task-specific
+- Prompts under `prompt_kor/` are plain Markdown — keep them concise and task-specific
 
 ---
 

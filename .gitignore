@@ -31,6 +31,14 @@ playwright-data/
 /tmp/dingtalk_*.txt
 knowledge/
 
+# Presentation source material (personal data - never commit)
+ppt/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
 # OS
 .DS_Store
 Thumbs.db

@@ -12,6 +12,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from romanize import romanize_hangul
 from skill_presets import (
     get_character_preset,
     get_research_profile_preset,
@@ -117,9 +118,14 @@ def build_identity_string(meta: dict) -> str:
 
 
 def normalize_command_slug(value: str) -> str:
-    """Convert current or legacy text into a deterministic portable command slug."""
+    """
+    Convert current or legacy text into a deterministic portable command slug.
+
+    Hangul is romanized first (see tools/romanize.py) so Korean names keep a
+    readable identifier instead of collapsing to the hash fallback below.
+    """
     ascii_value = (
-        unicodedata.normalize("NFKD", value)
+        unicodedata.normalize("NFKD", romanize_hangul(value))
         .encode("ascii", "ignore")
         .decode("ascii")
         .lower()

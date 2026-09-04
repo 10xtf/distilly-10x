@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from romanize import romanize_hangul
 from skill_presets import (
     get_character_preset,
     normalize_character,
@@ -129,16 +130,10 @@ def slugify(name: str) -> str:
     """
     Convert a human-readable name into a stable slug.
 
-    It uses pypinyin when available, then falls back to ASCII filtering.
+    Hangul is romanized, other scripts are ASCII-filtered, and a name that
+    leaves nothing usable falls back to a hash of the original text.
     """
-    try:
-        from pypinyin import lazy_pinyin
-
-        candidate = "-".join(lazy_pinyin(name))
-    except ImportError:
-        candidate = name
-
-    return normalize_command_slug(candidate)
+    return normalize_command_slug(name)
 
 
 def language_code(meta: dict) -> str:
@@ -646,7 +641,10 @@ def main() -> None:
     if args.action == "create":
         base_dir = resolve_base_dir(args.base_dir, requested_character)
         try:
-            slug = validate_slug(args.slug) if args.slug else slugify(
+            # 명시된 --slug 은 한글만 로마자로 바꾸고 나머지는 그대로 검증에 넘긴다.
+            # slugify 를 통과시키면 ../ 같은 경로 탈출 문자가 정규화 과정에서
+            # 지워져 validate_slug 를 우회한다.
+            slug = validate_slug(romanize_hangul(args.slug)) if args.slug else slugify(
                 meta.get("display_name", meta.get("name", "person"))
             )
         except ValueError as error:
